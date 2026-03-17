@@ -29,11 +29,8 @@ The official domains of SafeClaw are:
 ## Planned Test Release
 A test release is planned for late March 2026.
 
-## 商标
-SafeClaw™ 为田端的商标。
-
 ## Trademark
-SafeClaw™ is a trademark of Tian Duan (田端).
+SafeClaw™ is a trademark of Tian.
 
 ## 许可证
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
