@@ -1,4 +1,4 @@
-# SafeClaw
+﻿# SafeClaw
 
 ## 许可与商用说明
 
@@ -91,3 +91,11 @@ The website is being prepared and will host documentation, demos, and downloads.
 ---
 
 SafeClaw™ is a trademark of Tian Duan (田端).
+
+### License
+本项目基于 GNU General Public License v3.0 (GPLv3) 开源，你可依据GPLv3协议自由使用、修改、分发本项目代码（包含商业场景），但需遵守GPLv3协议的开源义务。
+如需豁免GPLv3的开源义务（如闭源集成、私有化闭源交付），或需要额外的商用技术支持，请邮件联系：safeclaw.ai@gmail.com。
+
+[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+
