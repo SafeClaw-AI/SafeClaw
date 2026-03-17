@@ -1,42 +1,59 @@
-﻿![SafeClaw](assets/safeclaw-panda.png)
 # SafeClaw
 
-开源、本地、安全、可控的自动化执行工具
+> 有龙虾灵魂的本地自动化执行工具：先讲风险，再讲操作，最后由你决定是否执行。
 
-Open-source, local, safe, and controllable automation execution tool.
+---
 
-## 许可与商用说明
-本项目基于 GNU General Public License v3.0 (GPLv3) 开源，你可依据 GPLv3 协议自由使用、修改、分发本项目代码（包含商业场景），但需遵守 GPLv3 协议的开源义务。
-如需豁免 GPLv3 的开源义务（如闭源集成、私有化闭源交付），或需要额外的商用技术支持，请邮件联系：safeclaw.ai@gmail.com。
+## 它是什么？
 
-## Licensing and Commercial Use
-This project is released under the GNU General Public License v3.0 (GPLv3). You may use, modify, and distribute the code, including for commercial purposes, as long as you comply with the obligations of GPLv3.
-If you need an exemption from the GPLv3 copyleft obligations, such as closed-source integration or private closed-source delivery, or if you need additional commercial technical support, please contact: safeclaw.ai@gmail.com.
+SafeClaw 帮你把本地自动化任务跑起来，但不会擅自替你做决定。
 
-## 官方域名
-SafeClaw 官方域名如下：
+它默认谨慎、默认可查、默认可停，不是黑箱式乱执行。
 
-- https://getsafeclaw.ai — 建设中
+它开箱即用，离线可跑，所有关键权限都握在你手里。
 
-## Official Domains
-The official domains of SafeClaw are:
+---
 
-- https://getsafeclaw.ai — under construction
+## 它能做什么？
 
-## 测试发布计划
-预计将在 2026 年 3 月底进行测试发布。
+- **流程录制**：把你在桌面上的一段操作录下来，方便重复执行
+- **键鼠回放**：把录好的流程重新跑一遍，支持 `dry-run` 预览，再真实执行
+- **本地任务执行**：直接在页面里跑本机的 PowerShell / CMD / Bash 命令
 
-## Planned Test Release
-A test release is planned for late March 2026.
+---
 
-## Trademark
-SafeClaw™ is a trademark of Tian.
+## 它的原则
 
-## 许可证
-[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
-本项目遵循 GNU General Public License v3.0 (GPLv3) 开源协议，详细条款见根目录 `LICENSE` 文件。
+1. **Risk First**：每次执行前先讲风险，再讲收益和步骤
+2. **Consent First**：关键动作必须你明确确认
+3. **Local First**：默认本地、默认离线、默认不出站
+4. **Visible First**：全程可见、可查、可停、可回放
 
-## License
-[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
-This project is licensed under the GNU General Public License v3.0 (GPLv3). See the root `LICENSE` file for the full terms.
+---
 
+## 快速开始
+
+双击 `start.bat`（Windows）或 `start.sh`（Linux/macOS），一键启动，无需注册登录，支持完全离线运行。
+
+---
+
+## 当前状态
+
+这是 SafeClaw V1，我们先把“本地自动化执行 + 风险预览 + 用户确认 + 全流程透明”做成一个真正可信的小而美产品。
+
+更多高级能力，会在 V1 发布后，基于真实用户反馈再迭代。
+
+---
+
+## 关于龙虾的灵魂
+
+SafeClaw 的交互逻辑，永远遵循：
+- 真诚、克制、像站在你这边的朋友
+- 不抢决定权、不故作聪明、不装万能
+- 风险先说清，权限先收紧，动作可撤回，过程可追溯
+
+---
+
+## 许可
+
+GPLv3
