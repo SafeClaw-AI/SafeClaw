@@ -1,4 +1,4 @@
-﻿![SafeClaw](https://avatars.githubusercontent.com/u/268373724?v=4)
+﻿![SafeClaw](assets/safeclaw-panda.png)
 # SafeClaw
 
 开源、本地、安全、可控的自动化执行工具
@@ -42,3 +42,4 @@ SafeClaw™ is a trademark of Tian Duan (田端).
 ## License
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
 This project is licensed under the GNU General Public License v3.0 (GPLv3). See the root `LICENSE` file for the full terms.
+
