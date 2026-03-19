@@ -42,3 +42,6 @@ jobs:
 
       - name: Run tooling smoke check
         run: python tools/checks/check_tooling_smoke.py
+
+      - name: Run generated sync check
+        run: python tools/checks/check_generated_sync.py
