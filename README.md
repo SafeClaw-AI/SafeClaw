@@ -205,7 +205,51 @@ SafeClaw 采用 [GPL-3.0](LICENSE) 开源许可。
 
 📮 **safeclaw.ai@gmail.com**
 
-无论是合作、授权、建议，还是单纯想聊聊，都欢迎。
+无论是合作、授权、建议，还是单纯想聊聊，都欢迎。  
+如果不是私密内容，我们更推荐优先在 GitHub Discussions / Issues 里交流：  
+**https://github.com/SafeClaw-AI/SafeClaw**
+
+邮件和留言我们都会认真阅读，  
+但因为项目仍在早期，未必能做到一一及时回复，还请见谅。
+
+---
+
+## English Summary
+
+SafeClaw is an automation system designed for ordinary users, not just developers.
+
+It is built around a simple idea:
+**automation should feel understandable, controllable, and recoverable.**
+
+Instead of pushing users to trust a black box, SafeClaw tries to:
+
+- explain what it is going to do before it acts
+- ask for confirmation when risk is involved
+- keep a clear effect ledger of external actions
+- stop, recover, or roll back whenever possible
+- keep core control on the user's own machine
+
+OpenClaw is closer to a developer toolbox.  
+SafeClaw is closer to a calm, safety-first companion for everyday users.
+
+At this stage, the repository mainly opens the protocol layer:
+
+- `specs/` — the public source of truth for contracts
+- `tests/contracts/` — contract-test skeletons derived from specs
+- `tools/checks/` — consistency, version, structure, and self-check gates
+- `VERSION` — the current public protocol version
+
+Current status:
+
+- Version: `0.1.1`
+- Phase: `Phase 0` — protocol freeze
+- Focus: locking down contracts before broader implementation
+
+For public suggestions or discussion, GitHub Discussions / Issues are preferred:  
+**https://github.com/SafeClaw-AI/SafeClaw**
+
+Email: **safeclaw.ai@gmail.com**  
+We read every message, but may not be able to reply to each one individually.
 
 ---
 
