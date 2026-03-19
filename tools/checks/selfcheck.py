@@ -23,6 +23,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         "Structure completeness",
         [PYTHON, "-u", "tools/checks/check_structure.py"],
     ),
+    (
+        "Naming lint",
+        [PYTHON, "-u", "tools/lint/check_naming.py"],
+    ),
 ]
 
 

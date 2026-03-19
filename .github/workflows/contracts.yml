@@ -30,3 +30,6 @@ jobs:
 
       - name: Run structure completeness check
         run: python tools/checks/check_structure.py
+
+      - name: Run naming lint
+        run: python tools/lint/check_naming.py
