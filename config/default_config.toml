@@ -1,0 +1,12 @@
+# SafeClaw default runtime config (placeholder)
+# 当前阶段：Phase 0
+# 协议版本锚点：0.1.1
+
+[app]
+protocol_version = "0.1.1"
+mode = "phase_0_placeholder"
+
+[paths]
+trusted_plugins_dir = "config/trusted_plugins"
+specs_root = "specs"
+generated_root = "generated"

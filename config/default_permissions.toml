@@ -1,0 +1,8 @@
+# SafeClaw default permissions config (placeholder)
+# 当前阶段：Phase 0
+# 具体权限语义以 specs/schemas/action_tiers.json 为准。
+# 本文件当前只预留运行时配置落点，不冻结新的权限协议字段。
+
+[policy]
+source_of_truth = "specs/schemas/action_tiers.json"
+mode = "placeholder"
