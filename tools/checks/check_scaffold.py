@@ -31,6 +31,8 @@ REQUIRED_FILES = [
     "tests/fixtures/README.md",
     "tools/schema_diff/README.md",
     "tools/codegen/README.md",
+    "tools/checks/README.md",
+    "tools/lint/README.md",
 ]
 
 
