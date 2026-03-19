@@ -31,6 +31,14 @@ CHECKS: list[tuple[str, list[str]]] = [
         "Public docs alignment",
         [PYTHON, "-u", "tools/checks/check_public_docs.py"],
     ),
+    (
+        "Scaffold layout",
+        [PYTHON, "-u", "tools/checks/check_scaffold.py"],
+    ),
+    (
+        "Tooling smoke",
+        [PYTHON, "-u", "tools/checks/check_tooling_smoke.py"],
+    ),
 ]
 
 

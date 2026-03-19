@@ -36,3 +36,9 @@ jobs:
 
       - name: Run public docs alignment check
         run: python tools/checks/check_public_docs.py
+
+      - name: Run scaffold layout check
+        run: python tools/checks/check_scaffold.py
+
+      - name: Run tooling smoke check
+        run: python tools/checks/check_tooling_smoke.py
