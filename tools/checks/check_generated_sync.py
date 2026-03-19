@@ -29,6 +29,7 @@ def collect_errors() -> list[str]:
     errors: list[str] = []
 
     expected_stable_ids = build_stable_ids(index)
+    expected_outputs: list[dict[str, str]] = []
 
     for target in SUPPORTED_TARGETS:
         target_dir = GENERATED_ROOT / target
@@ -43,6 +44,14 @@ def collect_errors() -> list[str]:
             continue
 
         expected_manifest = build_manifest(target, repo_version, index)
+        expected_outputs.append(
+            {
+                "target": target,
+                "target_dir": str(target_dir),
+                "manifest": str(manifest_path),
+                "stable_ids": str(stable_ids_path),
+            }
+        )
         actual_manifest = load_json(manifest_path)
         actual_stable_ids = load_json(stable_ids_path)
 
@@ -50,6 +59,18 @@ def collect_errors() -> list[str]:
             errors.append(f"manifest 与当前 specs 不一致: {manifest_path.relative_to(REPO_ROOT).as_posix()}")
         if actual_stable_ids != expected_stable_ids:
             errors.append(f"stable_ids 与当前 specs 不一致: {stable_ids_path.relative_to(REPO_ROOT).as_posix()}")
+
+    root_index_path = GENERATED_ROOT / "index.json"
+    if not root_index_path.exists():
+        errors.append(f"缺少生成产物: {root_index_path.relative_to(REPO_ROOT).as_posix()}")
+    else:
+        actual_root_index = load_json(root_index_path)
+        expected_root_index = {
+            "protocol_version": repo_version,
+            "targets": expected_outputs,
+        }
+        if actual_root_index != expected_root_index:
+            errors.append(f"generated 根索引与当前 specs 不一致: {root_index_path.relative_to(REPO_ROOT).as_posix()}")
 
     return errors
 

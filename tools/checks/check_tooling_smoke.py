@@ -25,6 +25,11 @@ CHECKS: list[tuple[str, list[str], str]] = [
         "SafeClaw codegen stub ready.",
     ),
     (
+        "codegen-regenerate-all",
+        [PYTHON, "tools/codegen/regenerate_all.py"],
+        "SafeClaw codegen sync ready.",
+    ),
+    (
         "schema-diff-dir",
         [PYTHON, "tools/schema_diff/main.py", "specs", "specs"],
         "SafeClaw schema diff ready.",
@@ -53,6 +58,10 @@ def collect_errors() -> list[str]:
             continue
         if expected not in output:
             errors.append(f"{name} 输出缺少关键文本: {expected}")
+
+    root_index = REPO_ROOT / "generated" / "index.json"
+    if not root_index.exists():
+        errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
 
     for target in ("rust", "python", "ts"):
         manifest_path = REPO_ROOT / "generated" / target / "manifest.json"

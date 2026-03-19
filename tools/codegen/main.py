@@ -69,6 +69,28 @@ def build_stable_ids(index: Any) -> dict[str, Any]:
     }
 
 
+def ensure_target_outputs(target: str, out_root: Path, repo_version: str, index: Any) -> dict[str, str]:
+    target_dir = out_root / target
+    target_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = target_dir / "manifest.json"
+    stable_ids_path = target_dir / "stable_ids.json"
+    write_json_if_changed(manifest_path, build_manifest(target, repo_version, index))
+    write_json_if_changed(stable_ids_path, build_stable_ids(index))
+    return {
+        "target": target,
+        "target_dir": str(target_dir),
+        "manifest": str(manifest_path),
+        "stable_ids": str(stable_ids_path),
+    }
+
+
+def build_generated_index(repo_version: str, outputs: list[dict[str, str]]) -> dict[str, Any]:
+    return {
+        "protocol_version": repo_version,
+        "targets": outputs,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="SafeClaw codegen 入口（Phase 0 空壳）",
@@ -92,20 +114,17 @@ def main() -> int:
     index = build_spec_index()
     repo_version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
     out_root = (REPO_ROOT / args.out_dir).resolve()
-    target_dir = out_root / args.target
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    manifest_path = target_dir / "manifest.json"
-    stable_ids_path = target_dir / "stable_ids.json"
-    write_json_if_changed(manifest_path, build_manifest(args.target, repo_version, index))
-    write_json_if_changed(stable_ids_path, build_stable_ids(index))
+    output = ensure_target_outputs(args.target, out_root, repo_version, index)
+    root_index_path = out_root / "index.json"
+    write_json_if_changed(root_index_path, build_generated_index(repo_version, [output]))
 
     print("SafeClaw codegen stub ready.")
     print(f"- target: {args.target}")
     print(f"- out_dir: {out_root}")
-    print(f"- target_dir: {target_dir}")
-    print(f"- manifest: {manifest_path}")
-    print(f"- stable_ids: {stable_ids_path}")
+    print(f"- target_dir: {output['target_dir']}")
+    print(f"- manifest: {output['manifest']}")
+    print(f"- stable_ids: {output['stable_ids']}")
+    print(f"- root_index: {root_index_path}")
     print(f"- specs_loaded: {len(index.documents)}")
     print("- status: Phase 0 协议层已接入，已生成最小稳定索引，代码生成将在 M1 继续扩展。")
     return 0

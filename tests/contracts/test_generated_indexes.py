@@ -10,7 +10,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.spec_index import build_spec_index  # noqa: E402
-from tools.codegen.main import SUPPORTED_TARGETS, build_manifest, build_stable_ids  # noqa: E402
+from tools.codegen.main import SUPPORTED_TARGETS, build_generated_index, build_manifest, build_stable_ids  # noqa: E402
 
 
 class GeneratedIndexesTest(unittest.TestCase):
@@ -65,6 +65,20 @@ class GeneratedIndexesTest(unittest.TestCase):
                 self.assertIn("reversibility", stable_ids)
                 self.assertIn("error_codes", stable_ids)
                 self.assertIn("spi_names", stable_ids)
+
+    def test_generated_root_index_matches_targets(self) -> None:
+        outputs = [
+            {
+                "target": target,
+                "target_dir": str((self.generated_root / target).resolve()),
+                "manifest": str((self.generated_root / target / "manifest.json").resolve()),
+                "stable_ids": str((self.generated_root / target / "stable_ids.json").resolve()),
+            }
+            for target in SUPPORTED_TARGETS
+        ]
+        actual = self.load_json(self.generated_root / "index.json")
+        expected = build_generated_index(self.repo_version, outputs)
+        self.assertEqual(actual, expected)
 
 
 if __name__ == "__main__":

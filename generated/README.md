@@ -13,5 +13,5 @@
 ## 规则
 
 - 本目录内容应尽量由工具生成，而不是手写维护
-- 当前已生成最小稳定索引：`manifest.json` 与 `stable_ids.json`
+- 当前已生成最小稳定索引：`generated/index.json`、各目标下的 `manifest.json` 与 `stable_ids.json`
 - 更完整的类型与运行时代码生成将在 M1 随 `tools/codegen/` 继续演进

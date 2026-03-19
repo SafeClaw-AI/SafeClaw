@@ -1,0 +1,23 @@
+{
+  "protocol_version": "0.1.1",
+  "targets": [
+    {
+      "manifest": "V:\\260317SafeClaw\\generated\\rust\\manifest.json",
+      "stable_ids": "V:\\260317SafeClaw\\generated\\rust\\stable_ids.json",
+      "target": "rust",
+      "target_dir": "V:\\260317SafeClaw\\generated\\rust"
+    },
+    {
+      "manifest": "V:\\260317SafeClaw\\generated\\python\\manifest.json",
+      "stable_ids": "V:\\260317SafeClaw\\generated\\python\\stable_ids.json",
+      "target": "python",
+      "target_dir": "V:\\260317SafeClaw\\generated\\python"
+    },
+    {
+      "manifest": "V:\\260317SafeClaw\\generated\\ts\\manifest.json",
+      "stable_ids": "V:\\260317SafeClaw\\generated\\ts\\stable_ids.json",
+      "target": "ts",
+      "target_dir": "V:\\260317SafeClaw\\generated\\ts"
+    }
+  ]
+}
