@@ -27,6 +27,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         "Naming lint",
         [PYTHON, "-u", "tools/lint/check_naming.py"],
     ),
+    (
+        "Public docs alignment",
+        [PYTHON, "-u", "tools/checks/check_public_docs.py"],
+    ),
 ]
 
 
