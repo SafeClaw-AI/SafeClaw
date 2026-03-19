@@ -1,0 +1,43 @@
+{
+  "protocol_version": "0.1.1",
+  "spec_count": 6,
+  "specs": [
+    {
+      "id": "safeclaw://specs/config/preflight.json",
+      "relpath": "specs/config/preflight.json",
+      "title": "Preflight Analyzer 配置",
+      "version": "0.1.1"
+    },
+    {
+      "id": "safeclaw://specs/error-codes/sys_errors.json",
+      "relpath": "specs/error-codes/sys_errors.json",
+      "title": "系统错误码",
+      "version": "0.1.1"
+    },
+    {
+      "id": "safeclaw://specs/schemas/action_tiers.json",
+      "relpath": "specs/schemas/action_tiers.json",
+      "title": "动作分级 × 可逆性(正交)",
+      "version": "0.1.1"
+    },
+    {
+      "id": "safeclaw://specs/schemas/effect_ledger.json",
+      "relpath": "specs/schemas/effect_ledger.json",
+      "title": "Effect Ledger 副作用账本",
+      "version": "0.1.1"
+    },
+    {
+      "id": "safeclaw://specs/spi/base_fields.json",
+      "relpath": "specs/spi/base_fields.json",
+      "title": "SPI 统一基础字段",
+      "version": "0.1.1"
+    },
+    {
+      "id": "safeclaw://specs/state-machines/worker_lifecycle.json",
+      "relpath": "specs/state-machines/worker_lifecycle.json",
+      "title": "Worker 生命周期状态机",
+      "version": "0.1.1"
+    }
+  ],
+  "target": "ts"
+}

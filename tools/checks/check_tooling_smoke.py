@@ -52,6 +52,14 @@ def collect_errors() -> list[str]:
         if expected not in output:
             errors.append(f"{name} 输出缺少关键文本: {expected}")
 
+    for target in ("rust", "python", "ts"):
+        manifest_path = REPO_ROOT / "generated" / target / "manifest.json"
+        stable_ids_path = REPO_ROOT / "generated" / target / "stable_ids.json"
+        if not manifest_path.exists():
+            errors.append(f"缺少 codegen 产物: {manifest_path.relative_to(REPO_ROOT).as_posix()}")
+        if not stable_ids_path.exists():
+            errors.append(f"缺少 codegen 产物: {stable_ids_path.relative_to(REPO_ROOT).as_posix()}")
+
     return errors
 
 
