@@ -7,6 +7,10 @@ README_FILE = REPO_ROOT / "README.md"
 SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
 DEVLOG_FILE = REPO_ROOT / "docs" / "DEVLOG.md"
+SPECS_README_FILE = REPO_ROOT / "specs" / "README.md"
+CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
+CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
+SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 
 REQUIRED_MARKERS = {
@@ -35,6 +39,26 @@ REQUIRED_MARKERS = {
         "README.md",
         "specs/",
         "Phase 0",
+    ],
+    SPECS_README_FILE: [
+        "specs/",
+        "generated/index.json",
+        "plugin_runner.template.jsonc",
+    ],
+    CONTRACTS_README_FILE: [
+        "specs/",
+        "tools/checks/",
+        "generated/",
+    ],
+    CODEGEN_README_FILE: [
+        "regenerate_all.py",
+        "generated/index.json",
+        "stable_ids.json",
+    ],
+    SCHEMA_DIFF_README_FILE: [
+        "--json-out",
+        "--fail-on-diff",
+        "schema",
     ],
 }
 
