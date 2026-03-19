@@ -1,0 +1,32 @@
+name: contracts-gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run contract tests
+        run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
+
+      - name: Run cross-file consistency check
+        run: python tools/checks/check_consistency.py
+
+      - name: Run version consistency check
+        run: python tools/checks/check_versions.py
+
+      - name: Run structure completeness check
+        run: python tools/checks/check_structure.py
