@@ -34,12 +34,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     index = build_spec_index()
+    out_root = (REPO_ROOT / args.out_dir).resolve()
+    target_dir = out_root / args.target
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     print("SafeClaw codegen stub ready.")
     print(f"- target: {args.target}")
-    print(f"- out_dir: {args.out_dir}")
+    print(f"- out_dir: {out_root}")
+    print(f"- target_dir: {target_dir}")
     print(f"- specs_loaded: {len(index.documents)}")
-    print("- status: Phase 0 协议层已接入，代码生成将在 M1 启用。")
+    print("- status: Phase 0 协议层已接入，目录骨架已就绪，代码生成将在 M1 启用。")
     return 0
 
 
