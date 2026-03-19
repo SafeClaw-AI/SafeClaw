@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/error-codes/sys_errors.json",
+  "title": "系统错误码",
+  "version": "0.1.1",
+  "description": "人类可读 + 机器可识别。severity: info/warn/error/critical。",
+
+  "errors": {
+    "E_OK":                       { "code": 0,     "severity": "info",     "human": "操作成功",                     "category": "general" },
+    "E_UNKNOWN":                  { "code": 1000,  "severity": "error",    "human": "未知错误",                     "category": "general" },
+
+    "E_SANDBOX_CREATE_FAILED":    { "code": 2001,  "severity": "error",    "human": "沙箱创建失败",                 "category": "sandbox" },
+    "E_SANDBOX_KILL_FAILED":      { "code": 2002,  "severity": "critical", "human": "进程树终止失败",               "category": "sandbox" },
+    "E_SANDBOX_ZOMBIE":           { "code": 2003,  "severity": "critical", "human": "检测到僵尸进程",               "category": "sandbox" },
+
+    "E_STATE_SNAPSHOT_FAILED":    { "code": 3001,  "severity": "error",    "human": "快照创建失败",                 "category": "state" },
+    "E_STATE_ROLLBACK_FAILED":    { "code": 3002,  "severity": "critical", "human": "状态回滚失败",                 "category": "state" },
+    "E_STATE_CONFLICT":           { "code": 3003,  "severity": "error",    "human": "状态冲突(并发写入)",           "category": "state" },
+
+    "E_EFFECT_COMMIT_FAILED":     { "code": 4001,  "severity": "error",    "human": "副作用提交失败",               "category": "effect" },
+    "E_EFFECT_ORPHAN":            { "code": 4002,  "severity": "critical", "human": "孤立副作用(外部已改,系统无记录)", "category": "effect" },
+    "E_EFFECT_COMPENSATION_FAILED":{ "code": 4003, "severity": "error",    "human": "补偿执行失败",                 "category": "effect" },
+
+    "E_PERM_DENIED":              { "code": 5001,  "severity": "warn",     "human": "权限被拒绝",                   "category": "permission" },
+    "E_PERM_QUEUE_FULL":          { "code": 5002,  "severity": "error",    "human": "确认队列已满",                 "category": "permission" },
+    "E_PERM_TIMEOUT":             { "code": 5003,  "severity": "warn",     "human": "确认超时, 任务进入冬眠",       "category": "permission" },
+
+    "E_DOCTOR_REPAIR_FAILED":     { "code": 6001,  "severity": "critical", "human": "修复失败, 需人工介入",         "category": "doctor" },
+    "E_DOCTOR_KILL_TIMEOUT":      { "code": 6002,  "severity": "critical", "human": "进程树终止超时",               "category": "doctor" },
+
+    "E_BUDGET_FILES":             { "code": 7001,  "severity": "error",    "human": "文件操作数超限",               "category": "budget" },
+    "E_BUDGET_SIZE":              { "code": 7002,  "severity": "error",    "human": "文件大小超限",                 "category": "budget" },
+    "E_BUDGET_TOKENS":            { "code": 7003,  "severity": "error",    "human": "模型 token 超限",              "category": "budget" },
+    "E_BUDGET_TIME":              { "code": 7004,  "severity": "error",    "human": "执行时间超限",                 "category": "budget" },
+    "E_BUDGET_NETWORK":           { "code": 7005,  "severity": "error",    "human": "网络请求数超限",               "category": "budget" },
+    "E_BUDGET_FROZEN_TASKS":      { "code": 7006,  "severity": "error",    "human": "冻结任务数超限",               "category": "budget" },
+
+    "E_PREFLIGHT_TIMEOUT":        { "code": 8001,  "severity": "warn",     "human": "预检超时, 降级为全 Tier 2",    "category": "preflight" },
+    "E_PREFLIGHT_LOW_CONFIDENCE": { "code": 8002,  "severity": "warn",     "human": "预检低置信度",                 "category": "preflight" },
+
+    "E_PLUGIN_INTEGRITY":         { "code": 9001,  "severity": "critical", "human": "插件完整性校验失败(篡改)",     "category": "plugin" },
+    "E_PLUGIN_UNTRUSTED":         { "code": 9002,  "severity": "warn",     "human": "插件未认证, 需用户确认",       "category": "plugin" },
+    "E_PLUGIN_TIMEOUT":           { "code": 9003,  "severity": "error",    "human": "插件执行超时",                 "category": "plugin" },
+
+    "E_MODEL_TIMEOUT":            { "code": 10001, "severity": "error",    "human": "模型响应超时",                 "category": "model" },
+    "E_MODEL_INVALID_TOOLCALL":   { "code": 10002, "severity": "warn",     "human": "模型工具调用校验失败",         "category": "model" },
+    "E_SIDECAR_CRASH":            { "code": 10003, "severity": "critical", "human": "Python Sidecar 崩溃",          "category": "model" }
+  },
+
+  "severity_levels": {
+    "info":     "信息, 无需处理",
+    "warn":     "警告, 可能需要关注",
+    "error":    "错误, 任务可能失败",
+    "critical": "严重, 需要 Doctor 或人工介入"
+  },
+
+  "categories": ["general", "sandbox", "state", "effect", "permission", "doctor", "budget", "preflight", "plugin", "model"]
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/config/preflight.json",
+  "title": "Preflight Analyzer 配置",
+  "version": "0.1.1",
+  "description": "预检阈值与降级策略。可配置, 不硬编码。",
+
+  "confidence_threshold": 0.7,
+
+  "degradation": {
+    "analyze_timeout_ms": 5000,
+    "on_timeout":        "escalate_to_tier_2",
+    "on_exception":      "escalate_to_tier_2",
+    "on_low_confidence": "escalate_to_tier_1_with_warn"
+  },
+
+  "runtime": {
+    "escalation_allowed":    true,
+    "degradation_forbidden": true,
+    "delta_confirm_only":    true
+  },
+
+  "metrics": {
+    "static_hit_rate_target":      0.9,
+    "runtime_blacklist_rate_track": true
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/state-machines/worker_lifecycle.json",
+  "title": "Worker 生命周期状态机",
+  "version": "0.1.1",
+  "description": "Worker 任务的完整生命周期。权威来源: 05_API规范 一节。",
+
+  "states": {
+    "created":                  { "state_id": "ST_CREATED",                  "terminal": false, "lock_holder": null },
+    "planning":                 { "state_id": "ST_PLANNING",                 "terminal": false, "lock_holder": "orchestrator" },
+    "awaiting_confirmation":    { "state_id": "ST_AWAITING_CONFIRMATION",    "terminal": false, "lock_holder": "orchestrator" },
+    "hibernated":               { "state_id": "ST_HIBERNATED",               "terminal": false, "lock_holder": null,
+                                  "note": "释放 GPU/sidecar/内存, 只保留 SQLite 状态" },
+    "executing":                { "state_id": "ST_EXECUTING",                "terminal": false, "lock_holder": "orchestrator" },
+    "committing":               { "state_id": "ST_COMMITTING",               "terminal": false, "lock_holder": "orchestrator" },
+    "succeeded":                { "state_id": "ST_SUCCEEDED",                "terminal": true },
+    "failed":                   { "state_id": "ST_FAILED",                   "terminal": false, "lock_holder": null },
+    "rolling_back":             { "state_id": "ST_ROLLING_BACK",             "terminal": false, "lock_holder": "orchestrator" },
+    "rolled_back":              { "state_id": "ST_ROLLED_BACK",              "terminal": true },
+    "awaiting_doctor":          { "state_id": "ST_AWAITING_DOCTOR",          "terminal": false, "lock_holder": null },
+    "repairing":                { "state_id": "ST_REPAIRING",                "terminal": false, "lock_holder": "doctor" },
+    "repaired":                 { "state_id": "ST_REPAIRED",                 "terminal": false, "lock_holder": null },
+    "repair_failed":            { "state_id": "ST_REPAIR_FAILED",            "terminal": false, "lock_holder": null },
+    "failed_terminal":          { "state_id": "ST_FAILED_TERMINAL",          "terminal": true },
+    "closed":                   { "state_id": "ST_CLOSED",                   "terminal": true }
+  },
+
+  "transitions": [
+    { "event_id": "EV_TASK_ACCEPTED",           "from": "created",                "to": "planning" },
+    { "event_id": "EV_PLAN_READY_PERMITTED",    "from": "planning",               "to": "executing" },
+    { "event_id": "EV_PLAN_READY_NEEDS_CONFIRM","from": "planning",               "to": "awaiting_confirmation" },
+    { "event_id": "EV_PLAN_ERROR",              "from": "planning",               "to": "failed" },
+    { "event_id": "EV_USER_CONFIRMED",          "from": "awaiting_confirmation",  "to": "executing" },
+    { "event_id": "EV_USER_DENIED",             "from": "awaiting_confirmation",  "to": "failed" },
+    { "event_id": "EV_CONFIRM_TIMEOUT",         "from": "awaiting_confirmation",  "to": "hibernated" },
+    { "event_id": "EV_SYSTEM_BUDGET_EXCEEDED",  "from": "awaiting_confirmation",  "to": "failed" },
+    { "event_id": "EV_USER_RESUME",             "from": "hibernated",             "to": "planning" },
+    { "event_id": "EV_HIBERNATE_EXPIRED",       "from": "hibernated",             "to": "failed_terminal" },
+    { "event_id": "EV_NEW_BLACKLIST_OP",        "from": "executing",              "to": "awaiting_confirmation" },
+    { "event_id": "EV_ALL_EFFECTS_DONE",        "from": "executing",              "to": "committing" },
+    { "event_id": "EV_EXEC_ERROR",              "from": "executing",              "to": "failed" },
+    { "event_id": "EV_BUDGET_EXCEEDED",         "from": "executing",              "to": "failed" },
+    { "event_id": "EV_RESULTS_PERSISTED",       "from": "committing",             "to": "succeeded" },
+    { "event_id": "EV_PERSIST_ERROR",           "from": "committing",             "to": "failed" },
+    { "event_id": "EV_AUTO_ROLLBACK",           "from": "failed",                 "to": "rolling_back" },
+    { "event_id": "EV_USER_ROLLBACK",           "from": "failed",                 "to": "rolling_back" },
+    { "event_id": "EV_USER_RETRY",              "from": "failed",                 "to": "planning" },
+    { "event_id": "EV_USER_ABANDON",            "from": "failed",                 "to": "failed_terminal" },
+    { "event_id": "EV_ROLLBACK_OK",             "from": "rolling_back",           "to": "rolled_back" },
+    { "event_id": "EV_ROLLBACK_FAILED",         "from": "rolling_back",           "to": "awaiting_doctor" },
+    { "event_id": "EV_DOCTOR_KILL_DONE",        "from": "awaiting_doctor",        "to": "repairing" },
+    { "event_id": "EV_REPAIR_OK",               "from": "repairing",              "to": "repaired" },
+    { "event_id": "EV_REPAIR_FAILED",           "from": "repairing",              "to": "repair_failed" },
+    { "event_id": "EV_USER_RETRY_FROM_REPAIRED","from": "repaired",               "to": "planning" },
+    { "event_id": "EV_USER_CLOSE",              "from": "repaired",               "to": "closed" },
+    { "event_id": "EV_USER_RETRY_REPAIR",       "from": "repair_failed",          "to": "awaiting_doctor" },
+    { "event_id": "EV_USER_ABANDON_REPAIR",     "from": "repair_failed",          "to": "failed_terminal" }
+  ],
+
+  "terminal_states": ["succeeded", "rolled_back", "failed_terminal", "closed"],
+
+  "invariants": [
+    "同一任务同一时刻只允许一个状态转移",
+    "Orchestrator 持锁范围: planning ~ committing",
+    "Failed 释放锁但非终态",
+    "Doctor 接管前必须 force_kill_tree 清除进程树",
+    "Hibernated 释放昂贵资源, 只保留 SQLite 状态",
+    "RepairFailed 不死循环, 用户决定重试或放弃"
+  ],
+
+  "system_budgets": {
+    "max_frozen_tasks": 10,
+    "max_freeze_duration_s": 300,
+    "hibernate_retention_days": 7,
+    "confirm_queue_size": 50
+  }
+}

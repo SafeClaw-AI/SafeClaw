@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/spi/base_fields.json",
+  "title": "SPI 统一基础字段",
+  "version": "0.1.1",
+  "description": "4 个 Core SPI 的公共必填字段。",
+
+  "type": "object",
+  "required": ["spi_version", "timeout_ms"],
+  "properties": {
+    "spi_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "SPI 接口版本, SemVer"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 300000,
+      "description": "调用超时(毫秒)"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Phase 2+ 能力声明"
+    }
+  },
+
+  "registry": [
+    { "spi_name": "channel_driver", "description": "IO 通道驱动",   "default_timeout_ms": 30000 },
+    { "spi_name": "plugin_runner",  "description": "插件运行时",     "default_timeout_ms": 60000 },
+    { "spi_name": "repair_plan",    "description": "修复策略",       "default_timeout_ms": 120000 },
+    { "spi_name": "memory",         "description": "记忆后端",       "default_timeout_ms": 10000 }
+  ]
+}

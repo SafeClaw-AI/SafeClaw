@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/action_tiers.json",
+  "title": "动作分级 × 可逆性(正交)",
+  "version": "0.1.1",
+  "description": "Tier = 风险等级(审批协议)。Reversibility = 恢复能力(回滚/补偿)。两者正交。",
+
+  "tiers": {
+    "tier_0": {
+      "tier_id": "TIER_0",
+      "name": "只读",
+      "definition": "无副作用, 不修改任何状态",
+      "protocol": "直接执行",
+      "permission_policy": "whitelist_auto",
+      "examples": ["file_read", "config_read", "search", "status_query"]
+    },
+    "tier_1": {
+      "tier_id": "TIER_1",
+      "name": "有副作用",
+      "definition": "修改状态, 但风险可控",
+      "protocol": "轻量二段(意图+结果)",
+      "permission_policy": "graylist",
+      "examples": ["file_write", "file_move", "config_change", "plugin_install"]
+    },
+    "tier_2": {
+      "tier_id": "TIER_2",
+      "name": "高风险",
+      "definition": "不可逆或高影响",
+      "protocol": "完整三段(dry-run+确认+提交)",
+      "permission_policy": "blacklist_require_confirm",
+      "examples": ["file_delete_recursive", "network_send", "system_exec", "email_send"]
+    }
+  },
+
+  "reversibility": {
+    "rollbackable": {
+      "rev_id": "REV_ROLLBACKABLE",
+      "definition": "可通过事件回放或状态恢复完全撤销",
+      "strategy": "State Engine snapshot rollback"
+    },
+    "compensatable": {
+      "rev_id": "REV_COMPENSATABLE",
+      "definition": "不可原样撤销, 但有补偿操作",
+      "strategy": "Effect Ledger compensation_handler"
+    },
+    "irreversible": {
+      "rev_id": "REV_IRREVERSIBLE",
+      "definition": "无法撤销",
+      "strategy": "仅审计记录, 无补偿"
+    }
+  },
+
+  "orthogonal_matrix": [
+    { "tier": "TIER_0", "reversibility": "REV_ROLLBACKABLE",  "example": "读配置" },
+    { "tier": "TIER_1", "reversibility": "REV_ROLLBACKABLE",  "example": "改配置, 装插件" },
+    { "tier": "TIER_1", "reversibility": "REV_COMPENSATABLE", "example": "写文件, 移动文件" },
+    { "tier": "TIER_2", "reversibility": "REV_COMPENSATABLE", "example": "递归删除(回收站)" },
+    { "tier": "TIER_2", "reversibility": "REV_IRREVERSIBLE",  "example": "发邮件, 调外部API" }
+  ],
+
+  "preflight_rules": {
+    "unknown_action_default_tier": "TIER_2",
+    "runtime_escalation_only": true,
+    "runtime_degradation_forbidden": true,
+    "description": "运行时 Tier 判定只允许升级(变严), 禁止降级(变松)"
+  }
+}

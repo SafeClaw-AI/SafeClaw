@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/effect_ledger.json",
+  "title": "Effect Ledger 副作用账本",
+  "version": "0.1.1",
+  "description": "外部副作用的唯一事实来源。权威来源: 05_API规范 二节。",
+  "type": "object",
+  "required": [
+    "effect_id", "task_id", "trace_id", "idempotency_key",
+    "actor", "action", "target", "tier", "reversibility",
+    "status", "transitions"
+  ],
+  "properties": {
+    "effect_id":       { "type": "string", "format": "uuid" },
+    "task_id":         { "type": "string", "format": "uuid" },
+    "trace_id":        { "type": "string", "description": "全链路追踪ID" },
+    "idempotency_key": { "type": "string" },
+    "schema_version":  { "type": "string", "const": "0.1.1" },
+    "actor": {
+      "type": "string",
+      "pattern": "^(worker|doctor|plugin:[a-z0-9_\\-]+)$"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "file_read", "file_write", "file_delete", "file_move",
+        "dir_create", "dir_delete",
+        "network_request", "system_exec", "clipboard_write",
+        "config_change", "plugin_install", "plugin_uninstall"
+      ]
+    },
+    "target": { "type": "string" },
+    "tier": {
+      "type": "string",
+      "enum": ["TIER_0", "TIER_1", "TIER_2"],
+      "description": "锚定 action_tiers.json 主键"
+    },
+    "reversibility": {
+      "type": "string",
+      "enum": ["REV_ROLLBACKABLE", "REV_COMPENSATABLE", "REV_IRREVERSIBLE"],
+      "description": "锚定 action_tiers.json 主键"
+    },
+    "compensation_handler": { "type": ["string", "null"], "default": null },
+    "preview_required":     { "type": "boolean", "default": false },
+    "preview_result":       { "type": ["object", "null"], "default": null },
+    "confirmed_by": {
+      "type": ["string", "null"],
+      "enum": [null, "user", "auto_whitelist", "auto_graylist"]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending", "previewed", "confirmed", "executed",
+        "rolled_back", "compensated", "cancelled", "expired"
+      ]
+    },
+    "expires_at": { "type": ["string", "null"], "format": "date-time" },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from_status", "to_status", "at", "triggered_by"],
+        "properties": {
+          "from_status":  { "type": "string" },
+          "to_status":    { "type": "string" },
+          "at":           { "type": "string", "format": "date-time" },
+          "triggered_by": { "type": "string" },
+          "reason":       { "type": "string", "default": "" }
+        }
+      },
+      "description": "Append-only 状态迁移历史"
+    }
+  },
+
+  "commit_order": {
+    "description": "三账本提交协议。见 05_API规范 一-B节。",
+    "steps": [
+      "① Effect Ledger: pending",
+      "② 执行外部动作",
+      "③ Effect Ledger: executed",
+      "④ State Engine: apply_event",
+      "⑤ Log & Trace: finalize"
+    ],
+    "highest_risk_breakpoint": "②→③ (外部已改, 系统无记录)",
+    "recovery_principle": "探测外部实际状态, 禁止盲目重试"
+  }
+}
