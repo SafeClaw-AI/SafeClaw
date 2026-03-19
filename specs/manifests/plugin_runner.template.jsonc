@@ -1,0 +1,25 @@
+{
+  // Phase 0 非权威模板：用于占位，不代表最终冻结 schema。
+  "plugin_id": "example.plugin",
+  "spi_version": "0.1.1",
+  "timeout_ms": 60000,
+  "capabilities": [],
+
+  "permissions": [
+    "file_read"
+  ],
+
+  "io_schema": {
+    "input": {},
+    "output": {}
+  },
+
+  "resource_limits": {
+    "max_runtime_ms": 60000,
+    "max_memory_mb": 256
+  },
+
+  "integrity": {
+    "blake3": "<fill-at-build-time>"
+  }
+}

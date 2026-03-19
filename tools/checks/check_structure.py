@@ -20,6 +20,8 @@ REQUIRED_DIRS = [
 ]
 REQUIRED_FILES = [
     "specs/README.md",
+    "specs/manifests/README.md",
+    "specs/manifests/plugin_runner.template.jsonc",
     "specs/config/preflight.json",
     "specs/error-codes/sys_errors.json",
     "specs/schemas/action_tiers.json",
