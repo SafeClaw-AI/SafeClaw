@@ -29,6 +29,7 @@ REQUIRED_FILES = [
     "modules/plugins/README.md",
     "modules/repair_plans/README.md",
     "tests/fixtures/README.md",
+    "tools/schema_diff/README.md",
 ]
 
 
