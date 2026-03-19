@@ -89,6 +89,12 @@ def collect_errors() -> list[str]:
             errors.append(f"schema-diff json 输出执行失败: exit={json_run.returncode}")
         elif not json_out.exists():
             errors.append("schema-diff 未生成 JSON 输出文件")
+        else:
+            payload = json.loads(json_out.read_text(encoding="utf-8"))
+            if payload.get("mode") != "file":
+                errors.append("schema-diff JSON 输出 mode 不正确")
+            if "added_keys" not in payload or "changed_keys" not in payload:
+                errors.append("schema-diff JSON 输出缺少关键字段")
 
         fail_run = subprocess.run(
             [PYTHON, "tools/schema_diff/main.py", str(old_path), str(new_path), "--fail-on-diff"],
