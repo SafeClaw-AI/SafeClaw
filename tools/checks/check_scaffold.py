@@ -16,6 +16,9 @@ REQUIRED_DIRS = [
 ]
 REQUIRED_FILES = [
     "config/README.md",
+    "docs/README.md",
+    "tests/README.md",
+    "tools/README.md",
     "config/default_config.toml",
     "config/default_permissions.toml",
     "config/trusted_plugins/README.md",

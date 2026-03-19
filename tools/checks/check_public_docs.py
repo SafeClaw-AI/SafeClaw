@@ -11,6 +11,9 @@ SPECS_README_FILE = REPO_ROOT / "specs" / "README.md"
 CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
 SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
+DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
+TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
+TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 
 REQUIRED_MARKERS = {
@@ -59,6 +62,21 @@ REQUIRED_MARKERS = {
         "--json-out",
         "--fail-on-diff",
         "schema",
+    ],
+    DOCS_README_FILE: [
+        "DEVLOG.md",
+        "V1_SCOPE.md",
+        "V1_TASK_TRIAGE.md",
+    ],
+    TOOLS_README_FILE: [
+        "tools/checks/",
+        "tools/codegen/",
+        "selfcheck.py",
+    ],
+    TESTS_README_FILE: [
+        "tests/contracts/",
+        "tests/fixtures/",
+        "合同测试",
     ],
 }
 
