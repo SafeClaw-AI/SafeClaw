@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/permission_scope.json",
+  "title": "权限作用域(Permission Scope)",
+  "version": "3.2.0",
+  "description": "资源级 glob 权限。scope + tier 共同决定是否需要确认。",
+
+  "type": "object",
+  "required": ["scope_id", "action", "scope_pattern", "tier", "policy"],
+  "properties": {
+    "scope_id":      { "type": "string" },
+    "action":        { "type": "string", "description": "锚定 effect_ledger.action" },
+    "scope_pattern": { "type": "string", "description": "glob 模式, 如 ~/Documents/**" },
+    "tier":          { "type": "string", "enum": ["TIER_0", "TIER_1", "TIER_2"] },
+    "policy":        { "type": "string", "enum": ["allow", "deny", "confirm"] },
+    "expires_at":    { "type": ["string", "null"], "format": "date-time" },
+    "created_by":    { "type": "string", "enum": ["user", "setup_wizard", "plugin_manifest"] },
+    "note":          { "type": "string", "default": "" }
+  },
+
+  "examples": [
+    { "scope_id": "S001", "action": "file_read",  "scope_pattern": "~/Documents/**",          "tier": "TIER_0", "policy": "allow" },
+    { "scope_id": "S002", "action": "file_write", "scope_pattern": "~/Desktop/*.txt",         "tier": "TIER_1", "policy": "confirm" },
+    { "scope_id": "S003", "action": "file_delete", "scope_pattern": "~/Downloads/temp/**",    "tier": "TIER_2", "policy": "confirm" },
+    { "scope_id": "S004", "action": "network_request", "scope_pattern": "https://api.github.com/**", "tier": "TIER_1", "policy": "allow" },
+    { "scope_id": "S005", "action": "system_exec", "scope_pattern": "*",                      "tier": "TIER_2", "policy": "deny" }
+  ],
+
+  "matching_rules": {
+    "pattern_syntax": "glob (支持 * 和 **)",
+    "no_match_default": "deny",
+    "multiple_match": "最严格策略优先",
+    "plugin_scope": "插件只能在 manifest 声明的 scope 内操作"
+  }
+}

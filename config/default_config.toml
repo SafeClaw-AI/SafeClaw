@@ -1,9 +1,9 @@
 # SafeClaw default runtime config (placeholder)
 # 当前阶段：Phase 0
-# 协议版本锚点：0.1.1
+# 协议版本锚点：3.2.0
 
 [app]
-protocol_version = "0.1.1"
+protocol_version = "3.2.0"
 mode = "phase_0_placeholder"
 
 [paths]

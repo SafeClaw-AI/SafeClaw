@@ -2,20 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "safeclaw://specs/schemas/effect_ledger.json",
   "title": "Effect Ledger 副作用账本",
-  "version": "0.1.1",
-  "description": "外部副作用的唯一事实来源。权威来源: 05_API规范 二节。",
+  "version": "3.2.0",
+  "description": "外部副作用的唯一事实来源。权威来源: 05_API规范 二节。v3.2 架构冻结版。",
   "type": "object",
   "required": [
-    "effect_id", "task_id", "trace_id", "idempotency_key",
+    "effect_id", "task_id", "trace_id", "intent_key",
     "actor", "action", "target", "tier", "reversibility",
     "status", "transitions"
   ],
   "properties": {
     "effect_id":       { "type": "string", "format": "uuid" },
     "task_id":         { "type": "string", "format": "uuid" },
-    "trace_id":        { "type": "string", "description": "全链路追踪ID" },
-    "idempotency_key": { "type": "string" },
-    "schema_version":  { "type": "string", "const": "0.1.1" },
+    "trace_id":        { "type": "string" },
+    "intent_key":      { "type": "string", "description": "blake3(action + target + canonical_params + precondition_hash + target_version + actor + compensates_effect_id?). canonical_params = RFC 8785 规范化 JSON(强制键排序)。" },
+    "schema_version":  { "type": "string", "const": "3.2.0" },
     "actor": {
       "type": "string",
       "pattern": "^(worker|doctor|plugin:[a-z0-9_\\-]+)$"
@@ -30,19 +30,24 @@
       ]
     },
     "target": { "type": "string" },
+    "probe_mode": {
+      "type": "string",
+      "enum": ["auto", "none"],
+      "default": "auto",
+      "description": "auto=有探针可探测; none=不可探测,崩溃后进 executed_assumed 脏终态"
+    },
     "tier": {
       "type": "string",
-      "enum": ["TIER_0", "TIER_1", "TIER_2"],
-      "description": "锚定 action_tiers.json 主键"
+      "enum": ["TIER_0", "TIER_1", "TIER_2"]
     },
     "reversibility": {
       "type": "string",
-      "enum": ["REV_ROLLBACKABLE", "REV_COMPENSATABLE", "REV_IRREVERSIBLE"],
-      "description": "锚定 action_tiers.json 主键"
+      "enum": ["REV_ROLLBACKABLE", "REV_COMPENSATABLE", "REV_IRREVERSIBLE"]
     },
-    "compensation_handler": { "type": ["string", "null"], "default": null },
-    "preview_required":     { "type": "boolean", "default": false },
-    "preview_result":       { "type": ["object", "null"], "default": null },
+    "compensation_handler":  { "type": ["string", "null"], "default": null },
+    "compensates_effect_id": { "type": ["string", "null"], "format": "uuid", "default": null, "description": "补偿独立 Effect 时指向源 Effect" },
+    "preview_required":      { "type": "boolean", "default": false },
+    "preview_result":        { "type": ["object", "null"], "default": null },
     "confirmed_by": {
       "type": ["string", "null"],
       "enum": [null, "user", "auto_whitelist", "auto_graylist"]
@@ -50,9 +55,17 @@
     "status": {
       "type": "string",
       "enum": [
-        "pending", "previewed", "confirmed", "executed",
+        "prepared", "dispatched", "executed", "uncertain", "executed_assumed",
+        "previewed", "confirmed",
         "rolled_back", "compensated", "cancelled", "expired"
-      ]
+      ],
+      "description": "四阶段: prepared→dispatched→executed; 崩溃后: uncertain 或 executed_assumed(probe_mode:none)"
+    },
+    "probe_state": {
+      "type": ["string", "null"],
+      "enum": [null, "probe_pending", "probing", "probe_failed", "human_frozen"],
+      "default": null,
+      "description": "uncertain 时的探针子状态"
     },
     "expires_at": { "type": ["string", "null"], "format": "date-time" },
     "transitions": {
@@ -72,16 +85,31 @@
     }
   },
 
+  "x-related-entities": {
+    "effect_attempts": {
+      "description": "平级 Entity(非嵌套),通过 effect_id 外键关联。防止 SQLite 并发 JSON 脏写。",
+      "schema_ref": "safeclaw://specs/schemas/effect_attempt.json"
+    }
+  },
+
   "commit_order": {
-    "description": "三账本提交协议。见 05_API规范 一-B节。",
+    "description": "四阶段提交协议。见 05_API规范 一-B节。",
     "steps": [
-      "① Effect Ledger: pending",
-      "② 执行外部动作",
-      "③ Effect Ledger: executed",
-      "④ State Engine: apply_event",
-      "⑤ Log & Trace: finalize"
+      "① Effect Ledger: prepared (声明意图)",
+      "② Effect Ledger: dispatched (动作已发出)",
+      "③ 执行外部动作",
+      "④ Effect Ledger: executed (外部确认完成)",
+      "⑤ State Engine: apply_event (幂等, state_event_id 去重)",
+      "⑥ Log & Trace: finalize (Tier 0/1 异步; Tier 2 header 同步, body 异步)"
     ],
-    "highest_risk_breakpoint": "②→③ (外部已改, 系统无记录)",
-    "recovery_principle": "探测外部实际状态, 禁止盲目重试"
-  }
+    "highest_risk_breakpoint": "②→④ (dispatched/uncertain, 外部状态未知)",
+    "recovery_principle": "探测外部实际状态(probe_spec), 禁止盲目重试; probe_mode:none → executed_assumed 脏终态 + scope 隔离"
+  },
+
+  "invariants": [
+    "intent_key 相同且状态为 prepared/dispatched 时,重复下发被拦截",
+    "executed_assumed 触发 scope_quarantined: 同 scope 所有 task 的写操作被 Preflight 拦截",
+    "补偿是独立 Effect(compensates_effect_id 指向源),可审计可去重",
+    "同一 source effect 同时只允许一个活动补偿 effect"
+  ]
 }

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "safeclaw://specs/error-codes/sys_errors.json",
   "title": "系统错误码",
-  "version": "0.1.1",
+  "version": "3.2.0",
   "description": "人类可读 + 机器可识别。severity: info/warn/error/critical。",
 
   "errors": {

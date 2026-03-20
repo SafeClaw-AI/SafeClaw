@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/effect_attempt.json",
+  "title": "Effect Attempt 派发历史",
+  "version": "3.2.0",
+  "description": "平级 Entity,通过 effect_id 外键关联 Effect Ledger。Append-only。",
+  "type": "object",
+  "required": ["attempt_id", "effect_id", "attempt_seq", "dispatched_at", "lease_id", "fencing_token"],
+  "properties": {
+    "attempt_id":    { "type": "string", "format": "uuid" },
+    "effect_id":     { "type": "string", "format": "uuid" },
+    "attempt_seq":   { "type": "integer", "minimum": 1, "description": "单调递增序号" },
+    "dispatched_at": { "type": "string", "format": "date-time" },
+    "lease_id":      { "type": "string", "format": "uuid" },
+    "fencing_token": { "type": "integer", "minimum": 0, "description": "持有 lease 时的 fencing token; State Engine 拒绝低于当前 token 的写入" },
+    "result_status": {
+      "type": ["string", "null"],
+      "enum": [null, "success", "failure", "timeout", "crash"],
+      "default": null
+    }
+  },
+  "x-unique-constraint": ["effect_id", "attempt_seq"],
+  "x-write-guard": "持有 recovery_lease 且 fencing_token 匹配时才可写入"
+}

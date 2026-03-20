@@ -5,6 +5,16 @@
 
 ## 2026-03-20
 
+### 工程推进原则冻结
+- 新增 `docs/IMPLEMENTATION_STRATEGY.md`，明确后续实现默认采用“步步为营，层层推进”的节奏。
+- 规定默认顺序为：先梳理边界，再立测试骨架，再做最小垂直切片，最后扩展到并发、恢复与外围集成。
+- 明确禁止跳过梳理、跳过测试、绕过真源与门禁的捷径式实现。
+
+### safeclaw-core 第一层骨架
+- 新增 `safeclaw-core/ARCHITECTURE.md`，明确 Rust Core 当前文件树、模块边界与 spec 映射。
+- 将 `safeclaw-core/src/` 拆出 `protocol`、`effect_ledger`、`worker_lifecycle`、`task_concurrency`、`spec_map` 五个最小模块。
+- 新增 `safeclaw-core/tests/protocol_contracts.rs`，先锁版本锚点、核心状态、retry guard、reconcile 与 scope quarantine 的测试骨架。
+
 ### 协议层门禁补强
 - 新增 `tools/lint/check_naming.py`，把稳定标识的命名规则收口为自动 lint。
 - 将 naming lint 接入 `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml`。

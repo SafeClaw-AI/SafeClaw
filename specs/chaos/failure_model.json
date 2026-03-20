@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/chaos/failure_model.json",
+  "title": "Chaos Monkey 失败模型声明",
+  "version": "3.2.0",
+  "description": "明确 Chaos 测试覆盖的失败类型边界。不在此声明的失败类型不受'恢复可证明'保护。",
+
+  "covered_failures": [
+    {
+      "id": "F_PROCESS_KILL",
+      "description": "kill -9 强杀 Rust Core 或 Python Sidecar",
+      "injection": "kill -9 <pid>",
+      "expected_recovery": "Doctor ≤2s 恢复; uncertain Effect 被探针判定"
+    },
+    {
+      "id": "F_WAL_DIRTY_TAIL",
+      "description": "WAL 文件尾部注入随机字节(脏尾容错)",
+      "injection": "向 WAL 文件尾部追加 N 字节乱码",
+      "expected_recovery": "Doctor 丢弃损坏事务, 恢复到最近干净快照",
+      "limitation": "这是脏尾容错测试, 不等价于真实物理断电(无法覆盖 page-level torn write / fsync 语义差异)"
+    },
+    {
+      "id": "F_SIDECAR_OOM",
+      "description": "Sidecar 进程内存超限被 OS 杀死",
+      "injection": "cgroups 限制 + 大内存任务触发 OOM",
+      "expected_recovery": "心跳丢失 → 自动重启(≤3次) → 超限 → failed"
+    },
+    {
+      "id": "F_LEASE_TIMEOUT",
+      "description": "恢复租约 TTL 过期",
+      "injection": "持有 lease 的进程 sleep 超过 TTL",
+      "expected_recovery": "新恢复器抢占; 旧恢复器写入被 fencing_token 拒绝"
+    }
+  ],
+
+  "not_covered": [
+    "物理断电(page-level torn write, 非 WAL 脏尾)",
+    "磁盘扇区级损坏",
+    "NTP 时间跳变(TTL 用单调时钟缓解, 但测试未模拟)",
+    "虚拟化层 fsync 欺骗(WSL/VM)",
+    "真实第三方 provider 幂等性(M1 用 Mock)"
+  ]
+}

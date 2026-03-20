@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "safeclaw://specs/config/preflight.json",
   "title": "Preflight Analyzer 配置",
-  "version": "0.1.1",
+  "version": "3.2.0",
   "description": "预检阈值与降级策略。可配置, 不硬编码。",
 
   "confidence_threshold": 0.7,

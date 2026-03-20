@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/sidecar_lifecycle.json",
+  "title": "Sidecar 生命周期",
+  "version": "3.2.0",
+  "description": "Core 主动管理 Python Sidecar。模型进程是故障率最高的模块。",
+
+  "management": "core_managed",
+
+  "states": {
+    "starting":    { "state_id": "SC_STARTING",    "description": "正在启动 Python 进程" },
+    "healthy":     { "state_id": "SC_HEALTHY",     "description": "心跳正常, 响应正常" },
+    "degraded":    { "state_id": "SC_DEGRADED",    "description": "响应变慢或部分错误" },
+    "crashed":     { "state_id": "SC_CRASHED",     "description": "进程退出或心跳丢失" },
+    "restarting":  { "state_id": "SC_RESTARTING",  "description": "正在重启" },
+    "unavailable": { "state_id": "SC_UNAVAILABLE", "description": "重启次数耗尽, 需人工介入" }
+  },
+
+  "transitions": [
+    { "from": "starting",    "event": "startup_ok",     "to": "healthy" },
+    { "from": "starting",    "event": "startup_failed", "to": "crashed" },
+    { "from": "healthy",     "event": "heartbeat_slow", "to": "degraded" },
+    { "from": "healthy",     "event": "heartbeat_lost", "to": "crashed" },
+    { "from": "healthy",     "event": "process_exit",   "to": "crashed" },
+    { "from": "degraded",    "event": "heartbeat_ok",   "to": "healthy" },
+    { "from": "degraded",    "event": "heartbeat_lost", "to": "crashed" },
+    { "from": "crashed",     "event": "auto_restart",   "to": "restarting" },
+    { "from": "crashed",     "event": "max_retries",    "to": "unavailable" },
+    { "from": "restarting",  "event": "startup_ok",     "to": "healthy" },
+    { "from": "restarting",  "event": "startup_failed", "to": "crashed" }
+  ],
+
+  "health_check": {
+    "method": "JSON-RPC ping over stdio",
+    "interval_ms": 10000,
+    "timeout_ms": 3000,
+    "consecutive_failures_to_crash": 3
+  },
+
+  "resource_limits": {
+    "max_memory_mb": 2048,
+    "max_gpu_memory_mb": null,
+    "request_queue_size": 20,
+    "request_timeout_ms": 60000
+  },
+
+  "restart_policy": {
+    "max_retries": 3,
+    "cooldown_ms": 5000,
+    "on_unavailable": "alert_user_and_degrade"
+  }
+}

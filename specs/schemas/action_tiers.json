@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "safeclaw://specs/schemas/action_tiers.json",
   "title": "动作分级 × 可逆性(正交)",
-  "version": "0.1.1",
+  "version": "3.2.0",
   "description": "Tier = 风险等级(审批协议)。Reversibility = 恢复能力(回滚/补偿)。两者正交。",
 
   "tiers": {

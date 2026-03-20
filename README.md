@@ -30,8 +30,8 @@ SafeClaw 想做的，就是**从这里开始**。
 
 SafeClaw 是一个**在你自己电脑上运行**的自动化执行系统。
 
-它不联网才能活，不绑定账号，不依赖云端。  
-你的数据、你的记忆、你的操作日志——都在你手里。
+它可以联网调用云端的 AI 模型，但你的数据、记忆、操作日志全部留在本地。  
+不绑定账号，不依赖云端存储——控制权始终在你手里。
 
 它做事的方式是这样的：
 
@@ -55,37 +55,20 @@ SafeClaw 是一个**在你自己电脑上运行**的自动化执行系统。
 
 > **"用起来安不安心"这件事，好像一直没人认真做。**
 
-- 有人在做更强的能力 → 很好  
-- 有人在做更快的速度 → 很好  
-- 有人在做更酷的交互 → 也很好  
+目前已经有很多优秀的 Claw 系统（OpenClaw、ZeroClaw、IronClaw 等），  
+它们在能力、性能、安全性上都做得很好。  
+SafeClaw 选择了一个**它们没有选择的方向**：
 
-但似乎很少有人愿意停下来想一想：  
-一个不懂技术的人，面对自动化时心里在想什么？
+- **OpenClaw** 关注"能做多少" → SafeClaw 关注"你敢不敢放心用"
+- **ZeroClaw** 关注"跑多快、占多少" → SafeClaw 关注"出了事能不能恢复"
+- **IronClaw** 关注"企业合规" → SafeClaw 关注"普通人也能看懂的安全"
 
-SafeClaw 想填的，就是这个空白。  
-**不是能力的空白，是安心感的空白。**
-
----
-
-## 和 OpenClaw 的区别
-
-OpenClaw 更像是给开发者的工具箱，强调能力扩展、工程效率与玩法空间。  
-SafeClaw 更像是一只面向普通用户的「安心龙虾」，强调透明、确认、恢复与可控。
-
-两者方向不同，没有冲突：
-
-- OpenClaw 更偏向开发者效率和能力边界  
-- SafeClaw 更偏向普通用户可理解、可确认、可恢复  
-- OpenClaw 关注"能做多少"  
-- SafeClaw 更关注"普通人敢不敢放心点下去"  
-
----
-
-## 愿景
+简单说：  
+其他 Claw 让 AI 变得更强大。  
+SafeClaw 让你在 AI 面前**不用担心**。
 
 我们希望把复杂留给系统，把轻松留给用户。  
-让每个人都能放心使用自动化与技术，  
-不需要懂很多原理，也能感到清楚、安全、可掌控。
+**不是能力的空白，是安心感的空白。**
 
 ---
 
@@ -129,37 +112,29 @@ SafeClaw 目前还处于非常早期的阶段。
 为什么先公开这些？  
 因为**规矩比功能重要**。能力可以慢慢加，但底线必须一开始就定死。
 
----
-
-## 开放节奏
-
-SafeClaw 的**协议层**（`specs/`）从第一天起就完全公开。  
-因为我们相信：**规矩越透明，信任越扎实。**
-
-内部设计文档（架构推导、决策过程、安全模型等）目前还在打磨，  
-会随着项目成熟逐步开放。
-
-我们的想法很简单：  
-好的安全理念不应该被藏起来。  
-越多人理解它、使用它、改进它，整个生态才会真的变好。
+协议层（`specs/`）从第一天起就完全公开。  
+内部设计文档会随着项目成熟逐步开放。  
+好的安全理念不应该被藏起来。
 
 ---
 
 ## 当前状态
 
 ```
-版本：0.1.1
-阶段：Phase 0 — 协议层冻结
-重点：把规矩定死，为写代码做准备
+版本：3.2.0
+阶段：Phase 0 — 协议真源闭环 + Rust Core 起步前夜
+重点：四阶段 Effect Ledger / Probe / Fencing / Scope Quarantine / Reconcile
 ```
 
 SafeClaw 还在很早期。  
 很多功能还没有，很多体验还会粗糙。
 
+**如果你不懂代码：** 现在打开仓库你会看到一堆 JSON 和文档，还没有能直接用的界面。请再等等我们，界面和功能都在路上。  
+**如果你是开发者：** 欢迎来看我们的协议层，提 Issue、挑毛病、贡献代码都欢迎。
+
 但方向不会变：  
 **做一个让普通人用起来安心的自动化系统。**
 
-如果你也觉得这件事值得做，欢迎关注，欢迎提意见。  
 我们慢慢来，但会认真做。
 
 ---
@@ -187,17 +162,14 @@ SafeClaw 采用 [GPL-3.0](LICENSE) 开源许可。
 - **个人使用、学习、研究** — 完全自由，没有任何限制  
 - **开源项目集成** — 欢迎，我们一起把事情做好  
 - **修改后分发** — 必须同样开源（这是 GPL 的核心要求）  
-- **商业闭源场景** — 我们提供商业授权，欢迎联系洽谈  
-
-> In short: GPL-3.0 grants you the freedom to use, study, modify, and distribute SafeClaw,  
-> provided that any derivative work you distribute is also licensed under GPL-3.0.  
-> For commercial closed-source licensing, please contact us.
+- **商业闭源集成** — 我们提供商业授权，欢迎联系洽谈  
 
 我们选择 GPL，是因为它和 SafeClaw 的价值观一致：  
 **好的安全能力应该持续开放地演进，而不是被锁进任何一家的围墙里。**
 
-认同这个方向的，欢迎一起参与、一起受益。  
-需要不同授权安排的，也随时可以聊。
+SafeClaw 的核心协议和引擎永远开源免费。  
+未来如果项目成熟了，我们会通过提供高级工具和企业服务来赚取合理的利润。  
+现在还早，先把东西做好。
 
 ---
 
@@ -216,9 +188,8 @@ SafeClaw 采用 [GPL-3.0](LICENSE) 开源许可。
 
 ## English Summary
 
-SafeClaw is an automation system designed for ordinary users, not just developers.
-
-It is built around a simple idea:
+SafeClaw is an automation system designed for ordinary users, not just developers.  
+It is built around a simple idea:  
 **automation should feel understandable, controllable, and recoverable.**
 
 Instead of pushing users to trust a black box, SafeClaw tries to:
@@ -229,27 +200,11 @@ Instead of pushing users to trust a black box, SafeClaw tries to:
 - stop, recover, or roll back whenever possible
 - keep core control on the user's own machine
 
-OpenClaw is closer to a developer toolbox.  
-SafeClaw is closer to a calm, safety-first companion for everyday users.
+Licensed under GPL-3.0. Commercial closed-source licensing is available upon request.
 
-At this stage, the repository mainly opens the protocol layer:
+Current status: Version `3.2.0` · Phase `0` · protocol source-of-truth closed loop, ready for Rust core scaffolding.
 
-- `specs/` — the public source of truth for contracts
-- `tests/contracts/` — contract-test skeletons derived from specs
-- `tools/checks/` — consistency, version, structure, and self-check gates
-- `VERSION` — the current public protocol version
-
-Current status:
-
-- Version: `0.1.1`
-- Phase: `Phase 0` — protocol freeze
-- Focus: locking down contracts before broader implementation
-
-For public suggestions or discussion, GitHub Discussions / Issues are preferred:  
-**https://github.com/SafeClaw-AI/SafeClaw**
-
-Email: **safeclaw.ai@gmail.com**  
-We read every message, but may not be able to reply to each one individually.
+📮 **safeclaw.ai@gmail.com** · [GitHub](https://github.com/SafeClaw-AI/SafeClaw)
 
 ---
 

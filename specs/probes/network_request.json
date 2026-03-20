@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/probes/network_request.json",
+  "title": "network_request 探针规范",
+  "version": "3.2.0",
+  "action": "network_request",
+  "probe_mode": "auto",
+  "probe_spec": {
+    "method": "HTTP GET 状态查询端点(如有); 否则标记 indeterminate",
+    "inputs": ["target_url", "expected_response_pattern"],
+    "timeout_ms": 10000
+  },
+  "probe_receipt": {
+    "status": { "enum": ["verified_executed", "verified_unexecuted", "indeterminate"] },
+    "evidence": "http_status=<code> | connection_refused | timeout",
+    "checked_at": "timestamp"
+  },
+  "note": "无状态查询端点的第三方 API 可在具体 adapter 中覆盖 probe_mode 为 none"
+}

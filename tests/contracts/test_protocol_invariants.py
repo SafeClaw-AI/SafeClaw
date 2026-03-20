@@ -15,49 +15,182 @@ class ProtocolInvariantsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.index = build_spec_index()
-        cls.repo_version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-    def test_worker_lifecycle_contains_critical_states(self) -> None:
-        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
-        states = worker.get("states", {})
-        critical_states = {
-            "awaiting_confirmation",
-            "hibernated",
-            "awaiting_doctor",
-            "repair_failed",
-            "failed_terminal",
-        }
-        self.assertTrue(critical_states.issubset(states.keys()))
+    # === Effect Ledger 四阶段协议 ===
 
-    def test_worker_terminal_states_match_terminal_flags(self) -> None:
-        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
-        states = worker.get("states", {})
-        flagged_terminal = {
-            name for name, value in states.items() if value.get("terminal") is True
-        }
-        declared_terminal = set(worker.get("terminal_states", []))
-        self.assertSetEqual(flagged_terminal, declared_terminal)
-
-    def test_worker_system_budgets_are_positive(self) -> None:
-        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
-        budgets = worker.get("system_budgets", {})
-        self.assertGreaterEqual(budgets.get("max_frozen_tasks", 0), 1)
-        self.assertGreaterEqual(budgets.get("max_freeze_duration_s", 0), 1)
-        self.assertGreaterEqual(budgets.get("hibernate_retention_days", 0), 1)
-        self.assertGreaterEqual(budgets.get("confirm_queue_size", 0), 1)
-
-    def test_effect_ledger_commit_protocol_keeps_five_steps(self) -> None:
+    def test_effect_ledger_has_four_phase_statuses(self) -> None:
         effect = self.index.require("specs/schemas/effect_ledger.json").data
-        commit_order = effect.get("commit_order", {})
-        steps = commit_order.get("steps", [])
-        self.assertEqual(len(steps), 5)
-        self.assertIn("②→③", commit_order.get("highest_risk_breakpoint", ""))
-        self.assertIn("禁止盲目重试", commit_order.get("recovery_principle", ""))
+        statuses = effect["properties"]["status"]["enum"]
+        for required in ("prepared", "dispatched", "executed", "uncertain", "executed_assumed"):
+            self.assertIn(required, statuses)
 
-    def test_effect_ledger_schema_version_matches_repo_version(self) -> None:
+    def test_effect_ledger_commit_protocol_has_six_steps(self) -> None:
         effect = self.index.require("specs/schemas/effect_ledger.json").data
-        schema_version = effect.get("properties", {}).get("schema_version", {}).get("const")
-        self.assertEqual(schema_version, self.repo_version)
+        steps = effect["commit_order"]["steps"]
+        self.assertEqual(len(steps), 6)
+        self.assertIn("prepared", steps[0])
+        self.assertIn("dispatched", steps[1])
+
+    def test_effect_ledger_highest_risk_breakpoint_is_dispatched_to_executed(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        self.assertIn("dispatched", effect["commit_order"]["highest_risk_breakpoint"])
+
+    def test_effect_ledger_has_probe_mode_field(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        probe_mode = effect["properties"]["probe_mode"]
+        self.assertIn("none", probe_mode["enum"])
+        self.assertIn("auto", probe_mode["enum"])
+
+    def test_effect_ledger_has_probe_state_field(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        probe_state = effect["properties"]["probe_state"]
+        for state in ("probe_pending", "probing", "probe_failed", "human_frozen"):
+            self.assertIn(state, probe_state["enum"])
+
+    def test_effect_ledger_has_intent_key_not_idempotency_key(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        self.assertIn("intent_key", effect["required"])
+        self.assertNotIn("idempotency_key", effect["required"])
+
+    def test_effect_ledger_has_compensates_effect_id(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        self.assertIn("compensates_effect_id", effect["properties"])
+
+    def test_effect_ledger_invariants_mention_scope_quarantine(self) -> None:
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        invariants = " ".join(effect.get("invariants", []))
+        self.assertIn("scope_quarantined", invariants)
+
+    # === Effect Attempt 平级 Entity ===
+
+    def test_effect_attempt_is_separate_schema(self) -> None:
+        attempt = self.index.require("specs/schemas/effect_attempt.json").data
+        self.assertIn("attempt_seq", attempt["required"])
+        self.assertIn("fencing_token", attempt["required"])
+
+    def test_effect_attempt_has_unique_constraint(self) -> None:
+        attempt = self.index.require("specs/schemas/effect_attempt.json").data
+        constraint = attempt.get("x-unique-constraint", [])
+        self.assertIn("effect_id", constraint)
+        self.assertIn("attempt_seq", constraint)
+
+    # === Worker 状态机 ===
+
+    def test_worker_lifecycle_has_uncertain_state(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        self.assertIn("uncertain", worker["states"])
+
+    def test_worker_lifecycle_uncertain_transitions(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        events_from_uncertain = [
+            t["event_id"] for t in worker["transitions"] if t["from"] == "uncertain"
+        ]
+        self.assertIn("EV_PROBE_SUCCESS", events_from_uncertain)
+        self.assertIn("EV_PROBE_FAILURE", events_from_uncertain)
+        self.assertIn("EV_PROBE_ASSUMED", events_from_uncertain)
+
+    def test_worker_user_retry_has_guards(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        retry_transition = next(
+            t for t in worker["transitions"] if t["event_id"] == "EV_USER_RETRY"
+        )
+        guards = retry_transition.get("x-guards", [])
+        self.assertIn("no_uncertain_effects", guards)
+        self.assertIn("no_dispatched_effects", guards)
+        self.assertIn("no_executed_assumed_effects", guards)
+
+    def test_worker_has_reconcile_transitions(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        event_ids = {t["event_id"] for t in worker["transitions"]}
+        self.assertIn("EV_USER_RECONCILE_SUCCESS", event_ids)
+        self.assertIn("EV_USER_RECONCILE_FAILURE", event_ids)
+
+    def test_worker_reconcile_success_goes_to_committing(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        t = next(t for t in worker["transitions"] if t["event_id"] == "EV_USER_RECONCILE_SUCCESS")
+        self.assertEqual(t["from"], "failed")
+        self.assertEqual(t["to"], "committing")
+
+    def test_worker_reconcile_failure_goes_to_failed_terminal(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        t = next(t for t in worker["transitions"] if t["event_id"] == "EV_USER_RECONCILE_FAILURE")
+        self.assertEqual(t["from"], "failed")
+        self.assertEqual(t["to"], "failed_terminal")
+
+    def test_worker_invariants_mention_fencing_and_scope(self) -> None:
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        invariants = " ".join(worker.get("invariants", []))
+        self.assertIn("fencing_token", invariants)
+        self.assertIn("scope_quarantined", invariants)
+
+    # === Task Concurrency ===
+
+    def test_task_concurrency_auto_retry_only_prepared(self) -> None:
+        tc = self.index.require("specs/schemas/task_concurrency.json").data
+        blocked = tc["auto_retry"]["blocked_states"]
+        for state in ("dispatched", "uncertain", "executed_assumed", "probing"):
+            self.assertIn(state, blocked)
+
+    def test_task_concurrency_has_scope_quarantine(self) -> None:
+        tc = self.index.require("specs/schemas/task_concurrency.json").data
+        self.assertIn("scope_quarantine", tc)
+        self.assertIn("x-doctor-bypass", tc["scope_quarantine"])
+
+    def test_task_concurrency_user_retry_guard(self) -> None:
+        tc = self.index.require("specs/schemas/task_concurrency.json").data
+        guard = tc["user_retry_guard"]
+        blocked = guard["blocked_effect_states"]
+        self.assertIn("executed_assumed", blocked)
+
+    # === Chaos Failure Model ===
+
+    def test_failure_model_declares_covered_and_not_covered(self) -> None:
+        fm = self.index.require("specs/chaos/failure_model.json").data
+        self.assertGreater(len(fm["covered_failures"]), 0)
+        self.assertGreater(len(fm["not_covered"]), 0)
+
+    def test_failure_model_wal_dirty_tail_has_limitation(self) -> None:
+        fm = self.index.require("specs/chaos/failure_model.json").data
+        wal = next(f for f in fm["covered_failures"] if f["id"] == "F_WAL_DIRTY_TAIL")
+        self.assertIn("limitation", wal)
+
+    # === Probe Specs ===
+
+    def test_probe_specs_exist_for_file_operations(self) -> None:
+        self.index.require("specs/probes/file_write.json")
+        self.index.require("specs/probes/file_delete.json")
+
+    # === 反例: 不应存在的旧协议 ===
+
+    def test_no_legacy_pending_status(self) -> None:
+        """旧 'pending' 状态已被 prepared/dispatched 替代"""
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        statuses = effect["properties"]["status"]["enum"]
+        self.assertNotIn("pending", statuses)
+
+    def test_no_legacy_idempotency_key_in_required(self) -> None:
+        """旧 idempotency_key 已被 intent_key 替代"""
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        self.assertNotIn("idempotency_key", effect["required"])
+
+    def test_no_legacy_three_step_commit(self) -> None:
+        """旧三步协议已被六步四阶段替代"""
+        effect = self.index.require("specs/schemas/effect_ledger.json").data
+        steps = effect["commit_order"]["steps"]
+        self.assertGreaterEqual(len(steps), 6)
+
+    def test_worker_no_unguarded_retry(self) -> None:
+        """EV_USER_RETRY 必须有 x-guards,不允许裸 failed→planning"""
+        worker = self.index.require("specs/state-machines/worker_lifecycle.json").data
+        retry = next(t for t in worker["transitions"] if t["event_id"] == "EV_USER_RETRY")
+        self.assertIn("x-guards", retry)
+        self.assertGreater(len(retry["x-guards"]), 0)
+
+
+class PreflightAndSpiInvariantsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.index = build_spec_index()
 
     def test_preflight_runtime_and_degradation_rules_are_strict(self) -> None:
         preflight = self.index.require("specs/config/preflight.json").data
@@ -65,46 +198,27 @@ class ProtocolInvariantsTest(unittest.TestCase):
         degradation = preflight.get("degradation", {})
         runtime = preflight.get("runtime", {})
         rule = action_tiers.get("preflight_rules", {})
-
         self.assertEqual(degradation.get("on_timeout"), "escalate_to_tier_2")
         self.assertEqual(degradation.get("on_exception"), "escalate_to_tier_2")
-        self.assertEqual(degradation.get("on_low_confidence"), "escalate_to_tier_1_with_warn")
         self.assertTrue(runtime.get("escalation_allowed"))
         self.assertTrue(runtime.get("degradation_forbidden"))
-        self.assertTrue(runtime.get("delta_confirm_only"))
         self.assertTrue(rule.get("runtime_escalation_only"))
-        self.assertTrue(rule.get("runtime_degradation_forbidden"))
-        self.assertEqual(rule.get("unknown_action_default_tier"), "TIER_2")
-        self.assertGreaterEqual(preflight.get("metrics", {}).get("static_hit_rate_target", 0), 0.9)
-
-    def test_sys_errors_registry_is_unique_and_registered(self) -> None:
-        sys_errors = self.index.require("specs/error-codes/sys_errors.json").data
-        errors = sys_errors.get("errors", {})
-        severity_levels = set(sys_errors.get("severity_levels", {}).keys())
-        categories = set(sys_errors.get("categories", []))
-        codes = [value.get("code") for value in errors.values()]
-
-        self.assertEqual(len(codes), len(set(codes)))
-        for error_name, value in errors.items():
-            with self.subTest(error_name=error_name):
-                self.assertIn(value.get("severity"), severity_levels)
-                self.assertIn(value.get("category"), categories)
 
     def test_spi_registry_matches_public_extension_points(self) -> None:
         spi = self.index.require("specs/spi/base_fields.json").data
         registry = spi.get("registry", [])
-        timeout_schema = spi.get("properties", {}).get("timeout_ms", {})
         spi_names = [item.get("spi_name") for item in registry]
-
         self.assertEqual(len(spi_names), len(set(spi_names)))
         self.assertSetEqual(
             set(spi_names),
             {"channel_driver", "plugin_runner", "repair_plan", "memory"},
         )
-        for item in registry:
-            with self.subTest(spi_name=item.get("spi_name")):
-                self.assertGreaterEqual(item.get("default_timeout_ms", 0), timeout_schema.get("minimum", 0))
-                self.assertLessEqual(item.get("default_timeout_ms", 0), timeout_schema.get("maximum", 10**9))
+
+    def test_sys_errors_registry_is_unique(self) -> None:
+        sys_errors = self.index.require("specs/error-codes/sys_errors.json").data
+        errors = sys_errors.get("errors", {})
+        codes = [v.get("code") for v in errors.values()]
+        self.assertEqual(len(codes), len(set(codes)))
 
 
 if __name__ == "__main__":

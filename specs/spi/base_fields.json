@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "safeclaw://specs/spi/base_fields.json",
   "title": "SPI 统一基础字段",
-  "version": "0.1.1",
+  "version": "3.2.0",
   "description": "4 个 Core SPI 的公共必填字段。",
 
   "type": "object",

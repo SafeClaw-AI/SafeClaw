@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/config/heartbeat.json",
+  "title": "心跳协议",
+  "version": "3.2.0",
+  "description": "模块健康监控。0 token: 全部本地事件, 不调用模型。",
+
+  "default_interval_ms": 10000,
+  "event_driven": true,
+
+  "event_schema": {
+    "type": "object",
+    "required": ["module", "timestamp", "status"],
+    "properties": {
+      "module":    { "type": "string", "enum": ["sidecar", "orchestrator", "scheduler", "permission_gateway", "log_trace"] },
+      "timestamp": { "type": "string", "format": "date-time" },
+      "status":    { "type": "string", "enum": ["healthy", "degraded", "failed"] },
+      "metrics":   { "type": "object", "description": "模块特定指标(内存/延迟/队列长度等)" },
+      "errors":    { "type": "array", "items": { "type": "string" }, "description": "当前错误码列表" }
+    }
+  },
+
+  "recovery_rules": [
+    { "module": "sidecar",            "on_failed": "auto_restart",   "max_retries": 3, "cooldown_ms": 5000 },
+    { "module": "orchestrator",       "on_failed": "alert_user",     "max_retries": 0 },
+    { "module": "scheduler",          "on_degraded": "compensate",   "max_retries": 1 },
+    { "module": "permission_gateway", "on_failed": "safe_mode",      "description": "安全模式: 全部按 TIER_2" },
+    { "module": "log_trace",          "on_degraded": "buffer_write", "max_retries": 3 }
+  ],
+
+  "auditable": true,
+  "description_audit": "心跳记录写入 Log & Trace ledger 层, 用户可查看系统健康历史"
+}

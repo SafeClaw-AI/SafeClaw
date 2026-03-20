@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/task_concurrency.json",
+  "title": "任务并发模型",
+  "version": "3.2.0",
+  "description": "多 Worker 并发 + 工具串行化 + 资源作用域隔离。v3.2 架构冻结版。",
+
+  "concurrency_model": "multi_worker_tool_serial",
+
+  "rules": {
+    "max_concurrent_workers": 5,
+    "tool_serialization": true,
+    "effect_ledger_isolation": "per_task_id",
+    "scope_isolation": true,
+    "sidecar_request_queue": true,
+    "file_locking": "per_scope"
+  },
+
+  "auto_retry": {
+    "enabled": true,
+    "max_attempts": 1,
+    "precondition": "仅当 Effect 处于 prepared(确认未派发)时允许自动重试",
+    "blocked_states": [
+      "dispatched", "uncertain", "executed_assumed", "probing"
+    ],
+    "retryable_errors": [
+      "E_SIDECAR_CRASH",
+      "E_MODEL_TIMEOUT",
+      "E_BUDGET_NETWORK"
+    ],
+    "non_retryable_errors": [
+      "E_PERM_DENIED",
+      "E_PLUGIN_INTEGRITY",
+      "E_BUDGET_FILES",
+      "E_BUDGET_SIZE"
+    ]
+  },
+
+  "user_retry_guard": {
+    "description": "failed → planning (EV_USER_RETRY) 前置守卫",
+    "blocked_effect_states": ["uncertain", "dispatched", "probing", "executed_assumed"],
+    "rule": "task 存在任何处于 blocked_effect_states 的 Effect → 拒绝 retry"
+  },
+
+  "scope_quarantine": {
+    "description": "executed_assumed 触发的 scope 级隔离",
+    "trigger": "任意 Effect 进入 executed_assumed",
+    "effect": "该 Effect target 所属 scope 下所有 task 的写操作(Tier 1/2)被 Preflight 拦截为 scope_quarantined",
+    "release": "人工 user_reconcile_success 或 user_reconcile_failure 解除",
+    "backpressure": "quarantine 期间同 scope 新调度触发被丢弃或进入有限缓冲(防解冻雪崩)",
+    "x-doctor-bypass": "Doctor reconcile / force_kill 操作携带特权 Context 绕过 scope 锁定"
+  },
+
+  "invariants": [
+    "每个 Worker 有独立的 Effect Ledger 事务",
+    "工具调用在 Worker 内部串行, Worker 之间并发",
+    "全局资源由 Permission Gateway + scope 控制",
+    "Sidecar 请求队列化, 避免模型进程竞争",
+    "并发 Worker 共享 confirm_queue, 受 max_frozen_tasks 限制",
+    "auto_retry 仅 prepared; dispatched/uncertain/executed_assumed/probing 禁止",
+    "user_retry 前检查 blocked_effect_states",
+    "executed_assumed 触发 scope_quarantined"
+  ]
+}

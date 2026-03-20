@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/schemas/memory_policy.json",
+  "title": "记忆持久化策略",
+  "version": "3.2.0",
+  "description": "混合策略: token 阈值 + 时间 + 事件触发。",
+
+  "hot_to_warm": {
+    "trigger": "mixed",
+    "token_threshold": 4000,
+    "time_threshold_min": 30,
+    "event_triggers": ["task_completed", "session_end"],
+    "summarization": {
+      "method": "local_model_or_rule_based",
+      "fallback": "truncate_oldest",
+      "max_summary_tokens": 500
+    }
+  },
+
+  "warm_to_cold": {
+    "trigger": "mixed",
+    "age_days": 30,
+    "access_frequency_threshold": 0,
+    "method": "Phase 2: SQLite FTS5 索引; Phase 3: 可选向量化"
+  },
+
+  "user_preferences": {
+    "storage_layer": "warm",
+    "format": "key_value_pairs",
+    "examples": [
+      { "key": "response_style", "value": "concise" },
+      { "key": "language", "value": "zh-CN" },
+      { "key": "default_work_dir", "value": "~/Documents/work" }
+    ],
+    "persistence": "immediate_to_sqlite"
+  },
+
+  "cleanup": {
+    "hot_max_tokens": 8000,
+    "warm_max_entries": 10000,
+    "cold_max_size_mb": 500,
+    "trash_retention_days": 7
+  }
+}

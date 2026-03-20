@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/probes/file_write.json",
+  "title": "file_write 探针规范",
+  "version": "3.2.0",
+  "action": "file_write",
+  "probe_mode": "auto",
+  "probe_spec": {
+    "method": "检查目标文件是否存在 + blake3 哈希比对",
+    "inputs": ["target_path", "expected_blake3"],
+    "timeout_ms": 5000
+  },
+  "probe_receipt": {
+    "status": { "enum": ["verified_executed", "verified_unexecuted", "indeterminate"] },
+    "evidence": "file_hash=<blake3> | file_not_found | permission_denied",
+    "checked_at": "timestamp"
+  }
+}

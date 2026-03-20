@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "safeclaw://specs/probes/file_delete.json",
+  "title": "file_delete 探针规范",
+  "version": "3.2.0",
+  "action": "file_delete",
+  "probe_mode": "auto",
+  "probe_spec": {
+    "method": "检查目标文件是否已不存在",
+    "inputs": ["target_path"],
+    "timeout_ms": 5000
+  },
+  "probe_receipt": {
+    "status": { "enum": ["verified_executed", "verified_unexecuted", "indeterminate"] },
+    "evidence": "file_not_found | file_exists_hash=<blake3>",
+    "checked_at": "timestamp"
+  }
+}
