@@ -1384,6 +1384,121 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_claims_second_write_only_after_prior_write_under_reads_releases() {
+        let temp = TempWorkspace::new("scope-write-under-reads-release");
+        let shared_scope = format!("scope:{}", temp.root.join("shared.txt").display());
+        let second_write_output = temp.root.join("second-write-under-reads.txt");
+
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-read-active-1",
+                ScheduleIntent::read(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-read-active-2",
+                ScheduleIntent::read(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-write-1",
+                ScheduleIntent::write(shared_scope.clone()),
+                2,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-write-2",
+                ScheduleIntent::write(shared_scope.clone()),
+                3,
+            ))
+            .unwrap();
+
+        let first_read = orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(first_read.task.task_id, "task-worker-shared-read-active-1");
+        let second_read = orchestrator.claim_next("worker-b", 1).unwrap().unwrap();
+        assert_eq!(second_read.task.task_id, "task-worker-shared-read-active-2");
+        let first_write = orchestrator.claim_next("worker-c", 2).unwrap().unwrap();
+        assert_eq!(first_write.task.task_id, "task-worker-shared-write-1");
+        assert!(first_write.task.intent.requires_write);
+
+        let blocked_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let blocked_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut blocked_worker = SqliteSingleWorkerLoop::new(blocked_orchestrator, blocked_store);
+        let blocked = blocked_worker
+            .claim_and_drive_once("worker-d", 3, PreflightDecision::Permit, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        orchestrator
+            .complete(&first_write.task.task_id, &first_write.lease.lease_id, &first_write.lease.owner_id)
+            .unwrap();
+
+        let release_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let release_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut release_worker = SqliteSingleWorkerLoop::new(release_orchestrator, release_store);
+
+        let released = release_worker
+            .claim_and_drive_once("worker-d", 4, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-shared-write-2");
+                let effect = EffectRecord::new(
+                    "effect-worker-shared-write-2",
+                    claim.task.task_id.clone(),
+                    "trace-worker-shared-write-2",
+                    "intent-worker-shared-write-2",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(&second_write_output, b"safeclaw second write under reads\n"),
+                ))
+            })
+            .unwrap()
+            .expect("second write must unblock after first write release");
+
+        assert_eq!(released.claim.task.task_id, "task-worker-shared-write-2");
+        assert!(released.completed);
+        assert_eq!(released.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(released.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(fs::read(&second_write_output).unwrap(), b"safeclaw second write under reads\n");
+        assert_eq!(release_worker.queue_snapshot().queued_tasks.len(), 0);
+        assert_eq!(release_worker.queue_snapshot().active_leases.len(), 2);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-shared-write-2", "effect-worker-shared-write-2")
+            .unwrap()
+            .expect("second write runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
     fn worker_loop_persists_pre_exec_runtime_when_sandbox_spawn_fails() {
         let temp = TempWorkspace::new("pre-exec-spawn");
         let mut orchestrator = SqliteTaskOrchestrator::new(
