@@ -128,6 +128,32 @@ impl SqliteSingleWorkerLoop {
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
 
+    pub fn claim_and_drive_until_empty<F>(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        preflight: PreflightDecision,
+        mut build: F,
+    ) -> Result<Vec<WorkerLoopOutcome>, WorkerLoopError>
+    where
+        F: FnMut(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+    {
+        let mut outcomes = Vec::new();
+        loop {
+            let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+                break;
+            };
+
+            let (mut runtime, command) = build(&claim)?;
+            runtime
+                .begin_execution(preflight)
+                .map_err(WorkerLoopError::Runtime)?;
+            self.persist_runtime(&runtime, &claim, "pre-exec")?;
+            outcomes.push(self.drive_claimed_runtime(claim, runtime, command)?);
+        }
+        Ok(outcomes)
+    }
+
     pub fn claim_and_resume_once<F>(
         &mut self,
         owner_id: &str,
@@ -383,6 +409,125 @@ mod tests {
             .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |_| unreachable!())
             .unwrap();
         assert!(outcome.is_none());
+    }
+
+    #[test]
+    fn worker_loop_drive_until_empty_returns_empty_batch_when_queue_is_empty() {
+        let temp = TempWorkspace::new("empty-batch");
+        let orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let outcomes = loop_driver
+            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::Permit, |_| unreachable!())
+            .unwrap();
+        assert!(outcomes.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_drives_multiple_queued_tasks_until_empty() {
+        let temp = TempWorkspace::new("drain-batch");
+        let first_output = temp.root.join("output-1.txt");
+        let second_output = temp.root.join("output-2.txt");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-batch-1",
+                ScheduleIntent::write(format!("scope:{}", first_output.display())),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-batch-2",
+                ScheduleIntent::write(format!("scope:{}", second_output.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let outcomes = loop_driver
+            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let (effect_id, trace_id, intent_key, output_path, output_bytes) =
+                    match claim.task.task_id.as_str() {
+                        "task-worker-batch-1" => (
+                            "effect-worker-batch-1",
+                            "trace-worker-batch-1",
+                            "intent-worker-batch-1",
+                            &first_output,
+                            b"safeclaw batch one\n".as_slice(),
+                        ),
+                        "task-worker-batch-2" => (
+                            "effect-worker-batch-2",
+                            "trace-worker-batch-2",
+                            "intent-worker-batch-2",
+                            &second_output,
+                            b"safeclaw batch two\n".as_slice(),
+                        ),
+                        other => panic!("unexpected task id: {other}"),
+                    };
+                let effect = EffectRecord::new(
+                    effect_id,
+                    claim.task.task_id.clone(),
+                    trace_id,
+                    intent_key,
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(output_path, output_bytes),
+                ))
+            })
+            .unwrap();
+
+        assert_eq!(outcomes.len(), 2);
+        assert_eq!(outcomes[0].claim.task.task_id, "task-worker-batch-1");
+        assert_eq!(outcomes[1].claim.task.task_id, "task-worker-batch-2");
+        assert!(outcomes.iter().all(|outcome| outcome.completed));
+        assert!(outcomes
+            .iter()
+            .all(|outcome| outcome.final_summary.worker_state == WorkerState::Succeeded));
+        assert_eq!(fs::read(&first_output).unwrap(), b"safeclaw batch one\n");
+        assert_eq!(fs::read(&second_output).unwrap(), b"safeclaw batch two\n");
+        assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
+        assert!(loop_driver.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            loop_driver.queue_snapshot().completed_task_ids,
+            vec![
+                String::from("task-worker-batch-1"),
+                String::from("task-worker-batch-2"),
+            ]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored_one = verify_store
+            .load_runtime("task-worker-batch-1", "effect-worker-batch-1")
+            .unwrap()
+            .expect("first batch runtime must reload");
+        let restored_two = verify_store
+            .load_runtime("task-worker-batch-2", "effect-worker-batch-2")
+            .unwrap()
+            .expect("second batch runtime must reload");
+        assert_eq!(restored_one.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored_two.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored_one.effect.status, EffectStatus::Executed);
+        assert_eq!(restored_two.effect.status, EffectStatus::Executed);
     }
 
     #[test]
