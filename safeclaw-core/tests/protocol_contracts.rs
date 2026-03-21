@@ -6,11 +6,12 @@ use safeclaw_core::effect_ledger::{
 use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
-    ConfirmationAction, ExecutionDisposition, ExecutionInterruption, HibernationAction,
+    probe_definition_for, ConfirmationAction, ExecutionDisposition,
+    ExecutionInterruption, HibernationAction, InMemoryProbeAdapter,
     InMemoryStateEngine, InMemoryTaskRuntime, MockStateEngine, PreflightDecision,
-    ReconcileDecision, RepairUserAction, StateApplyResult, StateEngine,
-    StateEngineError, StateEvent,
-    DEFAULT_LEASE_TTL_MS,
+    ProbeReceipt, ProbeReceiptStatus, ReconcileDecision, RepairUserAction,
+    StateApplyResult, StateEngine, StateEngineError,
+    StateEvent, DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -35,6 +36,24 @@ fn effect_ledger_preserves_core_four_phase_statuses_and_six_steps() {
     assert!(CORE_EFFECT_PHASES.contains(&EffectStatus::Uncertain));
     assert!(CORE_EFFECT_PHASES.contains(&EffectStatus::ExecutedAssumed));
     assert_eq!(COMMIT_PROTOCOL_STEPS.len(), 6);
+}
+
+#[test]
+fn probe_catalog_exposes_phase1_supported_contracts() {
+    let file_write = probe_definition_for(EffectAction::FileWrite).unwrap();
+    assert_eq!(file_write.inputs, &["target_path", "expected_blake3"]);
+
+    let file_delete = probe_definition_for(EffectAction::FileDelete).unwrap();
+    assert_eq!(file_delete.inputs, &["target_path"]);
+
+    let network = probe_definition_for(EffectAction::NetworkRequest).unwrap();
+    assert_eq!(network.timeout_ms, 10_000);
+
+    assert!(CORE_SPEC_BINDINGS.iter().any(|binding| {
+        binding.spec_path == "specs/probes/network_request.json"
+            && binding.module_path == "safeclaw_core::recovery::probes"
+            && binding.stage == ImplementationStage::TestSkeleton
+    }));
 }
 
 #[test]
@@ -411,6 +430,71 @@ fn in_memory_runtime_uncertain_probe_failure_cancels_effect_and_reopens_retry() 
 
     let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
     assert_eq!(executing.worker_state, WorkerState::Executing);
+}
+
+#[test]
+fn in_memory_runtime_probe_adapter_can_drive_success_and_indeterminate_paths() {
+    let success_effect = EffectRecord::new(
+        "effect-probe-adapter-success",
+        "task-probe-adapter-success",
+        "trace-probe-adapter-success",
+        "intent-probe-adapter-success",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/probe-adapter-success.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+    let mut success_runtime = InMemoryTaskRuntime::new(success_effect.clone());
+    success_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+
+    let mut adapter = InMemoryProbeAdapter::new();
+    adapter.register(
+        success_effect.effect_id.clone(),
+        ProbeReceipt::new(
+            ProbeReceiptStatus::VerifiedExecuted,
+            "file_hash=verified",
+            "2026-03-21T00:00:00Z",
+        ),
+    );
+    let success = success_runtime.run_probe_with(&adapter).unwrap();
+    assert_eq!(success.worker_state, WorkerState::Succeeded);
+    assert_eq!(success.effect_status, EffectStatus::Executed);
+
+    let indeterminate_effect = EffectRecord::new(
+        "effect-probe-adapter-indeterminate",
+        "task-probe-adapter-indeterminate",
+        "trace-probe-adapter-indeterminate",
+        "intent-probe-adapter-indeterminate",
+        EffectActor::Worker,
+        EffectAction::NetworkRequest,
+        "scope:https://example.invalid/api",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::Auto,
+    );
+    let mut indeterminate_runtime = InMemoryTaskRuntime::new(indeterminate_effect.clone());
+    indeterminate_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    adapter.register(
+        indeterminate_effect.effect_id.clone(),
+        ProbeReceipt::new(
+            ProbeReceiptStatus::Indeterminate,
+            "timeout",
+            "2026-03-21T00:00:01Z",
+        ),
+    );
+    let stalled = indeterminate_runtime.run_probe_with(&adapter).unwrap();
+    assert_eq!(stalled.worker_state, WorkerState::Uncertain);
+    assert_eq!(stalled.effect_status, EffectStatus::Uncertain);
+    assert_eq!(
+        indeterminate_runtime.effect.probe_state,
+        Some(safeclaw_core::effect_ledger::ProbeState::ProbeFailed)
+    );
 }
 
 #[test]

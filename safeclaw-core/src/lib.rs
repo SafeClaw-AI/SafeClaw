@@ -2,6 +2,7 @@
 
 pub mod effect_ledger;
 pub mod protocol;
+pub mod recovery;
 pub mod state_engine;
 pub mod spec_map;
 pub mod task_concurrency;
@@ -19,6 +20,10 @@ use task_concurrency::{
 use worker_lifecycle::{transition_for, WorkerEvent, WorkerState};
 
 pub use protocol::protocol_version;
+pub use recovery::probes::{
+    probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter,
+    ProbeAdapterError, ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
+};
 pub use state_engine::{
     InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine,
     StateEngineError, StateEvent, TaskSnapshot,
@@ -91,6 +96,7 @@ pub enum RuntimeError {
     EffectTransition(EffectTransitionError),
     AttemptWrite(AttemptWriteError),
     Lease(LeaseError),
+    ProbeAdapter(ProbeAdapterError),
     GuardBlocked(GuardBlockReason),
     MissingRecoveryLease,
     MissingAttempt,
@@ -309,6 +315,38 @@ impl InMemoryTaskRuntime {
 
         self.effect.probe_state = Some(ProbeState::Probing);
         Ok(self.summary())
+    }
+
+    pub fn apply_probe_receipt(
+        &mut self,
+        receipt: ProbeReceipt,
+    ) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Uncertain
+            || self.effect.status != EffectStatus::Uncertain
+        {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        match receipt.status {
+            ProbeReceiptStatus::VerifiedExecuted => self.resolve_probe_success(),
+            ProbeReceiptStatus::VerifiedUnexecuted => self.resolve_probe_failure(),
+            ProbeReceiptStatus::Indeterminate => {
+                self.effect.probe_state = Some(ProbeState::ProbeFailed);
+                Ok(self.summary())
+            }
+        }
+    }
+
+    pub fn run_probe_with(
+        &mut self,
+        adapter: &impl ProbeAdapter,
+    ) -> Result<RunSummary, RuntimeError> {
+        self.begin_probe()?;
+        let receipt = adapter.evaluate(&self.effect)?;
+        self.apply_probe_receipt(receipt)
     }
 
     pub fn resolve_probe_success(&mut self) -> Result<RunSummary, RuntimeError> {
@@ -759,6 +797,12 @@ impl From<AttemptWriteError> for RuntimeError {
 impl From<LeaseError> for RuntimeError {
     fn from(value: LeaseError) -> Self {
         RuntimeError::Lease(value)
+    }
+}
+
+impl From<ProbeAdapterError> for RuntimeError {
+    fn from(value: ProbeAdapterError) -> Self {
+        RuntimeError::ProbeAdapter(value)
     }
 }
 
