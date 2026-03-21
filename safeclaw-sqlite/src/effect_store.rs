@@ -30,160 +30,13 @@ impl SqliteEffectStore {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-
-        let (actor_kind, actor_plugin) = encode_actor(&effect.actor);
-        transaction.execute(
-            "INSERT INTO effects (
-                effect_id,
-                task_id,
-                trace_id,
-                intent_key,
-                schema_version,
-                actor_kind,
-                actor_plugin,
-                action,
-                target,
-                probe_mode,
-                tier,
-                reversibility,
-                compensates_effect_id,
-                status,
-                probe_state
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-            ON CONFLICT(effect_id) DO UPDATE SET
-                task_id = excluded.task_id,
-                trace_id = excluded.trace_id,
-                intent_key = excluded.intent_key,
-                schema_version = excluded.schema_version,
-                actor_kind = excluded.actor_kind,
-                actor_plugin = excluded.actor_plugin,
-                action = excluded.action,
-                target = excluded.target,
-                probe_mode = excluded.probe_mode,
-                tier = excluded.tier,
-                reversibility = excluded.reversibility,
-                compensates_effect_id = excluded.compensates_effect_id,
-                status = excluded.status,
-                probe_state = excluded.probe_state",
-            params![
-                &effect.effect_id,
-                &effect.task_id,
-                &effect.trace_id,
-                &effect.intent_key,
-                effect.schema_version,
-                actor_kind,
-                actor_plugin,
-                encode_action(effect.action),
-                &effect.target,
-                encode_probe_mode(effect.probe_mode),
-                encode_tier(effect.tier),
-                encode_reversibility(effect.reversibility),
-                effect.compensates_effect_id.as_deref(),
-                encode_effect_status(effect.status),
-                effect.probe_state.map(encode_probe_state),
-            ],
-        )?;
-
-        for (index, transition) in effect.transitions.iter().enumerate() {
-            transaction.execute(
-                "INSERT OR IGNORE INTO effect_transitions (
-                    effect_id,
-                    transition_seq,
-                    from_status,
-                    to_status,
-                    occurred_at,
-                    triggered_by,
-                    reason
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    &effect.effect_id,
-                    to_sql_i64((index + 1) as u64, "effect_transition_seq")?,
-                    encode_effect_status(transition.from_status),
-                    encode_effect_status(transition.to_status),
-                    &transition.at,
-                    &transition.triggered_by,
-                    &transition.reason,
-                ],
-            )?;
-        }
-
+        save_effect_in_transaction(&transaction, effect)?;
         transaction.commit()?;
         Ok(())
     }
 
     pub fn load_effect(&self, effect_id: &str) -> Result<Option<EffectRecord>, SqliteAdapterError> {
-        let raw_effect = match self.connection.query_row(
-            "SELECT
-                effect_id,
-                task_id,
-                trace_id,
-                intent_key,
-                schema_version,
-                actor_kind,
-                actor_plugin,
-                action,
-                target,
-                probe_mode,
-                tier,
-                reversibility,
-                compensates_effect_id,
-                status,
-                probe_state
-             FROM effects
-             WHERE effect_id = ?1",
-            [effect_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, String>(5)?,
-                    row.get::<_, Option<String>>(6)?,
-                    row.get::<_, String>(7)?,
-                    row.get::<_, String>(8)?,
-                    row.get::<_, String>(9)?,
-                    row.get::<_, String>(10)?,
-                    row.get::<_, String>(11)?,
-                    row.get::<_, Option<String>>(12)?,
-                    row.get::<_, String>(13)?,
-                    row.get::<_, Option<String>>(14)?,
-                ))
-            },
-        ) {
-            Ok(effect) => effect,
-            Err(RusqliteError::QueryReturnedNoRows) => return Ok(None),
-            Err(error) => return Err(error.into()),
-        };
-
-        let schema_version = decode_schema_version(&raw_effect.4)?;
-        let actor = decode_actor(&raw_effect.5, raw_effect.6)?;
-        let action = decode_action(&raw_effect.7)?;
-        let probe_mode = decode_probe_mode(&raw_effect.9)?;
-        let tier = decode_tier(&raw_effect.10)?;
-        let reversibility = decode_reversibility(&raw_effect.11)?;
-        let status = decode_effect_status(&raw_effect.13)?;
-        let probe_state = decode_probe_state_opt(raw_effect.14)?;
-        let transitions = self.load_transitions(effect_id)?;
-
-        Ok(Some(EffectRecord {
-            effect_id: raw_effect.0,
-            task_id: raw_effect.1,
-            trace_id: raw_effect.2,
-            intent_key: raw_effect.3,
-            schema_version,
-            actor,
-            action,
-            target: raw_effect.8,
-            probe_mode,
-            tier,
-            reversibility,
-            compensates_effect_id: raw_effect.12,
-            status,
-            probe_state,
-            transitions,
-        }))
+        load_effect_from_connection(&self.connection, effect_id)
     }
 
     pub fn save_lease(
@@ -194,30 +47,7 @@ impl SqliteEffectStore {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        transaction.execute(
-            "INSERT INTO task_recovery_leases (
-                lease_id,
-                task_id,
-                owner_id,
-                fencing_token,
-                ttl_ms,
-                expires_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-            ON CONFLICT(lease_id) DO UPDATE SET
-                task_id = excluded.task_id,
-                owner_id = excluded.owner_id,
-                fencing_token = excluded.fencing_token,
-                ttl_ms = excluded.ttl_ms,
-                expires_at_ms = excluded.expires_at_ms",
-            params![
-                &lease.lease_id,
-                task_id,
-                &lease.owner_id,
-                to_sql_i64(lease.fencing_token, "lease_fencing_token")?,
-                to_sql_i64(lease.ttl_ms, "lease_ttl_ms")?,
-                to_sql_i64(lease.expires_at_ms, "lease_expires_at_ms")?,
-            ],
-        )?;
+        save_lease_in_transaction(&transaction, task_id, lease)?;
         transaction.commit()?;
         Ok(())
     }
@@ -226,155 +56,377 @@ impl SqliteEffectStore {
         &self,
         task_id: &str,
     ) -> Result<Option<RecoveryLease>, SqliteAdapterError> {
-        let leases = self.list_leases(task_id)?;
-        Ok(leases.into_iter().next())
+        load_latest_lease_from_connection(&self.connection, task_id)
     }
 
     pub fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, SqliteAdapterError> {
-        let mut statement = self.connection.prepare(
-            "SELECT lease_id, owner_id, fencing_token, ttl_ms, expires_at_ms
-             FROM task_recovery_leases
-             WHERE task_id = ?1
-             ORDER BY fencing_token DESC, expires_at_ms DESC, lease_id DESC",
-        )?;
-
-        let leases = statement
-            .query_map([task_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                ))
-            })?
-            .map(|row| {
-                let (lease_id, owner_id, fencing_token, ttl_ms, expires_at_ms) = row?;
-                Ok(RecoveryLease {
-                    lease_id,
-                    owner_id,
-                    fencing_token: from_sql_i64(fencing_token, "lease_fencing_token")?,
-                    ttl_ms: from_sql_i64(ttl_ms, "lease_ttl_ms")?,
-                    expires_at_ms: from_sql_i64(expires_at_ms, "lease_expires_at_ms")?,
-                })
-            })
-            .collect();
-        leases
+        list_leases_from_connection(&self.connection, task_id)
     }
 
     pub fn save_attempt(&mut self, attempt: &EffectAttempt) -> Result<(), SqliteAdapterError> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        save_attempt_in_transaction(&transaction, attempt)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
+        list_attempts_from_connection(&self.connection, effect_id)
+    }
+}
+
+pub(crate) fn save_effect_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    effect: &EffectRecord,
+) -> Result<(), SqliteAdapterError> {
+    let (actor_kind, actor_plugin) = encode_actor(&effect.actor);
+    transaction.execute(
+        "INSERT INTO effects (
+            effect_id,
+            task_id,
+            trace_id,
+            intent_key,
+            schema_version,
+            actor_kind,
+            actor_plugin,
+            action,
+            target,
+            probe_mode,
+            tier,
+            reversibility,
+            compensates_effect_id,
+            status,
+            probe_state
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+        ON CONFLICT(effect_id) DO UPDATE SET
+            task_id = excluded.task_id,
+            trace_id = excluded.trace_id,
+            intent_key = excluded.intent_key,
+            schema_version = excluded.schema_version,
+            actor_kind = excluded.actor_kind,
+            actor_plugin = excluded.actor_plugin,
+            action = excluded.action,
+            target = excluded.target,
+            probe_mode = excluded.probe_mode,
+            tier = excluded.tier,
+            reversibility = excluded.reversibility,
+            compensates_effect_id = excluded.compensates_effect_id,
+            status = excluded.status,
+            probe_state = excluded.probe_state",
+        params![
+            &effect.effect_id,
+            &effect.task_id,
+            &effect.trace_id,
+            &effect.intent_key,
+            effect.schema_version,
+            actor_kind,
+            actor_plugin,
+            encode_action(effect.action),
+            &effect.target,
+            encode_probe_mode(effect.probe_mode),
+            encode_tier(effect.tier),
+            encode_reversibility(effect.reversibility),
+            effect.compensates_effect_id.as_deref(),
+            encode_effect_status(effect.status),
+            effect.probe_state.map(encode_probe_state),
+        ],
+    )?;
+
+    for (index, transition) in effect.transitions.iter().enumerate() {
         transaction.execute(
-            "INSERT INTO effect_attempts (
+            "INSERT OR IGNORE INTO effect_transitions (
+                effect_id,
+                transition_seq,
+                from_status,
+                to_status,
+                occurred_at,
+                triggered_by,
+                reason
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &effect.effect_id,
+                to_sql_i64((index + 1) as u64, "effect_transition_seq")?,
+                encode_effect_status(transition.from_status),
+                encode_effect_status(transition.to_status),
+                &transition.at,
+                &transition.triggered_by,
+                &transition.reason,
+            ],
+        )?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn load_effect_from_connection(
+    connection: &Connection,
+    effect_id: &str,
+) -> Result<Option<EffectRecord>, SqliteAdapterError> {
+    let raw_effect = match connection.query_row(
+        "SELECT
+            effect_id,
+            task_id,
+            trace_id,
+            intent_key,
+            schema_version,
+            actor_kind,
+            actor_plugin,
+            action,
+            target,
+            probe_mode,
+            tier,
+            reversibility,
+            compensates_effect_id,
+            status,
+            probe_state
+         FROM effects
+         WHERE effect_id = ?1",
+        [effect_id],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, String>(8)?,
+                row.get::<_, String>(9)?,
+                row.get::<_, String>(10)?,
+                row.get::<_, String>(11)?,
+                row.get::<_, Option<String>>(12)?,
+                row.get::<_, String>(13)?,
+                row.get::<_, Option<String>>(14)?,
+            ))
+        },
+    ) {
+        Ok(effect) => effect,
+        Err(RusqliteError::QueryReturnedNoRows) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+
+    let schema_version = decode_schema_version(&raw_effect.4)?;
+    let actor = decode_actor(&raw_effect.5, raw_effect.6)?;
+    let action = decode_action(&raw_effect.7)?;
+    let probe_mode = decode_probe_mode(&raw_effect.9)?;
+    let tier = decode_tier(&raw_effect.10)?;
+    let reversibility = decode_reversibility(&raw_effect.11)?;
+    let status = decode_effect_status(&raw_effect.13)?;
+    let probe_state = decode_probe_state_opt(raw_effect.14)?;
+    let transitions = load_transitions_from_connection(connection, effect_id)?;
+
+    Ok(Some(EffectRecord {
+        effect_id: raw_effect.0,
+        task_id: raw_effect.1,
+        trace_id: raw_effect.2,
+        intent_key: raw_effect.3,
+        schema_version,
+        actor,
+        action,
+        target: raw_effect.8,
+        probe_mode,
+        tier,
+        reversibility,
+        compensates_effect_id: raw_effect.12,
+        status,
+        probe_state,
+        transitions,
+    }))
+}
+
+pub(crate) fn save_lease_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    task_id: &str,
+    lease: &RecoveryLease,
+) -> Result<(), SqliteAdapterError> {
+    transaction.execute(
+        "INSERT INTO task_recovery_leases (
+            lease_id,
+            task_id,
+            owner_id,
+            fencing_token,
+            ttl_ms,
+            expires_at_ms
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(lease_id) DO UPDATE SET
+            task_id = excluded.task_id,
+            owner_id = excluded.owner_id,
+            fencing_token = excluded.fencing_token,
+            ttl_ms = excluded.ttl_ms,
+            expires_at_ms = excluded.expires_at_ms",
+        params![
+            &lease.lease_id,
+            task_id,
+            &lease.owner_id,
+            to_sql_i64(lease.fencing_token, "lease_fencing_token")?,
+            to_sql_i64(lease.ttl_ms, "lease_ttl_ms")?,
+            to_sql_i64(lease.expires_at_ms, "lease_expires_at_ms")?,
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn load_latest_lease_from_connection(
+    connection: &Connection,
+    task_id: &str,
+) -> Result<Option<RecoveryLease>, SqliteAdapterError> {
+    let leases = list_leases_from_connection(connection, task_id)?;
+    Ok(leases.into_iter().next())
+}
+
+pub(crate) fn list_leases_from_connection(
+    connection: &Connection,
+    task_id: &str,
+) -> Result<Vec<RecoveryLease>, SqliteAdapterError> {
+    let mut statement = connection.prepare(
+        "SELECT lease_id, owner_id, fencing_token, ttl_ms, expires_at_ms
+         FROM task_recovery_leases
+         WHERE task_id = ?1
+         ORDER BY fencing_token DESC, expires_at_ms DESC, lease_id DESC",
+    )?;
+
+    let leases = statement
+        .query_map([task_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(4)?,
+            ))
+        })?
+        .map(|row| {
+            let (lease_id, owner_id, fencing_token, ttl_ms, expires_at_ms) = row?;
+            Ok(RecoveryLease {
+                lease_id,
+                owner_id,
+                fencing_token: from_sql_i64(fencing_token, "lease_fencing_token")?,
+                ttl_ms: from_sql_i64(ttl_ms, "lease_ttl_ms")?,
+                expires_at_ms: from_sql_i64(expires_at_ms, "lease_expires_at_ms")?,
+            })
+        })
+        .collect();
+    leases
+}
+
+pub(crate) fn save_attempt_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    attempt: &EffectAttempt,
+) -> Result<(), SqliteAdapterError> {
+    transaction.execute(
+        "INSERT INTO effect_attempts (
+            attempt_id,
+            effect_id,
+            attempt_seq,
+            dispatched_at,
+            lease_id,
+            fencing_token,
+            result_status
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(attempt_id) DO UPDATE SET
+            effect_id = excluded.effect_id,
+            attempt_seq = excluded.attempt_seq,
+            dispatched_at = excluded.dispatched_at,
+            lease_id = excluded.lease_id,
+            fencing_token = excluded.fencing_token,
+            result_status = excluded.result_status",
+        params![
+            &attempt.attempt_id,
+            &attempt.effect_id,
+            to_sql_i64(attempt.attempt_seq, "attempt_seq")?,
+            &attempt.dispatched_at,
+            &attempt.lease_id,
+            to_sql_i64(attempt.fencing_token, "attempt_fencing_token")?,
+            attempt.result_status.map(encode_attempt_result_status),
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn list_attempts_from_connection(
+    connection: &Connection,
+    effect_id: &str,
+) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
+    let mut statement = connection.prepare(
+        "SELECT attempt_id, effect_id, attempt_seq, dispatched_at, lease_id, fencing_token, result_status
+         FROM effect_attempts
+         WHERE effect_id = ?1
+         ORDER BY attempt_seq ASC",
+    )?;
+
+    let attempts = statement
+        .query_map([effect_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, Option<String>>(6)?,
+            ))
+        })?
+        .map(|row| {
+            let (
                 attempt_id,
                 effect_id,
                 attempt_seq,
                 dispatched_at,
                 lease_id,
                 fencing_token,
-                result_status
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-            ON CONFLICT(attempt_id) DO UPDATE SET
-                effect_id = excluded.effect_id,
-                attempt_seq = excluded.attempt_seq,
-                dispatched_at = excluded.dispatched_at,
-                lease_id = excluded.lease_id,
-                fencing_token = excluded.fencing_token,
-                result_status = excluded.result_status",
-            params![
-                &attempt.attempt_id,
-                &attempt.effect_id,
-                to_sql_i64(attempt.attempt_seq, "attempt_seq")?,
-                &attempt.dispatched_at,
-                &attempt.lease_id,
-                to_sql_i64(attempt.fencing_token, "attempt_fencing_token")?,
-                attempt.result_status.map(encode_attempt_result_status),
-            ],
-        )?;
-        transaction.commit()?;
-        Ok(())
-    }
-
-    pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
-        let mut statement = self.connection.prepare(
-            "SELECT attempt_id, effect_id, attempt_seq, dispatched_at, lease_id, fencing_token, result_status
-             FROM effect_attempts
-             WHERE effect_id = ?1
-             ORDER BY attempt_seq ASC",
-        )?;
-
-        let attempts = statement
-            .query_map([effect_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, Option<String>>(6)?,
-                ))
-            })?
-            .map(|row| {
-                let (
-                    attempt_id,
-                    effect_id,
-                    attempt_seq,
-                    dispatched_at,
-                    lease_id,
-                    fencing_token,
-                    result_status,
-                ) = row?;
-                Ok(EffectAttempt {
-                    attempt_id,
-                    effect_id,
-                    attempt_seq: from_sql_i64(attempt_seq, "attempt_seq")?,
-                    dispatched_at,
-                    lease_id,
-                    fencing_token: from_sql_i64(fencing_token, "attempt_fencing_token")?,
-                    result_status: decode_attempt_result_status_opt(result_status)?,
-                })
+                result_status,
+            ) = row?;
+            Ok(EffectAttempt {
+                attempt_id,
+                effect_id,
+                attempt_seq: from_sql_i64(attempt_seq, "attempt_seq")?,
+                dispatched_at,
+                lease_id,
+                fencing_token: from_sql_i64(fencing_token, "attempt_fencing_token")?,
+                result_status: decode_attempt_result_status_opt(result_status)?,
             })
-            .collect();
-        attempts
-    }
+        })
+        .collect();
+    attempts
+}
 
-    fn load_transitions(
-        &self,
-        effect_id: &str,
-    ) -> Result<Vec<EffectTransitionRecord>, SqliteAdapterError> {
-        let mut statement = self.connection.prepare(
-            "SELECT from_status, to_status, occurred_at, triggered_by, reason
-             FROM effect_transitions
-             WHERE effect_id = ?1
-             ORDER BY transition_seq ASC",
-        )?;
+pub(crate) fn load_transitions_from_connection(
+    connection: &Connection,
+    effect_id: &str,
+) -> Result<Vec<EffectTransitionRecord>, SqliteAdapterError> {
+    let mut statement = connection.prepare(
+        "SELECT from_status, to_status, occurred_at, triggered_by, reason
+         FROM effect_transitions
+         WHERE effect_id = ?1
+         ORDER BY transition_seq ASC",
+    )?;
 
-        let transitions = statement
-            .query_map([effect_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                ))
-            })?
-            .map(|row| {
-                let (from_status, to_status, at, triggered_by, reason) = row?;
-                Ok(EffectTransitionRecord {
-                    from_status: decode_effect_status(&from_status)?,
-                    to_status: decode_effect_status(&to_status)?,
-                    at,
-                    triggered_by,
-                    reason,
-                })
+    let transitions = statement
+        .query_map([effect_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?
+        .map(|row| {
+            let (from_status, to_status, at, triggered_by, reason) = row?;
+            Ok(EffectTransitionRecord {
+                from_status: decode_effect_status(&from_status)?,
+                to_status: decode_effect_status(&to_status)?,
+                at,
+                triggered_by,
+                reason,
             })
-            .collect();
-        transitions
-    }
+        })
+        .collect();
+    transitions
 }
 
 fn encode_actor(actor: &EffectActor) -> (&'static str, Option<&str>) {

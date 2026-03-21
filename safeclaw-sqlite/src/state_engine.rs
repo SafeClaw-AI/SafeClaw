@@ -31,156 +31,15 @@ impl StateEngine for SqliteStateEngine {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| backend_unavailable("begin_immediate"))?;
-
-        let duplicate_count: i64 = transaction
-            .query_row(
-                "SELECT COUNT(1) FROM state_events WHERE state_event_id = ?1",
-                [&event.state_event_id],
-                |row| row.get(0),
-            )
-            .map_err(|_| backend_unavailable("lookup_duplicate_event"))?;
-        if duplicate_count > 0 {
-            return Ok(StateApplyResult::DuplicateIgnored);
-        }
-
-        let (current_fencing_token, current_version) =
-            load_snapshot_meta(&transaction, &event.task_id)?;
-        if event.fencing_token < current_fencing_token {
-            return Err(StateEngineError::StaleFencingToken {
-                current: current_fencing_token,
-                provided: event.fencing_token,
-            });
-        }
-
-        let StateEvent {
-            state_event_id,
-            task_id,
-            worker_state,
-            effect_status,
-            probe_state,
-            fencing_token,
-            triggered_by,
-            at,
-        } = event;
-        let next_version = current_version + 1;
-        let worker_state_sql = encode_worker_state(worker_state);
-        let effect_status_sql = encode_effect_status(effect_status);
-        let probe_state_sql = probe_state.map(encode_probe_state);
-        let fencing_token_sql = to_sql_i64(fencing_token, "encode_fencing_token")?;
-        let version_sql = to_sql_i64(next_version, "encode_snapshot_version")?;
-
-        transaction
-            .execute(
-                "INSERT INTO state_events (
-                    state_event_id,
-                    task_id,
-                    worker_state,
-                    effect_status,
-                    probe_state,
-                    fencing_token,
-                    triggered_by,
-                    occurred_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    &state_event_id,
-                    &task_id,
-                    worker_state_sql,
-                    effect_status_sql,
-                    probe_state_sql,
-                    fencing_token_sql,
-                    &triggered_by,
-                    &at,
-                ],
-            )
-            .map_err(|_| backend_unavailable("insert_state_event"))?;
-
-        transaction
-            .execute(
-                "INSERT INTO task_snapshots (
-                    task_id,
-                    worker_state,
-                    effect_status,
-                    probe_state,
-                    last_state_event_id,
-                    fencing_token,
-                    version,
-                    updated_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                ON CONFLICT(task_id) DO UPDATE SET
-                    worker_state = excluded.worker_state,
-                    effect_status = excluded.effect_status,
-                    probe_state = excluded.probe_state,
-                    last_state_event_id = excluded.last_state_event_id,
-                    fencing_token = excluded.fencing_token,
-                    version = excluded.version,
-                    updated_at = excluded.updated_at",
-                params![
-                    &task_id,
-                    worker_state_sql,
-                    effect_status_sql,
-                    probe_state_sql,
-                    &state_event_id,
-                    fencing_token_sql,
-                    version_sql,
-                    &at,
-                ],
-            )
-            .map_err(|_| backend_unavailable("upsert_task_snapshot"))?;
-
+        let result = apply_event_in_transaction(&transaction, event)?;
         transaction
             .commit()
             .map_err(|_| backend_unavailable("commit_state_event"))?;
-        Ok(StateApplyResult::Applied)
+        Ok(result)
     }
 
     fn load_snapshot(&self, task_id: &str) -> Result<Option<TaskSnapshot>, StateEngineError> {
-        let raw_snapshot = match self.connection.query_row(
-            "SELECT
-                task_id,
-                worker_state,
-                effect_status,
-                probe_state,
-                last_state_event_id,
-                fencing_token,
-                version,
-                updated_at
-             FROM task_snapshots
-             WHERE task_id = ?1",
-            [task_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, i64>(6)?,
-                    row.get::<_, String>(7)?,
-                ))
-            },
-        ) {
-            Ok(snapshot) => snapshot,
-            Err(RusqliteError::QueryReturnedNoRows) => return Ok(None),
-            Err(_) => return Err(backend_unavailable("load_snapshot")),
-        };
-
-        let worker_state = decode_worker_state(&raw_snapshot.1)?;
-        let effect_status = decode_effect_status(&raw_snapshot.2)?;
-        let probe_state = decode_probe_state_opt(raw_snapshot.3)?;
-        let fencing_token = from_sql_i64(raw_snapshot.5, "decode_fencing_token")?;
-        let version = from_sql_i64(raw_snapshot.6, "decode_snapshot_version")?;
-
-        Ok(Some(TaskSnapshot {
-            task_id: raw_snapshot.0,
-            worker_state,
-            effect_status,
-            probe_state,
-            last_state_event_id: raw_snapshot.4,
-            fencing_token,
-            version,
-            updated_at: raw_snapshot.7,
-        }))
+        load_snapshot_from_connection(&self.connection, task_id)
     }
 
     fn event_count(&self) -> usize {
@@ -192,6 +51,160 @@ impl StateEngine for SqliteStateEngine {
             .and_then(|count| usize::try_from(count).ok())
             .unwrap_or(0)
     }
+}
+
+pub(crate) fn apply_event_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    event: StateEvent,
+) -> Result<StateApplyResult, StateEngineError> {
+    let duplicate_count: i64 = transaction
+        .query_row(
+            "SELECT COUNT(1) FROM state_events WHERE state_event_id = ?1",
+            [&event.state_event_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| backend_unavailable("lookup_duplicate_event"))?;
+    if duplicate_count > 0 {
+        return Ok(StateApplyResult::DuplicateIgnored);
+    }
+
+    let (current_fencing_token, current_version) = load_snapshot_meta(transaction, &event.task_id)?;
+    if event.fencing_token < current_fencing_token {
+        return Err(StateEngineError::StaleFencingToken {
+            current: current_fencing_token,
+            provided: event.fencing_token,
+        });
+    }
+
+    let StateEvent {
+        state_event_id,
+        task_id,
+        worker_state,
+        effect_status,
+        probe_state,
+        fencing_token,
+        triggered_by,
+        at,
+    } = event;
+    let next_version = current_version + 1;
+    let worker_state_sql = encode_worker_state(worker_state);
+    let effect_status_sql = encode_effect_status(effect_status);
+    let probe_state_sql = probe_state.map(encode_probe_state);
+    let fencing_token_sql = to_sql_i64(fencing_token, "encode_fencing_token")?;
+    let version_sql = to_sql_i64(next_version, "encode_snapshot_version")?;
+
+    transaction
+        .execute(
+            "INSERT INTO state_events (
+                state_event_id,
+                task_id,
+                worker_state,
+                effect_status,
+                probe_state,
+                fencing_token,
+                triggered_by,
+                occurred_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &state_event_id,
+                &task_id,
+                worker_state_sql,
+                effect_status_sql,
+                probe_state_sql,
+                fencing_token_sql,
+                &triggered_by,
+                &at,
+            ],
+        )
+        .map_err(|_| backend_unavailable("insert_state_event"))?;
+
+    transaction
+        .execute(
+            "INSERT INTO task_snapshots (
+                task_id,
+                worker_state,
+                effect_status,
+                probe_state,
+                last_state_event_id,
+                fencing_token,
+                version,
+                updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            ON CONFLICT(task_id) DO UPDATE SET
+                worker_state = excluded.worker_state,
+                effect_status = excluded.effect_status,
+                probe_state = excluded.probe_state,
+                last_state_event_id = excluded.last_state_event_id,
+                fencing_token = excluded.fencing_token,
+                version = excluded.version,
+                updated_at = excluded.updated_at",
+            params![
+                &task_id,
+                worker_state_sql,
+                effect_status_sql,
+                probe_state_sql,
+                &state_event_id,
+                fencing_token_sql,
+                version_sql,
+                &at,
+            ],
+        )
+        .map_err(|_| backend_unavailable("upsert_task_snapshot"))?;
+
+    Ok(StateApplyResult::Applied)
+}
+
+pub(crate) fn load_snapshot_from_connection(
+    connection: &Connection,
+    task_id: &str,
+) -> Result<Option<TaskSnapshot>, StateEngineError> {
+    let raw_snapshot = match connection.query_row(
+        "SELECT
+            task_id,
+            worker_state,
+            effect_status,
+            probe_state,
+            last_state_event_id,
+            fencing_token,
+            version,
+            updated_at
+         FROM task_snapshots
+         WHERE task_id = ?1",
+        [task_id],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, String>(7)?,
+            ))
+        },
+    ) {
+        Ok(snapshot) => snapshot,
+        Err(RusqliteError::QueryReturnedNoRows) => return Ok(None),
+        Err(_) => return Err(backend_unavailable("load_snapshot")),
+    };
+
+    let worker_state = decode_worker_state(&raw_snapshot.1)?;
+    let effect_status = decode_effect_status(&raw_snapshot.2)?;
+    let probe_state = decode_probe_state_opt(raw_snapshot.3)?;
+    let fencing_token = from_sql_i64(raw_snapshot.5, "decode_fencing_token")?;
+    let version = from_sql_i64(raw_snapshot.6, "decode_snapshot_version")?;
+
+    Ok(Some(TaskSnapshot {
+        task_id: raw_snapshot.0,
+        worker_state,
+        effect_status,
+        probe_state,
+        last_state_event_id: raw_snapshot.4,
+        fencing_token,
+        version,
+        updated_at: raw_snapshot.7,
+    }))
 }
 
 fn load_snapshot_meta(
