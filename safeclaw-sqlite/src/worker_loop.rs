@@ -100,6 +100,7 @@ impl SqliteSingleWorkerLoop {
         runtime
             .begin_execution(preflight)
             .map_err(WorkerLoopError::Runtime)?;
+        self.persist_runtime(&runtime, &claim, "pre-exec")?;
 
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -147,6 +148,7 @@ impl SqliteSingleWorkerLoop {
         runtime
             .retry_failed(preflight)
             .map_err(WorkerLoopError::Runtime)?;
+        self.persist_runtime(&runtime, &claim, "pre-exec")?;
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -306,6 +308,57 @@ mod tests {
             .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |_| unreachable!())
             .unwrap();
         assert!(outcome.is_none());
+    }
+
+    #[test]
+    fn worker_loop_persists_pre_exec_runtime_when_sandbox_spawn_fails() {
+        let temp = TempWorkspace::new("pre-exec-spawn");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-pre-exec",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = loop_driver
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-pre-exec",
+                    claim.task.task_id.clone(),
+                    "trace-worker-pre-exec",
+                    "intent-worker-pre-exec",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_missing_program_command()))
+            })
+            .unwrap_err();
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(loop_driver.queue_snapshot().completed_task_ids.len(), 0);
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+        assert!(!temp.output_path.exists());
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-pre-exec", "effect-worker-pre-exec")
+            .unwrap()
+            .expect("pre-exec runtime must persist before sandbox spawn");
+        assert_eq!(restored.worker_state, WorkerState::Executing);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
     }
 
     #[test]
@@ -584,6 +637,14 @@ mod tests {
         } else {
             SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
         }
+    }
+
+    fn sandbox_missing_program_command() -> SandboxCommand {
+        SandboxCommand::new(
+            "safeclaw-missing-program-for-spawn-test",
+            std::iter::empty::<&str>(),
+            5_000,
+        )
     }
 
     fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
