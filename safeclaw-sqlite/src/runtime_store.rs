@@ -1,7 +1,7 @@
-use rusqlite::{Connection, TransactionBehavior};
+﻿use rusqlite::{Connection, TransactionBehavior};
 use safeclaw_core::{
     state_engine::{StateApplyResult, StateEvent},
-    InMemoryTaskRuntime,
+    InMemoryTaskRuntime, RuntimeStore, RuntimeStoreError,
 };
 
 use crate::{
@@ -124,6 +124,27 @@ impl SqliteRuntimeStore {
     }
 }
 
+
+impl RuntimeStore for SqliteRuntimeStore {
+    fn persist_runtime(
+        &mut self,
+        runtime: &InMemoryTaskRuntime,
+        state_event_id: &str,
+        triggered_by: &str,
+    ) -> Result<StateApplyResult, RuntimeStoreError> {
+        SqliteRuntimeStore::persist_runtime(self, runtime, state_event_id, triggered_by)
+            .map_err(|error| map_runtime_store_error(error, "persist_runtime"))
+    }
+
+    fn load_runtime(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<InMemoryTaskRuntime>, RuntimeStoreError> {
+        SqliteRuntimeStore::load_runtime(self, task_id, effect_id)
+            .map_err(|error| map_runtime_store_error(error, "load_runtime"))
+    }
+}
 fn map_state_engine_error(
     error: safeclaw_core::state_engine::StateEngineError,
 ) -> SqliteAdapterError {
@@ -343,3 +364,34 @@ mod tests {
         )
     }
 }
+
+fn map_runtime_store_error(
+    error: SqliteAdapterError,
+    operation: &'static str,
+) -> RuntimeStoreError {
+    match error {
+        SqliteAdapterError::InvalidStoredValue { field, value } => {
+            RuntimeStoreError::InvalidStoredValue { field, value }
+        }
+        SqliteAdapterError::IntegerOutOfRange { field, value } => {
+            RuntimeStoreError::InvalidStoredValue {
+                field,
+                value: value.to_string(),
+            }
+        }
+        SqliteAdapterError::UnsupportedSchemaVersion { current, expected } => {
+            RuntimeStoreError::InvalidStoredValue {
+                field: "schema_version",
+                value: format!("current={current}, expected={expected}"),
+            }
+        }
+        SqliteAdapterError::InvalidPragmaValue { pragma, value } => {
+            RuntimeStoreError::InvalidStoredValue {
+                field: pragma,
+                value,
+            }
+        }
+        SqliteAdapterError::Sqlite(_) => RuntimeStoreError::BackendUnavailable { operation },
+    }
+}
+

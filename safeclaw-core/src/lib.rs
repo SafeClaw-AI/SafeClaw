@@ -3,6 +3,7 @@
 pub mod effect_ledger;
 pub mod protocol;
 pub mod recovery;
+pub mod runtime_store;
 pub mod scheduler;
 pub mod state_engine;
 pub mod spec_map;
@@ -27,6 +28,9 @@ pub use protocol::protocol_version;
 pub use recovery::probes::{
     probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter,
     ProbeAdapterError, ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
+};
+pub use runtime_store::{
+    InMemoryRuntimeStore, MockRuntimeStore, RuntimeStore, RuntimeStoreError,
 };
 pub use scheduler::{
     InMemoryTaskOrchestrator, InMemoryTaskScheduler, MockTaskOrchestrator,
@@ -1409,4 +1413,5 @@ mod tests {
         assert!(summary.quarantined_scopes.is_empty());
     }
 }
+
 

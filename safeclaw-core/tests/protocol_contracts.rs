@@ -11,11 +11,12 @@ use safeclaw_core::{
     ExecutionInterruption, HibernationAction, InMemoryEffectStore,
     InMemoryProbeAdapter, InMemoryStateEngine, InMemoryTaskOrchestrator,
     InMemoryTaskRuntime, InMemoryTaskScheduler, MockEffectStore,
-    MockStateEngine, OrchestratorError, OrchestratorTask,
+    MockRuntimeStore, MockStateEngine, OrchestratorError, OrchestratorTask,
     PreflightDecision, ProbeReceipt, ProbeReceiptStatus, ReconcileDecision,
-    RepairUserAction, RuntimeRestoreError, ScheduleIntent, SchedulerError,
-    StateApplyResult, StateEngine, StateEvent, StateEngineError,
-    TaskOrchestrator, TaskScheduler, DEFAULT_LEASE_TTL_MS,
+    RepairUserAction, RuntimeRestoreError, RuntimeStore, RuntimeStoreError,
+    ScheduleIntent, SchedulerError, StateApplyResult, StateEngine,
+    StateEvent, StateEngineError, TaskOrchestrator, TaskScheduler,
+    DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -949,6 +950,74 @@ fn effect_store_trait_contract_roundtrips_through_mock_adapter() {
 }
 
 #[test]
+fn runtime_store_trait_contract_roundtrips_through_mock_adapter() {
+    let effect = EffectRecord::new(
+        "effect-runtime-trait",
+        "task-runtime-trait",
+        "trace-runtime-trait",
+        "intent-runtime-trait",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/runtime-trait.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::None,
+    );
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+        .unwrap();
+
+    let mut store = MockRuntimeStore::new();
+    assert_eq!(
+        store.persist_runtime(&runtime, "evt-runtime-trait", "runtime-store").unwrap(),
+        StateApplyResult::Applied
+    );
+    let restored = store
+        .load_runtime("task-runtime-trait", "effect-runtime-trait")
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(restored.worker_state, runtime.worker_state);
+    assert_eq!(restored.effect.status, runtime.effect.status);
+}
+
+#[test]
+fn runtime_store_trait_surfaces_backend_unavailable_errors() {
+    struct FailingRuntimeStore;
+
+    impl RuntimeStore for FailingRuntimeStore {
+        fn persist_runtime(
+            &mut self,
+            _runtime: &InMemoryTaskRuntime,
+            _state_event_id: &str,
+            _triggered_by: &str,
+        ) -> Result<StateApplyResult, RuntimeStoreError> {
+            Err(RuntimeStoreError::BackendUnavailable {
+                operation: "persist_runtime",
+            })
+        }
+
+        fn load_runtime(
+            &self,
+            _task_id: &str,
+            _effect_id: &str,
+        ) -> Result<Option<InMemoryTaskRuntime>, RuntimeStoreError> {
+            Err(RuntimeStoreError::BackendUnavailable {
+                operation: "load_runtime",
+            })
+        }
+    }
+
+    let store = FailingRuntimeStore;
+    assert_eq!(
+        store.load_runtime("task-runtime-fail", "effect-runtime-fail"),
+        Err(RuntimeStoreError::BackendUnavailable {
+            operation: "load_runtime",
+        })
+    );
+}
+#[test]
 fn runtime_restore_from_effect_store_and_state_engine_roundtrips() {
     let effect = EffectRecord::new(
         "effect-store-restore",
@@ -1324,6 +1393,12 @@ fn in_memory_runtime_repair_failed_can_abandon() {
     assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
     assert_eq!(failed_terminal.effect_status, EffectStatus::Executed);
 }
+
+
+
+
+
+
 
 
 
