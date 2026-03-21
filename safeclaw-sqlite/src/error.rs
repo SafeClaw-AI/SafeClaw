@@ -4,6 +4,8 @@ use std::{error::Error, fmt};
 pub enum SqliteAdapterError {
     Sqlite(rusqlite::Error),
     InvalidPragmaValue { pragma: &'static str, value: String },
+    InvalidStoredValue { field: &'static str, value: String },
+    IntegerOutOfRange { field: &'static str, value: i64 },
     UnsupportedSchemaVersion { current: i64, expected: i64 },
 }
 
@@ -15,6 +17,18 @@ impl fmt::Display for SqliteAdapterError {
                 write!(
                     f,
                     "sqlite pragma {pragma} returned unexpected value {value}"
+                )
+            }
+            Self::InvalidStoredValue { field, value } => {
+                write!(
+                    f,
+                    "sqlite stored field {field} returned unexpected value {value}"
+                )
+            }
+            Self::IntegerOutOfRange { field, value } => {
+                write!(
+                    f,
+                    "sqlite stored field {field} returned out-of-range integer {value}"
                 )
             }
             Self::UnsupportedSchemaVersion { current, expected } => write!(
@@ -29,7 +43,10 @@ impl Error for SqliteAdapterError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Sqlite(error) => Some(error),
-            Self::InvalidPragmaValue { .. } | Self::UnsupportedSchemaVersion { .. } => None,
+            Self::InvalidPragmaValue { .. }
+            | Self::InvalidStoredValue { .. }
+            | Self::IntegerOutOfRange { .. }
+            | Self::UnsupportedSchemaVersion { .. } => None,
         }
     }
 }

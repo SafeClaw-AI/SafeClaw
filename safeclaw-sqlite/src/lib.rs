@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod connection;
+mod effect_store;
 mod error;
 mod migrations;
 mod state_engine;
@@ -8,6 +9,7 @@ mod state_engine;
 use std::path::Path;
 
 pub use connection::{open_file_database, SqliteOpenOptions, DEFAULT_BUSY_TIMEOUT_MS};
+pub use effect_store::SqliteEffectStore;
 pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 use rusqlite::Connection;
@@ -31,8 +33,8 @@ pub fn open_database(
 #[cfg(test)]
 mod tests {
     use super::{
-        adapter_name, open_database, SqliteOpenOptions, ADAPTER_NAME, CURRENT_SCHEMA_VERSION,
-        DEFAULT_BUSY_TIMEOUT_MS, EXPECTED_TABLES,
+        adapter_name, open_database, open_file_database, SqliteOpenOptions, ADAPTER_NAME,
+        CURRENT_SCHEMA_VERSION, DEFAULT_BUSY_TIMEOUT_MS, EXPECTED_TABLES,
     };
     use std::{
         collections::BTreeSet,
@@ -110,6 +112,59 @@ mod tests {
             .query_row("PRAGMA user_version;", [], |row| row.get(0))
             .expect("user_version must be queryable");
         assert_eq!(user_version, CURRENT_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn open_database_migrates_v1_lease_index_to_history_friendly_schema() {
+        let temp_db = TempDatabase::new("migrate-v1");
+        let connection = open_file_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open v1 database");
+        connection
+            .execute_batch(
+                r#"
+CREATE TABLE IF NOT EXISTS task_recovery_leases (
+    lease_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    fencing_token INTEGER NOT NULL,
+    ttl_ms INTEGER NOT NULL,
+    expires_at_ms INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_task_recovery_leases_task_id
+    ON task_recovery_leases(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_recovery_leases_task_fencing_token
+    ON task_recovery_leases(task_id, fencing_token);
+PRAGMA user_version=1;
+"#,
+            )
+            .expect("v1 schema must be created");
+        drop(connection);
+
+        let migrated = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must migrate v1 schema");
+
+        let user_version: i64 = migrated
+            .query_row("PRAGMA user_version;", [], |row| row.get(0))
+            .expect("user_version must be queryable");
+        assert_eq!(user_version, CURRENT_SCHEMA_VERSION);
+
+        let mut statement = migrated
+            .prepare("PRAGMA index_list('task_recovery_leases')")
+            .expect("index list pragma must prepare");
+        let indexes: Vec<(String, i64)> = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+            })
+            .expect("index list pragma must execute")
+            .map(|row| row.expect("index row must be readable"))
+            .collect();
+
+        assert!(!indexes
+            .iter()
+            .any(|(name, _)| name == "idx_task_recovery_leases_task_id"));
+        assert!(indexes.iter().any(|(name, unique)| name
+            == "idx_task_recovery_leases_task_fencing_token"
+            && *unique == 0));
     }
 
     fn read_table_names(connection: &rusqlite::Connection) -> BTreeSet<String> {

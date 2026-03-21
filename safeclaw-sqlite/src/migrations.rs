@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use crate::SqliteAdapterError;
 
-pub const CURRENT_SCHEMA_VERSION: i64 = 1;
+pub const CURRENT_SCHEMA_VERSION: i64 = 2;
 pub const EXPECTED_TABLES: [&str; 6] = [
     "state_events",
     "task_snapshots",
@@ -84,10 +84,10 @@ CREATE TABLE IF NOT EXISTS task_recovery_leases (
     ttl_ms INTEGER NOT NULL,
     expires_at_ms INTEGER NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_task_recovery_leases_task_id
-    ON task_recovery_leases(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_recovery_leases_task_fencing_token
-    ON task_recovery_leases(task_id, fencing_token);
+    ON task_recovery_leases(task_id, fencing_token DESC, expires_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_task_recovery_leases_task_expiry
+    ON task_recovery_leases(task_id, expires_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS effect_attempts (
     attempt_id TEXT PRIMARY KEY,
@@ -108,17 +108,32 @@ CREATE INDEX IF NOT EXISTS idx_effect_attempts_effect_id
 pub fn apply_migrations(connection: &Connection) -> Result<(), SqliteAdapterError> {
     let current_version: i64 =
         connection.query_row("PRAGMA user_version;", [], |row| row.get(0))?;
-    if current_version == CURRENT_SCHEMA_VERSION {
-        return Ok(());
-    }
-    if current_version != 0 {
-        return Err(SqliteAdapterError::UnsupportedSchemaVersion {
+    match current_version {
+        CURRENT_SCHEMA_VERSION => Ok(()),
+        0 => {
+            connection.execute_batch(INITIAL_SCHEMA_SQL)?;
+            connection.execute_batch(&format!("PRAGMA user_version={CURRENT_SCHEMA_VERSION};"))?;
+            Ok(())
+        }
+        1 => migrate_v1_to_v2(connection),
+        _ => Err(SqliteAdapterError::UnsupportedSchemaVersion {
             current: current_version,
             expected: CURRENT_SCHEMA_VERSION,
-        });
+        }),
     }
+}
 
-    connection.execute_batch(INITIAL_SCHEMA_SQL)?;
-    connection.execute_batch(&format!("PRAGMA user_version={CURRENT_SCHEMA_VERSION};"))?;
+fn migrate_v1_to_v2(connection: &Connection) -> Result<(), SqliteAdapterError> {
+    connection.execute_batch(
+        r#"
+DROP INDEX IF EXISTS idx_task_recovery_leases_task_id;
+DROP INDEX IF EXISTS idx_task_recovery_leases_task_fencing_token;
+CREATE INDEX IF NOT EXISTS idx_task_recovery_leases_task_fencing_token
+    ON task_recovery_leases(task_id, fencing_token DESC, expires_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_task_recovery_leases_task_expiry
+    ON task_recovery_leases(task_id, expires_at_ms DESC);
+PRAGMA user_version=2;
+"#,
+    )?;
     Ok(())
 }
