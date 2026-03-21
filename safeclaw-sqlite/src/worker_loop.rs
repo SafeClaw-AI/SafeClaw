@@ -534,6 +534,83 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_persists_pre_exec_retry_state_when_sandbox_spawn_fails() {
+        let temp = TempWorkspace::new("retry-pre-exec-spawn");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-pre-exec",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_worker = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+        first_worker
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-retry-pre-exec",
+                    claim.task.task_id.clone(),
+                    "trace-worker-retry-pre-exec",
+                    "intent-worker-retry-pre-exec",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("first worker must claim queued task");
+
+        let retry_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let retry_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut retry_worker = SqliteSingleWorkerLoop::new(retry_orchestrator, retry_store);
+
+        let error = retry_worker
+            .claim_and_retry_failed_once(
+                "worker-b",
+                26,
+                "effect-worker-retry-pre-exec",
+                PreflightDecision::Permit,
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-retry-pre-exec");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    Ok(sandbox_missing_program_command())
+                },
+            )
+            .unwrap_err();
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(retry_worker.queue_snapshot().completed_task_ids.len(), 0);
+        assert_eq!(retry_worker.queue_snapshot().active_leases.len(), 1);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-retry-pre-exec",
+                "effect-worker-retry-pre-exec",
+            )
+            .unwrap()
+            .expect("retry pre-exec runtime must persist before sandbox spawn");
+        assert_eq!(restored.worker_state, WorkerState::Executing);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
+    }
+
+    #[test]
     fn worker_loop_reclaims_expired_failed_task_and_retries_persisted_runtime() {
         let temp = TempWorkspace::new("reclaim");
         let mut orchestrator = SqliteTaskOrchestrator::new(
