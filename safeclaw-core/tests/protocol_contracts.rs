@@ -7,7 +7,8 @@ use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     ConfirmationAction, ExecutionDisposition, ExecutionInterruption, HibernationAction,
-    InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, RepairUserAction,
+    InMemoryStateEngine, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
+    RepairUserAction, StateApplyResult, StateEngineError, StateEvent,
     DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
@@ -542,6 +543,50 @@ fn in_memory_runtime_stops_at_uncertain_after_probeable_crash() {
 
     assert_eq!(summary.worker_state, WorkerState::Uncertain);
     assert_eq!(summary.effect_status, EffectStatus::Uncertain);
+}
+
+#[test]
+fn state_engine_contract_is_idempotent_and_fencing_aware() {
+    let effect = EffectRecord::new(
+        "effect-state",
+        "task-state",
+        "trace-state",
+        "intent-state",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/state.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+        .unwrap();
+
+    let mut engine = InMemoryStateEngine::new();
+    let event = runtime.state_event("evt-state-1", "worker");
+    assert_eq!(engine.apply_event(event.clone()).unwrap(), StateApplyResult::Applied);
+    assert_eq!(engine.apply_event(event).unwrap(), StateApplyResult::DuplicateIgnored);
+    assert_eq!(engine.event_count(), 1);
+
+    let stale = StateEvent {
+        state_event_id: String::from("evt-state-stale"),
+        task_id: String::from("task-state"),
+        worker_state: WorkerState::Failed,
+        effect_status: EffectStatus::Cancelled,
+        fencing_token: 0,
+        triggered_by: String::from("doctor"),
+        at: String::from("2026-03-21T00:00:01Z"),
+    };
+    assert_eq!(
+        engine.apply_event(stale),
+        Err(StateEngineError::StaleFencingToken {
+            current: 1,
+            provided: 0,
+        })
+    );
 }
 
 #[test]
