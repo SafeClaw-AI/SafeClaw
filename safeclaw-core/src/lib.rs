@@ -265,6 +265,26 @@ impl InMemoryTaskRuntime {
         Ok(self.summary())
     }
 
+    pub fn resolve_probe_failure(&mut self) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Uncertain
+            || self.effect.status != EffectStatus::Uncertain
+        {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.effect.transition_to(
+            EffectStatus::Cancelled,
+            self.timestamp(),
+            "doctor",
+            "probe_confirmed_not_executed",
+        )?;
+        self.apply_worker_event(WorkerEvent::ProbeFailure)?;
+        Ok(self.summary())
+    }
+
     pub fn retry_failed(
         &mut self,
         preflight: PreflightDecision,
@@ -744,6 +764,22 @@ mod tests {
         let succeeded = runtime.resolve_probe_success().unwrap();
         assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
         assert_eq!(succeeded.effect_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn uncertain_probe_failure_cancels_effect_and_allows_retry() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+        runtime.begin_probe().unwrap();
+
+        let failed = runtime.resolve_probe_failure().unwrap();
+        assert_eq!(failed.worker_state, WorkerState::Failed);
+        assert_eq!(failed.effect_status, EffectStatus::Cancelled);
+
+        let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
     }
 
     #[test]

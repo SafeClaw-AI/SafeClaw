@@ -165,7 +165,7 @@ pub const CORE_EFFECT_PHASES: [EffectStatus; 5] = [
     EffectStatus::ExecutedAssumed,
 ];
 
-pub const ALLOWED_STATUS_TRANSITIONS: [(EffectStatus, EffectStatus); 17] = [
+pub const ALLOWED_STATUS_TRANSITIONS: [(EffectStatus, EffectStatus); 18] = [
     (EffectStatus::Prepared, EffectStatus::Previewed),
     (EffectStatus::Prepared, EffectStatus::Dispatched),
     (EffectStatus::Prepared, EffectStatus::Cancelled),
@@ -179,6 +179,7 @@ pub const ALLOWED_STATUS_TRANSITIONS: [(EffectStatus, EffectStatus); 17] = [
     (EffectStatus::Dispatched, EffectStatus::ExecutedAssumed),
     (EffectStatus::Uncertain, EffectStatus::Executed),
     (EffectStatus::Uncertain, EffectStatus::ExecutedAssumed),
+    (EffectStatus::Uncertain, EffectStatus::Cancelled),
     (EffectStatus::Executed, EffectStatus::RolledBack),
     (EffectStatus::Executed, EffectStatus::Compensated),
     (EffectStatus::ExecutedAssumed, EffectStatus::Executed),
@@ -520,6 +521,38 @@ mod tests {
             EffectStatus::ExecutedAssumed
         );
         assert_eq!(no_probe.probe_state, Some(ProbeState::HumanFrozen));
+    }
+
+    #[test]
+    fn uncertain_effect_can_be_cancelled_after_probe_failure() {
+        let mut record = demo_record(ProbeMode::Auto);
+        record
+            .transition_to(
+                EffectStatus::Dispatched,
+                "2026-03-21T00:00:00Z",
+                "worker",
+                "dispatch",
+            )
+            .unwrap();
+        record
+            .transition_to(
+                EffectStatus::Uncertain,
+                "2026-03-21T00:00:01Z",
+                "worker",
+                "sidecar_crash",
+            )
+            .unwrap();
+        record
+            .transition_to(
+                EffectStatus::Cancelled,
+                "2026-03-21T00:00:02Z",
+                "doctor",
+                "probe_confirmed_not_executed",
+            )
+            .unwrap();
+
+        assert_eq!(record.status, EffectStatus::Cancelled);
+        assert_eq!(record.probe_state, None);
     }
 
     #[test]

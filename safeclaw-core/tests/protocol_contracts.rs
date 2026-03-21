@@ -383,6 +383,35 @@ fn in_memory_runtime_uncertain_probe_success_reaches_succeeded() {
 }
 
 #[test]
+fn in_memory_runtime_uncertain_probe_failure_cancels_effect_and_reopens_retry() {
+    let effect = EffectRecord::new(
+        "effect-5c-fail",
+        "task-3c-fail",
+        "trace-3c-fail",
+        "intent-5c-fail",
+        EffectActor::Worker,
+        EffectAction::NetworkRequest,
+        "scope:/tmp/probe-fail.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    runtime.begin_probe().unwrap();
+    let failed = runtime.resolve_probe_failure().unwrap();
+
+    assert_eq!(failed.worker_state, WorkerState::Failed);
+    assert_eq!(failed.effect_status, EffectStatus::Cancelled);
+
+    let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+    assert_eq!(executing.worker_state, WorkerState::Executing);
+}
+
+#[test]
 fn in_memory_runtime_plan_and_execution_failures_follow_worker_contract() {
     let effect = EffectRecord::new(
         "effect-5d",
