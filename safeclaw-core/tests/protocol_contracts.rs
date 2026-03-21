@@ -7,13 +7,14 @@ use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
-    DEFAULT_LEASE_TTL_MS,
+    RepairUserAction, DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
-    scope_quarantine_trigger, user_retry_allowed, user_retry_decision,
-    write_scope_decision, EffectGuardSnapshot, EffectRuntimeState, GuardBlockReason,
-    GuardDecision, ScopeClaim, USER_RETRY_BLOCKED_STATES,
+    schedule_decision, scope_quarantine_trigger, user_retry_allowed,
+    user_retry_decision, write_scope_decision, EffectGuardSnapshot,
+    EffectRuntimeState, GuardBlockReason, GuardDecision, ScopeClaim,
+    TaskScheduleRequest, MAX_CONCURRENT_WORKERS, USER_RETRY_BLOCKED_STATES,
 };
 use safeclaw_core::worker_lifecycle::{
     transition_for, WorkerEvent, WorkerState, TERMINAL_STATES, TRANSITIONS,
@@ -231,6 +232,41 @@ fn task_concurrency_guard_evaluator_allows_prepared_auto_retry_and_clean_scope()
 }
 
 #[test]
+fn task_schedule_decision_enforces_slots_and_doctor_bypass() {
+    let quarantined = [String::from("scope:/tmp/quarantined")];
+
+    assert_eq!(
+        schedule_decision(
+            &TaskScheduleRequest::write(
+                MAX_CONCURRENT_WORKERS,
+                false,
+                "scope:/tmp/clean.txt",
+            ),
+            &[],
+            &[],
+        ),
+        GuardDecision::Blocked(GuardBlockReason::MaxWorkersReached)
+    );
+    assert_eq!(
+        schedule_decision(
+            &TaskScheduleRequest::write(1, false, "scope:/tmp/quarantined"),
+            &[],
+            &quarantined,
+        ),
+        GuardDecision::Blocked(GuardBlockReason::ScopeQuarantined)
+    );
+    assert_eq!(
+        schedule_decision(
+            &TaskScheduleRequest::write(1, false, "scope:/tmp/quarantined")
+                .with_doctor_bypass(),
+            &[],
+            &quarantined,
+        ),
+        GuardDecision::Allowed
+    );
+}
+
+#[test]
 fn in_memory_runtime_commits_after_permitted_preflight() {
     let effect = EffectRecord::new(
         "effect-4",
@@ -402,4 +438,87 @@ fn in_memory_runtime_spawns_compensation_after_persist_error() {
     assert_eq!(summary.worker_state, WorkerState::RolledBack);
     assert_eq!(summary.effect_status, EffectStatus::Compensated);
     assert_eq!(summary.compensation_count, 1);
+}
+
+#[test]
+fn in_memory_runtime_doctor_repair_can_close_cleanly() {
+    let effect = EffectRecord::new(
+        "effect-10",
+        "task-8",
+        "trace-8",
+        "intent-10",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/repair-close.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    let summary = runtime
+        .run_doctor_repair_flow(PreflightDecision::Permit, true)
+        .unwrap();
+    assert_eq!(summary.worker_state, WorkerState::Repaired);
+    assert_eq!(summary.effect_status, EffectStatus::Executed);
+
+    let closed = runtime.resolve_repair_state(RepairUserAction::Close).unwrap();
+    assert_eq!(closed.worker_state, WorkerState::Closed);
+    assert_eq!(closed.effect_status, EffectStatus::Executed);
+}
+
+#[test]
+fn in_memory_runtime_repair_failed_can_retry_repair() {
+    let effect = EffectRecord::new(
+        "effect-11",
+        "task-9",
+        "trace-9",
+        "intent-11",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/repair-retry.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    let summary = runtime
+        .run_doctor_repair_flow(PreflightDecision::Permit, false)
+        .unwrap();
+    assert_eq!(summary.worker_state, WorkerState::RepairFailed);
+    assert_eq!(summary.effect_status, EffectStatus::Executed);
+
+    let awaiting_doctor = runtime
+        .resolve_repair_state(RepairUserAction::RetryRepair)
+        .unwrap();
+    assert_eq!(awaiting_doctor.worker_state, WorkerState::AwaitingDoctor);
+    assert_eq!(awaiting_doctor.effect_status, EffectStatus::Executed);
+}
+
+#[test]
+fn in_memory_runtime_repair_failed_can_abandon() {
+    let effect = EffectRecord::new(
+        "effect-12",
+        "task-10",
+        "trace-10",
+        "intent-12",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/repair-abandon.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    let summary = runtime
+        .run_doctor_repair_flow(PreflightDecision::Permit, false)
+        .unwrap();
+    assert_eq!(summary.worker_state, WorkerState::RepairFailed);
+    assert_eq!(summary.effect_status, EffectStatus::Executed);
+
+    let failed_terminal = runtime.resolve_repair_state(RepairUserAction::Abandon).unwrap();
+    assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
+    assert_eq!(failed_terminal.effect_status, EffectStatus::Executed);
 }

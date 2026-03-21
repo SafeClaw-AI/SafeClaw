@@ -22,6 +22,15 @@ pub struct ScopeClaim {
     pub is_write: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskScheduleRequest {
+    pub active_workers: usize,
+    pub tool_busy: bool,
+    pub target_scope: String,
+    pub requires_write: bool,
+    pub doctor_bypass: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GuardBlockReason {
     MaxWorkersReached,
@@ -60,6 +69,41 @@ impl ScopeClaim {
             scope: scope.into(),
             is_write: false,
         }
+    }
+}
+
+impl TaskScheduleRequest {
+    pub fn write(
+        active_workers: usize,
+        tool_busy: bool,
+        target_scope: impl Into<String>,
+    ) -> Self {
+        Self {
+            active_workers,
+            tool_busy,
+            target_scope: target_scope.into(),
+            requires_write: true,
+            doctor_bypass: false,
+        }
+    }
+
+    pub fn read(
+        active_workers: usize,
+        tool_busy: bool,
+        target_scope: impl Into<String>,
+    ) -> Self {
+        Self {
+            active_workers,
+            tool_busy,
+            target_scope: target_scope.into(),
+            requires_write: false,
+            doctor_bypass: false,
+        }
+    }
+
+    pub fn with_doctor_bypass(mut self) -> Self {
+        self.doctor_bypass = true;
+        self
     }
 }
 
@@ -116,6 +160,17 @@ pub fn scope_quarantine_trigger(state: EffectRuntimeState) -> bool {
     matches!(state, EffectRuntimeState::ExecutedAssumed)
 }
 
+pub fn scope_conflict_decision(scope: &str, active_claims: &[ScopeClaim]) -> GuardDecision {
+    if active_claims
+        .iter()
+        .any(|claim| claim.scope == scope && claim.is_write)
+    {
+        return GuardDecision::Blocked(GuardBlockReason::ScopeConflict);
+    }
+
+    GuardDecision::Allowed
+}
+
 pub fn write_scope_decision(
     scope: &str,
     active_claims: &[ScopeClaim],
@@ -125,11 +180,34 @@ pub fn write_scope_decision(
         return GuardDecision::Blocked(GuardBlockReason::ScopeQuarantined);
     }
 
-    if active_claims
-        .iter()
-        .any(|claim| claim.scope == scope && claim.is_write)
-    {
-        return GuardDecision::Blocked(GuardBlockReason::ScopeConflict);
+    scope_conflict_decision(scope, active_claims)
+}
+
+pub fn schedule_decision(
+    request: &TaskScheduleRequest,
+    active_claims: &[ScopeClaim],
+    quarantined_scopes: &[String],
+) -> GuardDecision {
+    match worker_slot_decision(request.active_workers) {
+        GuardDecision::Allowed => {}
+        blocked => return blocked,
+    }
+
+    match tool_slot_decision(request.tool_busy) {
+        GuardDecision::Allowed => {}
+        blocked => return blocked,
+    }
+
+    if request.requires_write {
+        if !request.doctor_bypass
+            && quarantined_scopes
+                .iter()
+                .any(|item| item == &request.target_scope)
+        {
+            return GuardDecision::Blocked(GuardBlockReason::ScopeQuarantined);
+        }
+
+        return scope_conflict_decision(&request.target_scope, active_claims);
     }
 
     GuardDecision::Allowed
@@ -154,9 +232,10 @@ pub fn tool_slot_decision(tool_busy: bool) -> GuardDecision {
 #[cfg(test)]
 mod tests {
     use super::{
-        auto_retry_decision, runtime_state_from_effect, user_retry_decision,
-        write_scope_decision, EffectGuardSnapshot, EffectRuntimeState, GuardBlockReason,
-        GuardDecision, ScopeClaim,
+        auto_retry_decision, runtime_state_from_effect, schedule_decision,
+        user_retry_decision, write_scope_decision, EffectGuardSnapshot,
+        EffectRuntimeState, GuardBlockReason, GuardDecision, ScopeClaim,
+        TaskScheduleRequest, MAX_CONCURRENT_WORKERS,
     };
     use crate::effect_ledger::{EffectStatus, ProbeState};
 
@@ -209,6 +288,61 @@ mod tests {
                 "scope:/tmp/clean.txt",
                 &[ScopeClaim::write("scope:/tmp/demo.txt")],
                 &[],
+            ),
+            GuardDecision::Allowed
+        );
+    }
+
+    #[test]
+    fn schedule_decision_blocks_full_worker_pool_and_busy_tool() {
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::write(
+                    MAX_CONCURRENT_WORKERS,
+                    false,
+                    "scope:/tmp/demo.txt",
+                ),
+                &[],
+                &[],
+            ),
+            GuardDecision::Blocked(GuardBlockReason::MaxWorkersReached)
+        );
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::write(1, true, "scope:/tmp/demo.txt"),
+                &[],
+                &[],
+            ),
+            GuardDecision::Blocked(GuardBlockReason::ToolBusy)
+        );
+    }
+
+    #[test]
+    fn schedule_decision_respects_quarantine_but_allows_doctor_bypass() {
+        let quarantined = [String::from("scope:/tmp/demo.txt")];
+
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::write(1, false, "scope:/tmp/demo.txt"),
+                &[],
+                &quarantined,
+            ),
+            GuardDecision::Blocked(GuardBlockReason::ScopeQuarantined)
+        );
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::write(1, false, "scope:/tmp/demo.txt")
+                    .with_doctor_bypass(),
+                &[],
+                &quarantined,
+            ),
+            GuardDecision::Allowed
+        );
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::read(1, false, "scope:/tmp/demo.txt"),
+                &[],
+                &quarantined,
             ),
             GuardDecision::Allowed
         );
