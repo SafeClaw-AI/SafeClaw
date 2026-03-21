@@ -297,9 +297,11 @@ mod tests {
     };
     use std::{
         env, fs,
+        io::{Read, Write},
+        net::TcpListener,
         path::{Path, PathBuf},
-        process,
-        time::{SystemTime, UNIX_EPOCH},
+        process, thread,
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     struct TempWorkspace {
@@ -913,6 +915,119 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
         assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_claims_probes_and_completes_uncertain_network_request_task() {
+        let server = TestHttpServer::spawn(
+            "HTTP/1.1 200 OK\r\nContent-Length: 14\r\nConnection: close\r\n\r\nstatus=applied",
+            0,
+        );
+        let temp = TempWorkspace::new("network-loop");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-network",
+                ScheduleIntent::read(server.target()),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+        loop_driver.network_probe_mut().register_expected_response(
+            String::from("effect-worker-network"),
+            "status=applied",
+        );
+
+        let timeout_bytes = b"safeclaw network timeout\n";
+        let outcome = loop_driver
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-network",
+                    claim.task.task_id.clone(),
+                    "trace-worker-network",
+                    "intent-worker-network",
+                    EffectActor::Worker,
+                    EffectAction::NetworkRequest,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_then_timeout_command(&temp.output_path, timeout_bytes),
+                ))
+            })
+            .unwrap()
+            .expect("network task must be claimable");
+
+        assert_eq!(outcome.claim.lease.owner_id, "worker-a");
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::Uncertain);
+        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Uncertain);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(outcome.final_summary.effect_status, EffectStatus::Executed);
+        assert!(outcome.completed);
+        assert_eq!(fs::read(&temp.output_path).unwrap(), timeout_bytes);
+        assert!(loop_driver.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            loop_driver.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-network")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-network", "effect-worker-network")
+            .unwrap()
+            .expect("network runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert_eq!(restored.attempts.len(), 1);
+    }
+
+    struct TestHttpServer {
+        target: String,
+        handle: Option<thread::JoinHandle<()>>,
+    }
+
+    impl TestHttpServer {
+        fn spawn(response: &str, delay_ms: u64) -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = listener.local_addr().unwrap();
+            let response = response.to_string();
+            let handle = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buffer = [0_u8; 1024];
+                let _ = stream.read(&mut buffer);
+                if delay_ms > 0 {
+                    thread::sleep(Duration::from_millis(delay_ms));
+                }
+                let _ = stream.write_all(response.as_bytes());
+            });
+            Self {
+                target: format!("scope:http://{addr}/status"),
+                handle: Some(handle),
+            }
+        }
+
+        fn target(&self) -> String {
+            self.target.clone()
+        }
+    }
+
+    impl Drop for TestHttpServer {
+        fn drop(&mut self) {
+            if let Some(handle) = self.handle.take() {
+                let _ = handle.join();
+            }
+        }
     }
 
     fn sandbox_fail_command() -> SandboxCommand {
