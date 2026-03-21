@@ -294,6 +294,18 @@ mod tests {
     }
 
     #[test]
+    fn schedule_decision_allows_write_when_same_scope_reads_are_active() {
+        assert_eq!(
+            schedule_decision(
+                &TaskScheduleRequest::write(1, false, "scope:/tmp/demo.txt"),
+                &[ScopeClaim::read("scope:/tmp/demo.txt")],
+                &[],
+            ),
+            GuardDecision::Allowed
+        );
+    }
+
+    #[test]
     fn schedule_decision_blocks_full_worker_pool_and_busy_tool() {
         assert_eq!(
             schedule_decision(
