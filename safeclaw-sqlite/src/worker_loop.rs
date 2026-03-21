@@ -17,6 +17,7 @@ pub enum WorkerLoopError {
     Runtime(RuntimeError),
     Sandbox(SandboxRuntimeError),
     Store(SqliteAdapterError),
+    PersistedRuntimeMissing { task_id: String, effect_id: String },
 }
 
 #[derive(Clone, Debug)]
@@ -95,6 +96,36 @@ impl SqliteSingleWorkerLoop {
         };
 
         let (runtime, command) = build(&claim)?;
+        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+    }
+
+    pub fn claim_and_retry_failed_once<F>(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        effect_id: &str,
+        preflight: PreflightDecision,
+        build_command: F,
+    ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
+    where
+        F: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+    {
+        let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+            return Ok(None);
+        };
+
+        let mut runtime = self
+            .runtime_store
+            .load_runtime(&claim.task.task_id, effect_id)
+            .map_err(WorkerLoopError::Store)?
+            .ok_or_else(|| WorkerLoopError::PersistedRuntimeMissing {
+                task_id: claim.task.task_id.clone(),
+                effect_id: effect_id.to_string(),
+            })?;
+        runtime
+            .retry_failed(preflight)
+            .map_err(WorkerLoopError::Runtime)?;
+        let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
 
@@ -388,19 +419,17 @@ mod tests {
 
         let expected_bytes = b"safeclaw reclaimed retry\n";
         let retry_outcome = second_worker
-            .claim_and_resume_once("worker-b", 26, |claim| {
-                assert_eq!(claim.task.task_id, "task-worker-retry");
-                let restore_store = SqliteRuntimeStore::new(
-                    open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
-                );
-                let mut runtime = restore_store
-                    .load_runtime("task-worker-retry", "effect-worker-retry")
-                    .unwrap()
-                    .expect("failed runtime must reload before retry");
-                let summary = runtime.retry_failed(PreflightDecision::Permit).unwrap();
-                assert_eq!(summary.worker_state, WorkerState::Executing);
-                Ok((runtime, sandbox_write_command(&temp.output_path, expected_bytes)))
-            })
+            .claim_and_retry_failed_once(
+                "worker-b",
+                26,
+                "effect-worker-retry",
+                PreflightDecision::Permit,
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-retry");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    Ok(sandbox_write_command(&temp.output_path, expected_bytes))
+                },
+            )
             .unwrap()
             .expect("expired task must be reclaimable");
 
