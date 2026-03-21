@@ -317,6 +317,30 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_open_and_enqueue_task_tracks_queue_snapshot() {
+        let temp = TempWorkspace::new("open-enqueue");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-open-enqueue",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let snapshot = loop_driver.queue_snapshot();
+        assert_eq!(snapshot.queued_tasks.len(), 1);
+        assert_eq!(snapshot.queued_tasks[0].task_id, "task-worker-open-enqueue");
+        assert!(snapshot.active_leases.is_empty());
+        assert!(snapshot.completed_task_ids.is_empty());
+    }
+
+    #[test]
     fn worker_loop_returns_none_when_queue_is_empty() {
         let temp = TempWorkspace::new("empty");
         let orchestrator = SqliteTaskOrchestrator::new(
