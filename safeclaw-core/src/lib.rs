@@ -3,6 +3,7 @@
 pub mod effect_ledger;
 pub mod protocol;
 pub mod recovery;
+pub mod scheduler;
 pub mod state_engine;
 pub mod spec_map;
 pub mod task_concurrency;
@@ -23,6 +24,10 @@ pub use protocol::protocol_version;
 pub use recovery::probes::{
     probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter,
     ProbeAdapterError, ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
+};
+pub use scheduler::{
+    InMemoryTaskScheduler, MockTaskScheduler, ScheduleIntent, ScheduleTicket,
+    SchedulerError, SchedulerSnapshot, TaskScheduler,
 };
 pub use state_engine::{
     InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine,

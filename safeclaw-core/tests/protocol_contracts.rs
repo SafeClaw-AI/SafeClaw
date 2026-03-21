@@ -8,10 +8,11 @@ use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     probe_definition_for, ConfirmationAction, ExecutionDisposition,
     ExecutionInterruption, HibernationAction, InMemoryProbeAdapter,
-    InMemoryStateEngine, InMemoryTaskRuntime, MockStateEngine, PreflightDecision,
-    ProbeReceipt, ProbeReceiptStatus, ReconcileDecision, RepairUserAction,
-    StateApplyResult, StateEngine, StateEngineError,
-    StateEvent, DEFAULT_LEASE_TTL_MS,
+    InMemoryStateEngine, InMemoryTaskRuntime, InMemoryTaskScheduler,
+    MockStateEngine, PreflightDecision, ProbeReceipt, ProbeReceiptStatus,
+    ReconcileDecision, RepairUserAction, ScheduleIntent, SchedulerError,
+    StateApplyResult, StateEngine, StateEvent, StateEngineError,
+    TaskScheduler, DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -52,6 +53,11 @@ fn probe_catalog_exposes_phase1_supported_contracts() {
     assert!(CORE_SPEC_BINDINGS.iter().any(|binding| {
         binding.spec_path == "specs/probes/network_request.json"
             && binding.module_path == "safeclaw_core::recovery::probes"
+            && binding.stage == ImplementationStage::TestSkeleton
+    }));
+    assert!(CORE_SPEC_BINDINGS.iter().any(|binding| {
+        binding.spec_path == "specs/schemas/task_concurrency.json"
+            && binding.module_path == "safeclaw_core::scheduler"
             && binding.stage == ImplementationStage::TestSkeleton
     }));
 }
@@ -286,6 +292,34 @@ fn task_schedule_decision_enforces_slots_and_doctor_bypass() {
         ),
         GuardDecision::Allowed
     );
+}
+
+#[test]
+fn scheduler_trait_mock_enforces_queue_rules_and_doctor_bypass() {
+    let mut scheduler = InMemoryTaskScheduler::new();
+    let ticket = scheduler
+        .admit(ScheduleIntent::write("scope:/tmp/demo.txt"))
+        .unwrap();
+    assert_eq!(scheduler.snapshot().active_workers, 1);
+
+    assert_eq!(
+        scheduler.admit(ScheduleIntent::read("scope:/tmp/other.txt")),
+        Err(SchedulerError::GuardBlocked(GuardBlockReason::ToolBusy))
+    );
+
+    scheduler.release(&ticket).unwrap();
+    scheduler.quarantine_scope("scope:/tmp/demo.txt");
+    assert_eq!(
+        scheduler.admit(ScheduleIntent::write("scope:/tmp/demo.txt")),
+        Err(SchedulerError::GuardBlocked(
+            GuardBlockReason::ScopeQuarantined,
+        ))
+    );
+
+    let bypass = scheduler
+        .admit(ScheduleIntent::write("scope:/tmp/demo.txt").with_doctor_bypass())
+        .unwrap();
+    assert_eq!(bypass.target_scope, "scope:/tmp/demo.txt");
 }
 
 #[test]

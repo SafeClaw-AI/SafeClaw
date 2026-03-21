@@ -20,5 +20,5 @@ SafeClaw 的 Rust Core 最小脚手架。
 
 - 模块梳理：见 `safeclaw-core/ARCHITECTURE.md`
 - Rust 协议测试骨架：见 `safeclaw-core/tests/protocol_contracts.rs`
-- 当前已包含纯领域 `state_engine` / `recovery::probes` trait 与 mock adapter 骨架
+- 当前已包含纯领域 `state_engine` / `recovery::probes` / `scheduler` trait 与 mock adapter 骨架
 - 当前目标是锁定协议边界，而不是提前实现完整 runtime

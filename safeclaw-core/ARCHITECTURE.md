@@ -27,6 +27,7 @@ safeclaw-core/
 | `worker_lifecycle` | `specs/state-machines/worker_lifecycle.json` | Runtime Slice | 已覆盖完整转移表、uncertain、reconcile、doctor/repair 闭环 |
 | `task_concurrency` | `specs/schemas/task_concurrency.json` | Runtime Slice | 已覆盖 retry guard、scope quarantine、worker/tool/scope 调度准入 |
 | `recovery::probes` | `specs/probes/*.json` | Test Skeleton | 已提供 probe 定义目录、receipt 模型、mock adapter 接口 |
+| `scheduler` | `specs/schemas/task_concurrency.json` | Test Skeleton | 已提供 sidecar / orchestrator 调度入口 trait 与内存 mock |
 | `spec_map` | 上述真源映射 | Runtime Slice | 显式记录 spec → 模块 → 下一步 |
 
 ## 当前实现边界
@@ -38,6 +39,6 @@ safeclaw-core/
 ## 下一步顺序
 
 1. 将 runtime slice 接到真实 `State Engine` / WAL 持久化
-2. 将 `task_concurrency` guard 接到 orchestrator / sidecar 队列
+2. 将 `scheduler` / `task_concurrency` trait 接到外层 orchestrator / sidecar 队列
 3. 将 `recovery::probes` trait 接到外层 adapter / sidecar probe executor
 4. 最后进入 Chaos / Doctor / 持久化恢复联调
