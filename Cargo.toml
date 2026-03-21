@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "safeclaw-core",
+  "safeclaw-sqlite",
+]
+resolver = "2"
