@@ -145,6 +145,32 @@ impl SqliteSingleWorkerLoop {
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
 
+    pub fn claim_and_resume_persisted_once<F>(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        effect_id: &str,
+        build_command: F,
+    ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
+    where
+        F: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+    {
+        let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+            return Ok(None);
+        };
+
+        let runtime = self
+            .runtime_store
+            .load_runtime(&claim.task.task_id, effect_id)
+            .map_err(WorkerLoopError::Store)?
+            .ok_or_else(|| WorkerLoopError::PersistedRuntimeMissing {
+                task_id: claim.task.task_id.clone(),
+                effect_id: effect_id.to_string(),
+            })?;
+        let command = build_command(&claim, &runtime)?;
+        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+    }
+
     pub fn claim_and_retry_failed_once<F>(
         &mut self,
         owner_id: &str,
@@ -581,6 +607,43 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_resume_reports_missing_persisted_runtime() {
+        let temp = TempWorkspace::new("missing-resume-runtime");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-missing-resume",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = loop_driver
+            .claim_and_resume_persisted_once(
+                "worker-a",
+                0,
+                "effect-worker-missing-resume",
+                |_, _| unreachable!(),
+            )
+            .unwrap_err();
+        match error {
+            WorkerLoopError::PersistedRuntimeMissing { task_id, effect_id } => {
+                assert_eq!(task_id, "task-worker-missing-resume");
+                assert_eq!(effect_id, "effect-worker-missing-resume");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert!(loop_driver.queue_snapshot().completed_task_ids.is_empty());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+    }
+
+    #[test]
     fn worker_loop_persists_pre_exec_retry_state_when_sandbox_spawn_fails() {
         let temp = TempWorkspace::new("retry-pre-exec-spawn");
         let mut orchestrator = SqliteTaskOrchestrator::new(
@@ -750,6 +813,103 @@ mod tests {
             .load_runtime("task-worker-retry", "effect-worker-retry")
             .unwrap()
             .expect("retried runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_reclaims_expired_pre_exec_runtime_and_resumes_persisted_runtime() {
+        let temp = TempWorkspace::new("resume-persisted");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-resume",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_worker = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = first_worker
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-resume",
+                    claim.task.task_id.clone(),
+                    "trace-worker-resume",
+                    "intent-worker-resume",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
+            })
+            .unwrap_err();
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(first_worker.queue_snapshot().completed_task_ids.len(), 0);
+        assert_eq!(first_worker.queue_snapshot().active_leases.len(), 1);
+
+        let resume_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let resume_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut resume_worker = SqliteSingleWorkerLoop::new(resume_orchestrator, resume_store);
+
+        let blocked = resume_worker
+            .claim_and_resume_once("worker-b", 10, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let expected_bytes = b"safeclaw resumed runtime\n";
+        let resumed = resume_worker
+            .claim_and_resume_persisted_once(
+                "worker-b",
+                26,
+                "effect-worker-resume",
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-resume");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    assert_eq!(runtime.effect.status, EffectStatus::Prepared);
+                    Ok(sandbox_write_command(&temp.output_path, expected_bytes))
+                },
+            )
+            .unwrap()
+            .expect("expired pre-exec runtime must be reclaimable");
+
+        assert_eq!(resumed.claim.lease.owner_id, "worker-b");
+        assert_eq!(resumed.claim.lease.fencing_token, 2);
+        assert_eq!(resumed.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(resumed.final_summary.effect_status, EffectStatus::Executed);
+        assert!(resumed.completed);
+        assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
+        assert!(resume_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            resume_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-resume")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-resume", "effect-worker-resume")
+            .unwrap()
+            .expect("resumed runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
         assert!(!restored.attempts.is_empty());
