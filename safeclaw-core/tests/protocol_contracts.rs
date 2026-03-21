@@ -6,8 +6,9 @@ use safeclaw_core::effect_ledger::{
 use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
-    ConfirmationAction, ExecutionDisposition, HibernationAction, InMemoryTaskRuntime,
-    PreflightDecision, ReconcileDecision, RepairUserAction, DEFAULT_LEASE_TTL_MS,
+    ConfirmationAction, ExecutionDisposition, ExecutionInterruption, HibernationAction,
+    InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, RepairUserAction,
+    DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -382,12 +383,52 @@ fn in_memory_runtime_uncertain_probe_success_reaches_succeeded() {
 }
 
 #[test]
-fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
-    let retryable_effect = EffectRecord::new(
+fn in_memory_runtime_plan_and_execution_failures_follow_worker_contract() {
+    let effect = EffectRecord::new(
         "effect-5d",
         "task-3d",
         "trace-3d",
         "intent-5d",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/runtime-failures.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut planning_runtime = InMemoryTaskRuntime::new(effect.clone());
+    let planning_failed = planning_runtime.run_plan_failure().unwrap();
+    assert_eq!(planning_failed.worker_state, WorkerState::Failed);
+
+    let mut blacklist_runtime = InMemoryTaskRuntime::new(effect.clone());
+    blacklist_runtime.run_confirmation_checkpoint().unwrap();
+    blacklist_runtime
+        .resolve_confirmation(ConfirmationAction::Confirm)
+        .unwrap();
+    let waiting = blacklist_runtime
+        .interrupt_execution(ExecutionInterruption::NewBlacklistOp)
+        .unwrap();
+    assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+
+    let mut budget_runtime = InMemoryTaskRuntime::new(effect);
+    budget_runtime.run_confirmation_checkpoint().unwrap();
+    budget_runtime
+        .resolve_confirmation(ConfirmationAction::Confirm)
+        .unwrap();
+    let budget_failed = budget_runtime
+        .interrupt_execution(ExecutionInterruption::BudgetExceeded)
+        .unwrap();
+    assert_eq!(budget_failed.worker_state, WorkerState::Failed);
+}
+
+#[test]
+fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
+    let retryable_effect = EffectRecord::new(
+        "effect-5e",
+        "task-3e",
+        "trace-3e",
+        "intent-5e",
         EffectActor::Worker,
         EffectAction::FileWrite,
         "scope:/tmp/retry.txt",

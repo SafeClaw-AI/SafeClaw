@@ -61,6 +61,13 @@ pub enum HibernationAction {
     Expire,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExecutionInterruption {
+    NewBlacklistOp,
+    ExecError,
+    BudgetExceeded,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunSummary {
     pub worker_state: WorkerState,
@@ -135,6 +142,12 @@ impl InMemoryTaskRuntime {
         Ok(self.summary())
     }
 
+    pub fn run_plan_failure(&mut self) -> Result<RunSummary, RuntimeError> {
+        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
+        self.apply_worker_event(WorkerEvent::PlanError)?;
+        Ok(self.summary())
+    }
+
     pub fn resolve_confirmation(
         &mut self,
         action: ConfirmationAction,
@@ -193,6 +206,27 @@ impl InMemoryTaskRuntime {
         }
 
         self.execute_effect(execution)?;
+        Ok(self.summary())
+    }
+
+    pub fn interrupt_execution(
+        &mut self,
+        interruption: ExecutionInterruption,
+    ) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Executing {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        let event = match interruption {
+            ExecutionInterruption::NewBlacklistOp => WorkerEvent::NewBlacklistOp,
+            ExecutionInterruption::ExecError => WorkerEvent::ExecError,
+            ExecutionInterruption::BudgetExceeded => WorkerEvent::BudgetExceeded,
+        };
+
+        self.apply_worker_event(event)?;
         Ok(self.summary())
     }
 
@@ -645,8 +679,8 @@ impl From<LeaseError> for RuntimeError {
 mod tests {
     use super::{
         ConfirmationAction, DEFAULT_LEASE_TTL_MS, ExecutionDisposition,
-        HibernationAction, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
-        RepairUserAction, RuntimeError,
+        ExecutionInterruption, HibernationAction, InMemoryTaskRuntime,
+        PreflightDecision, ReconcileDecision, RepairUserAction, RuntimeError,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
@@ -773,6 +807,55 @@ mod tests {
             .resolve_hibernation(HibernationAction::Expire)
             .unwrap();
         assert_eq!(expired.worker_state, WorkerState::FailedTerminal);
+    }
+
+    #[test]
+    fn planning_failure_can_retry_into_execution() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        let failed = runtime.run_plan_failure().unwrap();
+        assert_eq!(failed.worker_state, WorkerState::Failed);
+
+        let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
+    }
+
+    #[test]
+    fn execution_blacklist_pause_can_reconfirm_and_continue() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime.start_task(PreflightDecision::Permit).unwrap();
+        let waiting = runtime
+            .interrupt_execution(ExecutionInterruption::NewBlacklistOp)
+            .unwrap();
+        assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+
+        let executing = runtime
+            .resolve_confirmation(ConfirmationAction::Confirm)
+            .unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
+
+        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
+    }
+
+    #[test]
+    fn execution_failures_can_abandon_or_retry_when_effect_is_safe() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime.start_task(PreflightDecision::Permit).unwrap();
+        let failed = runtime
+            .interrupt_execution(ExecutionInterruption::BudgetExceeded)
+            .unwrap();
+        assert_eq!(failed.worker_state, WorkerState::Failed);
+
+        let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
+
+        let mut abandon_runtime = demo_runtime(ProbeMode::Auto);
+        abandon_runtime.start_task(PreflightDecision::Permit).unwrap();
+        abandon_runtime
+            .interrupt_execution(ExecutionInterruption::ExecError)
+            .unwrap();
+        let terminal = abandon_runtime.abandon_failed().unwrap();
+        assert_eq!(terminal.worker_state, WorkerState::FailedTerminal);
     }
 
     #[test]
