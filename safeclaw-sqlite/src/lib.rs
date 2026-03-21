@@ -3,6 +3,7 @@
 mod connection;
 mod error;
 mod migrations;
+mod state_engine;
 
 use std::path::Path;
 
@@ -10,6 +11,7 @@ pub use connection::{open_file_database, SqliteOpenOptions, DEFAULT_BUSY_TIMEOUT
 pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 use rusqlite::Connection;
+pub use state_engine::SqliteStateEngine;
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";
 
