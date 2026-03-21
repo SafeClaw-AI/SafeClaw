@@ -627,6 +627,135 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_skips_conflicting_write_scope_held_by_other_owner() {
+        let temp = TempWorkspace::new("scope-skip");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_output = temp.root.join("other-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_scope = format!("scope:{}", other_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-1",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-2",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-other",
+                ScheduleIntent::write(other_scope.clone()),
+                2,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-shared-1");
+
+        let other_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let other_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut other_worker = SqliteSingleWorkerLoop::new(other_orchestrator, other_store);
+
+        let other_outcome = other_worker
+            .claim_and_drive_once("worker-b", 1, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-other");
+                let effect = EffectRecord::new(
+                    "effect-worker-other",
+                    claim.task.task_id.clone(),
+                    "trace-worker-other",
+                    "intent-worker-other",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(&other_output, b"safeclaw other task\n"),
+                ))
+            })
+            .unwrap()
+            .expect("other-scope task must remain claimable");
+        assert_eq!(other_outcome.claim.task.task_id, "task-worker-other");
+        assert!(other_outcome.completed);
+
+        let blocked_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let blocked_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut blocked_worker = SqliteSingleWorkerLoop::new(blocked_orchestrator, blocked_store);
+        let blocked = blocked_worker
+            .claim_and_drive_once("worker-c", 2, PreflightDecision::Permit, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        blocking_orchestrator
+            .complete(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+            )
+            .unwrap();
+
+        let unblocked_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let unblocked_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut unblocked_worker = SqliteSingleWorkerLoop::new(unblocked_orchestrator, unblocked_store);
+
+        let unblocked = unblocked_worker
+            .claim_and_drive_once("worker-c", 3, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-shared-2");
+                let effect = EffectRecord::new(
+                    "effect-worker-shared-2",
+                    claim.task.task_id.clone(),
+                    "trace-worker-shared-2",
+                    "intent-worker-shared-2",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(&shared_output, b"safeclaw shared task\n"),
+                ))
+            })
+            .unwrap()
+            .expect("shared-scope task must unblock after active lease finishes");
+        assert_eq!(unblocked.claim.task.task_id, "task-worker-shared-2");
+        assert!(unblocked.completed);
+        assert_eq!(fs::read(&other_output).unwrap(), b"safeclaw other task\n");
+        assert_eq!(fs::read(&shared_output).unwrap(), b"safeclaw shared task\n");
+    }
+
+    #[test]
     fn worker_loop_persists_pre_exec_runtime_when_sandbox_spawn_fails() {
         let temp = TempWorkspace::new("pre-exec-spawn");
         let mut orchestrator = SqliteTaskOrchestrator::new(
