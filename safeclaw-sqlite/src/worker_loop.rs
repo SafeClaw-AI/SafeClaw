@@ -1290,6 +1290,100 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_allows_same_scope_write_while_other_owners_hold_read_leases() {
+        let temp = TempWorkspace::new("scope-write-under-reads");
+        let shared_scope = format!("scope:{}", temp.root.join("shared.txt").display());
+        let write_output = temp.root.join("write-under-reads.txt");
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-read-active-1",
+                ScheduleIntent::read(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-read-active-2",
+                ScheduleIntent::read(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-write-after-reads",
+                ScheduleIntent::write(shared_scope.clone()),
+                2,
+            ))
+            .unwrap();
+
+        let first_read = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(first_read.task.task_id, "task-worker-shared-read-active-1");
+        assert!(!first_read.task.intent.requires_write);
+
+        let second_read = blocking_orchestrator.claim_next("worker-b", 1).unwrap().unwrap();
+        assert_eq!(second_read.task.task_id, "task-worker-shared-read-active-2");
+        assert!(!second_read.task.intent.requires_write);
+
+        let write_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let write_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut write_worker = SqliteSingleWorkerLoop::new(write_orchestrator, write_store);
+
+        let write_outcome = write_worker
+            .claim_and_drive_once("worker-c", 2, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-shared-write-after-reads");
+                let effect = EffectRecord::new(
+                    "effect-worker-shared-write-after-reads",
+                    claim.task.task_id.clone(),
+                    "trace-worker-shared-write-after-reads",
+                    "intent-worker-shared-write-after-reads",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(&write_output, b"safeclaw write under reads\n"),
+                ))
+            })
+            .unwrap()
+            .expect("same-scope write must remain claimable under active reads");
+
+        assert_eq!(write_outcome.claim.task.task_id, "task-worker-shared-write-after-reads");
+        assert!(write_outcome.completed);
+        assert_eq!(write_outcome.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(write_outcome.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(fs::read(&write_output).unwrap(), b"safeclaw write under reads\n");
+        assert_eq!(write_worker.queue_snapshot().queued_tasks.len(), 0);
+        assert_eq!(write_worker.queue_snapshot().active_leases.len(), 2);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-shared-write-after-reads",
+                "effect-worker-shared-write-after-reads",
+            )
+            .unwrap()
+            .expect("same-scope write runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
     fn worker_loop_persists_pre_exec_runtime_when_sandbox_spawn_fails() {
         let temp = TempWorkspace::new("pre-exec-spawn");
         let mut orchestrator = SqliteTaskOrchestrator::new(
