@@ -1,0 +1,227 @@
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use safeclaw_core::{
+    effect_ledger::{
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
+        ProbeMode,
+    },
+    InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
+    PreflightDecision, ScheduleIntent,
+};
+use safeclaw_sqlite::{
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteSingleWorkerLoop,
+};
+
+fn main() -> Result<(), String> {
+    let workspace = into_demo(env::current_dir())?;
+    let temp = DemoArtifacts::new(&workspace)?;
+    let output_bytes = b"safeclaw worker resume demo\n";
+
+    let mut first_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    into_demo(first_worker.enqueue_task(OrchestratorTask::new(
+        "task-worker-loop-resume-demo",
+        ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+        0,
+    )))?;
+    print_snapshot("after-enqueue", first_worker.queue_snapshot());
+
+    let first_error = first_worker
+        .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+            Ok((
+                InMemoryTaskRuntime::new(demo_effect(claim)),
+                sandbox_missing_program_command(),
+            ))
+        })
+        .unwrap_err();
+    println!("[demo] first attempt spawn failure => {first_error:?}");
+    print_snapshot("after-pre-exec-persist", first_worker.queue_snapshot());
+
+    let persisted_store = SqliteRuntimeStore::new(into_demo(open_database(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?);
+    let persisted = into_demo(persisted_store.load_runtime(
+        "task-worker-loop-resume-demo",
+        "effect-worker-loop-resume-demo",
+    ))?
+    .expect("persisted pre-exec runtime must reload");
+    println!(
+        "[demo] persisted runtime => worker={:?}, effect={:?}, attempts={}",
+        persisted.worker_state,
+        persisted.effect.status,
+        persisted.attempts.len()
+    );
+
+    let mut blocked_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    let blocked = into_demo(blocked_worker.claim_and_resume_once("worker-b", 10, |_| unreachable!()))?;
+    println!("[demo] reclaim before expiry => {}", blocked.is_none());
+
+    let mut resume_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    let resumed = into_demo(resume_worker.claim_and_resume_persisted_once(
+        "worker-b",
+        26,
+        "effect-worker-loop-resume-demo",
+        |claim, runtime| {
+            println!(
+                "[demo] resume claim => task={} lease={} fence={} state={:?}",
+                claim.task.task_id,
+                claim.lease.lease_id,
+                claim.lease.fencing_token,
+                runtime.worker_state
+            );
+            Ok(sandbox_write_command(&temp.output_path, output_bytes))
+        },
+    ))?
+    .expect("expired pre-exec runtime must be reclaimable");
+
+    println!(
+        "[demo] resume attempt => worker={:?}, effect={:?}, completed={}",
+        resumed.final_summary.worker_state,
+        resumed.final_summary.effect_status,
+        resumed.completed
+    );
+    print_snapshot("after-resume-complete", resume_worker.queue_snapshot());
+
+    let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?);
+    let restored = into_demo(verify_store.load_runtime(
+        "task-worker-loop-resume-demo",
+        "effect-worker-loop-resume-demo",
+    ))?
+    .expect("persisted resumed runtime must reload");
+    println!(
+        "[demo] restored runtime => worker={:?}, effect={:?}, attempts={}",
+        restored.worker_state,
+        restored.effect.status,
+        restored.attempts.len()
+    );
+    println!("[demo] db: {}", temp.db_path().display());
+    println!("[demo] output: {}", temp.output_path.display());
+    Ok(())
+}
+
+fn demo_effect(claim: &OrchestratorClaim) -> EffectRecord {
+    EffectRecord::new(
+        "effect-worker-loop-resume-demo",
+        claim.task.task_id.clone(),
+        "trace-worker-loop-resume-demo",
+        "intent-worker-loop-resume-demo",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        claim.task.intent.target_scope.clone(),
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    )
+}
+
+fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
+    println!(
+        "[demo] snapshot {label} => queued={}, active={}, completed={}",
+        snapshot.queued_tasks.len(),
+        snapshot.active_leases.len(),
+        snapshot.completed_task_ids.len(),
+    );
+}
+
+fn sandbox_missing_program_command() -> SandboxCommand {
+    SandboxCommand::new(
+        "safeclaw-missing-program-for-spawn-test",
+        std::iter::empty::<&str>(),
+        5_000,
+    )
+}
+
+fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
+    if cfg!(windows) {
+        let bytes_literal = output_bytes
+            .iter()
+            .map(u8::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        SandboxCommand::new(
+            "powershell",
+            [
+                "-Command",
+                &format!(
+                    "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes)",
+                    output_path.display()
+                ),
+            ],
+            5_000,
+        )
+    } else {
+        let text = String::from_utf8(output_bytes.to_vec())
+            .expect("worker resume demo bytes must remain utf-8");
+        SandboxCommand::new(
+            "sh",
+            [
+                "-c",
+                &format!("printf '%s' '{}' > '{}'", text, output_path.display()),
+            ],
+            5_000,
+        )
+    }
+}
+
+fn into_demo<T, E: std::fmt::Debug>(result: Result<T, E>) -> Result<T, String> {
+    result.map_err(|error| format!("{error:?}"))
+}
+
+struct DemoArtifacts {
+    root: PathBuf,
+    output_path: PathBuf,
+    db_path: PathBuf,
+}
+
+impl DemoArtifacts {
+    fn new(workspace: &Path) -> Result<Self, String> {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_nanos();
+        let root = workspace
+            .join("target")
+            .join(format!("worker-loop-resume-demo-{}-{unique}", process::id()));
+        fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+        Ok(Self {
+            output_path: root.join("worker-loop-resume-output.txt"),
+            db_path: root.join("worker-loop-resume.db"),
+            root,
+        })
+    }
+
+    fn db_path(&self) -> &Path {
+        &self.db_path
+    }
+}
+
+impl Drop for DemoArtifacts {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.output_path);
+        let _ = fs::remove_file(&self.db_path);
+        let _ = fs::remove_file(PathBuf::from(format!("{}-wal", self.db_path.display())));
+        let _ = fs::remove_file(PathBuf::from(format!("{}-shm", self.db_path.display())));
+        let _ = fs::remove_dir(&self.root);
+    }
+}
