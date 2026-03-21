@@ -6,8 +6,8 @@ use safeclaw_core::effect_ledger::{
 use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
-    ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
-    RepairUserAction, DEFAULT_LEASE_TTL_MS,
+    ConfirmationAction, ExecutionDisposition, HibernationAction, InMemoryTaskRuntime,
+    PreflightDecision, ReconcileDecision, RepairUserAction, DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -291,12 +291,77 @@ fn in_memory_runtime_commits_after_permitted_preflight() {
 }
 
 #[test]
-fn in_memory_runtime_stops_at_uncertain_after_probeable_crash() {
+fn in_memory_runtime_confirmation_checkpoint_can_commit_after_user_confirm() {
     let effect = EffectRecord::new(
         "effect-5",
         "task-3",
         "trace-3",
         "intent-5",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/confirm.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    let waiting = runtime.run_confirmation_checkpoint().unwrap();
+    assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+
+    let executing = runtime
+        .resolve_confirmation(ConfirmationAction::Confirm)
+        .unwrap();
+    assert_eq!(executing.worker_state, WorkerState::Executing);
+
+    let summary = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+    assert_eq!(summary.worker_state, WorkerState::Succeeded);
+    assert_eq!(summary.effect_status, EffectStatus::Executed);
+}
+
+#[test]
+fn in_memory_runtime_hibernation_can_resume_or_expire() {
+    let effect = EffectRecord::new(
+        "effect-5b",
+        "task-3b",
+        "trace-3b",
+        "intent-5b",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/hibernate.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut resume_runtime = InMemoryTaskRuntime::new(effect.clone());
+    resume_runtime.run_confirmation_checkpoint().unwrap();
+    resume_runtime
+        .resolve_confirmation(ConfirmationAction::Timeout)
+        .unwrap();
+    let resumed = resume_runtime
+        .resolve_hibernation(HibernationAction::Resume(PreflightDecision::Permit))
+        .unwrap();
+    assert_eq!(resumed.worker_state, WorkerState::Executing);
+
+    let mut expire_runtime = InMemoryTaskRuntime::new(effect);
+    expire_runtime.run_confirmation_checkpoint().unwrap();
+    expire_runtime
+        .resolve_confirmation(ConfirmationAction::Timeout)
+        .unwrap();
+    let expired = expire_runtime
+        .resolve_hibernation(HibernationAction::Expire)
+        .unwrap();
+    assert_eq!(expired.worker_state, WorkerState::FailedTerminal);
+}
+
+#[test]
+fn in_memory_runtime_stops_at_uncertain_after_probeable_crash() {
+    let effect = EffectRecord::new(
+        "effect-5c",
+        "task-3c",
+        "trace-3c",
+        "intent-5c",
         EffectActor::Worker,
         EffectAction::NetworkRequest,
         "scope:/tmp/uncertain",

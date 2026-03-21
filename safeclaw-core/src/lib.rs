@@ -46,6 +46,20 @@ pub enum RepairUserAction {
     Abandon,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConfirmationAction {
+    Confirm,
+    Deny,
+    Timeout,
+    SystemBudgetExceeded,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HibernationAction {
+    Resume(PreflightDecision),
+    Expire,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunSummary {
     pub worker_state: WorkerState,
@@ -106,8 +120,7 @@ impl InMemoryTaskRuntime {
         preflight: PreflightDecision,
         execution: ExecutionDisposition,
     ) -> Result<RunSummary, RuntimeError> {
-        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
-        self.apply_preflight(preflight)?;
+        self.start_task(preflight)?;
 
         if self.worker_state == WorkerState::Executing {
             self.execute_effect(execution)?;
@@ -116,12 +129,77 @@ impl InMemoryTaskRuntime {
         Ok(self.summary())
     }
 
+    pub fn run_confirmation_checkpoint(&mut self) -> Result<RunSummary, RuntimeError> {
+        self.start_task(PreflightDecision::NeedsConfirmation)?;
+        Ok(self.summary())
+    }
+
+    pub fn resolve_confirmation(
+        &mut self,
+        action: ConfirmationAction,
+    ) -> Result<RunSummary, RuntimeError> {
+        let event = match action {
+            ConfirmationAction::Confirm => WorkerEvent::UserConfirmed,
+            ConfirmationAction::Deny => WorkerEvent::UserDenied,
+            ConfirmationAction::Timeout => WorkerEvent::ConfirmTimeout,
+            ConfirmationAction::SystemBudgetExceeded => WorkerEvent::SystemBudgetExceeded,
+        };
+
+        if self.worker_state != WorkerState::AwaitingConfirmation {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.apply_worker_event(event)?;
+        Ok(self.summary())
+    }
+
+    pub fn resolve_hibernation(
+        &mut self,
+        action: HibernationAction,
+    ) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Hibernated {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        match action {
+            HibernationAction::Resume(preflight) => {
+                self.apply_worker_event(WorkerEvent::UserResume)?;
+                self.apply_preflight(preflight)?;
+            }
+            HibernationAction::Expire => {
+                self.apply_worker_event(WorkerEvent::HibernateExpired)?;
+            }
+        }
+
+        Ok(self.summary())
+    }
+
+    pub fn continue_execution(
+        &mut self,
+        execution: ExecutionDisposition,
+    ) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Executing {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.execute_effect(execution)?;
+        Ok(self.summary())
+    }
+
     pub fn run_persist_error_recovery(
         &mut self,
         preflight: PreflightDecision,
     ) -> Result<RunSummary, RuntimeError> {
-        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
-        self.apply_preflight(preflight)?;
+        self.start_task(preflight)?;
 
         if self.worker_state == WorkerState::Executing {
             self.ensure_scope_write_allowed()?;
@@ -142,8 +220,7 @@ impl InMemoryTaskRuntime {
         preflight: PreflightDecision,
         repair_succeeds: bool,
     ) -> Result<RunSummary, RuntimeError> {
-        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
-        self.apply_preflight(preflight)?;
+        self.start_task(preflight)?;
 
         if self.worker_state == WorkerState::Executing {
             self.ensure_scope_write_allowed()?;
@@ -255,6 +332,11 @@ impl InMemoryTaskRuntime {
         }
 
         Ok(self.summary())
+    }
+
+    fn start_task(&mut self, preflight: PreflightDecision) -> Result<(), RuntimeError> {
+        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
+        self.apply_preflight(preflight)
     }
 
     fn apply_preflight(&mut self, decision: PreflightDecision) -> Result<(), RuntimeError> {
@@ -486,8 +568,9 @@ impl From<LeaseError> for RuntimeError {
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_LEASE_TTL_MS, ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision,
-        ReconcileDecision, RepairUserAction,
+        ConfirmationAction, DEFAULT_LEASE_TTL_MS, ExecutionDisposition,
+        HibernationAction, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
+        RepairUserAction,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
@@ -534,6 +617,69 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::Uncertain);
         assert_eq!(summary.effect_status, EffectStatus::Uncertain);
         assert_eq!(runtime.attempts.len(), 1);
+    }
+
+    #[test]
+    fn confirmation_flow_can_confirm_and_commit() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+
+        let waiting = runtime.run_confirmation_checkpoint().unwrap();
+        assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+
+        let executing = runtime
+            .resolve_confirmation(ConfirmationAction::Confirm)
+            .unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
+
+        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
+        assert_eq!(succeeded.effect_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn confirmation_timeout_can_hibernate_and_resume() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+
+        runtime.run_confirmation_checkpoint().unwrap();
+        let hibernated = runtime
+            .resolve_confirmation(ConfirmationAction::Timeout)
+            .unwrap();
+        assert_eq!(hibernated.worker_state, WorkerState::Hibernated);
+
+        let resumed = runtime
+            .resolve_hibernation(HibernationAction::Resume(PreflightDecision::Permit))
+            .unwrap();
+        assert_eq!(resumed.worker_state, WorkerState::Executing);
+
+        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
+    }
+
+    #[test]
+    fn confirmation_denial_and_hibernation_expiry_fail_safely() {
+        let mut denied_runtime = demo_runtime(ProbeMode::Auto);
+        denied_runtime.run_confirmation_checkpoint().unwrap();
+        let denied = denied_runtime
+            .resolve_confirmation(ConfirmationAction::Deny)
+            .unwrap();
+        assert_eq!(denied.worker_state, WorkerState::Failed);
+
+        let mut budget_runtime = demo_runtime(ProbeMode::Auto);
+        budget_runtime.run_confirmation_checkpoint().unwrap();
+        let budget_failed = budget_runtime
+            .resolve_confirmation(ConfirmationAction::SystemBudgetExceeded)
+            .unwrap();
+        assert_eq!(budget_failed.worker_state, WorkerState::Failed);
+
+        let mut expired_runtime = demo_runtime(ProbeMode::Auto);
+        expired_runtime.run_confirmation_checkpoint().unwrap();
+        expired_runtime
+            .resolve_confirmation(ConfirmationAction::Timeout)
+            .unwrap();
+        let expired = expired_runtime
+            .resolve_hibernation(HibernationAction::Expire)
+            .unwrap();
+        assert_eq!(expired.worker_state, WorkerState::FailedTerminal);
     }
 
     #[test]
