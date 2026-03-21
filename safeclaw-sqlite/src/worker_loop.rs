@@ -1776,6 +1776,156 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_resume_skips_conflicting_scope_held_by_other_owner() {
+        let temp = TempWorkspace::new("resume-scope-skip");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_output = temp.root.join("resume-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_scope = format!("scope:{}", other_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-blocking",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-shared-queued",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-resume-other",
+                ScheduleIntent::write(other_scope.clone()),
+                2,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-shared-blocking");
+
+        let first_resume_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let first_resume_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_resume_worker =
+            SqliteSingleWorkerLoop::new(first_resume_orchestrator, first_resume_store);
+
+        let error = first_resume_worker
+            .claim_and_drive_once("worker-b", 1, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-resume-other");
+                let effect = EffectRecord::new(
+                    "effect-worker-resume-other",
+                    claim.task.task_id.clone(),
+                    "trace-worker-resume-other",
+                    "intent-worker-resume-other",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
+            })
+            .unwrap_err();
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(first_resume_worker.queue_snapshot().queued_tasks.len(), 1);
+        assert_eq!(
+            first_resume_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-shared-queued"
+        );
+        assert_eq!(first_resume_worker.queue_snapshot().active_leases.len(), 2);
+
+        let renewed_blocking_lease = blocking_orchestrator
+            .renew_lease(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+                20,
+            )
+            .unwrap();
+        assert_eq!(renewed_blocking_lease.owner_id, "worker-a");
+
+        let resume_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let resume_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut resume_worker = SqliteSingleWorkerLoop::new(resume_orchestrator, resume_store);
+
+        let blocked = resume_worker
+            .claim_and_resume_once("worker-c", 10, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let expected_bytes = b"safeclaw resumed other scope\n";
+        let resumed = resume_worker
+            .claim_and_resume_persisted_once(
+                "worker-c",
+                27,
+                "effect-worker-resume-other",
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-resume-other");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    assert_eq!(runtime.effect.status, EffectStatus::Prepared);
+                    Ok(sandbox_write_command(&other_output, expected_bytes))
+                },
+            )
+            .unwrap()
+            .expect("expired other-scope persisted runtime must be reclaimable");
+
+        assert_eq!(resumed.claim.lease.owner_id, "worker-c");
+        assert_eq!(resumed.claim.lease.fencing_token, 2);
+        assert_eq!(resumed.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(resumed.final_summary.effect_status, EffectStatus::Executed);
+        assert!(resumed.completed);
+        assert_eq!(fs::read(&other_output).unwrap(), expected_bytes);
+        assert!(!shared_output.exists());
+        assert_eq!(resume_worker.queue_snapshot().queued_tasks.len(), 1);
+        assert_eq!(
+            resume_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-shared-queued"
+        );
+        assert_eq!(resume_worker.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            resume_worker.queue_snapshot().active_leases[0].task_id,
+            "task-worker-shared-blocking"
+        );
+        assert_eq!(
+            resume_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-resume-other")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-resume-other", "effect-worker-resume-other")
+            .unwrap()
+            .expect("resumed other-scope runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
     fn worker_loop_claims_probes_and_completes_uncertain_network_request_task() {
         let server = TestHttpServer::spawn(
             "HTTP/1.1 200 OK\r\nContent-Length: 14\r\nConnection: close\r\n\r\nstatus=applied",
