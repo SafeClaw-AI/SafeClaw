@@ -6,7 +6,9 @@ use crate::{
 use safeclaw_core::{
     effect_ledger::EffectAction,
     recovery::probes::ProbeAdapterError,
-    scheduler::{OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, TaskOrchestrator},
+    scheduler::{
+        OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, TaskOrchestrator,
+    },
     worker_lifecycle::WorkerState,
     InMemoryTaskRuntime, PreflightDecision, RunSummary, RuntimeError,
 };
@@ -58,6 +60,26 @@ impl SqliteSingleWorkerLoop {
 
     pub fn queue_snapshot(&self) -> OrchestratorSnapshot {
         self.orchestrator.queue_snapshot()
+    }
+
+    pub fn renew_claim_lease(
+        &mut self,
+        claim: &OrchestratorClaim,
+        now_ms: u64,
+    ) -> Result<OrchestratorClaim, WorkerLoopError> {
+        let lease = self
+            .orchestrator
+            .renew_lease(
+                &claim.task.task_id,
+                &claim.lease.lease_id,
+                &claim.lease.owner_id,
+                now_ms,
+            )
+            .map_err(WorkerLoopError::Orchestrator)?;
+        Ok(OrchestratorClaim {
+            task: claim.task.clone(),
+            lease,
+        })
     }
 
     pub fn claim_and_drive_once<F>(
@@ -357,6 +379,67 @@ mod tests {
             .expect("persisted runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_loop_can_renew_failed_task_lease_and_block_reclaim() {
+        let temp = TempWorkspace::new("renew-lease");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-renew",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let failed = loop_driver
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-renew",
+                    claim.task.task_id.clone(),
+                    "trace-worker-renew",
+                    "intent-worker-renew",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("first worker must claim queued task");
+        assert_eq!(failed.final_summary.worker_state, WorkerState::Failed);
+        assert!(!failed.completed);
+
+        let renewed = loop_driver.renew_claim_lease(&failed.claim, 20).unwrap();
+        assert_eq!(renewed.lease.owner_id, "worker-a");
+        assert_eq!(renewed.lease.fencing_token, 1);
+        assert_eq!(renewed.lease.expires_at_ms, 45);
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(loop_driver.queue_snapshot().active_leases[0].expires_at_ms, 45);
+
+        let other_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let other_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut other_worker = SqliteSingleWorkerLoop::new(other_orchestrator, other_store);
+        let blocked = other_worker
+            .claim_and_resume_once("worker-b", 26, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
     }
 
     #[test]
