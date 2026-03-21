@@ -2634,13 +2634,15 @@ mod tests {
             SandboxCommand::new(
                 "powershell",
                 [
+                    "-NoProfile",
+                    "-NonInteractive",
                     "-Command",
                     &format!(
-                        "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes); Start-Sleep -Milliseconds 1000",
+                        "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes); Start-Sleep -Milliseconds 3000",
                         output_path.display()
                     ),
                 ],
-                500,
+                1_500,
             )
         } else {
             let text = String::from_utf8(output_bytes.to_vec())
