@@ -356,12 +356,81 @@ fn in_memory_runtime_hibernation_can_resume_or_expire() {
 }
 
 #[test]
-fn in_memory_runtime_stops_at_uncertain_after_probeable_crash() {
-    let effect = EffectRecord::new(
+fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
+    let retryable_effect = EffectRecord::new(
         "effect-5c",
         "task-3c",
         "trace-3c",
         "intent-5c",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/retry.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut retryable_runtime = InMemoryTaskRuntime::new(retryable_effect);
+    retryable_runtime.run_confirmation_checkpoint().unwrap();
+    retryable_runtime
+        .resolve_confirmation(ConfirmationAction::Deny)
+        .unwrap();
+    let executing = retryable_runtime.retry_failed(PreflightDecision::Permit).unwrap();
+    assert_eq!(executing.worker_state, WorkerState::Executing);
+
+    let blocked_effect = EffectRecord::new(
+        "effect-5d",
+        "task-3d",
+        "trace-3d",
+        "intent-5d",
+        EffectActor::Worker,
+        EffectAction::SystemExec,
+        "scope:/tmp/retry-blocked",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::None,
+    );
+
+    let mut blocked_runtime = InMemoryTaskRuntime::new(blocked_effect);
+    blocked_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    let retry_err = blocked_runtime.retry_failed(PreflightDecision::Permit).unwrap_err();
+    assert_eq!(retry_err, safeclaw_core::RuntimeError::GuardBlocked(GuardBlockReason::UserRetryBlocked));
+}
+
+#[test]
+fn in_memory_runtime_failed_abandon_reaches_terminal() {
+    let effect = EffectRecord::new(
+        "effect-5e",
+        "task-3e",
+        "trace-3e",
+        "intent-5e",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/abandon.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    runtime.run_confirmation_checkpoint().unwrap();
+    runtime
+        .resolve_confirmation(ConfirmationAction::SystemBudgetExceeded)
+        .unwrap();
+    let terminal = runtime.abandon_failed().unwrap();
+
+    assert_eq!(terminal.worker_state, WorkerState::FailedTerminal);
+}
+
+#[test]
+fn in_memory_runtime_stops_at_uncertain_after_probeable_crash() {
+    let effect = EffectRecord::new(
+        "effect-5f",
+        "task-3f",
+        "trace-3f",
+        "intent-5f",
         EffectActor::Worker,
         EffectAction::NetworkRequest,
         "scope:/tmp/uncertain",

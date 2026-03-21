@@ -11,8 +11,9 @@ use effect_ledger::{
     EffectTransitionError, LeaseError, RecoveryLease,
 };
 use task_concurrency::{
-    runtime_state_from_effect, scope_quarantine_trigger, write_scope_decision,
-    GuardBlockReason, GuardDecision, ScopeClaim,
+    runtime_state_from_effect, scope_quarantine_trigger, user_retry_decision,
+    write_scope_decision, EffectGuardSnapshot, GuardBlockReason, GuardDecision,
+    ScopeClaim,
 };
 use worker_lifecycle::{transition_for, WorkerEvent, WorkerState};
 
@@ -192,6 +193,39 @@ impl InMemoryTaskRuntime {
         }
 
         self.execute_effect(execution)?;
+        Ok(self.summary())
+    }
+
+    pub fn retry_failed(
+        &mut self,
+        preflight: PreflightDecision,
+    ) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Failed {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        match user_retry_decision(&[self.effect_guard_snapshot()]) {
+            GuardDecision::Allowed => {
+                self.apply_worker_event(WorkerEvent::UserRetry)?;
+                self.apply_preflight(preflight)?;
+                Ok(self.summary())
+            }
+            GuardDecision::Blocked(reason) => Err(RuntimeError::GuardBlocked(reason)),
+        }
+    }
+
+    pub fn abandon_failed(&mut self) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Failed {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.apply_worker_event(WorkerEvent::UserAbandon)?;
         Ok(self.summary())
     }
 
@@ -517,6 +551,13 @@ impl InMemoryTaskRuntime {
         Ok(())
     }
 
+    fn effect_guard_snapshot(&self) -> EffectGuardSnapshot {
+        EffectGuardSnapshot {
+            status: self.effect.status,
+            probe_state: self.effect.probe_state,
+        }
+    }
+
     fn release_scope_quarantine(&mut self) {
         self.quarantined_scopes.retain(|scope| scope != &self.effect.target);
     }
@@ -570,12 +611,13 @@ mod tests {
     use super::{
         ConfirmationAction, DEFAULT_LEASE_TTL_MS, ExecutionDisposition,
         HibernationAction, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
-        RepairUserAction,
+        RepairUserAction, RuntimeError,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
         LeaseError, ProbeMode,
     };
+    use crate::task_concurrency::GuardBlockReason;
     use crate::worker_lifecycle::WorkerState;
 
     fn demo_runtime(probe_mode: ProbeMode) -> InMemoryTaskRuntime {
@@ -680,6 +722,47 @@ mod tests {
             .resolve_hibernation(HibernationAction::Expire)
             .unwrap();
         assert_eq!(expired.worker_state, WorkerState::FailedTerminal);
+    }
+
+    #[test]
+    fn failed_retry_reenters_planning_when_effect_is_safe() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime.run_confirmation_checkpoint().unwrap();
+        runtime
+            .resolve_confirmation(ConfirmationAction::Deny)
+            .unwrap();
+
+        let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+        assert_eq!(executing.worker_state, WorkerState::Executing);
+
+        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
+    }
+
+    #[test]
+    fn failed_retry_is_blocked_when_effect_remains_executed_assumed() {
+        let mut runtime = demo_runtime(ProbeMode::None);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let err = runtime.retry_failed(PreflightDecision::Permit).unwrap_err();
+        assert_eq!(
+            err,
+            RuntimeError::GuardBlocked(GuardBlockReason::UserRetryBlocked)
+        );
+    }
+
+    #[test]
+    fn failed_abandon_reaches_failed_terminal() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime.run_confirmation_checkpoint().unwrap();
+        runtime
+            .resolve_confirmation(ConfirmationAction::SystemBudgetExceeded)
+            .unwrap();
+
+        let terminal = runtime.abandon_failed().unwrap();
+        assert_eq!(terminal.worker_state, WorkerState::FailedTerminal);
     }
 
     #[test]
