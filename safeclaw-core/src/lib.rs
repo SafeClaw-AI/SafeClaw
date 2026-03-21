@@ -38,6 +38,14 @@ pub enum ReconcileDecision {
     Failure,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RepairUserAction {
+    Close,
+    RetryPlanning,
+    RetryRepair,
+    Abandon,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunSummary {
     pub worker_state: WorkerState,
@@ -124,6 +132,64 @@ impl InMemoryTaskRuntime {
             self.apply_worker_event(WorkerEvent::PersistError)?;
             self.recover_failed_commit()?;
             self.active_claims.clear();
+        }
+
+        Ok(self.summary())
+    }
+
+    pub fn run_doctor_repair_flow(
+        &mut self,
+        preflight: PreflightDecision,
+        repair_succeeds: bool,
+    ) -> Result<RunSummary, RuntimeError> {
+        self.apply_worker_event(WorkerEvent::TaskAccepted)?;
+        self.apply_preflight(preflight)?;
+
+        if self.worker_state == WorkerState::Executing {
+            self.ensure_scope_write_allowed()?;
+            self.active_claims
+                .push(ScopeClaim::write(self.effect.target.clone()));
+            self.ensure_recovery_lease("worker")?;
+            self.execute_effect_to_commit_ready()?;
+            self.apply_worker_event(WorkerEvent::PersistError)?;
+            self.apply_worker_event(WorkerEvent::AutoRollback)?;
+            self.apply_worker_event(WorkerEvent::RollbackFailed)?;
+            self.acquire_recovery_lease("doctor", DEFAULT_LEASE_TTL_MS);
+            self.apply_worker_event(WorkerEvent::DoctorKillDone)?;
+            if repair_succeeds {
+                self.apply_worker_event(WorkerEvent::RepairOk)?;
+            } else {
+                self.apply_worker_event(WorkerEvent::RepairFailed)?;
+            }
+            self.active_claims.clear();
+        }
+
+        Ok(self.summary())
+    }
+
+    pub fn resolve_repair_state(
+        &mut self,
+        action: RepairUserAction,
+    ) -> Result<RunSummary, RuntimeError> {
+        match (self.worker_state, action) {
+            (WorkerState::Repaired, RepairUserAction::Close) => {
+                self.apply_worker_event(WorkerEvent::UserClose)?;
+            }
+            (WorkerState::Repaired, RepairUserAction::RetryPlanning) => {
+                self.apply_worker_event(WorkerEvent::UserRetryFromRepaired)?;
+            }
+            (WorkerState::RepairFailed, RepairUserAction::RetryRepair) => {
+                self.apply_worker_event(WorkerEvent::UserRetryRepair)?;
+            }
+            (WorkerState::RepairFailed, RepairUserAction::Abandon) => {
+                self.apply_worker_event(WorkerEvent::UserAbandonRepair)?;
+            }
+            _ => {
+                return Err(RuntimeError::ReconcileUnavailable {
+                    state: self.worker_state,
+                    effect_status: self.effect.status,
+                });
+            }
         }
 
         Ok(self.summary())
@@ -421,7 +487,7 @@ impl From<LeaseError> for RuntimeError {
 mod tests {
     use super::{
         DEFAULT_LEASE_TTL_MS, ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision,
-        ReconcileDecision,
+        ReconcileDecision, RepairUserAction,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
@@ -523,6 +589,64 @@ mod tests {
             runtime.compensation_effects[0].compensates_effect_id,
             Some(String::from("effect-compensatable"))
         );
+    }
+
+    #[test]
+    fn doctor_repair_flow_can_close_after_successful_repair() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+
+        let summary = runtime
+            .run_doctor_repair_flow(PreflightDecision::Permit, true)
+            .unwrap();
+        assert_eq!(summary.worker_state, WorkerState::Repaired);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
+
+        let closed = runtime.resolve_repair_state(RepairUserAction::Close).unwrap();
+        assert_eq!(closed.worker_state, WorkerState::Closed);
+    }
+
+    #[test]
+    fn doctor_repair_flow_can_abandon_after_repair_failed() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+
+        let summary = runtime
+            .run_doctor_repair_flow(PreflightDecision::Permit, false)
+            .unwrap();
+        assert_eq!(summary.worker_state, WorkerState::RepairFailed);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
+
+        let failed_terminal = runtime.resolve_repair_state(RepairUserAction::Abandon).unwrap();
+        assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
+    }
+
+    #[test]
+    fn repaired_worker_can_reenter_planning() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_doctor_repair_flow(PreflightDecision::Permit, true)
+            .unwrap();
+
+        let planning = runtime
+            .resolve_repair_state(RepairUserAction::RetryPlanning)
+            .unwrap();
+
+        assert_eq!(planning.worker_state, WorkerState::Planning);
+        assert_eq!(planning.effect_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn repair_failed_worker_can_retry_repair() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_doctor_repair_flow(PreflightDecision::Permit, false)
+            .unwrap();
+
+        let awaiting_doctor = runtime
+            .resolve_repair_state(RepairUserAction::RetryRepair)
+            .unwrap();
+
+        assert_eq!(awaiting_doctor.worker_state, WorkerState::AwaitingDoctor);
+        assert_eq!(awaiting_doctor.effect_status, EffectStatus::Executed);
     }
 
     #[test]
