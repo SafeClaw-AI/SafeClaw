@@ -356,12 +356,38 @@ fn in_memory_runtime_hibernation_can_resume_or_expire() {
 }
 
 #[test]
-fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
-    let retryable_effect = EffectRecord::new(
+fn in_memory_runtime_uncertain_probe_success_reaches_succeeded() {
+    let effect = EffectRecord::new(
         "effect-5c",
         "task-3c",
         "trace-3c",
         "intent-5c",
+        EffectActor::Worker,
+        EffectAction::NetworkRequest,
+        "scope:/tmp/probe.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::Auto,
+    );
+
+    let mut runtime = InMemoryTaskRuntime::new(effect);
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    runtime.begin_probe().unwrap();
+    let summary = runtime.resolve_probe_success().unwrap();
+
+    assert_eq!(summary.worker_state, WorkerState::Succeeded);
+    assert_eq!(summary.effect_status, EffectStatus::Executed);
+}
+
+#[test]
+fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
+    let retryable_effect = EffectRecord::new(
+        "effect-5d",
+        "task-3d",
+        "trace-3d",
+        "intent-5d",
         EffectActor::Worker,
         EffectAction::FileWrite,
         "scope:/tmp/retry.txt",

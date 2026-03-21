@@ -8,7 +8,7 @@ pub mod worker_lifecycle;
 
 use effect_ledger::{
     AttemptResultStatus, AttemptWriteError, EffectAttempt, EffectRecord, EffectStatus,
-    EffectTransitionError, LeaseError, RecoveryLease,
+    EffectTransitionError, LeaseError, ProbeState, RecoveryLease,
 };
 use task_concurrency::{
     runtime_state_from_effect, scope_quarantine_trigger, user_retry_decision,
@@ -193,6 +193,41 @@ impl InMemoryTaskRuntime {
         }
 
         self.execute_effect(execution)?;
+        Ok(self.summary())
+    }
+
+    pub fn begin_probe(&mut self) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Uncertain
+            || self.effect.status != EffectStatus::Uncertain
+        {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.effect.probe_state = Some(ProbeState::Probing);
+        Ok(self.summary())
+    }
+
+    pub fn resolve_probe_success(&mut self) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Uncertain
+            || self.effect.status != EffectStatus::Uncertain
+        {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.effect.transition_to(
+            EffectStatus::Executed,
+            self.timestamp(),
+            "doctor",
+            "probe_confirmed_executed",
+        )?;
+        self.apply_worker_event(WorkerEvent::ProbeSuccess)?;
+        self.apply_worker_event(WorkerEvent::ResultsPersisted)?;
         Ok(self.summary())
     }
 
@@ -615,7 +650,7 @@ mod tests {
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
-        LeaseError, ProbeMode,
+        LeaseError, ProbeMode, ProbeState,
     };
     use crate::task_concurrency::GuardBlockReason;
     use crate::worker_lifecycle::WorkerState;
@@ -659,6 +694,22 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::Uncertain);
         assert_eq!(summary.effect_status, EffectStatus::Uncertain);
         assert_eq!(runtime.attempts.len(), 1);
+    }
+
+    #[test]
+    fn uncertain_probe_success_can_commit_cleanly() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let probing = runtime.begin_probe().unwrap();
+        assert_eq!(probing.worker_state, WorkerState::Uncertain);
+        assert_eq!(runtime.effect.probe_state, Some(ProbeState::Probing));
+
+        let succeeded = runtime.resolve_probe_success().unwrap();
+        assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
+        assert_eq!(succeeded.effect_status, EffectStatus::Executed);
     }
 
     #[test]
