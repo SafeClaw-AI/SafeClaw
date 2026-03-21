@@ -5,7 +5,10 @@
     time::{Duration, Instant},
 };
 
-use safeclaw_core::{effect_ledger::AttemptResultStatus, ExecutionDisposition, ExecutionInterruption};
+use safeclaw_core::{
+    effect_ledger::AttemptResultStatus, ExecutionDisposition, ExecutionInterruption,
+    InMemoryTaskRuntime, RunSummary, RuntimeError,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxCommand {
@@ -77,6 +80,21 @@ impl SandboxExecutionReport {
             RuntimeExecutionDirective::Interrupt(_) => None,
         }
     }
+
+    pub fn apply_to_runtime(
+        &self,
+        runtime: &mut InMemoryTaskRuntime,
+    ) -> Result<RunSummary, RuntimeError> {
+        match self.runtime_directive() {
+            RuntimeExecutionDirective::Commit => {
+                runtime.continue_execution(ExecutionDisposition::Commit)
+            }
+            RuntimeExecutionDirective::Crash => runtime.continue_execution(ExecutionDisposition::Crash),
+            RuntimeExecutionDirective::Interrupt(interruption) => {
+                runtime.interrupt_execution(interruption)
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -139,8 +157,16 @@ impl LocalSandboxExecutor {
 mod tests {
     use super::{
         LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
+        SandboxExecutionReport,
     };
-    use safeclaw_core::{effect_ledger::AttemptResultStatus, ExecutionDisposition, ExecutionInterruption};
+    use safeclaw_core::{
+        effect_ledger::{
+            AttemptResultStatus, EffectAction, EffectActor, EffectRecord, EffectReversibility,
+            EffectStatus, EffectTier, ProbeMode,
+        },
+        worker_lifecycle::WorkerState,
+        ExecutionDisposition, ExecutionInterruption, InMemoryTaskRuntime, PreflightDecision,
+    };
 
     #[test]
     fn executor_captures_stdout_and_commits_on_zero_exit() {
@@ -200,6 +226,78 @@ mod tests {
         assert_eq!(report.attempt_result_status(), AttemptResultStatus::Timeout);
         assert_eq!(report.execution_disposition(), Some(ExecutionDisposition::Crash));
         assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Crash);
+    }
+
+    #[test]
+    fn report_apply_to_runtime_commits_executing_runtime() {
+        let mut runtime = demo_runtime();
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+
+        let report = SandboxExecutionReport {
+            exit_code: Some(0),
+            stdout: String::new(),
+            stderr: String::new(),
+            timed_out: false,
+            duration_ms: 5,
+        };
+
+        let summary = report.apply_to_runtime(&mut runtime).unwrap();
+        assert_eq!(summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
+        assert_eq!(runtime.attempts.len(), 1);
+    }
+
+    #[test]
+    fn report_apply_to_runtime_crashes_into_uncertain_runtime() {
+        let mut runtime = demo_runtime();
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+
+        let report = SandboxExecutionReport {
+            exit_code: None,
+            stdout: String::new(),
+            stderr: String::new(),
+            timed_out: true,
+            duration_ms: 50,
+        };
+
+        let summary = report.apply_to_runtime(&mut runtime).unwrap();
+        assert_eq!(summary.worker_state, WorkerState::Uncertain);
+        assert_eq!(summary.effect_status, EffectStatus::Uncertain);
+        assert_eq!(runtime.attempts.len(), 1);
+    }
+
+    #[test]
+    fn report_apply_to_runtime_interrupts_with_exec_error() {
+        let mut runtime = demo_runtime();
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+
+        let report = SandboxExecutionReport {
+            exit_code: Some(7),
+            stdout: String::new(),
+            stderr: String::from("boom"),
+            timed_out: false,
+            duration_ms: 8,
+        };
+
+        let summary = report.apply_to_runtime(&mut runtime).unwrap();
+        assert_eq!(summary.worker_state, WorkerState::Failed);
+        assert_eq!(summary.effect_status, EffectStatus::Prepared);
+        assert!(runtime.attempts.is_empty());
+    }
+
+    fn demo_runtime() -> InMemoryTaskRuntime {
+        InMemoryTaskRuntime::new(EffectRecord::new(
+            "effect-sandbox",
+            "task-sandbox",
+            "trace-sandbox",
+            "intent-sandbox",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            "scope:/tmp/sandbox.txt",
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        ))
     }
 }
 
