@@ -271,6 +271,58 @@ mod tests {
         assert_eq!(snapshot.version, 1);
     }
 
+    #[test]
+    fn persist_runtime_restores_compensation_effects() {
+        let temp_db = TempDatabase::new("compensation");
+        let effect = EffectRecord::new(
+            "effect-compensatable-runtime",
+            "task-compensatable-runtime",
+            "trace-compensatable-runtime",
+            "intent-compensatable-runtime",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            "scope:/task-compensatable-runtime",
+            EffectTier::Tier1,
+            EffectReversibility::Compensatable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime
+            .run_persist_error_recovery(PreflightDecision::Permit)
+            .expect("persist error recovery must succeed");
+        assert_eq!(runtime.compensation_effects.len(), 1);
+
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open runtime database");
+        let mut store = SqliteRuntimeStore::new(connection);
+        assert_eq!(
+            store
+                .persist_runtime(&runtime, "comp-runtime-event", "runtime-store")
+                .unwrap(),
+            StateApplyResult::Applied
+        );
+        drop(store);
+
+        let reopened = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must reopen runtime database");
+        let store = SqliteRuntimeStore::new(reopened);
+        let restored = store
+            .load_runtime("task-compensatable-runtime", "effect-compensatable-runtime")
+            .unwrap()
+            .expect("runtime must exist");
+
+        assert_eq!(
+            restored.worker_state,
+            safeclaw_core::worker_lifecycle::WorkerState::RolledBack
+        );
+        assert_eq!(restored.effect.status, EffectStatus::Compensated);
+        assert_eq!(restored.compensation_effects.len(), 1);
+        assert_eq!(
+            restored.compensation_effects[0].compensates_effect_id,
+            Some(String::from("effect-compensatable-runtime"))
+        );
+    }
+
     fn demo_effect(probe_mode: ProbeMode) -> EffectRecord {
         let (effect_id, task_id) = match probe_mode {
             ProbeMode::Auto => ("effect-auto-runtime", "task-auto-runtime"),
