@@ -6,6 +6,9 @@ mod error;
 mod migrations;
 mod state_engine;
 
+#[cfg(test)]
+mod integration;
+
 use std::path::Path;
 
 pub use connection::{open_file_database, SqliteOpenOptions, DEFAULT_BUSY_TIMEOUT_MS};
