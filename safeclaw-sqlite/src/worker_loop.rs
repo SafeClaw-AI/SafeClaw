@@ -1928,6 +1928,187 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_retry_claims_remaining_conflict_after_release() {
+        let temp = TempWorkspace::new("retry-scope-release");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_output = temp.root.join("retry-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_scope = format!("scope:{}", other_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-shared-blocking",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-shared-queued",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-other",
+                ScheduleIntent::write(other_scope.clone()),
+                2,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-retry-shared-blocking");
+
+        let first_retry_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let first_retry_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_retry_worker =
+            SqliteSingleWorkerLoop::new(first_retry_orchestrator, first_retry_store);
+
+        let first_outcome = first_retry_worker
+            .claim_and_drive_once("worker-b", 1, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-retry-other");
+                let effect = EffectRecord::new(
+                    "effect-worker-retry-other",
+                    claim.task.task_id.clone(),
+                    "trace-worker-retry-other",
+                    "intent-worker-retry-other",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("first retry worker must claim other-scope task");
+        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
+
+        let renewed_blocking_lease = blocking_orchestrator
+            .renew_lease(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+                20,
+            )
+            .unwrap();
+        assert_eq!(renewed_blocking_lease.owner_id, "worker-a");
+
+        let retry_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let retry_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut retry_worker = SqliteSingleWorkerLoop::new(retry_orchestrator, retry_store);
+
+        let expected_other_bytes = b"safeclaw retried other scope\n";
+        let retried = retry_worker
+            .claim_and_retry_failed_once(
+                "worker-c",
+                27,
+                "effect-worker-retry-other",
+                PreflightDecision::Permit,
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-retry-other");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    Ok(sandbox_write_command(&other_output, expected_other_bytes))
+                },
+            )
+            .unwrap()
+            .expect("expired other-scope failed runtime must be reclaimable");
+        assert!(retried.completed);
+        assert_eq!(fs::read(&other_output).unwrap(), expected_other_bytes);
+        assert_eq!(retry_worker.queue_snapshot().queued_tasks.len(), 1);
+        assert_eq!(
+            retry_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-retry-shared-queued"
+        );
+
+        blocking_orchestrator
+            .complete(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+            )
+            .unwrap();
+
+        let release_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let release_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut release_worker = SqliteSingleWorkerLoop::new(release_orchestrator, release_store);
+
+        let expected_shared_bytes = b"safeclaw shared after retry release\n";
+        let released = release_worker
+            .claim_and_drive_once("worker-d", 28, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-retry-shared-queued");
+                let effect = EffectRecord::new(
+                    "effect-worker-retry-shared-queued",
+                    claim.task.task_id.clone(),
+                    "trace-worker-retry-shared-queued",
+                    "intent-worker-retry-shared-queued",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_write_command(&shared_output, expected_shared_bytes),
+                ))
+            })
+            .unwrap()
+            .expect("shared queued task must unblock after lease release");
+
+        assert_eq!(released.claim.lease.owner_id, "worker-d");
+        assert!(released.completed);
+        assert_eq!(released.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(released.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(fs::read(&shared_output).unwrap(), expected_shared_bytes);
+        assert!(release_worker.queue_snapshot().queued_tasks.is_empty());
+        assert!(release_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            release_worker.queue_snapshot().completed_task_ids,
+            vec![
+                String::from("task-worker-retry-other"),
+                String::from("task-worker-retry-shared-blocking"),
+                String::from("task-worker-retry-shared-queued"),
+            ]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-retry-shared-queued",
+                "effect-worker-retry-shared-queued",
+            )
+            .unwrap()
+            .expect("released shared runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
     fn worker_loop_resume_skips_conflicting_scope_held_by_other_owner() {
         let temp = TempWorkspace::new("resume-scope-skip");
         let shared_output = temp.root.join("shared-output.txt");
