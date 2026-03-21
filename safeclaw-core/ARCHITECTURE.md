@@ -11,9 +11,15 @@ safeclaw-core/
     lib.rs
     protocol.rs
     effect_ledger.rs
-    task_concurrency.rs
     worker_lifecycle.rs
+    task_concurrency.rs
+    scheduler.rs
+    state_engine.rs
+    runtime_store.rs
     spec_map.rs
+    recovery/
+      mod.rs
+      probes.rs
   tests/
     protocol_contracts.rs
 ```
@@ -26,19 +32,21 @@ safeclaw-core/
 | `effect_ledger` | `specs/schemas/effect_ledger.json` | Runtime Slice | 已覆盖四阶段、attempt、lease、补偿独立化 |
 | `worker_lifecycle` | `specs/state-machines/worker_lifecycle.json` | Runtime Slice | 已覆盖完整转移表、uncertain、reconcile、doctor/repair 闭环 |
 | `task_concurrency` | `specs/schemas/task_concurrency.json` | Runtime Slice | 已覆盖 retry guard、scope quarantine、worker/tool/scope 调度准入 |
-| `recovery::probes` | `specs/probes/*.json` | Test Skeleton | 已提供 probe 定义目录、receipt 模型、mock adapter 接口 |
-| `scheduler` | `specs/schemas/task_concurrency.json` | Test Skeleton | 已提供 sidecar / orchestrator 调度入口 trait 与内存 mock |
-| `spec_map` | 上述真源映射 | Runtime Slice | 显式记录 spec → 模块 → 下一步 |
+| `recovery::probes` | `specs/probes/*.json` | Runtime Slice | 已提供 probe catalog、receipt 模型、mock adapter 与运行时 probe 协调入口 |
+| `scheduler` | `specs/schemas/task_concurrency.json` | Adapter Ready | 已提供 scheduler / orchestrator trait、内存 mock；外层 `safeclaw-sqlite` 已接入 SQLite orchestrator |
+| `state_engine` | `specs/state-machine.schema.json` 等恢复约束 | Adapter Ready | 已提供纯核 trait + 内存实现；外层 `safeclaw-sqlite` 已接入 SQLite 状态落盘 |
+| `runtime_store` | `worker_lifecycle` + `effect_ledger` 恢复闭环 | Adapter Ready | 已提供 runtime 持久化 trait + mock；外层 `safeclaw-sqlite` 已落地恢复链路 |
+| `spec_map` | 上述真源映射 | Runtime Slice | 显式记录 spec → 模块 → 当前阶段 / 下一步 |
 
 ## 当前实现边界
 
-- 当前提供 **纯内存 runtime slice + 关键守卫 + 合同测试**
-- 当前不实现 SQLite、真实调度器、sidecar 调用、UI
-- 当前只覆盖 Phase 1 允许的纯核心恢复路径，不伪造持久化语义
+- `safeclaw-core` 保持 **零 IO / 零 SQLite 依赖**，只负责纯领域状态机、guard、恢复语义与合同约束。
+- 外层 `safeclaw-sqlite` 已承接 SQLite WAL 适配、probe executor、sandbox executor、orchestrator 与 runtime 持久化。
+- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试。
+- UI、sidecar、Doctor force-kill 仍位于核心外层，不进入本 crate。
 
 ## 下一步顺序
 
-1. 将 runtime slice 接到真实 `State Engine` / WAL 持久化
-2. 将 `scheduler` / `task_concurrency` trait 接到外层 orchestrator / sidecar 队列
-3. 将 `recovery::probes` trait 接到外层 adapter / sidecar probe executor
-4. 最后进入 Chaos / Doctor / 持久化恢复联调
+1. 继续在外层 adapter / sidecar 将 orchestrator、probe executor、sandbox runner 组装成真实 worker loop。
+2. 将 Doctor force-kill、sidecar queue、观测链路接到外围基础设施层，不回灌核心依赖。
+3. 维持 `safeclaw-core` 收敛，只做协议/语义级变更与保护性测试。
