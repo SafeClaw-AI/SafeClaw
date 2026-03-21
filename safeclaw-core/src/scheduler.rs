@@ -1,3 +1,5 @@
+﻿use std::collections::{HashMap, VecDeque};
+
 use crate::task_concurrency::{
     schedule_decision, GuardBlockReason, GuardDecision, ScopeClaim,
     TaskScheduleRequest,
@@ -61,6 +63,95 @@ pub trait TaskScheduler {
     fn quarantine_scope(&mut self, scope: impl Into<String>);
     fn release_quarantine(&mut self, scope: &str);
     fn snapshot(&self) -> SchedulerSnapshot;
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OrchestratorTask {
+    pub task_id: String,
+    pub intent: ScheduleIntent,
+    pub enqueued_at_ms: u64,
+}
+
+impl OrchestratorTask {
+    pub fn new(
+        task_id: impl Into<String>,
+        intent: ScheduleIntent,
+        enqueued_at_ms: u64,
+    ) -> Self {
+        Self {
+            task_id: task_id.into(),
+            intent,
+            enqueued_at_ms,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OrchestratorLease {
+    pub lease_id: String,
+    pub task_id: String,
+    pub owner_id: String,
+    pub fencing_token: u64,
+    pub ttl_ms: u64,
+    pub expires_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OrchestratorClaim {
+    pub task: OrchestratorTask,
+    pub lease: OrchestratorLease,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OrchestratorSnapshot {
+    pub queued_tasks: Vec<OrchestratorTask>,
+    pub active_leases: Vec<OrchestratorLease>,
+    pub completed_task_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum OrchestratorError {
+    TaskAlreadyQueued { task_id: String },
+    TaskAlreadyCompleted { task_id: String },
+    LeaseNotFound { task_id: String, lease_id: String },
+    LeaseNotOwned {
+        task_id: String,
+        lease_id: String,
+        owner_id: String,
+    },
+    LeaseExpired {
+        task_id: String,
+        lease_id: String,
+        now_ms: u64,
+        expires_at_ms: u64,
+    },
+}
+
+pub trait TaskOrchestrator {
+    fn enqueue(&mut self, task: OrchestratorTask) -> Result<(), OrchestratorError>;
+    fn claim_next(
+        &mut self,
+        owner_id: impl Into<String>,
+        now_ms: u64,
+    ) -> Result<Option<OrchestratorClaim>, OrchestratorError>;
+    fn renew_lease(
+        &mut self,
+        task_id: &str,
+        lease_id: &str,
+        owner_id: &str,
+        now_ms: u64,
+    ) -> Result<OrchestratorLease, OrchestratorError>;
+    fn reap_expired_leases(
+        &mut self,
+        now_ms: u64,
+    ) -> Result<Vec<OrchestratorLease>, OrchestratorError>;
+    fn complete(
+        &mut self,
+        task_id: &str,
+        lease_id: &str,
+        owner_id: &str,
+    ) -> Result<(), OrchestratorError>;
+    fn queue_snapshot(&self) -> OrchestratorSnapshot;
 }
 
 #[derive(Clone, Debug, Default)]
@@ -151,10 +242,220 @@ impl TaskScheduler for InMemoryTaskScheduler {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct InMemoryTaskOrchestrator {
+    lease_ttl_ms: u64,
+    next_lease_seq: u64,
+    queued_tasks: VecDeque<OrchestratorTask>,
+    active_claims: HashMap<String, OrchestratorClaim>,
+    completed_task_ids: Vec<String>,
+    next_fencing_token_by_task: HashMap<String, u64>,
+}
+
+pub type MockTaskOrchestrator = InMemoryTaskOrchestrator;
+
+impl Default for InMemoryTaskOrchestrator {
+    fn default() -> Self {
+        Self {
+            lease_ttl_ms: 30_000,
+            next_lease_seq: 0,
+            queued_tasks: VecDeque::new(),
+            active_claims: HashMap::new(),
+            completed_task_ids: Vec::new(),
+            next_fencing_token_by_task: HashMap::new(),
+        }
+    }
+}
+
+impl InMemoryTaskOrchestrator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_lease_ttl_ms(mut self, lease_ttl_ms: u64) -> Self {
+        self.lease_ttl_ms = lease_ttl_ms;
+        self
+    }
+}
+
+impl TaskOrchestrator for InMemoryTaskOrchestrator {
+    fn enqueue(&mut self, task: OrchestratorTask) -> Result<(), OrchestratorError> {
+        let task_id = task.task_id.clone();
+        if self.completed_task_ids.iter().any(|completed| completed == &task_id) {
+            return Err(OrchestratorError::TaskAlreadyCompleted { task_id });
+        }
+        if self.queued_tasks.iter().any(|queued| queued.task_id == task_id)
+            || self.active_claims.contains_key(&task_id)
+        {
+            return Err(OrchestratorError::TaskAlreadyQueued { task_id });
+        }
+        self.queued_tasks.push_back(task);
+        Ok(())
+    }
+
+    fn claim_next(
+        &mut self,
+        owner_id: impl Into<String>,
+        now_ms: u64,
+    ) -> Result<Option<OrchestratorClaim>, OrchestratorError> {
+        self.reap_expired_leases(now_ms)?;
+
+        let Some(task) = self.queued_tasks.pop_front() else {
+            return Ok(None);
+        };
+
+        let owner_id = owner_id.into();
+        let fencing_token = {
+            let next = self
+                .next_fencing_token_by_task
+                .entry(task.task_id.clone())
+                .or_insert(0);
+            *next += 1;
+            *next
+        };
+        self.next_lease_seq += 1;
+
+        let claim = OrchestratorClaim {
+            lease: OrchestratorLease {
+                lease_id: format!("{}-lease-{}", task.task_id, self.next_lease_seq),
+                task_id: task.task_id.clone(),
+                owner_id,
+                fencing_token,
+                ttl_ms: self.lease_ttl_ms,
+                expires_at_ms: now_ms.saturating_add(self.lease_ttl_ms),
+            },
+            task,
+        };
+        self.active_claims
+            .insert(claim.task.task_id.clone(), claim.clone());
+        Ok(Some(claim))
+    }
+
+    fn renew_lease(
+        &mut self,
+        task_id: &str,
+        lease_id: &str,
+        owner_id: &str,
+        now_ms: u64,
+    ) -> Result<OrchestratorLease, OrchestratorError> {
+        let claim = self.active_claims.get_mut(task_id).ok_or_else(|| {
+            OrchestratorError::LeaseNotFound {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+            }
+        })?;
+
+        if claim.lease.lease_id != lease_id {
+            return Err(OrchestratorError::LeaseNotFound {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+            });
+        }
+        if claim.lease.owner_id != owner_id {
+            return Err(OrchestratorError::LeaseNotOwned {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+                owner_id: owner_id.to_string(),
+            });
+        }
+        if now_ms > claim.lease.expires_at_ms {
+            return Err(OrchestratorError::LeaseExpired {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+                now_ms,
+                expires_at_ms: claim.lease.expires_at_ms,
+            });
+        }
+
+        claim.lease.expires_at_ms = now_ms.saturating_add(claim.lease.ttl_ms);
+        Ok(claim.lease.clone())
+    }
+
+    fn reap_expired_leases(
+        &mut self,
+        now_ms: u64,
+    ) -> Result<Vec<OrchestratorLease>, OrchestratorError> {
+        let expired_task_ids = self
+            .active_claims
+            .iter()
+            .filter_map(|(task_id, claim)| {
+                (now_ms > claim.lease.expires_at_ms).then(|| task_id.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut expired = Vec::new();
+        for task_id in expired_task_ids {
+            if let Some(claim) = self.active_claims.remove(&task_id) {
+                expired.push(claim.lease.clone());
+                self.queued_tasks.push_back(claim.task);
+            }
+        }
+        Ok(expired)
+    }
+
+    fn complete(
+        &mut self,
+        task_id: &str,
+        lease_id: &str,
+        owner_id: &str,
+    ) -> Result<(), OrchestratorError> {
+        let claim = self.active_claims.get(task_id).ok_or_else(|| {
+            OrchestratorError::LeaseNotFound {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+            }
+        })?;
+
+        if claim.lease.lease_id != lease_id {
+            return Err(OrchestratorError::LeaseNotFound {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+            });
+        }
+        if claim.lease.owner_id != owner_id {
+            return Err(OrchestratorError::LeaseNotOwned {
+                task_id: task_id.to_string(),
+                lease_id: lease_id.to_string(),
+                owner_id: owner_id.to_string(),
+            });
+        }
+
+        self.active_claims.remove(task_id);
+        if !self.completed_task_ids.iter().any(|completed| completed == task_id) {
+            self.completed_task_ids.push(task_id.to_string());
+        }
+        Ok(())
+    }
+
+    fn queue_snapshot(&self) -> OrchestratorSnapshot {
+        let mut active_leases = self
+            .active_claims
+            .values()
+            .map(|claim| claim.lease.clone())
+            .collect::<Vec<_>>();
+        active_leases.sort_by(|left, right| {
+            left.task_id
+                .cmp(&right.task_id)
+                .then(left.fencing_token.cmp(&right.fencing_token))
+        });
+
+        let mut completed_task_ids = self.completed_task_ids.clone();
+        completed_task_ids.sort();
+
+        OrchestratorSnapshot {
+            queued_tasks: self.queued_tasks.iter().cloned().collect(),
+            active_leases,
+            completed_task_ids,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        InMemoryTaskScheduler, ScheduleIntent, SchedulerError, TaskScheduler,
+        InMemoryTaskOrchestrator, InMemoryTaskScheduler, OrchestratorError,
+        OrchestratorTask, ScheduleIntent, SchedulerError, TaskOrchestrator,
+        TaskScheduler,
     };
     use crate::task_concurrency::GuardBlockReason;
 
@@ -216,6 +517,93 @@ mod tests {
                 doctor_bypass: false,
             }),
             Err(SchedulerError::WorkerUnderflow)
+        );
+    }
+
+    #[test]
+    fn orchestrator_claims_tasks_and_renews_active_leases() {
+        let mut orchestrator = InMemoryTaskOrchestrator::new().with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-1",
+                ScheduleIntent::write("scope:/tmp/task-1"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-2",
+                ScheduleIntent::read("scope:/tmp/task-2"),
+                1,
+            ))
+            .unwrap();
+
+        let claim = orchestrator.claim_next("orch-a", 10).unwrap().unwrap();
+        assert_eq!(claim.task.task_id, "task-1");
+        assert_eq!(claim.lease.fencing_token, 1);
+        assert_eq!(claim.lease.expires_at_ms, 35);
+
+        let renewed = orchestrator
+            .renew_lease(&claim.task.task_id, &claim.lease.lease_id, "orch-a", 20)
+            .unwrap();
+        assert_eq!(renewed.expires_at_ms, 45);
+
+        let snapshot = orchestrator.queue_snapshot();
+        assert_eq!(snapshot.queued_tasks.len(), 1);
+        assert_eq!(snapshot.queued_tasks[0].task_id, "task-2");
+        assert_eq!(snapshot.active_leases.len(), 1);
+        assert_eq!(snapshot.active_leases[0].task_id, "task-1");
+    }
+
+    #[test]
+    fn orchestrator_reaps_expired_leases_and_requeues_tasks() {
+        let mut orchestrator = InMemoryTaskOrchestrator::new().with_lease_ttl_ms(10);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-expire",
+                ScheduleIntent::write("scope:/tmp/task-expire"),
+                0,
+            ))
+            .unwrap();
+
+        let claim = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        let expired = orchestrator.reap_expired_leases(11).unwrap();
+        assert_eq!(expired, vec![claim.lease.clone()]);
+
+        let reclaimed = orchestrator.claim_next("orch-b", 12).unwrap().unwrap();
+        assert_eq!(reclaimed.task.task_id, "task-expire");
+        assert_eq!(reclaimed.lease.owner_id, "orch-b");
+        assert_eq!(reclaimed.lease.fencing_token, 2);
+    }
+
+    #[test]
+    fn orchestrator_complete_marks_task_done_and_rejects_wrong_owner() {
+        let mut orchestrator = InMemoryTaskOrchestrator::new();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-done",
+                ScheduleIntent::write("scope:/tmp/task-done"),
+                0,
+            ))
+            .unwrap();
+
+        let claim = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(
+            orchestrator.complete(&claim.task.task_id, &claim.lease.lease_id, "orch-b"),
+            Err(OrchestratorError::LeaseNotOwned {
+                task_id: String::from("task-done"),
+                lease_id: claim.lease.lease_id.clone(),
+                owner_id: String::from("orch-b"),
+            })
+        );
+
+        orchestrator
+            .complete(&claim.task.task_id, &claim.lease.lease_id, "orch-a")
+            .unwrap();
+        assert!(orchestrator.claim_next("orch-c", 1).unwrap().is_none());
+        assert_eq!(
+            orchestrator.queue_snapshot().completed_task_ids,
+            vec![String::from("task-done")]
         );
     }
 }

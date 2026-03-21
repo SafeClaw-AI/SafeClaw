@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+﻿#![forbid(unsafe_code)]
 
 pub mod effect_ledger;
 pub mod protocol;
@@ -29,8 +29,10 @@ pub use recovery::probes::{
     ProbeAdapterError, ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
 };
 pub use scheduler::{
-    InMemoryTaskScheduler, MockTaskScheduler, ScheduleIntent, ScheduleTicket,
-    SchedulerError, SchedulerSnapshot, TaskScheduler,
+    InMemoryTaskOrchestrator, InMemoryTaskScheduler, MockTaskOrchestrator,
+    MockTaskScheduler, OrchestratorClaim, OrchestratorError, OrchestratorLease,
+    OrchestratorSnapshot, OrchestratorTask, ScheduleIntent, ScheduleTicket,
+    SchedulerError, SchedulerSnapshot, TaskOrchestrator, TaskScheduler,
 };
 pub use state_engine::{
     InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine,
@@ -1407,3 +1409,4 @@ mod tests {
         assert!(summary.quarantined_scopes.is_empty());
     }
 }
+

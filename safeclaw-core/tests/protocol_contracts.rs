@@ -1,4 +1,4 @@
-use safeclaw_core::effect_ledger::{
+﻿use safeclaw_core::effect_ledger::{
     crash_outcome_for, AttemptResultStatus, EffectAction, EffectActor, EffectAttempt,
     EffectRecord, EffectReversibility, EffectStatus, EffectStore, EffectStoreError,
     EffectTier, ProbeMode, RecoveryLease, COMMIT_PROTOCOL_STEPS,
@@ -9,12 +9,13 @@ use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     probe_definition_for, ConfirmationAction, ExecutionDisposition,
     ExecutionInterruption, HibernationAction, InMemoryEffectStore,
-    InMemoryProbeAdapter, InMemoryStateEngine, InMemoryTaskRuntime,
-    InMemoryTaskScheduler, MockEffectStore, MockStateEngine,
+    InMemoryProbeAdapter, InMemoryStateEngine, InMemoryTaskOrchestrator,
+    InMemoryTaskRuntime, InMemoryTaskScheduler, MockEffectStore,
+    MockStateEngine, OrchestratorError, OrchestratorTask,
     PreflightDecision, ProbeReceipt, ProbeReceiptStatus, ReconcileDecision,
     RepairUserAction, RuntimeRestoreError, ScheduleIntent, SchedulerError,
     StateApplyResult, StateEngine, StateEvent, StateEngineError,
-    TaskScheduler, DEFAULT_LEASE_TTL_MS,
+    TaskOrchestrator, TaskScheduler, DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
     auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
@@ -324,6 +325,43 @@ fn scheduler_trait_mock_enforces_queue_rules_and_doctor_bypass() {
     assert_eq!(bypass.target_scope, "scope:/tmp/demo.txt");
 }
 
+#[test]
+fn orchestrator_trait_mock_claims_renews_and_reaps_expired_leases() {
+    let mut orchestrator = InMemoryTaskOrchestrator::new().with_lease_ttl_ms(25);
+    orchestrator
+        .enqueue(OrchestratorTask::new(
+            "task-orch-1",
+            ScheduleIntent::write("scope:/tmp/orchestrator.txt"),
+            0,
+        ))
+        .unwrap();
+
+    let claim = orchestrator.claim_next("orch-a", 10).unwrap().unwrap();
+    assert_eq!(claim.task.task_id, "task-orch-1");
+    assert_eq!(claim.lease.fencing_token, 1);
+
+    let renewed = orchestrator
+        .renew_lease(&claim.task.task_id, &claim.lease.lease_id, "orch-a", 20)
+        .unwrap();
+    assert_eq!(renewed.expires_at_ms, 45);
+
+    let expired = orchestrator.reap_expired_leases(46).unwrap();
+    assert_eq!(expired.len(), 1);
+    assert_eq!(expired[0].task_id, "task-orch-1");
+
+    let reclaimed = orchestrator.claim_next("orch-b", 47).unwrap().unwrap();
+    assert_eq!(reclaimed.task.task_id, "task-orch-1");
+    assert_eq!(reclaimed.lease.fencing_token, 2);
+
+    assert_eq!(
+        orchestrator.complete(&reclaimed.task.task_id, &reclaimed.lease.lease_id, "orch-a"),
+        Err(OrchestratorError::LeaseNotOwned {
+            task_id: String::from("task-orch-1"),
+            lease_id: reclaimed.lease.lease_id.clone(),
+            owner_id: String::from("orch-a"),
+        })
+    );
+}
 #[test]
 fn in_memory_runtime_commits_after_permitted_preflight() {
     let effect = EffectRecord::new(
@@ -1286,3 +1324,6 @@ fn in_memory_runtime_repair_failed_can_abandon() {
     assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
     assert_eq!(failed_terminal.effect_status, EffectStatus::Executed);
 }
+
+
+
