@@ -531,6 +531,102 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_drive_until_empty_stops_on_later_spawn_failure() {
+        let temp = TempWorkspace::new("drain-batch-failure");
+        let first_output = temp.root.join("output-1.txt");
+        let second_output = temp.root.join("output-2.txt");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-batch-failure-1",
+                ScheduleIntent::write(format!("scope:{}", first_output.display())),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-batch-failure-2",
+                ScheduleIntent::write(format!("scope:{}", second_output.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = loop_driver
+            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let (effect_id, trace_id, intent_key) = match claim.task.task_id.as_str() {
+                    "task-worker-batch-failure-1" => (
+                        "effect-worker-batch-failure-1",
+                        "trace-worker-batch-failure-1",
+                        "intent-worker-batch-failure-1",
+                    ),
+                    "task-worker-batch-failure-2" => (
+                        "effect-worker-batch-failure-2",
+                        "trace-worker-batch-failure-2",
+                        "intent-worker-batch-failure-2",
+                    ),
+                    other => panic!("unexpected task id: {other}"),
+                };
+                let effect = EffectRecord::new(
+                    effect_id,
+                    claim.task.task_id.clone(),
+                    trace_id,
+                    intent_key,
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                let command = match claim.task.task_id.as_str() {
+                    "task-worker-batch-failure-1" => {
+                        sandbox_write_command(&first_output, b"safeclaw batch failure one\n")
+                    }
+                    "task-worker-batch-failure-2" => sandbox_missing_program_command(),
+                    other => panic!("unexpected task id: {other}"),
+                };
+                Ok((InMemoryTaskRuntime::new(effect), command))
+            })
+            .unwrap_err();
+
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(fs::read(&first_output).unwrap(), b"safeclaw batch failure one\n");
+        assert!(!second_output.exists());
+        assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
+        assert_eq!(
+            loop_driver.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-batch-failure-1")]
+        );
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            loop_driver.queue_snapshot().active_leases[0].task_id,
+            "task-worker-batch-failure-2"
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored_one = verify_store
+            .load_runtime("task-worker-batch-failure-1", "effect-worker-batch-failure-1")
+            .unwrap()
+            .expect("first batch failure runtime must reload");
+        let restored_two = verify_store
+            .load_runtime("task-worker-batch-failure-2", "effect-worker-batch-failure-2")
+            .unwrap()
+            .expect("second batch failure runtime must reload");
+        assert_eq!(restored_one.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored_one.effect.status, EffectStatus::Executed);
+        assert_eq!(restored_two.worker_state, WorkerState::Executing);
+        assert_eq!(restored_two.effect.status, EffectStatus::Prepared);
+    }
+
+    #[test]
     fn worker_loop_persists_pre_exec_runtime_when_sandbox_spawn_fails() {
         let temp = TempWorkspace::new("pre-exec-spawn");
         let mut orchestrator = SqliteTaskOrchestrator::new(
