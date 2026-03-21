@@ -69,11 +69,7 @@ impl SqliteSingleWorkerLoop {
     where
         F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
     {
-        let Some(claim) = self
-            .orchestrator
-            .claim_next(owner_id, now_ms)
-            .map_err(WorkerLoopError::Orchestrator)?
-        else {
+        let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
         };
 
@@ -82,6 +78,42 @@ impl SqliteSingleWorkerLoop {
             .begin_execution(preflight)
             .map_err(WorkerLoopError::Runtime)?;
 
+        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+    }
+
+    pub fn claim_and_resume_once<F>(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        build: F,
+    ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
+    where
+        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+    {
+        let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+            return Ok(None);
+        };
+
+        let (runtime, command) = build(&claim)?;
+        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+    }
+
+    fn claim_once(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+    ) -> Result<Option<OrchestratorClaim>, WorkerLoopError> {
+        self.orchestrator
+            .claim_next(owner_id, now_ms)
+            .map_err(WorkerLoopError::Orchestrator)
+    }
+
+    fn drive_claimed_runtime(
+        &mut self,
+        claim: OrchestratorClaim,
+        mut runtime: InMemoryTaskRuntime,
+        command: SandboxCommand,
+    ) -> Result<WorkerLoopOutcome, WorkerLoopError> {
         let (report, execution_summary) = self
             .sandbox
             .run_and_apply(&mut runtime, &command)
@@ -101,13 +133,13 @@ impl SqliteSingleWorkerLoop {
             completed = true;
         }
 
-        Ok(Some(WorkerLoopOutcome {
+        Ok(WorkerLoopOutcome {
             claim,
             report,
             execution_summary,
             final_summary,
             completed,
-        }))
+        })
     }
 
     fn recover_uncertain(
@@ -294,6 +326,146 @@ mod tests {
             .expect("persisted runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_loop_reclaims_expired_failed_task_and_retries_persisted_runtime() {
+        let temp = TempWorkspace::new("reclaim");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_worker = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let first_outcome = first_worker
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-retry",
+                    claim.task.task_id.clone(),
+                    "trace-worker-retry",
+                    "intent-worker-retry",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("first worker must claim queued task");
+
+        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
+        assert_eq!(first_outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert!(!first_outcome.completed);
+        assert_eq!(first_worker.queue_snapshot().completed_task_ids.len(), 0);
+        assert_eq!(first_worker.queue_snapshot().active_leases.len(), 1);
+
+        let second_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let second_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut second_worker = SqliteSingleWorkerLoop::new(second_orchestrator, second_store);
+
+        let blocked = second_worker
+            .claim_and_resume_once("worker-b", 10, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let expected_bytes = b"safeclaw reclaimed retry\n";
+        let retry_outcome = second_worker
+            .claim_and_resume_once("worker-b", 26, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-retry");
+                let restore_store = SqliteRuntimeStore::new(
+                    open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+                );
+                let mut runtime = restore_store
+                    .load_runtime("task-worker-retry", "effect-worker-retry")
+                    .unwrap()
+                    .expect("failed runtime must reload before retry");
+                let summary = runtime.retry_failed(PreflightDecision::Permit).unwrap();
+                assert_eq!(summary.worker_state, WorkerState::Executing);
+                Ok((runtime, sandbox_write_command(&temp.output_path, expected_bytes)))
+            })
+            .unwrap()
+            .expect("expired task must be reclaimable");
+
+        assert_eq!(retry_outcome.claim.lease.owner_id, "worker-b");
+        assert_eq!(retry_outcome.claim.lease.fencing_token, 2);
+        assert_eq!(retry_outcome.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(retry_outcome.final_summary.effect_status, EffectStatus::Executed);
+        assert!(retry_outcome.completed);
+        assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
+        assert!(second_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            second_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-retry")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-retry", "effect-worker-retry")
+            .unwrap()
+            .expect("retried runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert!(!restored.attempts.is_empty());
+    }
+
+    fn sandbox_fail_command() -> SandboxCommand {
+        if cfg!(windows) {
+            SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+        } else {
+            SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
+        }
+    }
+
+    fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
+        if cfg!(windows) {
+            let bytes_literal = output_bytes
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            SandboxCommand::new(
+                "powershell",
+                [
+                    "-Command",
+                    &format!(
+                        "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes)",
+                        output_path.display()
+                    ),
+                ],
+                5_000,
+            )
+        } else {
+            let text = String::from_utf8(output_bytes.to_vec())
+                .expect("worker loop demo bytes must remain utf-8");
+            SandboxCommand::new(
+                "sh",
+                [
+                    "-c",
+                    &format!("printf '%s' '{}' > '{}'", text, output_path.display()),
+                ],
+                5_000,
+            )
+        }
     }
 
     fn sandbox_write_then_timeout_command(
