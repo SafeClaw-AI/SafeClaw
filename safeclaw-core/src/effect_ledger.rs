@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectActor {
     Worker,
@@ -195,6 +197,115 @@ pub fn crash_outcome_for(mode: ProbeMode) -> EffectStatus {
 
 pub fn transition_allowed(from: EffectStatus, to: EffectStatus) -> bool {
     ALLOWED_STATUS_TRANSITIONS.contains(&(from, to))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EffectStoreError {
+    BackendUnavailable { operation: &'static str },
+}
+
+pub trait EffectStore {
+    fn save_effect(&mut self, effect: &EffectRecord) -> Result<(), EffectStoreError>;
+
+    fn load_effect(&self, effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError>;
+
+    fn save_lease(&mut self, task_id: &str, lease: &RecoveryLease)
+        -> Result<(), EffectStoreError>;
+
+    fn load_latest_lease(&self, task_id: &str)
+        -> Result<Option<RecoveryLease>, EffectStoreError>;
+
+    fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError>;
+
+    fn save_attempt(&mut self, attempt: &EffectAttempt) -> Result<(), EffectStoreError>;
+
+    fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, EffectStoreError>;
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct InMemoryEffectStore {
+    effects: HashMap<String, EffectRecord>,
+    leases_by_task: HashMap<String, Vec<RecoveryLease>>,
+    attempts_by_effect: HashMap<String, Vec<EffectAttempt>>,
+}
+
+pub type MockEffectStore = InMemoryEffectStore;
+
+impl InMemoryEffectStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl EffectStore for InMemoryEffectStore {
+    fn save_effect(&mut self, effect: &EffectRecord) -> Result<(), EffectStoreError> {
+        self.effects.insert(effect.effect_id.clone(), effect.clone());
+        Ok(())
+    }
+
+    fn load_effect(&self, effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError> {
+        Ok(self.effects.get(effect_id).cloned())
+    }
+
+    fn save_lease(
+        &mut self,
+        task_id: &str,
+        lease: &RecoveryLease,
+    ) -> Result<(), EffectStoreError> {
+        let leases = self.leases_by_task.entry(task_id.to_string()).or_default();
+        if let Some(existing) = leases.iter_mut().find(|entry| entry.lease_id == lease.lease_id) {
+            *existing = lease.clone();
+        } else {
+            leases.push(lease.clone());
+        }
+        leases.sort_by(|left, right| {
+            right
+                .fencing_token
+                .cmp(&left.fencing_token)
+                .then(right.expires_at_ms.cmp(&left.expires_at_ms))
+                .then(right.lease_id.cmp(&left.lease_id))
+        });
+        Ok(())
+    }
+
+    fn load_latest_lease(
+        &self,
+        task_id: &str,
+    ) -> Result<Option<RecoveryLease>, EffectStoreError> {
+        Ok(self
+            .leases_by_task
+            .get(task_id)
+            .and_then(|leases| leases.first().cloned()))
+    }
+
+    fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError> {
+        Ok(self.leases_by_task.get(task_id).cloned().unwrap_or_default())
+    }
+
+    fn save_attempt(&mut self, attempt: &EffectAttempt) -> Result<(), EffectStoreError> {
+        let attempts = self
+            .attempts_by_effect
+            .entry(attempt.effect_id.clone())
+            .or_default();
+        if let Some(existing) = attempts
+            .iter_mut()
+            .find(|entry| entry.attempt_id == attempt.attempt_id)
+        {
+            *existing = attempt.clone();
+        } else {
+            attempts.push(attempt.clone());
+        }
+        attempts.sort_by(|left, right| left.attempt_seq.cmp(&right.attempt_seq));
+        Ok(())
+    }
+
+    fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, EffectStoreError> {
+        Ok(self
+            .attempts_by_effect
+            .get(effect_id)
+            .cloned()
+            .unwrap_or_default())
+    }
 }
 
 impl RecoveryLease {
@@ -410,8 +521,8 @@ mod tests {
     use super::{
         crash_outcome_for, AttemptResultStatus, AttemptWriteError, EffectAction,
         EffectActor, EffectAttempt, EffectRecord, EffectReversibility, EffectStatus,
-        EffectTier, EffectTransitionError, LeaseError, ProbeMode, ProbeState,
-        RecoveryLease,
+        EffectStore, EffectTier, EffectTransitionError, InMemoryEffectStore,
+        LeaseError, ProbeMode, ProbeState, RecoveryLease,
     };
 
     fn demo_record(probe_mode: ProbeMode) -> EffectRecord {
@@ -583,6 +694,47 @@ mod tests {
                 expires_at_ms: 5,
             }))
         );
+    }
+
+    #[test]
+    fn in_memory_effect_store_roundtrips_effects_leases_and_attempts() {
+        let mut store = InMemoryEffectStore::new();
+        let mut effect = demo_record(ProbeMode::None);
+        effect
+            .transition_to(
+                EffectStatus::Dispatched,
+                "2026-03-21T00:00:00Z",
+                "worker",
+                "dispatch",
+            )
+            .unwrap();
+        let lease_1 = RecoveryLease::new("lease-1", "doctor-a", 3, 0, 30_000);
+        let lease_2 = RecoveryLease::new("lease-2", "doctor-b", 4, 1_000, 30_000);
+        let mut attempt = EffectAttempt::next_for_effect(
+            &[],
+            "attempt-1",
+            effect.effect_id.clone(),
+            "2026-03-21T00:00:01Z",
+            &lease_2,
+            1_000,
+        )
+        .unwrap();
+        attempt
+            .record_result(AttemptResultStatus::Success, &lease_2, 1_000)
+            .unwrap();
+
+        store.save_effect(&effect).unwrap();
+        store.save_lease(&effect.task_id, &lease_1).unwrap();
+        store.save_lease(&effect.task_id, &lease_2).unwrap();
+        store.save_attempt(&attempt).unwrap();
+
+        assert_eq!(store.load_effect(&effect.effect_id).unwrap(), Some(effect));
+        assert_eq!(
+            store.load_latest_lease("task-1").unwrap().unwrap().lease_id,
+            "lease-2"
+        );
+        assert_eq!(store.list_leases("task-1").unwrap().len(), 2);
+        assert_eq!(store.list_attempts("effect-1").unwrap(), vec![attempt]);
     }
 
     #[test]

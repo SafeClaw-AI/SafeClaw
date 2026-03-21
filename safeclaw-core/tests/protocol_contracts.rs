@@ -1,16 +1,18 @@
 use safeclaw_core::effect_ledger::{
     crash_outcome_for, AttemptResultStatus, EffectAction, EffectActor, EffectAttempt,
-    EffectRecord, EffectReversibility, EffectStatus, EffectTier, ProbeMode,
-    RecoveryLease, COMMIT_PROTOCOL_STEPS, CORE_EFFECT_PHASES,
+    EffectRecord, EffectReversibility, EffectStatus, EffectStore, EffectStoreError,
+    EffectTier, ProbeMode, RecoveryLease, COMMIT_PROTOCOL_STEPS,
+    CORE_EFFECT_PHASES,
 };
 use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     probe_definition_for, ConfirmationAction, ExecutionDisposition,
-    ExecutionInterruption, HibernationAction, InMemoryProbeAdapter,
-    InMemoryStateEngine, InMemoryTaskRuntime, InMemoryTaskScheduler,
-    MockStateEngine, PreflightDecision, ProbeReceipt, ProbeReceiptStatus,
-    ReconcileDecision, RepairUserAction, ScheduleIntent, SchedulerError,
+    ExecutionInterruption, HibernationAction, InMemoryEffectStore,
+    InMemoryProbeAdapter, InMemoryStateEngine, InMemoryTaskRuntime,
+    InMemoryTaskScheduler, MockEffectStore, MockStateEngine,
+    PreflightDecision, ProbeReceipt, ProbeReceiptStatus, ReconcileDecision,
+    RepairUserAction, RuntimeRestoreError, ScheduleIntent, SchedulerError,
     StateApplyResult, StateEngine, StateEvent, StateEngineError,
     TaskScheduler, DEFAULT_LEASE_TTL_MS,
 };
@@ -862,6 +864,158 @@ fn state_engine_trait_surfaces_backend_unavailable_errors() {
         Err(StateEngineError::BackendUnavailable {
             operation: "load_snapshot",
         })
+    );
+}
+
+#[test]
+fn effect_store_trait_contract_roundtrips_through_mock_adapter() {
+    let effect = EffectRecord::new(
+        "effect-store-trait",
+        "task-store-trait",
+        "trace-store-trait",
+        "intent-store-trait",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/store-trait.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::None,
+    );
+    let lease = RecoveryLease::new("lease-store-trait", "doctor-a", 7, 0, DEFAULT_LEASE_TTL_MS);
+    let mut attempt = EffectAttempt::next_for_effect(
+        &[],
+        "attempt-store-trait",
+        effect.effect_id.clone(),
+        "2026-03-21T00:00:00Z",
+        &lease,
+        0,
+    )
+    .unwrap();
+    attempt
+        .record_result(AttemptResultStatus::Crash, &lease, 0)
+        .unwrap();
+
+    let mut store = MockEffectStore::new();
+    store.save_effect(&effect).unwrap();
+    store.save_lease(&effect.task_id, &lease).unwrap();
+    store.save_attempt(&attempt).unwrap();
+
+    assert_eq!(EffectStore::load_effect(&store, &effect.effect_id).unwrap(), Some(effect));
+    assert_eq!(
+        EffectStore::load_latest_lease(&store, "task-store-trait")
+            .unwrap()
+            .unwrap(),
+        lease
+    );
+    assert_eq!(EffectStore::list_attempts(&store, "effect-store-trait").unwrap(), vec![attempt]);
+}
+
+#[test]
+fn runtime_restore_from_effect_store_and_state_engine_roundtrips() {
+    let effect = EffectRecord::new(
+        "effect-store-restore",
+        "task-store-restore",
+        "trace-store-restore",
+        "intent-store-restore",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/store-restore.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::None,
+    );
+    let mut runtime = InMemoryTaskRuntime::new(effect.clone());
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+
+    let mut engine = InMemoryStateEngine::new();
+    let mut store = InMemoryEffectStore::new();
+    runtime.persist_state(&mut engine, "evt-store-restore", "worker").unwrap();
+    store.save_effect(&runtime.effect).unwrap();
+    if let Some(lease) = runtime.current_recovery_lease().cloned() {
+        store.save_lease(&runtime.effect.task_id, &lease).unwrap();
+    }
+    for attempt in &runtime.attempts {
+        store.save_attempt(attempt).unwrap();
+    }
+
+    let restored = InMemoryTaskRuntime::restore_from_stores(
+        &store,
+        &engine,
+        "task-store-restore",
+        "effect-store-restore",
+    )
+    .unwrap()
+    .expect("runtime must restore from stores");
+
+    assert_eq!(restored.worker_state, runtime.worker_state);
+    assert_eq!(restored.effect.status, runtime.effect.status);
+    assert_eq!(restored.attempts, runtime.attempts);
+}
+
+#[test]
+fn effect_store_trait_surfaces_backend_unavailable_errors() {
+    struct FailingEffectStore;
+
+    impl EffectStore for FailingEffectStore {
+        fn save_effect(&mut self, _effect: &EffectRecord) -> Result<(), EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "save_effect" })
+        }
+
+        fn load_effect(&self, _effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "load_effect" })
+        }
+
+        fn save_lease(&mut self, _task_id: &str, _lease: &RecoveryLease) -> Result<(), EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "save_lease" })
+        }
+
+        fn load_latest_lease(&self, _task_id: &str) -> Result<Option<RecoveryLease>, EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "load_latest_lease" })
+        }
+
+        fn list_leases(&self, _task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "list_leases" })
+        }
+
+        fn save_attempt(&mut self, _attempt: &EffectAttempt) -> Result<(), EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "save_attempt" })
+        }
+
+        fn list_attempts(&self, _effect_id: &str) -> Result<Vec<EffectAttempt>, EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable { operation: "list_attempts" })
+        }
+    }
+
+    let effect = EffectRecord::new(
+        "effect-store-fail",
+        "task-store-fail",
+        "trace-store-fail",
+        "intent-store-fail",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/store-fail.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::None,
+    );
+    let runtime = InMemoryTaskRuntime::new(effect);
+    let mut engine = InMemoryStateEngine::new();
+    runtime
+        .persist_state(&mut engine, "evt-store-fail", "worker")
+        .unwrap();
+    let store = FailingEffectStore;
+    assert_eq!(
+        InMemoryTaskRuntime::restore_from_stores(
+            &store,
+            &engine,
+            "task-store-fail",
+            "effect-store-fail",
+        ),
+        Err(RuntimeRestoreError::EffectStore(EffectStoreError::BackendUnavailable {
+            operation: "load_effect",
+        }))
     );
 }
 

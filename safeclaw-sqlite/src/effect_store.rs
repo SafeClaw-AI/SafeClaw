@@ -3,8 +3,9 @@ use std::convert::TryFrom;
 use rusqlite::{params, Connection, Error as RusqliteError, TransactionBehavior};
 use safeclaw_core::effect_ledger::{
     AttemptResultStatus, EffectAction, EffectActor, EffectAttempt, EffectRecord,
-    EffectReversibility, EffectStatus, EffectTier, EffectTransitionRecord, ProbeMode, ProbeState,
-    RecoveryLease, EFFECT_LEDGER_SCHEMA_VERSION,
+    EffectReversibility, EffectStatus, EffectStore, EffectStoreError, EffectTier,
+    EffectTransitionRecord, ProbeMode, ProbeState, RecoveryLease,
+    EFFECT_LEDGER_SCHEMA_VERSION,
 };
 
 use crate::SqliteAdapterError;
@@ -74,6 +75,53 @@ impl SqliteEffectStore {
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
         list_attempts_from_connection(&self.connection, effect_id)
+    }
+}
+
+impl EffectStore for SqliteEffectStore {
+    fn save_effect(&mut self, effect: &EffectRecord) -> Result<(), EffectStoreError> {
+        SqliteEffectStore::save_effect(self, effect)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "save_effect" })
+    }
+
+    fn load_effect(&self, effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError> {
+        SqliteEffectStore::load_effect(self, effect_id)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "load_effect" })
+    }
+
+    fn save_lease(
+        &mut self,
+        task_id: &str,
+        lease: &RecoveryLease,
+    ) -> Result<(), EffectStoreError> {
+        SqliteEffectStore::save_lease(self, task_id, lease)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "save_lease" })
+    }
+
+    fn load_latest_lease(
+        &self,
+        task_id: &str,
+    ) -> Result<Option<RecoveryLease>, EffectStoreError> {
+        SqliteEffectStore::load_latest_lease(self, task_id).map_err(|_| {
+            EffectStoreError::BackendUnavailable {
+                operation: "load_latest_lease",
+            }
+        })
+    }
+
+    fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError> {
+        SqliteEffectStore::list_leases(self, task_id)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "list_leases" })
+    }
+
+    fn save_attempt(&mut self, attempt: &EffectAttempt) -> Result<(), EffectStoreError> {
+        SqliteEffectStore::save_attempt(self, attempt)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "save_attempt" })
+    }
+
+    fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, EffectStoreError> {
+        SqliteEffectStore::list_attempts(self, effect_id)
+            .map_err(|_| EffectStoreError::BackendUnavailable { operation: "list_attempts" })
     }
 }
 

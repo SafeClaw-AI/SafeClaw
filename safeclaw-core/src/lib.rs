@@ -20,6 +20,9 @@ use task_concurrency::{
 };
 use worker_lifecycle::{transition_for, WorkerEvent, WorkerState};
 
+pub use effect_ledger::{
+    EffectStore, EffectStoreError, InMemoryEffectStore, MockEffectStore,
+};
 pub use protocol::protocol_version;
 pub use recovery::probes::{
     probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter,
@@ -112,6 +115,13 @@ pub enum RuntimeError {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RuntimeRestoreError {
+    StateEngine(StateEngineError),
+    EffectStore(EffectStoreError),
+    MissingEffectRecord { effect_id: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InMemoryTaskRuntime {
     pub worker_state: WorkerState,
     pub effect: EffectRecord,
@@ -178,6 +188,29 @@ impl InMemoryTaskRuntime {
         Ok(engine
             .load_snapshot(task_id)?
             .map(|snapshot| Self::restore_from_snapshot(effect, &snapshot, recovery_lease)))
+    }
+
+    pub fn restore_from_stores(
+        effect_store: &impl EffectStore,
+        engine: &impl StateEngine,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<Self>, RuntimeRestoreError> {
+        let snapshot = match engine.load_snapshot(task_id)? {
+            Some(snapshot) => snapshot,
+            None => return Ok(None),
+        };
+        let effect = effect_store
+            .load_effect(effect_id)?
+            .ok_or_else(|| RuntimeRestoreError::MissingEffectRecord {
+                effect_id: effect_id.to_string(),
+            })?;
+        let recovery_lease = effect_store.load_latest_lease(task_id)?;
+        let attempts = effect_store.list_attempts(effect_id)?;
+
+        let mut runtime = Self::restore_from_snapshot(effect, &snapshot, recovery_lease);
+        runtime.attempts = attempts;
+        Ok(Some(runtime))
     }
 
     pub fn restore_from_snapshot(
@@ -808,6 +841,18 @@ impl From<LeaseError> for RuntimeError {
 impl From<ProbeAdapterError> for RuntimeError {
     fn from(value: ProbeAdapterError) -> Self {
         RuntimeError::ProbeAdapter(value)
+    }
+}
+
+impl From<StateEngineError> for RuntimeRestoreError {
+    fn from(value: StateEngineError) -> Self {
+        RuntimeRestoreError::StateEngine(value)
+    }
+}
+
+impl From<EffectStoreError> for RuntimeRestoreError {
+    fn from(value: EffectStoreError) -> Self {
+        RuntimeRestoreError::EffectStore(value)
     }
 }
 
