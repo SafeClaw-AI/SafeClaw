@@ -845,6 +845,63 @@ mod tests {
     }
 
     #[test]
+    fn claim_next_blocks_second_write_until_first_write_under_reads_finishes() {
+        let temp_db = TempDatabase::new("scope-write-under-reads-serial");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open orchestrator database");
+        let mut orchestrator = SqliteTaskOrchestrator::new(connection).with_lease_ttl_ms(25);
+
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-active-1",
+                ScheduleIntent::read("scope:/tmp/shared-write-under-reads-serial"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-active-2",
+                ScheduleIntent::read("scope:/tmp/shared-write-under-reads-serial"),
+                1,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-1",
+                ScheduleIntent::write("scope:/tmp/shared-write-under-reads-serial"),
+                2,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-2",
+                ScheduleIntent::write("scope:/tmp/shared-write-under-reads-serial"),
+                3,
+            ))
+            .unwrap();
+
+        let first_read = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(first_read.task.task_id, "task-scope-read-active-1");
+
+        let second_read = orchestrator.claim_next("orch-b", 1).unwrap().unwrap();
+        assert_eq!(second_read.task.task_id, "task-scope-read-active-2");
+
+        let first_write = orchestrator.claim_next("orch-c", 2).unwrap().unwrap();
+        assert_eq!(first_write.task.task_id, "task-scope-write-1");
+        assert!(first_write.task.intent.requires_write);
+
+        assert!(orchestrator.claim_next("orch-d", 3).unwrap().is_none());
+
+        orchestrator
+            .complete(&first_write.task.task_id, &first_write.lease.lease_id, "orch-c")
+            .unwrap();
+
+        let second_write = orchestrator.claim_next("orch-d", 4).unwrap().unwrap();
+        assert_eq!(second_write.task.task_id, "task-scope-write-2");
+        assert!(second_write.task.intent.requires_write);
+    }
+
+    #[test]
     fn complete_marks_task_done_and_duplicate_enqueue_is_blocked() {
         let temp_db = TempDatabase::new("complete");
         let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
