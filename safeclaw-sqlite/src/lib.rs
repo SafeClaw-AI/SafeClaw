@@ -1,9 +1,10 @@
-#![forbid(unsafe_code)]
+﻿#![forbid(unsafe_code)]
 
 mod connection;
 mod effect_store;
 mod error;
 mod migrations;
+mod orchestrator;
 mod runtime_store;
 mod state_engine;
 
@@ -16,6 +17,7 @@ pub use connection::{open_file_database, SqliteOpenOptions, DEFAULT_BUSY_TIMEOUT
 pub use effect_store::SqliteEffectStore;
 pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
+pub use orchestrator::SqliteTaskOrchestrator;
 pub use runtime_store::SqliteRuntimeStore;
 use rusqlite::Connection;
 pub use state_engine::SqliteStateEngine;
@@ -103,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn open_database_applies_six_table_schema() {
+    fn open_database_applies_orchestrator_ready_schema() {
         let temp_db = TempDatabase::new("schema");
         let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
             .expect("sqlite adapter must apply schema migrations");
@@ -183,3 +185,4 @@ PRAGMA user_version=1;
             .collect()
     }
 }
+

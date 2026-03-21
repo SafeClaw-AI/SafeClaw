@@ -111,6 +111,7 @@ pub struct OrchestratorSnapshot {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OrchestratorError {
+    BackendUnavailable { operation: &'static str },
     TaskAlreadyQueued { task_id: String },
     TaskAlreadyCompleted { task_id: String },
     LeaseNotFound { task_id: String, lease_id: String },
@@ -607,3 +608,4 @@ mod tests {
         );
     }
 }
+
