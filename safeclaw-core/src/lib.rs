@@ -2,11 +2,10 @@
 
 pub mod effect_ledger;
 pub mod protocol;
+pub mod state_engine;
 pub mod spec_map;
 pub mod task_concurrency;
 pub mod worker_lifecycle;
-
-use std::collections::{HashMap, HashSet};
 
 use effect_ledger::{
     AttemptResultStatus, AttemptWriteError, EffectAttempt, EffectRecord, EffectStatus,
@@ -20,6 +19,10 @@ use task_concurrency::{
 use worker_lifecycle::{transition_for, WorkerEvent, WorkerState};
 
 pub use protocol::protocol_version;
+pub use state_engine::{
+    InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine,
+    StateEngineError, StateEvent, TaskSnapshot,
+};
 
 pub const DEFAULT_LEASE_TTL_MS: u64 = 30_000;
 
@@ -80,41 +83,6 @@ pub struct RunSummary {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StateEvent {
-    pub state_event_id: String,
-    pub task_id: String,
-    pub worker_state: WorkerState,
-    pub effect_status: EffectStatus,
-    pub probe_state: Option<ProbeState>,
-    pub fencing_token: u64,
-    pub triggered_by: String,
-    pub at: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TaskSnapshot {
-    pub task_id: String,
-    pub worker_state: WorkerState,
-    pub effect_status: EffectStatus,
-    pub probe_state: Option<ProbeState>,
-    pub last_state_event_id: String,
-    pub fencing_token: u64,
-    pub version: u64,
-    pub updated_at: String,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StateApplyResult {
-    Applied,
-    DuplicateIgnored,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StateEngineError {
-    StaleFencingToken { current: u64, provided: u64 },
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     InvalidWorkerTransition {
         state: WorkerState,
@@ -143,14 +111,6 @@ pub struct InMemoryTaskRuntime {
     pub recovery_lease: Option<RecoveryLease>,
     next_fencing_token: u64,
     clock_ms: u64,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct InMemoryStateEngine {
-    snapshots: HashMap<String, TaskSnapshot>,
-    applied_event_ids: HashSet<String>,
-    current_fencing_tokens: HashMap<String, u64>,
-    events: Vec<StateEvent>,
 }
 
 impl InMemoryTaskRuntime {
@@ -191,11 +151,22 @@ impl InMemoryTaskRuntime {
 
     pub fn persist_state(
         &self,
-        engine: &mut InMemoryStateEngine,
+        engine: &mut impl StateEngine,
         state_event_id: impl Into<String>,
         triggered_by: impl Into<String>,
     ) -> Result<StateApplyResult, StateEngineError> {
         engine.apply_event(self.state_event(state_event_id, triggered_by))
+    }
+
+    pub fn restore_from_engine(
+        effect: EffectRecord,
+        engine: &impl StateEngine,
+        task_id: &str,
+        recovery_lease: Option<RecoveryLease>,
+    ) -> Result<Option<Self>, StateEngineError> {
+        Ok(engine
+            .load_snapshot(task_id)?
+            .map(|snapshot| Self::restore_from_snapshot(effect, &snapshot, recovery_lease)))
     }
 
     pub fn restore_from_snapshot(
@@ -773,64 +744,6 @@ impl InMemoryTaskRuntime {
     }
 }
 
-impl InMemoryStateEngine {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn apply_event(
-        &mut self,
-        event: StateEvent,
-    ) -> Result<StateApplyResult, StateEngineError> {
-        if self.applied_event_ids.contains(&event.state_event_id) {
-            return Ok(StateApplyResult::DuplicateIgnored);
-        }
-
-        let current_fencing_token = self
-            .current_fencing_tokens
-            .get(&event.task_id)
-            .copied()
-            .unwrap_or(0);
-        if event.fencing_token < current_fencing_token {
-            return Err(StateEngineError::StaleFencingToken {
-                current: current_fencing_token,
-                provided: event.fencing_token,
-            });
-        }
-
-        let next_version = self
-            .snapshots
-            .get(&event.task_id)
-            .map(|snapshot| snapshot.version + 1)
-            .unwrap_or(1);
-        let snapshot = TaskSnapshot {
-            task_id: event.task_id.clone(),
-            worker_state: event.worker_state,
-            effect_status: event.effect_status,
-            probe_state: event.probe_state,
-            last_state_event_id: event.state_event_id.clone(),
-            fencing_token: event.fencing_token,
-            version: next_version,
-            updated_at: event.at.clone(),
-        };
-
-        self.current_fencing_tokens
-            .insert(event.task_id.clone(), event.fencing_token);
-        self.applied_event_ids.insert(event.state_event_id.clone());
-        self.events.push(event.clone());
-        self.snapshots.insert(event.task_id, snapshot);
-        Ok(StateApplyResult::Applied)
-    }
-
-    pub fn snapshot(&self, task_id: &str) -> Option<&TaskSnapshot> {
-        self.snapshots.get(task_id)
-    }
-
-    pub fn event_count(&self) -> usize {
-        self.events.len()
-    }
-}
-
 impl From<EffectTransitionError> for RuntimeError {
     fn from(value: EffectTransitionError) -> Self {
         RuntimeError::EffectTransition(value)
@@ -855,7 +768,7 @@ mod tests {
         ConfirmationAction, DEFAULT_LEASE_TTL_MS, ExecutionDisposition,
         ExecutionInterruption, HibernationAction, InMemoryStateEngine,
         InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, RepairUserAction,
-        RuntimeError, StateApplyResult, StateEngineError, StateEvent,
+        RuntimeError, StateApplyResult, StateEngine, StateEngineError, StateEvent,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,

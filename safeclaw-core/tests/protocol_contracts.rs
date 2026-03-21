@@ -7,8 +7,9 @@ use safeclaw_core::protocol_version;
 use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
 use safeclaw_core::{
     ConfirmationAction, ExecutionDisposition, ExecutionInterruption, HibernationAction,
-    InMemoryStateEngine, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
-    RepairUserAction, StateApplyResult, StateEngineError, StateEvent,
+    InMemoryStateEngine, InMemoryTaskRuntime, MockStateEngine, PreflightDecision,
+    ReconcileDecision, RepairUserAction, StateApplyResult, StateEngine,
+    StateEngineError, StateEvent,
     DEFAULT_LEASE_TTL_MS,
 };
 use safeclaw_core::task_concurrency::{
@@ -647,6 +648,50 @@ fn state_engine_snapshot_can_restore_uncertain_and_executed_assumed_runtime() {
     );
     assert_eq!(restored_assumed.worker_state, WorkerState::Failed);
     assert_eq!(restored_assumed.effect.status, EffectStatus::ExecutedAssumed);
+}
+
+#[test]
+fn state_engine_trait_contract_roundtrips_through_mock_adapter() {
+    let effect = EffectRecord::new(
+        "effect-state-trait",
+        "task-state-trait",
+        "trace-state-trait",
+        "intent-state-trait",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/state-trait.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+    let mut runtime = InMemoryTaskRuntime::new(effect.clone());
+    runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+
+    let mut engine = MockStateEngine::new();
+    assert_eq!(
+        runtime.persist_state(&mut engine, "evt-trait-1", "worker").unwrap(),
+        StateApplyResult::Applied
+    );
+
+    let snapshot = StateEngine::load_snapshot(&engine, "task-state-trait")
+        .unwrap()
+        .expect("snapshot must exist");
+    assert_eq!(snapshot.worker_state, runtime.worker_state);
+    assert_eq!(snapshot.effect_status, runtime.effect.status);
+
+    let restored = InMemoryTaskRuntime::restore_from_engine(
+        effect,
+        &engine,
+        "task-state-trait",
+        None,
+    )
+    .unwrap()
+    .expect("runtime must restore from trait-backed engine");
+
+    assert_eq!(restored.worker_state, runtime.worker_state);
+    assert_eq!(restored.effect.status, runtime.effect.status);
 }
 
 #[test]
