@@ -42,7 +42,7 @@ safeclaw-core/
 
 - `safeclaw-core` 保持 **零 IO / 零 SQLite 依赖**，只负责纯领域状态机、guard、恢复语义与合同约束。
 - 外层 `safeclaw-sqlite` 已承接 SQLite WAL 适配、probe executor、sandbox executor、orchestrator、runtime 持久化与单 worker loop。
-- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试，并提供 `worker_loop_batch_failure_demo`、`worker_loop_batch_conflict_demo`、`worker_loop_batch_release_demo`、`worker_loop_resume_conflict_demo`、`worker_loop_resume_release_demo`、`worker_loop_retry_conflict_demo`、`worker_loop_retry_release_demo` 在内的 `worker_loop_*`、`worker_loop_scope_*`、`orchestrator_scope_read_fanout_demo` 与 `full_lifecycle_demo` 示例。
+- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试，并提供 `worker_loop_batch_failure_demo`、`worker_loop_batch_conflict_demo`、`worker_loop_batch_release_demo`、`worker_loop_read_fanout_demo`、`worker_loop_resume_conflict_demo`、`worker_loop_resume_release_demo`、`worker_loop_retry_conflict_demo`、`worker_loop_retry_release_demo` 在内的 `worker_loop_*`、`worker_loop_scope_*`、`orchestrator_scope_read_fanout_demo` 与 `full_lifecycle_demo` 示例。
 - UI、sidecar、Doctor force-kill 仍位于核心外层，不进入本 crate。
 
 ## 下一步顺序
