@@ -22,7 +22,10 @@ pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
 pub use probe_executor::FileSystemProbeAdapter;
 pub use runtime_store::SqliteRuntimeStore;
-pub use sandbox_executor::{LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand, SandboxExecutionReport, SandboxExecutorError};
+pub use sandbox_executor::{
+    LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
+    SandboxExecutionReport, SandboxExecutorError, SandboxRuntimeError,
+};
 use rusqlite::Connection;
 pub use state_engine::SqliteStateEngine;
 

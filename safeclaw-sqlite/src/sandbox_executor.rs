@@ -104,11 +104,29 @@ pub enum SandboxExecutorError {
     Kill(std::io::Error),
 }
 
+#[derive(Debug)]
+pub enum SandboxRuntimeError {
+    Executor(SandboxExecutorError),
+    Runtime(RuntimeError),
+}
+
 pub struct LocalSandboxExecutor;
 
 impl LocalSandboxExecutor {
     pub fn new() -> Self {
         Self
+    }
+
+    pub fn run_and_apply(
+        &self,
+        runtime: &mut InMemoryTaskRuntime,
+        command: &SandboxCommand,
+    ) -> Result<(SandboxExecutionReport, RunSummary), SandboxRuntimeError> {
+        let report = self.run(command).map_err(SandboxRuntimeError::Executor)?;
+        let summary = report
+            .apply_to_runtime(runtime)
+            .map_err(SandboxRuntimeError::Runtime)?;
+        Ok((report, summary))
     }
 
     pub fn run(&self, command: &SandboxCommand) -> Result<SandboxExecutionReport, SandboxExecutorError> {
@@ -157,7 +175,7 @@ impl LocalSandboxExecutor {
 mod tests {
     use super::{
         LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
-        SandboxExecutionReport,
+        SandboxExecutionReport, SandboxRuntimeError,
     };
     use safeclaw_core::{
         effect_ledger::{
@@ -283,6 +301,38 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::Failed);
         assert_eq!(summary.effect_status, EffectStatus::Prepared);
         assert!(runtime.attempts.is_empty());
+    }
+
+    #[test]
+    fn executor_run_and_apply_commits_runtime_on_zero_exit() {
+        let executor = LocalSandboxExecutor::new();
+        let command = if cfg!(windows) {
+            SandboxCommand::new("cmd", ["/C", "echo happy-safeclaw"], 2_000)
+        } else {
+            SandboxCommand::new("sh", ["-c", "printf happy-safeclaw"], 2_000)
+        };
+        let mut runtime = demo_runtime();
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+
+        let (report, summary) = executor.run_and_apply(&mut runtime, &command).unwrap();
+        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        assert!(report.stdout.contains("happy-safeclaw"));
+        assert_eq!(summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn executor_run_and_apply_surfaces_runtime_state_errors() {
+        let executor = LocalSandboxExecutor::new();
+        let command = if cfg!(windows) {
+            SandboxCommand::new("cmd", ["/C", "echo stale-safeclaw"], 2_000)
+        } else {
+            SandboxCommand::new("sh", ["-c", "printf stale-safeclaw"], 2_000)
+        };
+        let mut runtime = demo_runtime();
+
+        let error = executor.run_and_apply(&mut runtime, &command).unwrap_err();
+        assert!(matches!(error, SandboxRuntimeError::Runtime(_)));
     }
 
     fn demo_runtime() -> InMemoryTaskRuntime {
