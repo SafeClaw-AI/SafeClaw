@@ -41,12 +41,12 @@ safeclaw-core/
 ## 当前实现边界
 
 - `safeclaw-core` 保持 **零 IO / 零 SQLite 依赖**，只负责纯领域状态机、guard、恢复语义与合同约束。
-- 外层 `safeclaw-sqlite` 已承接 SQLite WAL 适配、probe executor、sandbox executor、orchestrator 与 runtime 持久化。
-- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试。
+- 外层 `safeclaw-sqlite` 已承接 SQLite WAL 适配、probe executor、sandbox executor、orchestrator、runtime 持久化与单 worker loop。
+- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试，并提供 `worker_loop_*` 与 `full_lifecycle_demo` 示例。
 - UI、sidecar、Doctor force-kill 仍位于核心外层，不进入本 crate。
 
 ## 下一步顺序
 
-1. 继续在外层 adapter / sidecar 将 orchestrator、probe executor、sandbox runner 组装成真实 worker loop。
-2. 将 Doctor force-kill、sidecar queue、观测链路接到外围基础设施层，不回灌核心依赖。
+1. 在外层 adapter / sidecar 从单 worker loop 继续扩到长驻 worker service、sidecar queue 与多 worker 租约协调。
+2. 将 Doctor force-kill、观测链路、远端 probe / executor 接到外围基础设施层，不回灌核心依赖。
 3. 维持 `safeclaw-core` 收敛，只做协议/语义级变更与保护性测试。
