@@ -715,6 +715,35 @@ mod tests {
     }
 
     #[test]
+    fn claim_next_allows_same_scope_read_while_write_is_active() {
+        let temp_db = TempDatabase::new("scope-read-pass");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open orchestrator database");
+        let mut orchestrator = SqliteTaskOrchestrator::new(connection).with_lease_ttl_ms(25);
+
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-active",
+                ScheduleIntent::write("scope:/tmp/shared-read"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-shared",
+                ScheduleIntent::read("scope:/tmp/shared-read"),
+                1,
+            ))
+            .unwrap();
+
+        let first = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(first.task.task_id, "task-scope-write-active");
+
+        let second = orchestrator.claim_next("orch-b", 1).unwrap().unwrap();
+        assert_eq!(second.task.task_id, "task-scope-read-shared");
+    }
+
+    #[test]
     fn complete_marks_task_done_and_duplicate_enqueue_is_blocked() {
         let temp_db = TempDatabase::new("complete");
         let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
