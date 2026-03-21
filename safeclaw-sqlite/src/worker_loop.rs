@@ -1776,6 +1776,158 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_retry_skips_conflicting_scope_held_by_other_owner() {
+        let temp = TempWorkspace::new("retry-scope-skip");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_output = temp.root.join("retry-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_scope = format!("scope:{}", other_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-shared-blocking",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-shared-queued",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-other",
+                ScheduleIntent::write(other_scope.clone()),
+                2,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-retry-shared-blocking");
+
+        let first_retry_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let first_retry_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_retry_worker =
+            SqliteSingleWorkerLoop::new(first_retry_orchestrator, first_retry_store);
+
+        let first_outcome = first_retry_worker
+            .claim_and_drive_once("worker-b", 1, PreflightDecision::Permit, |claim| {
+                assert_eq!(claim.task.task_id, "task-worker-retry-other");
+                let effect = EffectRecord::new(
+                    "effect-worker-retry-other",
+                    claim.task.task_id.clone(),
+                    "trace-worker-retry-other",
+                    "intent-worker-retry-other",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("first retry worker must claim other-scope task");
+
+        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
+        assert_eq!(first_outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert!(!first_outcome.completed);
+        assert_eq!(first_retry_worker.queue_snapshot().queued_tasks.len(), 1);
+        assert_eq!(
+            first_retry_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-retry-shared-queued"
+        );
+        assert_eq!(first_retry_worker.queue_snapshot().active_leases.len(), 2);
+
+        let renewed_blocking_lease = blocking_orchestrator
+            .renew_lease(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+                20,
+            )
+            .unwrap();
+        assert_eq!(renewed_blocking_lease.owner_id, "worker-a");
+
+        let retry_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let retry_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut retry_worker = SqliteSingleWorkerLoop::new(retry_orchestrator, retry_store);
+
+        let blocked = retry_worker
+            .claim_and_resume_once("worker-c", 10, |_| unreachable!())
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let expected_bytes = b"safeclaw retried other scope\n";
+        let retried = retry_worker
+            .claim_and_retry_failed_once(
+                "worker-c",
+                27,
+                "effect-worker-retry-other",
+                PreflightDecision::Permit,
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-retry-other");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    assert_eq!(runtime.effect.status, EffectStatus::Prepared);
+                    Ok(sandbox_write_command(&other_output, expected_bytes))
+                },
+            )
+            .unwrap()
+            .expect("expired other-scope failed runtime must be reclaimable");
+
+        assert_eq!(retried.claim.lease.owner_id, "worker-c");
+        assert_eq!(retried.claim.lease.fencing_token, 2);
+        assert_eq!(retried.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(retried.final_summary.effect_status, EffectStatus::Executed);
+        assert!(retried.completed);
+        assert_eq!(fs::read(&other_output).unwrap(), expected_bytes);
+        assert!(!shared_output.exists());
+        assert_eq!(retry_worker.queue_snapshot().queued_tasks.len(), 1);
+        assert_eq!(
+            retry_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-retry-shared-queued"
+        );
+        assert_eq!(retry_worker.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            retry_worker.queue_snapshot().active_leases[0].task_id,
+            "task-worker-retry-shared-blocking"
+        );
+        assert_eq!(
+            retry_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-retry-other")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-retry-other", "effect-worker-retry-other")
+            .unwrap()
+            .expect("retried other-scope runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
     fn worker_loop_resume_skips_conflicting_scope_held_by_other_owner() {
         let temp = TempWorkspace::new("resume-scope-skip");
         let shared_output = temp.root.join("shared-output.txt");
