@@ -259,6 +259,14 @@ impl InMemoryTaskRuntime {
         Ok(self.summary())
     }
 
+    pub fn begin_execution(
+        &mut self,
+        preflight: PreflightDecision,
+    ) -> Result<RunSummary, RuntimeError> {
+        self.start_task(preflight)?;
+        Ok(self.summary())
+    }
+
     pub fn run_plan_failure(&mut self) -> Result<RunSummary, RuntimeError> {
         self.apply_worker_event(WorkerEvent::TaskAccepted)?;
         self.apply_worker_event(WorkerEvent::PlanError)?;
@@ -1099,6 +1107,16 @@ mod tests {
 
         let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
         assert_eq!(executing.worker_state, WorkerState::Executing);
+    }
+
+    #[test]
+    fn begin_execution_stops_before_effect_commit_or_crash() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+
+        let summary = runtime.begin_execution(PreflightDecision::Permit).unwrap();
+        assert_eq!(summary.worker_state, WorkerState::Executing);
+        assert_eq!(summary.effect_status, EffectStatus::Prepared);
+        assert!(runtime.attempts.is_empty());
     }
 
     #[test]
