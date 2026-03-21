@@ -11,11 +11,11 @@ use safeclaw_core::{
         ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
-    PreflightDecision, ScheduleIntent, TaskOrchestrator,
+    PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
     open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -23,22 +23,16 @@ fn main() -> Result<(), String> {
     let temp = DemoArtifacts::new(&workspace)?;
     let output_bytes = b"safeclaw worker retry demo\n";
 
-    let mut orchestrator = SqliteTaskOrchestrator::new(into_demo(open_database(
+    let mut first_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
         SqliteOpenOptions::default(),
-    ))?)
+    ))?
     .with_lease_ttl_ms(25);
-    into_demo(orchestrator.enqueue(OrchestratorTask::new(
+    into_demo(first_worker.enqueue_task(OrchestratorTask::new(
         "task-worker-loop-retry-demo",
         ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
         0,
     )))?;
-
-    let runtime_store = SqliteRuntimeStore::new(into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))?);
-    let mut first_worker = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
     print_snapshot("after-enqueue", first_worker.queue_snapshot());
 
     let failed = into_demo(first_worker.claim_and_drive_once(
@@ -56,33 +50,19 @@ fn main() -> Result<(), String> {
     );
     print_snapshot("after-failed-attempt", first_worker.queue_snapshot());
 
-    let blocked_worker = SqliteSingleWorkerLoop::new(
-        SqliteTaskOrchestrator::new(into_demo(open_database(
-            temp.db_path(),
-            SqliteOpenOptions::default(),
-        ))?)
-        .with_lease_ttl_ms(25),
-        SqliteRuntimeStore::new(into_demo(open_database(
-            temp.db_path(),
-            SqliteOpenOptions::default(),
-        ))?),
-    );
-    let mut blocked_worker = blocked_worker;
+    let mut blocked_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
     let blocked = into_demo(blocked_worker.claim_and_resume_once("worker-b", 10, |_| unreachable!()))?;
     println!("[demo] reclaim before expiry => {}", blocked.is_none());
 
-    let retry_worker = SqliteSingleWorkerLoop::new(
-        SqliteTaskOrchestrator::new(into_demo(open_database(
-            temp.db_path(),
-            SqliteOpenOptions::default(),
-        ))?)
-        .with_lease_ttl_ms(25),
-        SqliteRuntimeStore::new(into_demo(open_database(
-            temp.db_path(),
-            SqliteOpenOptions::default(),
-        ))?),
-    );
-    let mut retry_worker = retry_worker;
+    let mut retry_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
     let retried = into_demo(retry_worker.claim_and_retry_failed_once(
         "worker-b",
         26,

@@ -11,11 +11,11 @@ use safeclaw_core::{
         ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
-    PreflightDecision, ScheduleIntent, TaskOrchestrator,
+    PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
     open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -23,22 +23,16 @@ fn main() -> Result<(), String> {
     let temp = DemoArtifacts::new(&workspace)?;
     let output_bytes = b"safeclaw worker loop demo\n";
 
-    let mut orchestrator = SqliteTaskOrchestrator::new(into_demo(open_database(
+    let mut loop_driver = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
         SqliteOpenOptions::default(),
-    ))?)
+    ))?
     .with_lease_ttl_ms(60_000);
-    into_demo(orchestrator.enqueue(OrchestratorTask::new(
+    into_demo(loop_driver.enqueue_task(OrchestratorTask::new(
         "task-worker-loop-demo",
         ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
         0,
     )))?;
-
-    let runtime_store = SqliteRuntimeStore::new(into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))?);
-    let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
     loop_driver.filesystem_probe_mut().register_expected_blake3(
         "effect-worker-loop-demo",
         blake3::hash(output_bytes).to_hex().to_string(),

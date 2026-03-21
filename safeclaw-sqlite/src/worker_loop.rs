@@ -1,13 +1,16 @@
+use std::path::Path;
+
 use crate::{
-    FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter, SandboxCommand,
-    SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError, SqliteRuntimeStore,
-    SqliteTaskOrchestrator,
+    open_database, FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter,
+    SandboxCommand, SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError,
+    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
     effect_ledger::EffectAction,
     recovery::probes::ProbeAdapterError,
     scheduler::{
-        OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, TaskOrchestrator,
+        OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, OrchestratorTask,
+        TaskOrchestrator,
     },
     worker_lifecycle::WorkerState,
     InMemoryTaskRuntime, PreflightDecision, RunSummary, RuntimeError,
@@ -40,6 +43,15 @@ pub struct SqliteSingleWorkerLoop {
 }
 
 impl SqliteSingleWorkerLoop {
+    pub fn open(
+        path: impl AsRef<Path>,
+        options: SqliteOpenOptions,
+    ) -> Result<Self, SqliteAdapterError> {
+        let orchestrator = SqliteTaskOrchestrator::new(open_database(path.as_ref(), options)?);
+        let runtime_store = SqliteRuntimeStore::new(open_database(path.as_ref(), options)?);
+        Ok(Self::new(orchestrator, runtime_store))
+    }
+
     pub fn new(orchestrator: SqliteTaskOrchestrator, runtime_store: SqliteRuntimeStore) -> Self {
         Self {
             orchestrator,
@@ -48,6 +60,17 @@ impl SqliteSingleWorkerLoop {
             filesystem_probe: FileSystemProbeAdapter::new(),
             network_probe: NetworkProbeAdapter::new(),
         }
+    }
+
+    pub fn with_lease_ttl_ms(mut self, lease_ttl_ms: u64) -> Self {
+        self.orchestrator = self.orchestrator.with_lease_ttl_ms(lease_ttl_ms);
+        self
+    }
+
+    pub fn enqueue_task(&mut self, task: OrchestratorTask) -> Result<(), WorkerLoopError> {
+        self.orchestrator
+            .enqueue(task)
+            .map_err(WorkerLoopError::Orchestrator)
     }
 
     pub fn filesystem_probe_mut(&mut self) -> &mut FileSystemProbeAdapter {
