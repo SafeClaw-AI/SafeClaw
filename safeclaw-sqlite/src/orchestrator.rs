@@ -292,6 +292,17 @@ fn load_next_claimable_task(
                   AND active.released_at_ms IS NULL
                   AND active.expires_at_ms >= ?1
            )
+           AND NOT EXISTS (
+                SELECT 1
+                FROM orchestrator_leases active
+                INNER JOIN orchestrator_tasks active_task ON active_task.task_id = active.task_id
+                WHERE orchestrator_tasks.requires_write = 1
+                  AND active.released_at_ms IS NULL
+                  AND active.expires_at_ms >= ?1
+                  AND active_task.is_completed = 0
+                  AND active_task.requires_write = 1
+                  AND active_task.target_scope = orchestrator_tasks.target_scope
+           )
          ORDER BY enqueued_at_ms ASC, task_id ASC
          LIMIT 1",
         [to_sql_i64(now_ms, "claim_task_now_ms")?],
@@ -656,6 +667,51 @@ mod tests {
         assert_eq!(reclaimed.task.task_id, "task-reap");
         assert_eq!(reclaimed.lease.fencing_token, 2);
         assert_eq!(reclaimed.lease.owner_id, "orch-b");
+    }
+
+    #[test]
+    fn claim_next_skips_conflicting_write_scope_until_active_write_finishes() {
+        let temp_db = TempDatabase::new("scope-conflict");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open orchestrator database");
+        let mut orchestrator = SqliteTaskOrchestrator::new(connection).with_lease_ttl_ms(25);
+
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-1",
+                ScheduleIntent::write("scope:/tmp/shared"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-2",
+                ScheduleIntent::write("scope:/tmp/shared"),
+                1,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-other",
+                ScheduleIntent::write("scope:/tmp/other"),
+                2,
+            ))
+            .unwrap();
+
+        let first = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(first.task.task_id, "task-scope-write-1");
+
+        let second = orchestrator.claim_next("orch-b", 1).unwrap().unwrap();
+        assert_eq!(second.task.task_id, "task-scope-other");
+
+        assert!(orchestrator.claim_next("orch-c", 2).unwrap().is_none());
+
+        orchestrator
+            .complete(&first.task.task_id, &first.lease.lease_id, "orch-a")
+            .unwrap();
+
+        let unblocked = orchestrator.claim_next("orch-c", 3).unwrap().unwrap();
+        assert_eq!(unblocked.task.task_id, "task-scope-write-2");
     }
 
     #[test]
