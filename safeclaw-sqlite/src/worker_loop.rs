@@ -211,7 +211,7 @@ impl SqliteSingleWorkerLoop {
 
 #[cfg(test)]
 mod tests {
-    use super::SqliteSingleWorkerLoop;
+    use super::{SqliteSingleWorkerLoop, WorkerLoopError};
     use crate::{open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator};
     use safeclaw_core::{
         effect_ledger::{
@@ -357,6 +357,44 @@ mod tests {
             .expect("persisted runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_loop_retry_reports_missing_persisted_runtime() {
+        let temp = TempWorkspace::new("missing-runtime");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-missing",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = loop_driver
+            .claim_and_retry_failed_once(
+                "worker-a",
+                0,
+                "effect-worker-missing",
+                PreflightDecision::Permit,
+                |_, _| unreachable!(),
+            )
+            .unwrap_err();
+        match error {
+            WorkerLoopError::PersistedRuntimeMissing { task_id, effect_id } => {
+                assert_eq!(task_id, "task-worker-missing");
+                assert_eq!(effect_id, "effect-worker-missing");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert!(loop_driver.queue_snapshot().completed_task_ids.is_empty());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
     }
 
     #[test]
