@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     env, fs,
     path::{Path, PathBuf},
     process,
@@ -10,32 +10,44 @@ use safeclaw_core::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
         ProbeMode,
     },
-    ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision,
+    ExecutionDisposition, InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot,
+    OrchestratorTask, PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
     open_database, FileSystemProbeAdapter, LocalSandboxExecutor, SandboxCommand,
-    SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
     let temp = DemoArtifacts::new(&workspace)?;
-
     let output_bytes = b"safeclaw full lifecycle demo\n";
-    let effect = EffectRecord::new(
-        "effect-demo-1",
+
+    let orchestrator_connection =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
+    let mut orchestrator =
+        SqliteTaskOrchestrator::new(orchestrator_connection).with_lease_ttl_ms(60_000);
+    into_demo(orchestrator.enqueue(OrchestratorTask::new(
         "task-demo-1",
-        "trace-demo-1",
-        "intent-demo-1",
-        EffectActor::Worker,
-        EffectAction::FileWrite,
-        format!("scope:{}", temp.output_path.display()),
-        EffectTier::Tier1,
-        EffectReversibility::Rollbackable,
-        ProbeMode::Auto,
+        ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+        0,
+    )))?;
+    println!("[demo] enqueued task: task-demo-1");
+
+    let claim = into_demo(orchestrator.claim_next("worker-demo", 1))?
+        .expect("queued task must be claimable");
+    println!(
+        "[demo] claimed task={} lease={} fence={}",
+        claim.task.task_id, claim.lease.lease_id, claim.lease.fencing_token
     );
-    let mut runtime = InMemoryTaskRuntime::new(effect);
+    print_snapshot("after-claim", orchestrator.queue_snapshot());
+
+    let mut runtime = InMemoryTaskRuntime::new(demo_effect(&claim));
     into_demo(runtime.begin_execution(PreflightDecision::Permit))?;
+    println!(
+        "[demo] runtime entered => worker={:?}, effect={:?}",
+        runtime.worker_state, runtime.effect.status
+    );
 
     let executor = LocalSandboxExecutor::new();
     let command = sandbox_write_command(&temp.output_path, output_bytes)?;
@@ -54,10 +66,13 @@ fn main() -> Result<(), String> {
     let mut store = SqliteRuntimeStore::new(connection);
     into_demo(store.persist_runtime(&runtime, "demo-state-1", "full-lifecycle-demo"))?;
     drop(store);
+    println!("[demo] persisted uncertain runtime");
+
+    drop(orchestrator);
 
     let reopened = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
     let store = SqliteRuntimeStore::new(reopened);
-    let mut restored = into_demo(store.load_runtime("task-demo-1", "effect-demo-1"))?
+    let mut restored = into_demo(store.load_runtime(&claim.task.task_id, "effect-demo-1"))?
         .expect("persisted runtime must reload");
     println!(
         "[demo] restored runtime => worker={:?}, effect={:?}",
@@ -78,10 +93,45 @@ fn main() -> Result<(), String> {
     let final_connection = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
     let mut final_store = SqliteRuntimeStore::new(final_connection);
     into_demo(final_store.persist_runtime(&restored, "demo-state-2", "full-lifecycle-demo"))?;
+    println!("[demo] persisted reconciled runtime");
+
+    let completion_connection =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
+    let mut completion_orchestrator = SqliteTaskOrchestrator::new(completion_connection);
+    into_demo(completion_orchestrator.complete(
+        &claim.task.task_id,
+        &claim.lease.lease_id,
+        &claim.lease.owner_id,
+    ))?;
+    print_snapshot("after-complete", completion_orchestrator.queue_snapshot());
 
     println!("[demo] db: {}", temp.db_path().display());
     println!("[demo] output: {}", temp.output_path.display());
     Ok(())
+}
+
+fn demo_effect(claim: &OrchestratorClaim) -> EffectRecord {
+    EffectRecord::new(
+        "effect-demo-1",
+        claim.task.task_id.clone(),
+        "trace-demo-1",
+        "intent-demo-1",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        claim.task.intent.target_scope.clone(),
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    )
+}
+
+fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
+    println!(
+        "[demo] snapshot {label} => queued={}, active={}, completed={}",
+        snapshot.queued_tasks.len(),
+        snapshot.active_leases.len(),
+        snapshot.completed_task_ids.len(),
+    );
 }
 
 fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> Result<SandboxCommand, String> {
@@ -154,4 +204,3 @@ impl Drop for DemoArtifacts {
         let _ = fs::remove_dir(&self.root);
     }
 }
-
