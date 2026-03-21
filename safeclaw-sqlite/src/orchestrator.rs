@@ -744,6 +744,49 @@ mod tests {
     }
 
     #[test]
+    fn claim_next_allows_same_scope_reads_to_coexist() {
+        let temp_db = TempDatabase::new("scope-read-fanout");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open orchestrator database");
+        let mut orchestrator = SqliteTaskOrchestrator::new(connection).with_lease_ttl_ms(25);
+
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-1",
+                ScheduleIntent::read("scope:/tmp/shared-read-fanout"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-2",
+                ScheduleIntent::read("scope:/tmp/shared-read-fanout"),
+                1,
+            ))
+            .unwrap();
+
+        let first = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(first.task.task_id, "task-scope-read-1");
+        assert!(!first.task.intent.requires_write);
+
+        let second = orchestrator.claim_next("orch-b", 1).unwrap().unwrap();
+        assert_eq!(second.task.task_id, "task-scope-read-2");
+        assert!(!second.task.intent.requires_write);
+
+        let snapshot = orchestrator.queue_snapshot();
+        assert!(snapshot.queued_tasks.is_empty());
+        assert_eq!(snapshot.active_leases.len(), 2);
+        assert_eq!(
+            snapshot
+                .active_leases
+                .iter()
+                .map(|lease| lease.task_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["task-scope-read-1", "task-scope-read-2"]
+        );
+    }
+
+    #[test]
     fn complete_marks_task_done_and_duplicate_enqueue_is_blocked() {
         let temp_db = TempDatabase::new("complete");
         let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
