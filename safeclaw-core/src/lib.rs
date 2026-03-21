@@ -85,6 +85,7 @@ pub struct StateEvent {
     pub task_id: String,
     pub worker_state: WorkerState,
     pub effect_status: EffectStatus,
+    pub probe_state: Option<ProbeState>,
     pub fencing_token: u64,
     pub triggered_by: String,
     pub at: String,
@@ -95,6 +96,7 @@ pub struct TaskSnapshot {
     pub task_id: String,
     pub worker_state: WorkerState,
     pub effect_status: EffectStatus,
+    pub probe_state: Option<ProbeState>,
     pub last_state_event_id: String,
     pub fencing_token: u64,
     pub version: u64,
@@ -176,6 +178,7 @@ impl InMemoryTaskRuntime {
             task_id: self.effect.task_id.clone(),
             worker_state: self.worker_state,
             effect_status: self.effect.status,
+            probe_state: self.effect.probe_state,
             fencing_token: self
                 .recovery_lease
                 .as_ref()
@@ -183,6 +186,27 @@ impl InMemoryTaskRuntime {
                 .unwrap_or(0),
             triggered_by: triggered_by.into(),
             at: self.timestamp(),
+        }
+    }
+
+    pub fn restore_from_snapshot(
+        mut effect: EffectRecord,
+        snapshot: &TaskSnapshot,
+        recovery_lease: Option<RecoveryLease>,
+    ) -> Self {
+        effect.status = snapshot.effect_status;
+        effect.probe_state = snapshot.probe_state;
+
+        Self {
+            worker_state: snapshot.worker_state,
+            effect,
+            attempts: Vec::new(),
+            compensation_effects: Vec::new(),
+            active_claims: Vec::new(),
+            quarantined_scopes: Vec::new(),
+            recovery_lease,
+            next_fencing_token: snapshot.fencing_token,
+            clock_ms: 0,
         }
     }
 
@@ -774,6 +798,7 @@ impl InMemoryStateEngine {
             task_id: event.task_id.clone(),
             worker_state: event.worker_state,
             effect_status: event.effect_status,
+            probe_state: event.probe_state,
             last_state_event_id: event.state_event_id.clone(),
             fencing_token: event.fencing_token,
             version: next_version,
@@ -879,6 +904,7 @@ mod tests {
             task_id: String::from("task-fence"),
             worker_state: WorkerState::Failed,
             effect_status: EffectStatus::Cancelled,
+            probe_state: None,
             fencing_token: 7,
             triggered_by: String::from("doctor"),
             at: String::from("2026-03-21T00:00:00Z"),
@@ -888,6 +914,7 @@ mod tests {
             task_id: String::from("task-fence"),
             worker_state: WorkerState::Planning,
             effect_status: EffectStatus::Prepared,
+            probe_state: None,
             fencing_token: 6,
             triggered_by: String::from("worker"),
             at: String::from("2026-03-21T00:00:01Z"),
@@ -901,6 +928,50 @@ mod tests {
                 provided: 6,
             })
         );
+    }
+
+    #[test]
+    fn runtime_can_restore_from_uncertain_snapshot() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let snapshot = runtime.state_event("evt-restore-uncertain", "worker");
+        let mut engine = InMemoryStateEngine::new();
+        engine.apply_event(snapshot).unwrap();
+
+        let restored = InMemoryTaskRuntime::restore_from_snapshot(
+            demo_runtime(ProbeMode::Auto).effect,
+            engine.snapshot("task-1").unwrap(),
+            None,
+        );
+
+        assert_eq!(restored.worker_state, WorkerState::Uncertain);
+        assert_eq!(restored.effect.status, EffectStatus::Uncertain);
+        assert_eq!(restored.effect.probe_state, Some(ProbeState::ProbePending));
+    }
+
+    #[test]
+    fn runtime_can_restore_from_executed_assumed_snapshot() {
+        let mut runtime = demo_runtime(ProbeMode::None);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let snapshot = runtime.state_event("evt-restore-assumed", "worker");
+        let mut engine = InMemoryStateEngine::new();
+        engine.apply_event(snapshot).unwrap();
+
+        let restored = InMemoryTaskRuntime::restore_from_snapshot(
+            demo_runtime(ProbeMode::None).effect,
+            engine.snapshot("task-1").unwrap(),
+            None,
+        );
+
+        assert_eq!(restored.worker_state, WorkerState::Failed);
+        assert_eq!(restored.effect.status, EffectStatus::ExecutedAssumed);
+        assert_eq!(restored.effect.probe_state, Some(ProbeState::HumanFrozen));
     }
 
     #[test]

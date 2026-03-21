@@ -576,6 +576,7 @@ fn state_engine_contract_is_idempotent_and_fencing_aware() {
         task_id: String::from("task-state"),
         worker_state: WorkerState::Failed,
         effect_status: EffectStatus::Cancelled,
+        probe_state: None,
         fencing_token: 0,
         triggered_by: String::from("doctor"),
         at: String::from("2026-03-21T00:00:01Z"),
@@ -587,6 +588,65 @@ fn state_engine_contract_is_idempotent_and_fencing_aware() {
             provided: 0,
         })
     );
+}
+
+#[test]
+fn state_engine_snapshot_can_restore_uncertain_and_executed_assumed_runtime() {
+    let uncertain_effect = EffectRecord::new(
+        "effect-restore-1",
+        "task-restore-1",
+        "trace-restore-1",
+        "intent-restore-1",
+        EffectActor::Worker,
+        EffectAction::NetworkRequest,
+        "scope:/tmp/restore-uncertain.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::Auto,
+    );
+    let mut uncertain_runtime = InMemoryTaskRuntime::new(uncertain_effect.clone());
+    uncertain_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+
+    let mut engine = InMemoryStateEngine::new();
+    engine
+        .apply_event(uncertain_runtime.state_event("evt-restore-uncertain", "worker"))
+        .unwrap();
+    let restored_uncertain = InMemoryTaskRuntime::restore_from_snapshot(
+        uncertain_effect,
+        engine.snapshot("task-restore-1").unwrap(),
+        None,
+    );
+    assert_eq!(restored_uncertain.worker_state, WorkerState::Uncertain);
+    assert_eq!(restored_uncertain.effect.status, EffectStatus::Uncertain);
+
+    let assumed_effect = EffectRecord::new(
+        "effect-restore-2",
+        "task-restore-2",
+        "trace-restore-2",
+        "intent-restore-2",
+        EffectActor::Worker,
+        EffectAction::SystemExec,
+        "scope:/tmp/restore-assumed.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::None,
+    );
+    let mut assumed_runtime = InMemoryTaskRuntime::new(assumed_effect.clone());
+    assumed_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    engine
+        .apply_event(assumed_runtime.state_event("evt-restore-assumed", "worker"))
+        .unwrap();
+    let restored_assumed = InMemoryTaskRuntime::restore_from_snapshot(
+        assumed_effect,
+        engine.snapshot("task-restore-2").unwrap(),
+        None,
+    );
+    assert_eq!(restored_assumed.worker_state, WorkerState::Failed);
+    assert_eq!(restored_assumed.effect.status, EffectStatus::ExecutedAssumed);
 }
 
 #[test]
