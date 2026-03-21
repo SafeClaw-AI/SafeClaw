@@ -813,6 +813,59 @@ fn state_engine_trait_contract_roundtrips_through_mock_adapter() {
 }
 
 #[test]
+fn state_engine_trait_surfaces_backend_unavailable_errors() {
+    struct FailingStateEngine;
+
+    impl StateEngine for FailingStateEngine {
+        fn apply_event(
+            &mut self,
+            _event: StateEvent,
+        ) -> Result<StateApplyResult, StateEngineError> {
+            Err(StateEngineError::BackendUnavailable {
+                operation: "apply_event",
+            })
+        }
+
+        fn load_snapshot(
+            &self,
+            _task_id: &str,
+        ) -> Result<Option<safeclaw_core::TaskSnapshot>, StateEngineError> {
+            Err(StateEngineError::BackendUnavailable {
+                operation: "load_snapshot",
+            })
+        }
+    }
+
+    let effect = EffectRecord::new(
+        "effect-state-fail",
+        "task-state-fail",
+        "trace-state-fail",
+        "intent-state-fail",
+        EffectActor::Worker,
+        EffectAction::FileWrite,
+        "scope:/tmp/state-fail.txt",
+        EffectTier::Tier1,
+        EffectReversibility::Rollbackable,
+        ProbeMode::Auto,
+    );
+    let runtime = InMemoryTaskRuntime::new(effect.clone());
+    let mut engine = FailingStateEngine;
+
+    assert_eq!(
+        runtime.persist_state(&mut engine, "evt-state-fail", "worker"),
+        Err(StateEngineError::BackendUnavailable {
+            operation: "apply_event",
+        })
+    );
+    assert_eq!(
+        InMemoryTaskRuntime::restore_from_engine(effect, &engine, "task-state-fail", None),
+        Err(StateEngineError::BackendUnavailable {
+            operation: "load_snapshot",
+        })
+    );
+}
+
+#[test]
 fn persisted_runtime_can_restart_and_finish_recovery_paths() {
     let uncertain_effect = EffectRecord::new(
         "effect-restart-1",
