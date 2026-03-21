@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "safeclaw-sqlite"
 version = "0.1.0"
 edition = "2021"
@@ -13,3 +13,5 @@ path = "src/lib.rs"
 [dependencies]
 safeclaw-core = { path = "../safeclaw-core" }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+blake3 = "1.8.2"
+

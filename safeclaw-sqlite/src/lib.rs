@@ -5,6 +5,7 @@ mod effect_store;
 mod error;
 mod migrations;
 mod orchestrator;
+mod probe_executor;
 mod runtime_store;
 mod state_engine;
 
@@ -18,6 +19,7 @@ pub use effect_store::SqliteEffectStore;
 pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
+pub use probe_executor::FileSystemProbeAdapter;
 pub use runtime_store::SqliteRuntimeStore;
 use rusqlite::Connection;
 pub use state_engine::SqliteStateEngine;
@@ -185,4 +187,5 @@ PRAGMA user_version=1;
             .collect()
     }
 }
+
 
