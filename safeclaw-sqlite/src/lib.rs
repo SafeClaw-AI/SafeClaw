@@ -9,6 +9,7 @@ mod probe_executor;
 mod runtime_store;
 mod sandbox_executor;
 mod state_engine;
+mod worker_loop;
 
 #[cfg(test)]
 mod integration;
@@ -28,6 +29,7 @@ pub use sandbox_executor::{
 };
 use rusqlite::Connection;
 pub use state_engine::SqliteStateEngine;
+pub use worker_loop::{SqliteSingleWorkerLoop, WorkerLoopError, WorkerLoopOutcome};
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";
 
