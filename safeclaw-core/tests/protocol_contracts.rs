@@ -650,6 +650,65 @@ fn state_engine_snapshot_can_restore_uncertain_and_executed_assumed_runtime() {
 }
 
 #[test]
+fn persisted_runtime_can_restart_and_finish_recovery_paths() {
+    let uncertain_effect = EffectRecord::new(
+        "effect-restart-1",
+        "task-restart-1",
+        "trace-restart-1",
+        "intent-restart-1",
+        EffectActor::Worker,
+        EffectAction::NetworkRequest,
+        "scope:/tmp/restart-uncertain.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::Auto,
+    );
+    let mut uncertain_runtime = InMemoryTaskRuntime::new(uncertain_effect.clone());
+    uncertain_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    let mut engine = InMemoryStateEngine::new();
+    uncertain_runtime
+        .persist_state(&mut engine, "evt-restart-1", "worker")
+        .unwrap();
+    let mut restarted_uncertain = InMemoryTaskRuntime::restore_from_snapshot(
+        uncertain_effect,
+        engine.snapshot("task-restart-1").unwrap(),
+        None,
+    );
+    restarted_uncertain.begin_probe().unwrap();
+    let success = restarted_uncertain.resolve_probe_success().unwrap();
+    assert_eq!(success.worker_state, WorkerState::Succeeded);
+
+    let assumed_effect = EffectRecord::new(
+        "effect-restart-2",
+        "task-restart-2",
+        "trace-restart-2",
+        "intent-restart-2",
+        EffectActor::Worker,
+        EffectAction::SystemExec,
+        "scope:/tmp/restart-assumed.txt",
+        EffectTier::Tier2,
+        EffectReversibility::Irreversible,
+        ProbeMode::None,
+    );
+    let mut assumed_runtime = InMemoryTaskRuntime::new(assumed_effect.clone());
+    assumed_runtime
+        .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+        .unwrap();
+    assumed_runtime
+        .persist_state(&mut engine, "evt-restart-2", "worker")
+        .unwrap();
+    let mut restarted_assumed = InMemoryTaskRuntime::restore_from_snapshot(
+        assumed_effect,
+        engine.snapshot("task-restart-2").unwrap(),
+        None,
+    );
+    let reconcile = restarted_assumed.reconcile_assumed(ReconcileDecision::Success).unwrap();
+    assert_eq!(reconcile.worker_state, WorkerState::Succeeded);
+}
+
+#[test]
 fn effect_attempt_requires_active_matching_lease() {
     let lease = RecoveryLease::new("lease-1", "doctor-a", 3, 0, DEFAULT_LEASE_TTL_MS);
     let mut attempt = EffectAttempt::next_for_effect(

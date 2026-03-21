@@ -189,6 +189,15 @@ impl InMemoryTaskRuntime {
         }
     }
 
+    pub fn persist_state(
+        &self,
+        engine: &mut InMemoryStateEngine,
+        state_event_id: impl Into<String>,
+        triggered_by: impl Into<String>,
+    ) -> Result<StateApplyResult, StateEngineError> {
+        engine.apply_event(self.state_event(state_event_id, triggered_by))
+    }
+
     pub fn restore_from_snapshot(
         mut effect: EffectRecord,
         snapshot: &TaskSnapshot,
@@ -972,6 +981,53 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::Failed);
         assert_eq!(restored.effect.status, EffectStatus::ExecutedAssumed);
         assert_eq!(restored.effect.probe_state, Some(ProbeState::HumanFrozen));
+    }
+
+    #[test]
+    fn persisted_uncertain_runtime_can_restart_and_commit_after_probe_success() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let mut engine = InMemoryStateEngine::new();
+        runtime
+            .persist_state(&mut engine, "evt-restart-uncertain", "worker")
+            .unwrap();
+
+        let mut restarted = InMemoryTaskRuntime::restore_from_snapshot(
+            demo_runtime(ProbeMode::Auto).effect,
+            engine.snapshot("task-1").unwrap(),
+            None,
+        );
+        restarted.begin_probe().unwrap();
+        let summary = restarted.resolve_probe_success().unwrap();
+
+        assert_eq!(summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn persisted_executed_assumed_runtime_can_restart_and_reconcile() {
+        let mut runtime = demo_runtime(ProbeMode::None);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+
+        let mut engine = InMemoryStateEngine::new();
+        runtime
+            .persist_state(&mut engine, "evt-restart-assumed", "worker")
+            .unwrap();
+
+        let mut restarted = InMemoryTaskRuntime::restore_from_snapshot(
+            demo_runtime(ProbeMode::None).effect,
+            engine.snapshot("task-1").unwrap(),
+            None,
+        );
+        let summary = restarted.reconcile_assumed(ReconcileDecision::Success).unwrap();
+
+        assert_eq!(summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(summary.effect_status, EffectStatus::Executed);
     }
 
     #[test]
