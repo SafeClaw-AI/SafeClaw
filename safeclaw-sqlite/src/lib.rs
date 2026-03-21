@@ -20,7 +20,7 @@ pub use effect_store::SqliteEffectStore;
 pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
-pub use probe_executor::FileSystemProbeAdapter;
+pub use probe_executor::{FileSystemProbeAdapter, NetworkProbeAdapter};
 pub use runtime_store::SqliteRuntimeStore;
 pub use sandbox_executor::{
     LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,

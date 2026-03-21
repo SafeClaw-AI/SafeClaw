@@ -62,7 +62,7 @@ fn probe_catalog_exposes_phase1_supported_contracts() {
     assert!(CORE_SPEC_BINDINGS.iter().any(|binding| {
         binding.spec_path == "specs/probes/network_request.json"
             && binding.module_path == "safeclaw_core::recovery::probes"
-            && binding.stage == ImplementationStage::TestSkeleton
+            && binding.stage == ImplementationStage::RuntimeSlice
     }));
     assert!(CORE_SPEC_BINDINGS.iter().any(|binding| {
         binding.spec_path == "specs/schemas/task_concurrency.json"

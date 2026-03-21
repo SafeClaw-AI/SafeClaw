@@ -16,5 +16,5 @@ pub const CORE_SPEC_BINDINGS: [SpecBinding; 7] = [
     SpecBinding { spec_path: "specs/schemas/task_concurrency.json", module_path: "safeclaw_core::scheduler", stage: ImplementationStage::RuntimeSlice, next_step: "已接 SQLite orchestrator；后续组装 sidecar queue 与真实 worker loop" },
     SpecBinding { spec_path: "specs/probes/file_write.json", module_path: "safeclaw_core::recovery::probes", stage: ImplementationStage::RuntimeSlice, next_step: "已接 safeclaw-sqlite 文件探针；后续扩 sidecar probe executor" },
     SpecBinding { spec_path: "specs/probes/file_delete.json", module_path: "safeclaw_core::recovery::probes", stage: ImplementationStage::RuntimeSlice, next_step: "已接 safeclaw-sqlite 文件探针；后续扩 sidecar probe executor" },
-    SpecBinding { spec_path: "specs/probes/network_request.json", module_path: "safeclaw_core::recovery::probes", stage: ImplementationStage::TestSkeleton, next_step: "待接网络探针 adapter 与 sidecar 执行实现" },
+    SpecBinding { spec_path: "specs/probes/network_request.json", module_path: "safeclaw_core::recovery::probes", stage: ImplementationStage::RuntimeSlice, next_step: "已接 safeclaw-sqlite 本地 HTTP probe；后续扩 sidecar / HTTPS / richer evidence" },
 ];
