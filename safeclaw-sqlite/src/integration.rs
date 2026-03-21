@@ -3,13 +3,14 @@ mod tests {
     use crate::{
         open_database, FileSystemProbeAdapter, LocalSandboxExecutor, RuntimeExecutionDirective,
         SandboxCommand, SqliteEffectStore, SqliteOpenOptions, SqliteRuntimeStore,
-        SqliteStateEngine,
+        SqliteStateEngine, SqliteTaskOrchestrator,
     };
     use safeclaw_core::{
         effect_ledger::{
             EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
             ProbeMode,
         },
+        scheduler::{OrchestratorTask, ScheduleIntent, TaskOrchestrator},
         worker_lifecycle::WorkerState,
         ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
     };
@@ -310,6 +311,91 @@ mod tests {
         assert_eq!(final_runtime.worker_state, WorkerState::Succeeded);
         assert_eq!(final_runtime.effect.status, EffectStatus::Executed);
         assert_eq!(final_runtime.attempts.len(), 1);
+    }
+
+    #[test]
+    fn sqlite_orchestrator_claims_then_completes_recovered_runtime() {
+        let temp = TempWorkspace::new("orchestrated-runtime");
+        let output_bytes = b"safeclaw orchestrator runtime demo\n";
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(temp.db_path(), SqliteOpenOptions::default())
+                .expect("sqlite adapter must open orchestrator database"),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-orchestrated-runtime",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path().display())),
+                0,
+            ))
+            .expect("task must enqueue");
+
+        let claim = orchestrator
+            .claim_next("orch-main", 1)
+            .expect("claim must succeed")
+            .expect("task must be claimable");
+        assert_eq!(claim.task.task_id, "task-orchestrated-runtime");
+
+        let effect = EffectRecord::new(
+            "effect-orchestrated-runtime",
+            claim.task.task_id.clone(),
+            "trace-orchestrated-runtime",
+            "intent-orchestrated-runtime",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            claim.task.intent.target_scope.clone(),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime
+            .begin_execution(PreflightDecision::Permit)
+            .expect("claimed task must enter execution");
+
+        let executor = LocalSandboxExecutor::new();
+        let report = executor
+            .run(&sandbox_write_command(temp.output_path(), output_bytes))
+            .expect("sandbox write must complete");
+        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        runtime
+            .continue_execution(ExecutionDisposition::Crash)
+            .expect("post-write crash must enter uncertain state");
+
+        let mut store = SqliteRuntimeStore::new(
+            open_database(temp.db_path(), SqliteOpenOptions::default())
+                .expect("sqlite adapter must open runtime database"),
+        );
+        store
+            .persist_runtime(&runtime, "runtime-orchestrated-1", "integration-test")
+            .expect("orchestrated runtime must persist");
+        drop(store);
+
+        let store = SqliteRuntimeStore::new(
+            open_database(temp.db_path(), SqliteOpenOptions::default())
+                .expect("sqlite adapter must reopen runtime database"),
+        );
+        let mut restored = store
+            .load_runtime("task-orchestrated-runtime", "effect-orchestrated-runtime")
+            .expect("runtime load must succeed")
+            .expect("persisted runtime must reload");
+        let mut probe = FileSystemProbeAdapter::new();
+        probe.register_expected_blake3(
+            restored.effect.effect_id.clone(),
+            blake3::hash(output_bytes).to_hex().to_string(),
+        );
+        let settled = restored
+            .run_probe_with(&probe)
+            .expect("restored runtime must settle via probe");
+        assert_eq!(settled.worker_state, WorkerState::Succeeded);
+
+        orchestrator
+            .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+            .expect("successful runtime must complete orchestrator lease");
+        let snapshot = orchestrator.queue_snapshot();
+        assert!(snapshot.queued_tasks.is_empty());
+        assert!(snapshot.active_leases.is_empty());
+        assert_eq!(snapshot.completed_task_ids, vec![String::from("task-orchestrated-runtime")]);
+        assert!(orchestrator.claim_next("orch-other", 2).unwrap().is_none());
     }
 
     fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
