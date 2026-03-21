@@ -787,6 +787,64 @@ mod tests {
     }
 
     #[test]
+    fn claim_next_allows_write_while_same_scope_reads_are_active() {
+        let temp_db = TempDatabase::new("scope-write-under-reads");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open orchestrator database");
+        let mut orchestrator = SqliteTaskOrchestrator::new(connection).with_lease_ttl_ms(25);
+
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-active-1",
+                ScheduleIntent::read("scope:/tmp/shared-write-under-reads"),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-read-active-2",
+                ScheduleIntent::read("scope:/tmp/shared-write-under-reads"),
+                1,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-scope-write-after-reads",
+                ScheduleIntent::write("scope:/tmp/shared-write-under-reads"),
+                2,
+            ))
+            .unwrap();
+
+        let first = orchestrator.claim_next("orch-a", 0).unwrap().unwrap();
+        assert_eq!(first.task.task_id, "task-scope-read-active-1");
+        assert!(!first.task.intent.requires_write);
+
+        let second = orchestrator.claim_next("orch-b", 1).unwrap().unwrap();
+        assert_eq!(second.task.task_id, "task-scope-read-active-2");
+        assert!(!second.task.intent.requires_write);
+
+        let third = orchestrator.claim_next("orch-c", 2).unwrap().unwrap();
+        assert_eq!(third.task.task_id, "task-scope-write-after-reads");
+        assert!(third.task.intent.requires_write);
+
+        let snapshot = orchestrator.queue_snapshot();
+        assert!(snapshot.queued_tasks.is_empty());
+        assert_eq!(snapshot.active_leases.len(), 3);
+        assert_eq!(
+            snapshot
+                .active_leases
+                .iter()
+                .map(|lease| lease.task_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "task-scope-read-active-1",
+                "task-scope-read-active-2",
+                "task-scope-write-after-reads",
+            ]
+        );
+    }
+
+    #[test]
     fn complete_marks_task_done_and_duplicate_enqueue_is_blocked() {
         let temp_db = TempDatabase::new("complete");
         let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
