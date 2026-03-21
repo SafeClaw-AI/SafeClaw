@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -26,6 +27,23 @@ class GeneratedIndexesTest(unittest.TestCase):
             data = json.load(file)
         self.assertIsInstance(data, dict)
         return data
+
+    def assert_relative_posix_path(self, value: str) -> None:
+        self.assertIsInstance(value, str)
+        self.assertFalse(value.startswith("/"))
+        self.assertNotIn("\\", value)
+        self.assertIsNone(re.match(r"^[A-Za-z]:", value))
+
+    def build_expected_outputs(self) -> list[dict[str, str]]:
+        return [
+            {
+                "target": target,
+                "target_dir": f"generated/{target}",
+                "manifest": f"generated/{target}/manifest.json",
+                "stable_ids": f"generated/{target}/stable_ids.json",
+            }
+            for target in SUPPORTED_TARGETS
+        ]
 
     def test_generated_targets_exist(self) -> None:
         for target in SUPPORTED_TARGETS:
@@ -67,18 +85,35 @@ class GeneratedIndexesTest(unittest.TestCase):
                 self.assertIn("spi_names", stable_ids)
 
     def test_generated_root_index_matches_targets(self) -> None:
-        outputs = [
-            {
-                "target": target,
-                "target_dir": str((self.generated_root / target).resolve()),
-                "manifest": str((self.generated_root / target / "manifest.json").resolve()),
-                "stable_ids": str((self.generated_root / target / "stable_ids.json").resolve()),
-            }
-            for target in SUPPORTED_TARGETS
-        ]
+        outputs = self.build_expected_outputs()
         actual = self.load_json(self.generated_root / "index.json")
         expected = build_generated_index(self.repo_version, outputs)
         self.assertEqual(actual, expected)
+
+    def test_generated_root_index_alias_matches_root_index(self) -> None:
+        canonical = self.load_json(self.generated_root / "index.json")
+        alias = self.load_json(self.generated_root / "root_index.json")
+        self.assertEqual(alias, canonical)
+
+    def test_generated_targets_index_matches_targets(self) -> None:
+        actual = self.load_json(self.generated_root / "targets.json")
+        expected = {"targets": self.build_expected_outputs()}
+        self.assertEqual(actual, expected)
+
+    def test_generated_paths_are_relative_and_posix(self) -> None:
+        for index_name in ("index.json", "root_index.json", "targets.json"):
+            root_index = self.load_json(self.generated_root / index_name)
+            for item in root_index.get("targets", []):
+                with self.subTest(index=index_name, target=item.get("target")):
+                    self.assert_relative_posix_path(item["target_dir"])
+                    self.assert_relative_posix_path(item["manifest"])
+                    self.assert_relative_posix_path(item["stable_ids"])
+
+        for target in SUPPORTED_TARGETS:
+            manifest = self.load_json(self.generated_root / target / "manifest.json")
+            for spec in manifest.get("specs", []):
+                with self.subTest(target=target, relpath=spec.get("relpath")):
+                    self.assert_relative_posix_path(spec["relpath"])
 
 
 if __name__ == "__main__":

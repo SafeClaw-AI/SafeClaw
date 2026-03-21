@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Regenerate generated indexes
+        run: python tools/codegen/regenerate_all.py
+
       - name: Run contract tests
         run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
 
