@@ -33,7 +33,7 @@ safeclaw-core/
 | `worker_lifecycle` | `specs/state-machines/worker_lifecycle.json` | Runtime Slice | 已覆盖完整转移表、uncertain、reconcile、doctor/repair 闭环 |
 | `task_concurrency` | `specs/schemas/task_concurrency.json` | Runtime Slice | 已覆盖 retry guard、scope quarantine、worker/tool/scope 调度准入 |
 | `recovery::probes` | `specs/probes/*.json` | Runtime Slice | 已提供 probe catalog、receipt 模型、mock adapter 与运行时 probe 协调入口 |
-| `scheduler` | `specs/schemas/task_concurrency.json` | Adapter Ready | 已提供 scheduler / orchestrator trait、内存 mock；外层 `safeclaw-sqlite` 已接入 SQLite orchestrator |
+| `scheduler` | `specs/schemas/task_concurrency.json` | Runtime Slice | 已提供 scheduler / orchestrator trait、内存 mock；外层 `safeclaw-sqlite` 已接入 SQLite orchestrator，并落地同 scope 写冲突跳过 / same-scope read 透传 |
 | `state_engine` | `specs/state-machine.schema.json` 等恢复约束 | Adapter Ready | 已提供纯核 trait + 内存实现；外层 `safeclaw-sqlite` 已接入 SQLite 状态落盘 |
 | `runtime_store` | `worker_lifecycle` + `effect_ledger` 恢复闭环 | Adapter Ready | 已提供 runtime 持久化 trait + mock；外层 `safeclaw-sqlite` 已落地恢复链路 |
 | `spec_map` | 上述真源映射 | Runtime Slice | 显式记录 spec → 模块 → 当前阶段 / 下一步 |
@@ -42,7 +42,7 @@ safeclaw-core/
 
 - `safeclaw-core` 保持 **零 IO / 零 SQLite 依赖**，只负责纯领域状态机、guard、恢复语义与合同约束。
 - 外层 `safeclaw-sqlite` 已承接 SQLite WAL 适配、probe executor、sandbox executor、orchestrator、runtime 持久化与单 worker loop。
-- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试，并提供 `worker_loop_*` 与 `full_lifecycle_demo` 示例。
+- 当前已具备单 worker 最小闭环：`claim -> execute -> crash -> persist -> restore -> probe -> complete` 的真实回归测试，并提供 `worker_loop_*`、`worker_loop_scope_*` 与 `full_lifecycle_demo` 示例。
 - UI、sidecar、Doctor force-kill 仍位于核心外层，不进入本 crate。
 
 ## 下一步顺序
