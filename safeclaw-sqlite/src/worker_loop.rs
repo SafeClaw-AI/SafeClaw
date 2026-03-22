@@ -34,6 +34,14 @@ pub struct WorkerLoopOutcome {
     pub completed: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct WorkerLoopProbeOutcome {
+    pub claim: OrchestratorClaim,
+    pub recovered_from: WorkerState,
+    pub final_summary: RunSummary,
+    pub completed: bool,
+}
+
 pub struct SqliteSingleWorkerLoop {
     orchestrator: SqliteTaskOrchestrator,
     runtime_store: SqliteRuntimeStore,
@@ -197,6 +205,43 @@ impl SqliteSingleWorkerLoop {
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
 
+    pub fn claim_and_probe_persisted_once(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        effect_id: &str,
+    ) -> Result<Option<WorkerLoopProbeOutcome>, WorkerLoopError> {
+        let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+            return Ok(None);
+        };
+
+        let mut runtime = self
+            .runtime_store
+            .load_runtime(&claim.task.task_id, effect_id)
+            .map_err(WorkerLoopError::Store)?
+            .ok_or_else(|| WorkerLoopError::PersistedRuntimeMissing {
+                task_id: claim.task.task_id.clone(),
+                effect_id: effect_id.to_string(),
+            })?;
+        let recovered_from = runtime.worker_state;
+        let final_summary = self.recover_uncertain(&mut runtime, &claim)?;
+
+        let mut completed = false;
+        if final_summary.worker_state == WorkerState::Succeeded {
+            self.orchestrator
+                .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+                .map_err(WorkerLoopError::Orchestrator)?;
+            completed = true;
+        }
+
+        Ok(Some(WorkerLoopProbeOutcome {
+            claim,
+            recovered_from,
+            final_summary,
+            completed,
+        }))
+    }
+
     pub fn claim_and_retry_failed_once<F>(
         &mut self,
         owner_id: &str,
@@ -311,7 +356,10 @@ impl SqliteSingleWorkerLoop {
 #[cfg(test)]
 mod tests {
     use super::{SqliteSingleWorkerLoop, WorkerLoopError};
-    use crate::{open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator};
+    use crate::{
+        open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
+        SqliteRuntimeStore, SqliteTaskOrchestrator,
+    };
     use safeclaw_core::{
         effect_ledger::{
             EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
@@ -1656,6 +1704,139 @@ mod tests {
             .expect("persisted runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_loop_claims_persisted_uncertain_runtime_probes_and_completes() {
+        let temp = TempWorkspace::new("persisted-probe");
+        let expected_bytes = b"safeclaw persisted probe\n";
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-persisted-probe",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let claim = orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+
+        let effect = EffectRecord::new(
+            "effect-worker-persisted-probe",
+            claim.task.task_id.clone(),
+            "trace-worker-persisted-probe",
+            "intent-worker-persisted-probe",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            claim.task.intent.target_scope.clone(),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+        let executor = LocalSandboxExecutor::new();
+        let (_, execution_summary) = executor
+            .run_and_apply(
+                &mut runtime,
+                &sandbox_write_then_timeout_command(&temp.output_path, expected_bytes),
+            )
+            .unwrap();
+        assert_eq!(execution_summary.worker_state, WorkerState::Uncertain);
+        assert_eq!(execution_summary.effect_status, EffectStatus::Uncertain);
+
+        let mut setup_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        setup_store
+            .persist_runtime(
+                &runtime,
+                format!("worker-loop:{}:post-exec", claim.lease.lease_id),
+                "test",
+            )
+            .unwrap();
+        drop(setup_store);
+
+        let probe_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let probe_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut probe_worker = SqliteSingleWorkerLoop::new(probe_orchestrator, probe_store);
+        probe_worker.filesystem_probe_mut().register_expected_blake3(
+            "effect-worker-persisted-probe",
+            blake3::hash(expected_bytes).to_hex().to_string(),
+        );
+
+        let blocked = probe_worker
+            .claim_and_probe_persisted_once("worker-b", 10, "effect-worker-persisted-probe")
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let recovered = probe_worker
+            .claim_and_probe_persisted_once("worker-b", 26, "effect-worker-persisted-probe")
+            .unwrap()
+            .expect("expired uncertain runtime must be claimable for probe");
+        assert_eq!(recovered.claim.task.task_id, "task-worker-persisted-probe");
+        assert_eq!(recovered.recovered_from, WorkerState::Uncertain);
+        assert_eq!(recovered.final_summary.worker_state, WorkerState::Succeeded);
+        assert_eq!(recovered.final_summary.effect_status, EffectStatus::Executed);
+        assert!(recovered.completed);
+        assert!(probe_worker.queue_snapshot().queued_tasks.is_empty());
+        assert!(probe_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            probe_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-persisted-probe")]
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-persisted-probe",
+                "effect-worker-persisted-probe",
+            )
+            .unwrap()
+            .expect("persisted probe runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_loop_probe_reports_missing_persisted_runtime() {
+        let temp = TempWorkspace::new("missing-probe-runtime");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-missing-probe",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
+
+        let error = loop_driver
+            .claim_and_probe_persisted_once("worker-a", 0, "effect-worker-missing-probe")
+            .unwrap_err();
+        match error {
+            WorkerLoopError::PersistedRuntimeMissing { task_id, effect_id } => {
+                assert_eq!(task_id, "task-worker-missing-probe");
+                assert_eq!(effect_id, "effect-worker-missing-probe");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        assert!(loop_driver.queue_snapshot().completed_task_ids.is_empty());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
     }
 
     #[test]
