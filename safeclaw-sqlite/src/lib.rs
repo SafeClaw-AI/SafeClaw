@@ -10,6 +10,7 @@ mod runtime_store;
 mod sandbox_executor;
 mod state_engine;
 mod worker_loop;
+mod worker_service;
 
 #[cfg(test)]
 mod integration;
@@ -35,6 +36,7 @@ pub use worker_loop::{
     SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError, WorkerLoopOutcome,
     WorkerLoopProbeOutcome,
 };
+pub use worker_service::{SqliteWorkerService, WorkerServiceRunReport};
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";
 
