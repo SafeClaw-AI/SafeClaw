@@ -6,7 +6,7 @@ use crate::{
     SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
-    effect_ledger::EffectAction,
+    effect_ledger::{EffectAction, EffectAttempt},
     recovery::probes::ProbeAdapterError,
     scheduler::{
         OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, OrchestratorTask,
@@ -122,6 +122,12 @@ impl SqliteSingleWorkerLoop {
     ) -> Result<Option<RuntimeGovernanceView>, WorkerLoopError> {
         self.runtime_store
             .governance_view(task_id, effect_id)
+            .map_err(WorkerLoopError::Store)
+    }
+
+    pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
+        self.runtime_store
+            .list_attempts(effect_id)
             .map_err(WorkerLoopError::Store)
     }
 

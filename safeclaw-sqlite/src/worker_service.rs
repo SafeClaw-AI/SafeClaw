@@ -6,6 +6,7 @@ use crate::{
     WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
+    effect_ledger::EffectAttempt,
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask},
     InMemoryTaskRuntime, PreflightDecision,
 };
@@ -89,6 +90,10 @@ impl SqliteWorkerService {
         self.worker_loop.governance_view(task_id, effect_id)
     }
 
+    pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
+        self.worker_loop.list_attempts(effect_id)
+    }
+
     pub fn filesystem_probe_mut(&mut self) -> &mut FileSystemProbeAdapter {
         self.worker_loop.filesystem_probe_mut()
     }
@@ -151,8 +156,8 @@ mod tests {
     };
     use safeclaw_core::{
         effect_ledger::{
-            EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus,
-            EffectTier, ProbeMode,
+            AttemptResultStatus, EffectAction, EffectActor, EffectRecord,
+            EffectReversibility, EffectStatus, EffectTier, ProbeMode,
         },
         scheduler::OrchestratorTask,
         worker_lifecycle::WorkerState,
@@ -295,6 +300,63 @@ mod tests {
         let snapshot = service.queue_snapshot();
         assert_eq!(snapshot.active_leases.len(), 1);
         assert!(snapshot.completed_task_ids.is_empty());
+    }
+
+    #[test]
+    fn worker_service_exposes_attempt_history_for_executed_task() {
+        let temp = TempDatabase::new("attempt-history");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25)
+        .with_poll_interval_ms(5);
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-attempt-history",
+                ScheduleIntent::write("scope:worker-service-attempt-history"),
+                0,
+            ))
+            .unwrap();
+
+        let report = service
+            .run_dispatch_until_idle(
+                0,
+                1,
+                PreflightDecision::Permit,
+                |claim| Ok(format!("effect-{}", claim.task.task_id)),
+                |claim| {
+                    let effect_id = format!("effect-{}", claim.task.task_id);
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        "trace-worker-service-attempt-history",
+                        "intent-worker-service-attempt-history",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(report.executed_count(), 1);
+        assert_eq!(report.probed_count(), 0);
+        assert_eq!(report.parked_count(), 0);
+
+        let attempts = service
+            .list_attempts("effect-task-worker-service-attempt-history")
+            .unwrap();
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0].attempt_seq, 1);
+        assert_eq!(attempts[0].result_status, Some(AttemptResultStatus::Success));
     }
 
     fn sandbox_success_command() -> SandboxCommand {

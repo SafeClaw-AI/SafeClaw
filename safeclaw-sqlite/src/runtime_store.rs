@@ -1,6 +1,6 @@
 ﻿use rusqlite::{Connection, TransactionBehavior};
 use safeclaw_core::{
-    effect_ledger::{AttemptResultStatus, EffectStatus, ProbeState},
+    effect_ledger::{AttemptResultStatus, EffectAttempt, EffectStatus, ProbeState},
     state_engine::{StateApplyResult, StateEvent, TaskSnapshot},
     worker_lifecycle::WorkerState,
     InMemoryTaskRuntime, RuntimeStore, RuntimeStoreError,
@@ -143,6 +143,10 @@ impl SqliteRuntimeStore {
             return Ok(None);
         };
         Ok(Some(build_governance_view(snapshot, runtime)))
+    }
+
+    pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
+        list_attempts_from_connection(&self.connection, effect_id)
     }
 
     fn list_compensation_effects(
