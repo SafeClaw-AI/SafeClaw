@@ -1628,6 +1628,339 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_dispatch_until_empty_skips_conflicts_held_by_other_owner() {
+        let temp = TempWorkspace::new("dispatch-drain-scope-skip");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_one_output = temp.root.join("other-one-output.txt");
+        let other_two_output = temp.root.join("other-two-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_one_scope = format!("scope:{}", other_one_output.display());
+        let other_two_scope = format!("scope:{}", other_two_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-shared-1",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-shared-2",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-other-1",
+                ScheduleIntent::write(other_one_scope.clone()),
+                2,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-other-2",
+                ScheduleIntent::write(other_two_scope.clone()),
+                3,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-dispatch-shared-1");
+
+        let drain_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let drain_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut drain_worker = SqliteSingleWorkerLoop::new(drain_orchestrator, drain_store);
+
+        let outcomes = drain_worker
+            .claim_and_dispatch_until_empty(
+                "worker-b",
+                1,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-other-1" => {
+                            String::from("effect-worker-dispatch-other-1")
+                        }
+                        "task-worker-dispatch-other-2" => {
+                            String::from("effect-worker-dispatch-other-2")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| {
+                    let (effect_id, trace_id, intent_key, output_path, output_bytes) =
+                        match claim.task.task_id.as_str() {
+                            "task-worker-dispatch-other-1" => (
+                                "effect-worker-dispatch-other-1",
+                                "trace-worker-dispatch-other-1",
+                                "intent-worker-dispatch-other-1",
+                                &other_one_output,
+                                b"safeclaw dispatch other one\n".as_slice(),
+                            ),
+                            "task-worker-dispatch-other-2" => (
+                                "effect-worker-dispatch-other-2",
+                                "trace-worker-dispatch-other-2",
+                                "intent-worker-dispatch-other-2",
+                                &other_two_output,
+                                b"safeclaw dispatch other two\n".as_slice(),
+                            ),
+                            other => panic!("unexpected task id: {other}"),
+                        };
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        trace_id,
+                        intent_key,
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((
+                        InMemoryTaskRuntime::new(effect),
+                        sandbox_write_command(output_path, output_bytes),
+                    ))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(outcomes.len(), 2);
+        match &outcomes[0] {
+            WorkerLoopDispatchOutcome::Executed(executed) => {
+                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-other-1")
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => panic!("conflict skip branch must execute"),
+        }
+        match &outcomes[1] {
+            WorkerLoopDispatchOutcome::Executed(executed) => {
+                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-other-2")
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => panic!("conflict skip branch must execute"),
+        }
+        assert_eq!(
+            fs::read(&other_one_output).unwrap(),
+            b"safeclaw dispatch other one\n"
+        );
+        assert_eq!(
+            fs::read(&other_two_output).unwrap(),
+            b"safeclaw dispatch other two\n"
+        );
+        assert_eq!(
+            drain_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-dispatch-shared-2"
+        );
+        assert_eq!(drain_worker.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            drain_worker.queue_snapshot().active_leases[0].task_id,
+            "task-worker-dispatch-shared-1"
+        );
+    }
+
+    #[test]
+    fn worker_loop_dispatch_until_empty_claims_remaining_conflict_after_release() {
+        let temp = TempWorkspace::new("dispatch-drain-release");
+        let shared_output = temp.root.join("shared-output.txt");
+        let other_one_output = temp.root.join("other-one-output.txt");
+        let other_two_output = temp.root.join("other-two-output.txt");
+        let shared_scope = format!("scope:{}", shared_output.display());
+        let other_one_scope = format!("scope:{}", other_one_output.display());
+        let other_two_scope = format!("scope:{}", other_two_output.display());
+
+        let mut blocking_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-shared-1",
+                ScheduleIntent::write(shared_scope.clone()),
+                0,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-shared-2",
+                ScheduleIntent::write(shared_scope.clone()),
+                1,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-other-1",
+                ScheduleIntent::write(other_one_scope.clone()),
+                2,
+            ))
+            .unwrap();
+        blocking_orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-other-2",
+                ScheduleIntent::write(other_two_scope.clone()),
+                3,
+            ))
+            .unwrap();
+
+        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        assert_eq!(blocking_claim.task.task_id, "task-worker-dispatch-shared-1");
+
+        let first_drain_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let first_drain_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut first_drain_worker = SqliteSingleWorkerLoop::new(first_drain_orchestrator, first_drain_store);
+
+        let first_outcomes = first_drain_worker
+            .claim_and_dispatch_until_empty(
+                "worker-b",
+                1,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-other-1" => {
+                            String::from("effect-worker-dispatch-other-1")
+                        }
+                        "task-worker-dispatch-other-2" => {
+                            String::from("effect-worker-dispatch-other-2")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| {
+                    let (effect_id, trace_id, intent_key, output_path, output_bytes) =
+                        match claim.task.task_id.as_str() {
+                            "task-worker-dispatch-other-1" => (
+                                "effect-worker-dispatch-other-1",
+                                "trace-worker-dispatch-other-1",
+                                "intent-worker-dispatch-other-1",
+                                &other_one_output,
+                                b"safeclaw dispatch other one\n".as_slice(),
+                            ),
+                            "task-worker-dispatch-other-2" => (
+                                "effect-worker-dispatch-other-2",
+                                "trace-worker-dispatch-other-2",
+                                "intent-worker-dispatch-other-2",
+                                &other_two_output,
+                                b"safeclaw dispatch other two\n".as_slice(),
+                            ),
+                            other => panic!("unexpected task id: {other}"),
+                        };
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        trace_id,
+                        intent_key,
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((
+                        InMemoryTaskRuntime::new(effect),
+                        sandbox_write_command(output_path, output_bytes),
+                    ))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+        assert_eq!(first_outcomes.len(), 2);
+        assert_eq!(
+            first_drain_worker.queue_snapshot().queued_tasks[0].task_id,
+            "task-worker-dispatch-shared-2"
+        );
+
+        blocking_orchestrator
+            .complete(
+                &blocking_claim.task.task_id,
+                &blocking_claim.lease.lease_id,
+                &blocking_claim.lease.owner_id,
+            )
+            .unwrap();
+
+        let second_drain_orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        let second_drain_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let mut second_drain_worker = SqliteSingleWorkerLoop::new(second_drain_orchestrator, second_drain_store);
+
+        let second_outcomes = second_drain_worker
+            .claim_and_dispatch_until_empty(
+                "worker-c",
+                2,
+                PreflightDecision::Permit,
+                |claim| {
+                    assert_eq!(claim.task.task_id, "task-worker-dispatch-shared-2");
+                    Ok(String::from("effect-worker-dispatch-shared-2"))
+                },
+                |claim| {
+                    assert_eq!(claim.task.task_id, "task-worker-dispatch-shared-2");
+                    let effect = EffectRecord::new(
+                        "effect-worker-dispatch-shared-2",
+                        claim.task.task_id.clone(),
+                        "trace-worker-dispatch-shared-2",
+                        "intent-worker-dispatch-shared-2",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((
+                        InMemoryTaskRuntime::new(effect),
+                        sandbox_write_command(&shared_output, b"safeclaw dispatch shared after release\n"),
+                    ))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(second_outcomes.len(), 1);
+        match &second_outcomes[0] {
+            WorkerLoopDispatchOutcome::Executed(executed) => {
+                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-shared-2");
+                assert!(executed.completed);
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => panic!("released conflict must execute"),
+        }
+        assert_eq!(
+            fs::read(&shared_output).unwrap(),
+            b"safeclaw dispatch shared after release\n"
+        );
+        assert!(second_drain_worker.queue_snapshot().queued_tasks.is_empty());
+        assert!(second_drain_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(
+            second_drain_worker.queue_snapshot().completed_task_ids,
+            vec![
+                String::from("task-worker-dispatch-other-1"),
+                String::from("task-worker-dispatch-other-2"),
+                String::from("task-worker-dispatch-shared-1"),
+                String::from("task-worker-dispatch-shared-2"),
+            ]
+        );
+    }
+
+    #[test]
     fn worker_loop_drives_multiple_queued_tasks_until_empty() {
         let temp = TempWorkspace::new("drain-batch");
         let first_output = temp.root.join("output-1.txt");
