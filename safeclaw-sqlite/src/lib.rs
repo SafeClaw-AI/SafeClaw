@@ -22,7 +22,9 @@ pub use error::SqliteAdapterError;
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
 pub use probe_executor::{FileSystemProbeAdapter, NetworkProbeAdapter};
-pub use runtime_store::SqliteRuntimeStore;
+pub use runtime_store::{
+    RuntimeGovernanceDisposition, RuntimeGovernanceView, SqliteRuntimeStore,
+};
 pub use sandbox_executor::{
     LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
     SandboxExecutionReport, SandboxExecutorError, SandboxRuntimeError,

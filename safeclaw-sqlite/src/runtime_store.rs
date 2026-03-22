@@ -1,6 +1,8 @@
 ﻿use rusqlite::{Connection, TransactionBehavior};
 use safeclaw_core::{
-    state_engine::{StateApplyResult, StateEvent},
+    effect_ledger::{AttemptResultStatus, EffectStatus, ProbeState},
+    state_engine::{StateApplyResult, StateEvent, TaskSnapshot},
+    worker_lifecycle::WorkerState,
     InMemoryTaskRuntime, RuntimeStore, RuntimeStoreError,
 };
 
@@ -16,6 +18,33 @@ use crate::{
 
 pub struct SqliteRuntimeStore {
     connection: Connection,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuntimeGovernanceDisposition {
+    InFlight,
+    QueueForConfirmation,
+    RetryEligible,
+    QueueForManualReview,
+    Resolved,
+    ParkedUnsupported,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeGovernanceView {
+    pub task_id: String,
+    pub effect_id: String,
+    pub worker_state: WorkerState,
+    pub effect_status: EffectStatus,
+    pub probe_state: Option<ProbeState>,
+    pub last_state_event_id: String,
+    pub updated_at: String,
+    pub attempt_count: usize,
+    pub last_attempt_result: Option<AttemptResultStatus>,
+    pub compensation_count: usize,
+    pub quarantined_scopes: Vec<String>,
+    pub has_recovery_lease: bool,
+    pub disposition: RuntimeGovernanceDisposition,
 }
 
 impl SqliteRuntimeStore {
@@ -100,6 +129,22 @@ impl SqliteRuntimeStore {
         Ok(Some(runtime))
     }
 
+    pub fn governance_view(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<RuntimeGovernanceView>, SqliteAdapterError> {
+        let snapshot = match load_snapshot_from_connection(&self.connection, task_id) {
+            Ok(Some(snapshot)) => snapshot,
+            Ok(None) => return Ok(None),
+            Err(error) => return Err(map_state_engine_error(error)),
+        };
+        let Some(runtime) = self.load_runtime(task_id, effect_id)? else {
+            return Ok(None);
+        };
+        Ok(Some(build_governance_view(snapshot, runtime)))
+    }
+
     fn list_compensation_effects(
         &self,
         effect_id: &str,
@@ -124,6 +169,50 @@ impl SqliteRuntimeStore {
     }
 }
 
+
+fn build_governance_view(
+    snapshot: TaskSnapshot,
+    runtime: InMemoryTaskRuntime,
+) -> RuntimeGovernanceView {
+    let has_recovery_lease = runtime.current_recovery_lease().is_some();
+    RuntimeGovernanceView {
+        task_id: snapshot.task_id,
+        effect_id: runtime.effect.effect_id.clone(),
+        worker_state: runtime.worker_state,
+        effect_status: runtime.effect.status,
+        probe_state: runtime.effect.probe_state,
+        last_state_event_id: snapshot.last_state_event_id,
+        updated_at: snapshot.updated_at,
+        attempt_count: runtime.attempts.len(),
+        last_attempt_result: runtime.attempts.last().and_then(|attempt| attempt.result_status),
+        compensation_count: runtime.compensation_effects.len(),
+        quarantined_scopes: runtime.quarantined_scopes,
+        has_recovery_lease,
+        disposition: governance_disposition_for_state(runtime.worker_state),
+    }
+}
+
+fn governance_disposition_for_state(state: WorkerState) -> RuntimeGovernanceDisposition {
+    match state {
+        WorkerState::Created
+        | WorkerState::Planning
+        | WorkerState::Executing
+        | WorkerState::Committing
+        | WorkerState::RollingBack => RuntimeGovernanceDisposition::InFlight,
+        WorkerState::AwaitingConfirmation => RuntimeGovernanceDisposition::QueueForConfirmation,
+        WorkerState::Failed => RuntimeGovernanceDisposition::RetryEligible,
+        WorkerState::Uncertain => RuntimeGovernanceDisposition::QueueForManualReview,
+        WorkerState::Succeeded
+        | WorkerState::RolledBack
+        | WorkerState::FailedTerminal
+        | WorkerState::Closed => RuntimeGovernanceDisposition::Resolved,
+        WorkerState::Hibernated
+        | WorkerState::AwaitingDoctor
+        | WorkerState::Repairing
+        | WorkerState::Repaired
+        | WorkerState::RepairFailed => RuntimeGovernanceDisposition::ParkedUnsupported,
+    }
+}
 
 impl RuntimeStore for SqliteRuntimeStore {
     fn persist_runtime(
@@ -156,7 +245,9 @@ fn map_state_engine_error(
 
 #[cfg(test)]
 mod tests {
-    use super::SqliteRuntimeStore;
+    use super::{
+        RuntimeGovernanceDisposition, SqliteRuntimeStore,
+    };
     use crate::{open_database, SqliteEffectStore, SqliteOpenOptions, SqliteStateEngine};
     use safeclaw_core::{
         effect_ledger::{
@@ -344,12 +435,136 @@ mod tests {
         );
     }
 
+    #[test]
+    fn governance_view_reports_confirmation_state_and_snapshot_meta() {
+        let temp_db = TempDatabase::new("governance-confirmation");
+        let mut runtime = InMemoryTaskRuntime::new(demo_effect_with_ids(
+            "effect-governance-confirmation",
+            "task-governance-confirmation",
+            ProbeMode::Auto,
+        ));
+        let waiting = runtime.run_confirmation_checkpoint().unwrap();
+        assert_eq!(waiting.worker_state, safeclaw_core::worker_lifecycle::WorkerState::AwaitingConfirmation);
+
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open runtime database");
+        let mut store = SqliteRuntimeStore::new(connection);
+        store
+            .persist_runtime(&runtime, "runtime-governance-confirmation", "runtime-store")
+            .unwrap();
+
+        let view = store
+            .governance_view(
+                "task-governance-confirmation",
+                "effect-governance-confirmation",
+            )
+            .unwrap()
+            .expect("governance view must exist");
+
+        assert_eq!(view.worker_state, safeclaw_core::worker_lifecycle::WorkerState::AwaitingConfirmation);
+        assert_eq!(view.effect_status, EffectStatus::Prepared);
+        assert_eq!(view.last_state_event_id, "runtime-governance-confirmation");
+        assert_eq!(view.attempt_count, 0);
+        assert_eq!(view.last_attempt_result, None);
+        assert_eq!(view.compensation_count, 0);
+        assert!(!view.has_recovery_lease);
+        assert_eq!(view.disposition, RuntimeGovernanceDisposition::QueueForConfirmation);
+    }
+
+    #[test]
+    fn governance_view_classifies_failed_uncertain_and_resolved_runtimes() {
+        let temp_db = TempDatabase::new("governance-dispositions");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open runtime database");
+        let mut store = SqliteRuntimeStore::new(connection);
+
+        let mut failed_runtime = InMemoryTaskRuntime::new(demo_effect_with_ids(
+            "effect-governance-failed",
+            "task-governance-failed",
+            ProbeMode::Auto,
+        ));
+        failed_runtime.run_plan_failure().unwrap();
+        store
+            .persist_runtime(&failed_runtime, "runtime-governance-failed", "runtime-store")
+            .unwrap();
+        let failed_view = store
+            .governance_view("task-governance-failed", "effect-governance-failed")
+            .unwrap()
+            .expect("failed governance view must exist");
+        assert_eq!(failed_view.disposition, RuntimeGovernanceDisposition::RetryEligible);
+        assert_eq!(failed_view.attempt_count, 0);
+        assert_eq!(failed_view.last_attempt_result, None);
+
+        let mut uncertain_runtime = InMemoryTaskRuntime::new(demo_effect_with_ids(
+            "effect-governance-uncertain",
+            "task-governance-uncertain",
+            ProbeMode::Auto,
+        ));
+        uncertain_runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
+            .unwrap();
+        store
+            .persist_runtime(
+                &uncertain_runtime,
+                "runtime-governance-uncertain",
+                "runtime-store",
+            )
+            .unwrap();
+        let uncertain_view = store
+            .governance_view("task-governance-uncertain", "effect-governance-uncertain")
+            .unwrap()
+            .expect("uncertain governance view must exist");
+        assert_eq!(
+            uncertain_view.disposition,
+            RuntimeGovernanceDisposition::QueueForManualReview
+        );
+        assert_eq!(uncertain_view.attempt_count, 1);
+        assert_eq!(
+            uncertain_view.last_attempt_result,
+            Some(safeclaw_core::effect_ledger::AttemptResultStatus::Crash)
+        );
+        assert!(uncertain_view.has_recovery_lease);
+
+        let mut resolved_runtime = InMemoryTaskRuntime::new(demo_effect_with_ids(
+            "effect-governance-resolved",
+            "task-governance-resolved",
+            ProbeMode::Auto,
+        ));
+        resolved_runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+            .unwrap();
+        store
+            .persist_runtime(
+                &resolved_runtime,
+                "runtime-governance-resolved",
+                "runtime-store",
+            )
+            .unwrap();
+        let resolved_view = store
+            .governance_view("task-governance-resolved", "effect-governance-resolved")
+            .unwrap()
+            .expect("resolved governance view must exist");
+        assert_eq!(resolved_view.disposition, RuntimeGovernanceDisposition::Resolved);
+        assert_eq!(
+            resolved_view.last_attempt_result,
+            Some(safeclaw_core::effect_ledger::AttemptResultStatus::Success)
+        );
+        assert_eq!(resolved_view.attempt_count, 1);
+    }
+
     fn demo_effect(probe_mode: ProbeMode) -> EffectRecord {
         let (effect_id, task_id) = match probe_mode {
             ProbeMode::Auto => ("effect-auto-runtime", "task-auto-runtime"),
             ProbeMode::None => ("effect-none-runtime", "task-none-runtime"),
         };
+        demo_effect_with_ids(effect_id, task_id, probe_mode)
+    }
 
+    fn demo_effect_with_ids(
+        effect_id: &str,
+        task_id: &str,
+        probe_mode: ProbeMode,
+    ) -> EffectRecord {
         EffectRecord::new(
             effect_id,
             task_id,
