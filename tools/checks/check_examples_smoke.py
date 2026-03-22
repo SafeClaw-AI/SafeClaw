@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+EXAMPLES_ROOT = REPO_ROOT / "safeclaw-sqlite" / "examples"
 CHECKS: list[tuple[str, list[str], list[str]]] = [
     (
         "full-lifecycle-demo",
@@ -473,8 +474,40 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
 ]
 
 
-def collect_errors() -> list[str]:
+def collect_coverage_errors() -> list[str]:
     errors: list[str] = []
+    configured_examples: dict[str, str] = {}
+
+    for check_name, command, _ in CHECKS:
+        try:
+            example_flag_index = command.index("--example")
+        except ValueError:
+            errors.append(f"{check_name} smoke 命令缺少 --example 参数")
+            continue
+        if example_flag_index + 1 >= len(command):
+            errors.append(f"{check_name} smoke 命令缺少 example 名称")
+            continue
+
+        example_name = command[example_flag_index + 1]
+        previous = configured_examples.get(example_name)
+        if previous is not None:
+            errors.append(f"example smoke 重复注册: {example_name} ({previous}, {check_name})")
+            continue
+        configured_examples[example_name] = check_name
+
+    on_disk_examples = {path.stem for path in EXAMPLES_ROOT.glob("*.rs")}
+    for example_name in sorted(on_disk_examples - configured_examples.keys()):
+        errors.append(f"新增 example 未纳入 smoke: safeclaw-sqlite/examples/{example_name}.rs")
+    for example_name in sorted(configured_examples.keys() - on_disk_examples):
+        errors.append(f"smoke 配置引用不存在的 example: {example_name}")
+
+    return errors
+
+
+def collect_errors() -> list[str]:
+    errors = collect_coverage_errors()
+    if errors:
+        return errors
 
     for name, command, expected_markers in CHECKS:
         try:
