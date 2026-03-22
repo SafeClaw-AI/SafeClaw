@@ -495,6 +495,24 @@ mod tests {
     }
 
     #[test]
+    fn filesystem_probe_rejects_malformed_scope_target() {
+        let effect = demo_effect(
+            "effect-file-malformed-target",
+            EffectAction::FileWrite,
+            String::from("not-a-scope-target"),
+            ProbeMode::Auto,
+        );
+        let adapter = FileSystemProbeAdapter::new();
+
+        assert_eq!(
+            adapter.evaluate(&effect),
+            Err(ProbeAdapterError::AdapterUnavailable {
+                action: EffectAction::FileWrite,
+            })
+        );
+    }
+
+    #[test]
     fn network_probe_verifies_expected_response_pattern() {
         let server = TestHttpServer::spawn(
             "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nstatus=applied",
@@ -597,6 +615,25 @@ mod tests {
         );
         assert_eq!(
             adapter.evaluate(&unregistered),
+            Err(ProbeAdapterError::AdapterUnavailable {
+                action: EffectAction::NetworkRequest,
+            })
+        );
+    }
+
+    #[test]
+    fn network_probe_rejects_malformed_scope_target() {
+        let effect = demo_effect(
+            "effect-network-malformed-target",
+            EffectAction::NetworkRequest,
+            String::from("scope:not-a-valid-http-url"),
+            ProbeMode::Auto,
+        );
+        let mut adapter = NetworkProbeAdapter::new();
+        adapter.register_expected_response(effect.effect_id.clone(), "status=applied");
+
+        assert_eq!(
+            adapter.evaluate(&effect),
             Err(ProbeAdapterError::AdapterUnavailable {
                 action: EffectAction::NetworkRequest,
             })
