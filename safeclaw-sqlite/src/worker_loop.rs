@@ -12,6 +12,7 @@ use safeclaw_core::{
         OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, OrchestratorTask,
         TaskOrchestrator,
     },
+    state_engine::StateEvent,
     worker_lifecycle::WorkerState,
     InMemoryTaskRuntime, PreflightDecision, RunSummary, RuntimeError,
 };
@@ -128,6 +129,12 @@ impl SqliteSingleWorkerLoop {
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
         self.runtime_store
             .list_attempts(effect_id)
+            .map_err(WorkerLoopError::Store)
+    }
+
+    pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, WorkerLoopError> {
+        self.runtime_store
+            .list_state_events(task_id)
             .map_err(WorkerLoopError::Store)
     }
 

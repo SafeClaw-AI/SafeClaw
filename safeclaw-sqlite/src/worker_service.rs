@@ -8,6 +8,7 @@ use crate::{
 use safeclaw_core::{
     effect_ledger::EffectAttempt,
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask},
+    state_engine::StateEvent,
     InMemoryTaskRuntime, PreflightDecision,
 };
 
@@ -92,6 +93,10 @@ impl SqliteWorkerService {
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
         self.worker_loop.list_attempts(effect_id)
+    }
+
+    pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, WorkerLoopError> {
+        self.worker_loop.list_state_events(task_id)
     }
 
     pub fn filesystem_probe_mut(&mut self) -> &mut FileSystemProbeAdapter {
@@ -357,6 +362,65 @@ mod tests {
         assert_eq!(attempts.len(), 1);
         assert_eq!(attempts[0].attempt_seq, 1);
         assert_eq!(attempts[0].result_status, Some(AttemptResultStatus::Success));
+    }
+
+    #[test]
+    fn worker_service_exposes_state_timeline_for_executed_task() {
+        let temp = TempDatabase::new("state-timeline");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25)
+        .with_poll_interval_ms(5);
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-state-timeline",
+                ScheduleIntent::write("scope:worker-service-state-timeline"),
+                0,
+            ))
+            .unwrap();
+
+        let report = service
+            .run_dispatch_until_idle(
+                0,
+                1,
+                PreflightDecision::Permit,
+                |claim| Ok(format!("effect-{}", claim.task.task_id)),
+                |claim| {
+                    let effect_id = format!("effect-{}", claim.task.task_id);
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        "trace-worker-service-state-timeline",
+                        "intent-worker-service-state-timeline",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(report.executed_count(), 1);
+
+        let events = service
+            .list_state_events("task-worker-service-state-timeline")
+            .unwrap();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].task_id, "task-worker-service-state-timeline");
+        assert_eq!(events[0].worker_state, WorkerState::Executing);
+        assert_eq!(events[1].worker_state, WorkerState::Succeeded);
+        assert_eq!(events[1].effect_status, EffectStatus::Executed);
+        assert_eq!(events[0].triggered_by, "worker-loop");
+        assert_eq!(events[1].triggered_by, "worker-loop");
     }
 
     fn sandbox_success_command() -> SandboxCommand {

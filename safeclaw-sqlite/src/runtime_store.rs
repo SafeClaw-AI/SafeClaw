@@ -12,7 +12,10 @@ use crate::{
         load_latest_lease_from_connection, save_attempt_in_transaction, save_effect_in_transaction,
         save_lease_in_transaction,
     },
-    state_engine::{apply_event_in_transaction, load_snapshot_from_connection},
+    state_engine::{
+        apply_event_in_transaction, list_state_events_from_connection,
+        load_snapshot_from_connection,
+    },
     SqliteAdapterError,
 };
 
@@ -147,6 +150,10 @@ impl SqliteRuntimeStore {
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
         list_attempts_from_connection(&self.connection, effect_id)
+    }
+
+    pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, SqliteAdapterError> {
+        list_state_events_from_connection(&self.connection, task_id).map_err(map_state_engine_error)
     }
 
     fn list_compensation_effects(

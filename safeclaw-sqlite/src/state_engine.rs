@@ -23,6 +23,10 @@ impl SqliteStateEngine {
     pub fn into_connection(self) -> Connection {
         self.connection
     }
+
+    pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, StateEngineError> {
+        list_state_events_from_connection(&self.connection, task_id)
+    }
 }
 
 impl StateEngine for SqliteStateEngine {
@@ -152,6 +156,59 @@ pub(crate) fn apply_event_in_transaction(
         .map_err(|_| backend_unavailable("upsert_task_snapshot"))?;
 
     Ok(StateApplyResult::Applied)
+}
+
+pub(crate) fn list_state_events_from_connection(
+    connection: &Connection,
+    task_id: &str,
+) -> Result<Vec<StateEvent>, StateEngineError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT
+                state_event_id,
+                task_id,
+                worker_state,
+                effect_status,
+                probe_state,
+                fencing_token,
+                triggered_by,
+                occurred_at
+             FROM state_events
+             WHERE task_id = ?1
+             ORDER BY fencing_token ASC, occurred_at ASC, rowid ASC",
+        )
+        .map_err(|_| backend_unavailable("prepare_list_state_events"))?;
+
+    let rows = statement
+        .query_map([task_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+            ))
+        })
+        .map_err(|_| backend_unavailable("query_list_state_events"))?;
+
+    let mut events = Vec::new();
+    for row in rows {
+        let raw = row.map_err(|_| backend_unavailable("decode_list_state_events_row"))?;
+        events.push(StateEvent {
+            state_event_id: raw.0,
+            task_id: raw.1,
+            worker_state: decode_worker_state(&raw.2)?,
+            effect_status: decode_effect_status(&raw.3)?,
+            probe_state: decode_probe_state_opt(raw.4)?,
+            fencing_token: from_sql_i64(raw.5, "decode_list_state_event_fencing_token")?,
+            triggered_by: raw.6,
+            at: raw.7,
+        });
+    }
+    Ok(events)
 }
 
 pub(crate) fn load_snapshot_from_connection(
