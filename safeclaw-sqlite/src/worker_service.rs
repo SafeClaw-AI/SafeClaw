@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use crate::{
-    FileSystemProbeAdapter, NetworkProbeAdapter, RuntimeGovernanceView, SandboxCommand,
-    SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
-    WorkerLoopDispatchOutcome, WorkerLoopError,
+    FileSystemProbeAdapter, NetworkProbeAdapter, RuntimeDiagnosticSnapshot,
+    RuntimeGovernanceView, SandboxCommand, SqliteAdapterError, SqliteOpenOptions,
+    SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
     effect_ledger::{EffectAttempt, EffectTransitionRecord},
@@ -89,6 +89,14 @@ impl SqliteWorkerService {
         effect_id: &str,
     ) -> Result<Option<RuntimeGovernanceView>, WorkerLoopError> {
         self.worker_loop.governance_view(task_id, effect_id)
+    }
+
+    pub fn diagnostic_snapshot(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<RuntimeDiagnosticSnapshot>, WorkerLoopError> {
+        self.worker_loop.diagnostic_snapshot(task_id, effect_id)
     }
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
@@ -315,6 +323,26 @@ mod tests {
     }
 
     #[test]
+    fn worker_service_diagnostic_snapshot_returns_none_when_runtime_is_missing() {
+        let temp = TempDatabase::new("diagnostic-missing");
+        let service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap();
+
+        let snapshot = service
+            .diagnostic_snapshot(
+                "task-worker-service-diagnostic-missing",
+                "effect-task-worker-service-diagnostic-missing",
+            )
+            .unwrap();
+
+        assert!(snapshot.is_none());
+    }
+
+    #[test]
     fn worker_service_exposes_attempt_history_for_executed_task() {
         let temp = TempDatabase::new("attempt-history");
         let mut service = SqliteWorkerService::open(
@@ -485,6 +513,78 @@ mod tests {
         assert_eq!(transitions[0].to_status, EffectStatus::Dispatched);
         assert_eq!(transitions[1].from_status, EffectStatus::Dispatched);
         assert_eq!(transitions[1].to_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_service_diagnostic_snapshot_aggregates_governance_and_history() {
+        let temp = TempDatabase::new("diagnostic-snapshot");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25)
+        .with_poll_interval_ms(5);
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-diagnostic-snapshot",
+                ScheduleIntent::write("scope:worker-service-diagnostic-snapshot"),
+                0,
+            ))
+            .unwrap();
+
+        let report = service
+            .run_dispatch_until_idle(
+                0,
+                1,
+                PreflightDecision::Permit,
+                |claim| Ok(format!("effect-{}", claim.task.task_id)),
+                |claim| {
+                    let effect_id = format!("effect-{}", claim.task.task_id);
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        "trace-worker-service-diagnostic-snapshot",
+                        "intent-worker-service-diagnostic-snapshot",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(report.executed_count(), 1);
+
+        let snapshot = service
+            .diagnostic_snapshot(
+                "task-worker-service-diagnostic-snapshot",
+                "effect-task-worker-service-diagnostic-snapshot",
+            )
+            .unwrap()
+            .expect("diagnostic snapshot must exist after executed task");
+
+        assert_eq!(snapshot.governance.task_id, "task-worker-service-diagnostic-snapshot");
+        assert_eq!(snapshot.governance.effect_id, "effect-task-worker-service-diagnostic-snapshot");
+        assert_eq!(snapshot.governance.worker_state, WorkerState::Succeeded);
+        assert_eq!(snapshot.governance.effect_status, EffectStatus::Executed);
+        assert_eq!(snapshot.governance.disposition, RuntimeGovernanceDisposition::Resolved);
+        assert_eq!(snapshot.attempts.len(), 1);
+        assert_eq!(snapshot.attempts[0].result_status, Some(AttemptResultStatus::Success));
+        assert_eq!(snapshot.state_events.len(), 2);
+        assert_eq!(snapshot.state_events[0].worker_state, WorkerState::Executing);
+        assert_eq!(snapshot.state_events[1].worker_state, WorkerState::Succeeded);
+        assert_eq!(snapshot.effect_transitions.len(), 2);
+        assert_eq!(snapshot.effect_transitions[0].from_status, EffectStatus::Prepared);
+        assert_eq!(snapshot.effect_transitions[0].to_status, EffectStatus::Dispatched);
+        assert_eq!(snapshot.effect_transitions[1].from_status, EffectStatus::Dispatched);
+        assert_eq!(snapshot.effect_transitions[1].to_status, EffectStatus::Executed);
     }
 
     fn sandbox_success_command() -> SandboxCommand {

@@ -2,8 +2,9 @@ use std::path::Path;
 
 use crate::{
     open_database, FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter,
-    RuntimeGovernanceView, SandboxCommand, SandboxExecutionReport, SandboxRuntimeError,
-    SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
+    RuntimeDiagnosticSnapshot, RuntimeGovernanceView, SandboxCommand, SandboxExecutionReport,
+    SandboxRuntimeError, SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
     effect_ledger::{EffectAction, EffectAttempt, EffectTransitionRecord},
@@ -123,6 +124,16 @@ impl SqliteSingleWorkerLoop {
     ) -> Result<Option<RuntimeGovernanceView>, WorkerLoopError> {
         self.runtime_store
             .governance_view(task_id, effect_id)
+            .map_err(WorkerLoopError::Store)
+    }
+
+    pub fn diagnostic_snapshot(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<RuntimeDiagnosticSnapshot>, WorkerLoopError> {
+        self.runtime_store
+            .diagnostic_snapshot(task_id, effect_id)
             .map_err(WorkerLoopError::Store)
     }
 

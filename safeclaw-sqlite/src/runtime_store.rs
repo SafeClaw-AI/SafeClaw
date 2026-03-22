@@ -52,6 +52,14 @@ pub struct RuntimeGovernanceView {
     pub disposition: RuntimeGovernanceDisposition,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeDiagnosticSnapshot {
+    pub governance: RuntimeGovernanceView,
+    pub attempts: Vec<EffectAttempt>,
+    pub state_events: Vec<StateEvent>,
+    pub effect_transitions: Vec<EffectTransitionRecord>,
+}
+
 impl SqliteRuntimeStore {
     pub fn new(connection: Connection) -> Self {
         Self { connection }
@@ -148,6 +156,32 @@ impl SqliteRuntimeStore {
             return Ok(None);
         };
         Ok(Some(build_governance_view(snapshot, runtime)))
+    }
+
+    pub fn diagnostic_snapshot(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<RuntimeDiagnosticSnapshot>, SqliteAdapterError> {
+        let snapshot = match load_snapshot_from_connection(&self.connection, task_id) {
+            Ok(Some(snapshot)) => snapshot,
+            Ok(None) => return Ok(None),
+            Err(error) => return Err(map_state_engine_error(error)),
+        };
+        let Some(runtime) = self.load_runtime(task_id, effect_id)? else {
+            return Ok(None);
+        };
+        let attempts = runtime.attempts.clone();
+        let governance = build_governance_view(snapshot, runtime);
+        let state_events =
+            list_state_events_from_connection(&self.connection, task_id).map_err(map_state_engine_error)?;
+        let effect_transitions = load_transitions_from_connection(&self.connection, effect_id)?;
+        Ok(Some(RuntimeDiagnosticSnapshot {
+            governance,
+            attempts,
+            state_events,
+            effect_transitions,
+        }))
     }
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, SqliteAdapterError> {
