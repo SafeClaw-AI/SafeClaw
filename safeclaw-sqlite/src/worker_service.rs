@@ -2,8 +2,9 @@ use std::path::Path;
 
 use crate::{
     FileSystemProbeAdapter, NetworkProbeAdapter, RuntimeDiagnosticSnapshot,
-    RuntimeGovernanceView, SandboxCommand, SqliteAdapterError, SqliteOpenOptions,
-    SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError,
+    RuntimeGovernanceSummary, RuntimeGovernanceView, SandboxCommand,
+    SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
+    WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
     effect_ledger::{EffectAttempt, EffectTransitionRecord},
@@ -105,6 +106,13 @@ impl SqliteWorkerService {
     ) -> Result<Vec<RuntimeDiagnosticSnapshot>, WorkerLoopError> {
         self.worker_loop
             .diagnostic_snapshots_for_outcomes(&report.outcomes)
+    }
+
+    pub fn governance_summary_for_report(
+        &self,
+        report: &WorkerServiceRunReport,
+    ) -> Result<RuntimeGovernanceSummary, WorkerLoopError> {
+        self.worker_loop.governance_summary_for_outcomes(&report.outcomes)
     }
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
@@ -333,6 +341,11 @@ mod tests {
             diagnostics[0].governance.disposition,
             RuntimeGovernanceDisposition::QueueForConfirmation
         );
+
+        let summary = service.governance_summary_for_report(&report).unwrap();
+        assert_eq!(summary.total, 1);
+        assert_eq!(summary.queue_for_confirmation, 1);
+        assert_eq!(summary.resolved, 0);
 
         let snapshot = service.queue_snapshot();
         assert_eq!(snapshot.active_leases.len(), 1);
@@ -668,6 +681,11 @@ mod tests {
                 && snapshot.state_events.len() == 2
                 && snapshot.effect_transitions.len() == 2
         }));
+        let summary = service.governance_summary_for_report(&report).unwrap();
+        assert_eq!(summary.total, 2);
+        assert_eq!(summary.resolved, 2);
+        assert_eq!(summary.queue_for_confirmation, 0);
+        assert_eq!(summary.queue_for_manual_review, 0);
         let mut task_ids = snapshots
             .iter()
             .map(|snapshot| snapshot.governance.task_id.as_str())

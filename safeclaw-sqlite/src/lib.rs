@@ -24,8 +24,8 @@ pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
 pub use probe_executor::{FileSystemProbeAdapter, NetworkProbeAdapter};
 pub use runtime_store::{
-    RuntimeDiagnosticSnapshot, RuntimeGovernanceDisposition, RuntimeGovernanceView,
-    SqliteRuntimeStore,
+    RuntimeDiagnosticSnapshot, RuntimeGovernanceDisposition, RuntimeGovernanceSummary,
+    RuntimeGovernanceView, SqliteRuntimeStore,
 };
 pub use sandbox_executor::{
     LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,

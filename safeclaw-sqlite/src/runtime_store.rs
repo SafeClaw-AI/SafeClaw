@@ -60,6 +60,39 @@ pub struct RuntimeDiagnosticSnapshot {
     pub effect_transitions: Vec<EffectTransitionRecord>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RuntimeGovernanceSummary {
+    pub total: usize,
+    pub in_flight: usize,
+    pub queue_for_confirmation: usize,
+    pub retry_eligible: usize,
+    pub queue_for_manual_review: usize,
+    pub resolved: usize,
+    pub parked_unsupported: usize,
+}
+
+impl RuntimeGovernanceSummary {
+    pub fn observe(&mut self, view: &RuntimeGovernanceView) {
+        self.total += 1;
+        match view.disposition {
+            RuntimeGovernanceDisposition::InFlight => self.in_flight += 1,
+            RuntimeGovernanceDisposition::QueueForConfirmation => self.queue_for_confirmation += 1,
+            RuntimeGovernanceDisposition::RetryEligible => self.retry_eligible += 1,
+            RuntimeGovernanceDisposition::QueueForManualReview => self.queue_for_manual_review += 1,
+            RuntimeGovernanceDisposition::Resolved => self.resolved += 1,
+            RuntimeGovernanceDisposition::ParkedUnsupported => self.parked_unsupported += 1,
+        }
+    }
+
+    pub fn from_snapshots(snapshots: &[RuntimeDiagnosticSnapshot]) -> Self {
+        let mut summary = Self::default();
+        for snapshot in snapshots {
+            summary.observe(&snapshot.governance);
+        }
+        summary
+    }
+}
+
 impl SqliteRuntimeStore {
     pub fn new(connection: Connection) -> Self {
         Self { connection }

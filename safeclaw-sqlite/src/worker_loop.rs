@@ -2,9 +2,9 @@ use std::path::Path;
 
 use crate::{
     open_database, FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter,
-    RuntimeDiagnosticSnapshot, RuntimeGovernanceView, SandboxCommand, SandboxExecutionReport,
-    SandboxRuntimeError, SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteTaskOrchestrator,
+    RuntimeDiagnosticSnapshot, RuntimeGovernanceSummary, RuntimeGovernanceView,
+    SandboxCommand, SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError,
+    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
     effect_ledger::{EffectAction, EffectAttempt, EffectTransitionRecord},
@@ -175,6 +175,14 @@ impl SqliteSingleWorkerLoop {
                 })
             })
             .collect()
+    }
+
+    pub fn governance_summary_for_outcomes(
+        &self,
+        outcomes: &[WorkerLoopDispatchOutcome],
+    ) -> Result<RuntimeGovernanceSummary, WorkerLoopError> {
+        let snapshots = self.diagnostic_snapshots_for_outcomes(outcomes)?;
+        Ok(RuntimeGovernanceSummary::from_snapshots(&snapshots))
     }
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {

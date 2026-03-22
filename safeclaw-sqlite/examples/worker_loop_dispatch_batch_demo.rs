@@ -15,9 +15,9 @@ use safeclaw_core::{
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, LocalSandboxExecutor, RuntimeGovernanceDisposition, SandboxCommand,
-    SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
-    SqliteTaskOrchestrator, WorkerLoopDispatchOutcome,
+    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
+    SqliteRuntimeStore, SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    WorkerLoopDispatchOutcome,
 };
 
 fn main() -> Result<(), String> {
@@ -162,17 +162,14 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
             _ => panic!("unexpected parked dispatch outcome"),
         }
     }
-    let diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
-    let resolved_count = diagnostics
-        .iter()
-        .filter(|snapshot| {
-            snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
-        })
-        .count();
+    let _diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
+    let summary = into_demo(batch_worker.governance_summary_for_outcomes(&outcomes))?;
     println!(
-        "[demo] executed batch diagnostics => count={} resolved={}",
-        diagnostics.len(),
-        resolved_count
+        "[demo] executed batch governance => total={} resolved={} confirmation={} manual_review={}",
+        summary.total,
+        summary.resolved,
+        summary.queue_for_confirmation,
+        summary.queue_for_manual_review
     );
     print_snapshot("executed-batch-after-complete", batch_worker.queue_snapshot());
 
@@ -279,17 +276,14 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
             _ => panic!("unexpected parked dispatch outcome"),
         }
     }
-    let diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
-    let resolved_count = diagnostics
-        .iter()
-        .filter(|snapshot| {
-            snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
-        })
-        .count();
+    let _diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
+    let summary = into_demo(batch_worker.governance_summary_for_outcomes(&outcomes))?;
     println!(
-        "[demo] probe batch diagnostics => count={} resolved={}",
-        diagnostics.len(),
-        resolved_count
+        "[demo] probe batch governance => total={} resolved={} confirmation={} manual_review={}",
+        summary.total,
+        summary.resolved,
+        summary.queue_for_confirmation,
+        summary.queue_for_manual_review
     );
     print_snapshot("probe-batch-after-complete", batch_worker.queue_snapshot());
     Ok(())
