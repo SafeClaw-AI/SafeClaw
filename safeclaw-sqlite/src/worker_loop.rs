@@ -32,6 +32,7 @@ pub struct WorkerLoopOutcome {
     pub execution_summary: RunSummary,
     pub final_summary: RunSummary,
     pub completed: bool,
+    pub disposition: Option<WorkerLoopDisposition>,
 }
 
 #[derive(Clone, Debug)]
@@ -149,10 +150,13 @@ impl SqliteSingleWorkerLoop {
         };
 
         let (mut runtime, command) = build(&claim)?;
-        runtime
+        let summary = runtime
             .begin_execution(preflight)
             .map_err(WorkerLoopError::Runtime)?;
         self.persist_runtime(&runtime, &claim, "pre-exec")?;
+        if let Some(disposition) = parked_disposition_for_summary(&summary) {
+            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+        }
 
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -174,10 +178,14 @@ impl SqliteSingleWorkerLoop {
             };
 
             let (mut runtime, command) = build(&claim)?;
-            runtime
+            let summary = runtime
                 .begin_execution(preflight)
                 .map_err(WorkerLoopError::Runtime)?;
             self.persist_runtime(&runtime, &claim, "pre-exec")?;
+            if let Some(disposition) = parked_disposition_for_summary(&summary) {
+                outcomes.push(Self::parked_drive_outcome(claim, summary, disposition));
+                continue;
+            }
             outcomes.push(self.drive_claimed_runtime(claim, runtime, command)?);
         }
         Ok(outcomes)
@@ -377,7 +385,7 @@ impl SqliteSingleWorkerLoop {
                     .begin_execution(preflight)
                     .map_err(WorkerLoopError::Runtime)?;
                 self.persist_runtime(&runtime, &claim, "pre-exec")?;
-                if let Some(disposition) = dispatch_disposition_for_summary(&summary) {
+                if let Some(disposition) = parked_disposition_for_summary(&summary) {
                     return Ok(Self::parked_outcome(claim, summary, disposition));
                 }
                 self.drive_claimed_runtime(claim, runtime, command)
@@ -389,7 +397,7 @@ impl SqliteSingleWorkerLoop {
                         .retry_failed(preflight)
                         .map_err(WorkerLoopError::Runtime)?;
                     self.persist_runtime(&runtime, &claim, "pre-exec")?;
-                    if let Some(disposition) = dispatch_disposition_for_summary(&summary) {
+                    if let Some(disposition) = parked_disposition_for_summary(&summary) {
                         return Ok(Self::parked_outcome(claim, summary, disposition));
                     }
                     let command = build_persisted_command(&claim, &runtime)?;
@@ -444,6 +452,21 @@ impl SqliteSingleWorkerLoop {
         })
     }
 
+    fn parked_drive_outcome(
+        claim: OrchestratorClaim,
+        summary: RunSummary,
+        disposition: WorkerLoopDisposition,
+    ) -> WorkerLoopOutcome {
+        WorkerLoopOutcome {
+            claim,
+            report: empty_sandbox_report(),
+            execution_summary: summary.clone(),
+            final_summary: summary,
+            completed: false,
+            disposition: Some(disposition),
+        }
+    }
+
     fn claim_once(
         &mut self,
         owner_id: &str,
@@ -485,6 +508,7 @@ impl SqliteSingleWorkerLoop {
             execution_summary,
             final_summary,
             completed,
+            disposition: None,
         })
     }
 
@@ -524,7 +548,17 @@ impl SqliteSingleWorkerLoop {
     }
 }
 
-fn dispatch_disposition_for_summary(summary: &RunSummary) -> Option<WorkerLoopDisposition> {
+fn empty_sandbox_report() -> SandboxExecutionReport {
+    SandboxExecutionReport {
+        exit_code: None,
+        stdout: String::new(),
+        stderr: String::new(),
+        timed_out: false,
+        duration_ms: 0,
+    }
+}
+
+fn parked_disposition_for_summary(summary: &RunSummary) -> Option<WorkerLoopDisposition> {
     match summary.worker_state {
         WorkerState::AwaitingConfirmation => Some(WorkerLoopDisposition::QueueForConfirmation),
         WorkerState::Created
@@ -679,6 +713,111 @@ mod tests {
             .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::Permit, |_| unreachable!())
             .unwrap();
         assert!(outcomes.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_drive_parks_confirmation_before_sandbox() {
+        let temp = TempWorkspace::new("drive-confirmation");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-drive-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let outcome = loop_driver
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-drive-confirmation",
+                    claim.task.task_id.clone(),
+                    "trace-worker-drive-confirmation",
+                    "intent-worker-drive-confirmation",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+            })
+            .unwrap()
+            .expect("confirmation drive must claim task");
+
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert!(!outcome.completed);
+        assert_eq!(outcome.report.exit_code, None);
+        assert!(!outcome.report.timed_out);
+        assert_eq!(outcome.report.duration_ms, 0);
+        assert!(!temp.output_path.exists());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-drive-confirmation", "effect-worker-drive-confirmation")
+            .unwrap()
+            .expect("confirmation drive runtime must persist");
+        assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
+        assert!(restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_drive_until_empty_returns_parked_confirmation_batch() {
+        let temp = TempWorkspace::new("drive-confirmation-batch");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-drive-confirmation-batch",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let outcomes = loop_driver
+            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-drive-confirmation-batch",
+                    claim.task.task_id.clone(),
+                    "trace-worker-drive-confirmation-batch",
+                    "intent-worker-drive-confirmation-batch",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+            })
+            .unwrap();
+
+        assert_eq!(outcomes.len(), 1);
+        let outcome = &outcomes[0];
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert!(!outcome.completed);
+        assert!(!temp.output_path.exists());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
     }
 
     #[test]
