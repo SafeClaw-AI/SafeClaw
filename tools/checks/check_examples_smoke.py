@@ -422,6 +422,54 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] shared output exists => true",
         ],
     ),
+    (
+        "worker-loop-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] final summary => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] snapshot after-complete => queued=0, active=0, completed=1",
+        ],
+    ),
+    (
+        "worker-renew-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_renew_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] reclaim before renewed expiry => true",
+            "[demo] retry attempt => worker=Succeeded, effect=Executed, completed=true",
+        ],
+    ),
+    (
+        "worker-scope-read-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_scope_read_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] remaining write still blocked => true",
+            "[demo] snapshot after-write-complete => queued=0, active=0, completed=3",
+        ],
+    ),
 ]
 
 
