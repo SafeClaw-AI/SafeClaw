@@ -102,6 +102,54 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] probe recovery => from=Uncertain, worker=Succeeded, effect=Executed, completed=true",
         ],
     ),
+    (
+        "orchestrator-read-fanout-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "orchestrator_scope_read_fanout_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] first read claim => task=task-shared-read-1",
+            "[demo] snapshot after-two-read-claims => queued=0, active=2, completed=0",
+        ],
+    ),
+    (
+        "orchestrator-write-under-reads-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "orchestrator_scope_write_under_reads_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] write-under-reads claim => task=task-shared-write-after-reads",
+            "[demo] snapshot after-three-claims => queued=0, active=3, completed=0",
+        ],
+    ),
+    (
+        "orchestrator-write-serial-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "orchestrator_scope_write_serial_under_reads_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] second write blocked while first write active => true",
+            "[demo] snapshot after-second-write-claim => queued=0, active=3, completed=1",
+        ],
+    ),
 ]
 
 
