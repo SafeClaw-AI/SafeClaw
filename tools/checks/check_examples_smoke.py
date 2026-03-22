@@ -22,6 +22,22 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot after-complete => queued=0, active=0, completed=1",
         ],
     ),
+    (
+        "dispatch-batch-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_dispatch_batch_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] executed batch => count=3",
+            "[demo] snapshot probe-batch-after-complete => queued=0, active=0, completed=4",
+        ],
+    ),
 ]
 
 
