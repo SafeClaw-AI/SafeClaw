@@ -265,68 +265,46 @@ impl SqliteSingleWorkerLoop {
             return Ok(None);
         };
 
-        let runtime = self
-            .runtime_store
-            .load_runtime(&claim.task.task_id, effect_id)
-            .map_err(WorkerLoopError::Store)?;
+        self.dispatch_claimed(
+            claim,
+            effect_id,
+            preflight,
+            build_fresh,
+            build_persisted_command,
+        )
+        .map(Some)
+    }
 
-        match runtime {
-            None => {
-                let (mut runtime, command) = build_fresh(&claim)?;
-                runtime
-                    .begin_execution(preflight)
-                    .map_err(WorkerLoopError::Runtime)?;
-                self.persist_runtime(&runtime, &claim, "pre-exec")?;
-                self.drive_claimed_runtime(claim, runtime, command)
-                    .map(WorkerLoopDispatchOutcome::Executed)
-                    .map(Some)
-            }
-            Some(mut runtime) => match runtime.worker_state {
-                WorkerState::Failed => {
-                    runtime
-                        .retry_failed(preflight)
-                        .map_err(WorkerLoopError::Runtime)?;
-                    self.persist_runtime(&runtime, &claim, "pre-exec")?;
-                    let command = build_persisted_command(&claim, &runtime)?;
-                    self.drive_claimed_runtime(claim, runtime, command)
-                        .map(WorkerLoopDispatchOutcome::Executed)
-                        .map(Some)
-                }
-                WorkerState::Executing => {
-                    let command = build_persisted_command(&claim, &runtime)?;
-                    self.drive_claimed_runtime(claim, runtime, command)
-                        .map(WorkerLoopDispatchOutcome::Executed)
-                        .map(Some)
-                }
-                WorkerState::Uncertain => {
-                    let recovered_from = runtime.worker_state;
-                    let final_summary = self.recover_uncertain(&mut runtime, &claim)?;
-                    let mut completed = false;
-                    if final_summary.worker_state == WorkerState::Succeeded {
-                        self.orchestrator
-                            .complete(
-                                &claim.task.task_id,
-                                &claim.lease.lease_id,
-                                &claim.lease.owner_id,
-                            )
-                            .map_err(WorkerLoopError::Orchestrator)?;
-                        completed = true;
-                    }
-                    Ok(Some(WorkerLoopDispatchOutcome::Probed(
-                        WorkerLoopProbeOutcome {
-                            claim,
-                            recovered_from,
-                            final_summary,
-                            completed,
-                        },
-                    )))
-                }
-                state => Err(WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
-                    state,
-                    effect_status: runtime.effect.status,
-                })),
-            },
+    pub fn claim_and_dispatch_until_empty<I, F, P>(
+        &mut self,
+        owner_id: &str,
+        now_ms: u64,
+        preflight: PreflightDecision,
+        mut resolve_effect_id: I,
+        mut build_fresh: F,
+        mut build_persisted_command: P,
+    ) -> Result<Vec<WorkerLoopDispatchOutcome>, WorkerLoopError>
+    where
+        I: FnMut(&OrchestratorClaim) -> Result<String, WorkerLoopError>,
+        F: FnMut(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnMut(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+    {
+        let mut outcomes = Vec::new();
+        loop {
+            let Some(claim) = self.claim_once(owner_id, now_ms)? else {
+                break;
+            };
+            let effect_id = resolve_effect_id(&claim)?;
+            let outcome = self.dispatch_claimed(
+                claim,
+                &effect_id,
+                preflight,
+                |claim| build_fresh(claim),
+                |claim, runtime| build_persisted_command(claim, runtime),
+            )?;
+            outcomes.push(outcome);
         }
+        Ok(outcomes)
     }
 
     pub fn claim_and_retry_failed_once<F>(
@@ -358,6 +336,77 @@ impl SqliteSingleWorkerLoop {
         self.persist_runtime(&runtime, &claim, "pre-exec")?;
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
+    }
+
+    fn dispatch_claimed<F, P>(
+        &mut self,
+        claim: OrchestratorClaim,
+        effect_id: &str,
+        preflight: PreflightDecision,
+        build_fresh: F,
+        build_persisted_command: P,
+    ) -> Result<WorkerLoopDispatchOutcome, WorkerLoopError>
+    where
+        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+    {
+        let runtime = self
+            .runtime_store
+            .load_runtime(&claim.task.task_id, effect_id)
+            .map_err(WorkerLoopError::Store)?;
+
+        match runtime {
+            None => {
+                let (mut runtime, command) = build_fresh(&claim)?;
+                runtime
+                    .begin_execution(preflight)
+                    .map_err(WorkerLoopError::Runtime)?;
+                self.persist_runtime(&runtime, &claim, "pre-exec")?;
+                self.drive_claimed_runtime(claim, runtime, command)
+                    .map(WorkerLoopDispatchOutcome::Executed)
+            }
+            Some(mut runtime) => match runtime.worker_state {
+                WorkerState::Failed => {
+                    runtime
+                        .retry_failed(preflight)
+                        .map_err(WorkerLoopError::Runtime)?;
+                    self.persist_runtime(&runtime, &claim, "pre-exec")?;
+                    let command = build_persisted_command(&claim, &runtime)?;
+                    self.drive_claimed_runtime(claim, runtime, command)
+                        .map(WorkerLoopDispatchOutcome::Executed)
+                }
+                WorkerState::Executing => {
+                    let command = build_persisted_command(&claim, &runtime)?;
+                    self.drive_claimed_runtime(claim, runtime, command)
+                        .map(WorkerLoopDispatchOutcome::Executed)
+                }
+                WorkerState::Uncertain => {
+                    let recovered_from = runtime.worker_state;
+                    let final_summary = self.recover_uncertain(&mut runtime, &claim)?;
+                    let mut completed = false;
+                    if final_summary.worker_state == WorkerState::Succeeded {
+                        self.orchestrator
+                            .complete(
+                                &claim.task.task_id,
+                                &claim.lease.lease_id,
+                                &claim.lease.owner_id,
+                            )
+                            .map_err(WorkerLoopError::Orchestrator)?;
+                        completed = true;
+                    }
+                    Ok(WorkerLoopDispatchOutcome::Probed(WorkerLoopProbeOutcome {
+                        claim,
+                        recovered_from,
+                        final_summary,
+                        completed,
+                    }))
+                }
+                state => Err(WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
+                    state,
+                    effect_status: runtime.effect.status,
+                })),
+            },
+        }
     }
 
     fn claim_once(
@@ -923,6 +972,296 @@ mod tests {
             })
         ));
         assert!(!temp.output_path.exists());
+    }
+
+    #[test]
+    fn worker_loop_dispatch_until_empty_returns_empty_batch_when_queue_is_empty() {
+        let temp = TempWorkspace::new("dispatch-empty");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+
+        let outcomes = loop_driver
+            .claim_and_dispatch_until_empty(
+                "worker-a",
+                0,
+                PreflightDecision::Permit,
+                |_| unreachable!(),
+                |_| unreachable!(),
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+        assert!(outcomes.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_dispatch_until_empty_drains_executed_branches() {
+        let temp = TempWorkspace::new("dispatch-batch");
+        let fresh_output = temp.root.join("dispatch-fresh.txt");
+        let retry_output = temp.root.join("dispatch-retry.txt");
+        let resume_output = temp.root.join("dispatch-resume.txt");
+
+        let mut retry_seed_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        retry_seed_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-batch-retry",
+                ScheduleIntent::write(format!("scope:{}", retry_output.display())),
+                0,
+            ))
+            .unwrap();
+        let failed = retry_seed_worker
+            .claim_and_drive_once("worker-retry-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-dispatch-batch-retry",
+                    claim.task.task_id.clone(),
+                    "trace-worker-dispatch-batch-retry",
+                    "intent-worker-dispatch-batch-retry",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_fail_command()))
+            })
+            .unwrap()
+            .expect("retry seed must claim task");
+        assert_eq!(failed.final_summary.worker_state, WorkerState::Failed);
+
+        let mut resume_seed_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        resume_seed_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-batch-resume",
+                ScheduleIntent::write(format!("scope:{}", resume_output.display())),
+                1,
+            ))
+            .unwrap();
+        let resume_error = resume_seed_worker
+            .claim_and_drive_once("worker-resume-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-dispatch-batch-resume",
+                    claim.task.task_id.clone(),
+                    "trace-worker-dispatch-batch-resume",
+                    "intent-worker-dispatch-batch-resume",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_missing_program_command()))
+            })
+            .unwrap_err();
+        assert!(matches!(resume_error, WorkerLoopError::Sandbox(_)));
+
+        let mut fresh_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        fresh_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-batch-fresh",
+                ScheduleIntent::write(format!("scope:{}", fresh_output.display())),
+                2,
+            ))
+            .unwrap();
+
+        let expected_fresh = b"safeclaw batch fresh\n";
+        let expected_retry = b"safeclaw batch retry\n";
+        let expected_resume = b"safeclaw batch resume\n";
+
+        let mut batch_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        let outcomes = batch_worker
+            .claim_and_dispatch_until_empty(
+                "worker-batch",
+                26,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-batch-fresh" => {
+                            String::from("effect-worker-dispatch-batch-fresh")
+                        }
+                        "task-worker-dispatch-batch-retry" => {
+                            String::from("effect-worker-dispatch-batch-retry")
+                        }
+                        "task-worker-dispatch-batch-resume" => {
+                            String::from("effect-worker-dispatch-batch-resume")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| match claim.task.task_id.as_str() {
+                    "task-worker-dispatch-batch-fresh" => {
+                        let effect = EffectRecord::new(
+                            "effect-worker-dispatch-batch-fresh",
+                            claim.task.task_id.clone(),
+                            "trace-worker-dispatch-batch-fresh",
+                            "intent-worker-dispatch-batch-fresh",
+                            EffectActor::Worker,
+                            EffectAction::FileWrite,
+                            claim.task.intent.target_scope.clone(),
+                            EffectTier::Tier1,
+                            EffectReversibility::Rollbackable,
+                            ProbeMode::Auto,
+                        );
+                        Ok((
+                            InMemoryTaskRuntime::new(effect),
+                            sandbox_write_command(&fresh_output, expected_fresh),
+                        ))
+                    }
+                    other => panic!("unexpected fresh task id: {other}"),
+                },
+                |claim, runtime| match claim.task.task_id.as_str() {
+                    "task-worker-dispatch-batch-retry" => {
+                        assert_eq!(runtime.worker_state, WorkerState::Executing);
+                        Ok(sandbox_write_command(&retry_output, expected_retry))
+                    }
+                    "task-worker-dispatch-batch-resume" => {
+                        assert_eq!(runtime.worker_state, WorkerState::Executing);
+                        Ok(sandbox_write_command(&resume_output, expected_resume))
+                    }
+                    other => panic!("unexpected persisted task id: {other}"),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(outcomes.len(), 3);
+        let mut executed_ids = Vec::new();
+        for outcome in outcomes {
+            match outcome {
+                WorkerLoopDispatchOutcome::Executed(executed) => {
+                    assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
+                    assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
+                    assert!(executed.completed);
+                    executed_ids.push(executed.claim.task.task_id);
+                }
+                WorkerLoopDispatchOutcome::Probed(_) => {
+                    panic!("executed-branch batch must not probe")
+                }
+            }
+        }
+        executed_ids.sort();
+        assert_eq!(
+            executed_ids,
+            vec![
+                String::from("task-worker-dispatch-batch-fresh"),
+                String::from("task-worker-dispatch-batch-resume"),
+                String::from("task-worker-dispatch-batch-retry"),
+            ]
+        );
+        assert_eq!(fs::read(&fresh_output).unwrap(), expected_fresh);
+        assert_eq!(fs::read(&retry_output).unwrap(), expected_retry);
+        assert_eq!(fs::read(&resume_output).unwrap(), expected_resume);
+        assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
+        assert!(batch_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(batch_worker.queue_snapshot().completed_task_ids.len(), 3);
+    }
+
+    #[test]
+    fn worker_loop_dispatch_until_empty_drains_probe_branch() {
+        let temp = TempWorkspace::new("dispatch-batch-probe");
+        let expected_probe = b"safeclaw batch probe\n";
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-batch-probe",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let claim = orchestrator.claim_next("worker-probe-a", 0).unwrap().unwrap();
+        let effect = EffectRecord::new(
+            "effect-worker-dispatch-batch-probe",
+            claim.task.task_id.clone(),
+            "trace-worker-dispatch-batch-probe",
+            "intent-worker-dispatch-batch-probe",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            claim.task.intent.target_scope.clone(),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+        let executor = LocalSandboxExecutor::new();
+        let (_, execution_summary) = executor
+            .run_and_apply(
+                &mut runtime,
+                &sandbox_write_then_timeout_command(&temp.output_path, expected_probe),
+            )
+            .unwrap();
+        assert_eq!(execution_summary.worker_state, WorkerState::Uncertain);
+        let mut store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        store
+            .persist_runtime(
+                &runtime,
+                format!("worker-loop:{}:post-exec", claim.lease.lease_id),
+                "test",
+            )
+            .unwrap();
+
+        let mut batch_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        batch_worker.filesystem_probe_mut().register_expected_blake3(
+            "effect-worker-dispatch-batch-probe",
+            blake3::hash(expected_probe).to_hex().to_string(),
+        );
+        let outcomes = batch_worker
+            .claim_and_dispatch_until_empty(
+                "worker-probe-b",
+                26,
+                PreflightDecision::Permit,
+                |_| Ok(String::from("effect-worker-dispatch-batch-probe")),
+                |_| unreachable!(),
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+        assert_eq!(outcomes.len(), 1);
+        match &outcomes[0] {
+            WorkerLoopDispatchOutcome::Probed(probed) => {
+                assert_eq!(probed.recovered_from, WorkerState::Uncertain);
+                assert_eq!(probed.final_summary.worker_state, WorkerState::Succeeded);
+                assert_eq!(probed.final_summary.effect_status, EffectStatus::Executed);
+                assert!(probed.completed);
+            }
+            WorkerLoopDispatchOutcome::Executed(_) => panic!("probe batch must recover uncertain runtime"),
+        }
+        assert_eq!(fs::read(&temp.output_path).unwrap(), expected_probe);
+        assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
+        assert!(batch_worker.queue_snapshot().active_leases.is_empty());
+        assert_eq!(batch_worker.queue_snapshot().completed_task_ids.len(), 1);
     }
 
     #[test]
