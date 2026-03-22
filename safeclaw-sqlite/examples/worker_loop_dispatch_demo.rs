@@ -26,11 +26,13 @@ fn main() -> Result<(), String> {
 
     run_fresh_branch(&temp)?;
     run_retry_branch(&temp)?;
+    run_resume_branch(&temp)?;
     run_probe_branch(&temp)?;
 
     println!("[demo] db: {}", temp.db_path().display());
     println!("[demo] fresh output: {}", temp.fresh_output.display());
     println!("[demo] retry output: {}", temp.retry_output.display());
+    println!("[demo] resume output: {}", temp.resume_output.display());
     println!("[demo] probe output: {}", temp.probe_output.display());
     Ok(())
 }
@@ -141,6 +143,83 @@ fn run_retry_branch(temp: &DemoArtifacts) -> Result<(), String> {
     Ok(())
 }
 
+fn run_resume_branch(temp: &DemoArtifacts) -> Result<(), String> {
+    let mut first_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    into_demo(first_worker.enqueue_task(OrchestratorTask::new(
+        "task-worker-dispatch-demo-resume",
+        ScheduleIntent::write(format!("scope:{}", temp.resume_output.display())),
+        0,
+    )))?;
+    print_snapshot("resume-after-enqueue", first_worker.queue_snapshot());
+
+    let first_error = first_worker
+        .claim_and_drive_once("worker-resume-a", 0, PreflightDecision::Permit, |claim| {
+            Ok((
+                InMemoryTaskRuntime::new(resume_effect(claim)),
+                sandbox_missing_program_command(),
+            ))
+        })
+        .expect_err("resume seed task must persist pre-exec runtime");
+    println!("[demo] resume seed => {first_error:?}");
+
+    let mut blocked_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    let blocked = into_demo(blocked_worker.claim_and_dispatch_once(
+        "worker-resume-b",
+        10,
+        "effect-worker-dispatch-demo-resume",
+        PreflightDecision::Permit,
+        |_| unreachable!(),
+        |_, _| unreachable!(),
+    ))?;
+    println!("[demo] resume reclaim before expiry => {}", blocked.is_none());
+
+    let output_bytes = b"safeclaw dispatch resume demo\n";
+    let mut resume_worker = into_demo(SqliteSingleWorkerLoop::open(
+        temp.db_path(),
+        SqliteOpenOptions::default(),
+    ))?
+    .with_lease_ttl_ms(25);
+    let outcome = into_demo(resume_worker.claim_and_dispatch_once(
+        "worker-resume-b",
+        26,
+        "effect-worker-dispatch-demo-resume",
+        PreflightDecision::Permit,
+        |_| unreachable!(),
+        |claim, runtime| {
+            println!(
+                "[demo] resume dispatch => task={} state={:?}",
+                claim.task.task_id,
+                runtime.worker_state
+            );
+            Ok(sandbox_write_command(&temp.resume_output, output_bytes))
+        },
+    ))?
+    .expect("expired pre-exec runtime must dispatch through resume branch");
+
+    match outcome {
+        WorkerLoopDispatchOutcome::Executed(executed) => println!(
+            "[demo] resume => task={} worker={:?} effect={:?} completed={}",
+            executed.claim.task.task_id,
+            executed.final_summary.worker_state,
+            executed.final_summary.effect_status,
+            executed.completed
+        ),
+        WorkerLoopDispatchOutcome::Probed(_) => {
+            return Err("resume branch unexpectedly probed".into())
+        }
+    }
+    print_snapshot("resume-after-complete", resume_worker.queue_snapshot());
+    Ok(())
+}
+
 fn run_probe_branch(temp: &DemoArtifacts) -> Result<(), String> {
     let output_bytes = b"safeclaw dispatch probe demo\n";
     let mut orchestrator = SqliteTaskOrchestrator::new(into_demo(open_database(
@@ -230,6 +309,15 @@ fn retry_effect(claim: &OrchestratorClaim) -> EffectRecord {
     )
 }
 
+fn resume_effect(claim: &OrchestratorClaim) -> EffectRecord {
+    build_effect(
+        claim,
+        "effect-worker-dispatch-demo-resume",
+        "trace-worker-dispatch-demo-resume",
+        "intent-worker-dispatch-demo-resume",
+    )
+}
+
 fn probe_effect(claim: &OrchestratorClaim) -> EffectRecord {
     build_effect(
         claim,
@@ -274,6 +362,14 @@ fn sandbox_fail_command() -> SandboxCommand {
     } else {
         SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
     }
+}
+
+fn sandbox_missing_program_command() -> SandboxCommand {
+    SandboxCommand::new(
+        "safeclaw-missing-program-for-spawn-test",
+        std::iter::empty::<&str>(),
+        5_000,
+    )
 }
 
 fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
@@ -351,6 +447,7 @@ struct DemoArtifacts {
     root: PathBuf,
     fresh_output: PathBuf,
     retry_output: PathBuf,
+    resume_output: PathBuf,
     probe_output: PathBuf,
     db_path: PathBuf,
 }
@@ -368,6 +465,7 @@ impl DemoArtifacts {
         Ok(Self {
             fresh_output: root.join("worker-loop-dispatch-fresh.txt"),
             retry_output: root.join("worker-loop-dispatch-retry.txt"),
+            resume_output: root.join("worker-loop-dispatch-resume.txt"),
             probe_output: root.join("worker-loop-dispatch-probe.txt"),
             db_path: root.join("worker-loop-dispatch.db"),
             root,
@@ -383,6 +481,7 @@ impl Drop for DemoArtifacts {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.fresh_output);
         let _ = fs::remove_file(&self.retry_output);
+        let _ = fs::remove_file(&self.resume_output);
         let _ = fs::remove_file(&self.probe_output);
         let _ = fs::remove_file(&self.db_path);
         let _ = fs::remove_file(PathBuf::from(format!("{}-wal", self.db_path.display())));

@@ -776,6 +776,101 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_dispatch_resumes_persisted_runtime_before_execution() {
+        let temp = TempWorkspace::new("dispatch-resume");
+        let mut first_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        first_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-resume",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let error = first_worker
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::Permit, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-dispatch-resume",
+                    claim.task.task_id.clone(),
+                    "trace-worker-dispatch-resume",
+                    "intent-worker-dispatch-resume",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
+            })
+            .unwrap_err();
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+
+        let mut resume_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        let blocked = resume_worker
+            .claim_and_dispatch_once(
+                "worker-b",
+                10,
+                "effect-worker-dispatch-resume",
+                PreflightDecision::Permit,
+                |_| unreachable!(),
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+        assert!(blocked.is_none());
+
+        let expected_bytes = b"safeclaw dispatch resume\n";
+        let outcome = resume_worker
+            .claim_and_dispatch_once(
+                "worker-b",
+                26,
+                "effect-worker-dispatch-resume",
+                PreflightDecision::Permit,
+                |_| unreachable!(),
+                |claim, runtime| {
+                    assert_eq!(claim.task.task_id, "task-worker-dispatch-resume");
+                    assert_eq!(runtime.worker_state, WorkerState::Executing);
+                    assert_eq!(runtime.effect.status, EffectStatus::Prepared);
+                    Ok(sandbox_write_command(&temp.output_path, expected_bytes))
+                },
+            )
+            .unwrap()
+            .expect("expired pre-exec runtime must be resumed by dispatch");
+        match outcome {
+            WorkerLoopDispatchOutcome::Executed(executed) => {
+                assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
+                assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
+                assert!(executed.completed);
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => panic!("executing dispatch must resume via execution"),
+        }
+        assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-dispatch-resume", "effect-worker-dispatch-resume")
+            .unwrap()
+            .expect("resumed dispatch runtime must reload");
+        assert_eq!(restored.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored.effect.status, EffectStatus::Executed);
+        assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
     fn worker_loop_drives_multiple_queued_tasks_until_empty() {
         let temp = TempWorkspace::new("drain-batch");
         let first_output = temp.root.join("output-1.txt");
