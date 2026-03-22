@@ -1379,6 +1379,255 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_dispatch_until_empty_stops_on_later_fresh_spawn_failure() {
+        let temp = TempWorkspace::new("dispatch-batch-fresh-spawn-failure");
+        let first_output = temp.root.join("dispatch-fresh-first.txt");
+        let second_output = temp.root.join("dispatch-fresh-second.txt");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-fresh-failure-1",
+                ScheduleIntent::write(format!("scope:{}", first_output.display())),
+                0,
+            ))
+            .unwrap();
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-fresh-failure-2",
+                ScheduleIntent::write(format!("scope:{}", second_output.display())),
+                1,
+            ))
+            .unwrap();
+
+        let error = loop_driver
+            .claim_and_dispatch_until_empty(
+                "worker-a",
+                0,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-fresh-failure-1" => {
+                            String::from("effect-worker-dispatch-fresh-failure-1")
+                        }
+                        "task-worker-dispatch-fresh-failure-2" => {
+                            String::from("effect-worker-dispatch-fresh-failure-2")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| {
+                    let (effect_id, trace_id, intent_key, command) = match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-fresh-failure-1" => (
+                            "effect-worker-dispatch-fresh-failure-1",
+                            "trace-worker-dispatch-fresh-failure-1",
+                            "intent-worker-dispatch-fresh-failure-1",
+                            sandbox_write_command(&first_output, b"safeclaw dispatch fresh failure one\n"),
+                        ),
+                        "task-worker-dispatch-fresh-failure-2" => (
+                            "effect-worker-dispatch-fresh-failure-2",
+                            "trace-worker-dispatch-fresh-failure-2",
+                            "intent-worker-dispatch-fresh-failure-2",
+                            sandbox_missing_program_command(),
+                        ),
+                        other => panic!("unexpected task id: {other}"),
+                    };
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        trace_id,
+                        intent_key,
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), command))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap_err();
+
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(fs::read(&first_output).unwrap(), b"safeclaw dispatch fresh failure one\n");
+        assert!(!second_output.exists());
+        assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
+        assert_eq!(
+            loop_driver.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-dispatch-fresh-failure-1")]
+        );
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            loop_driver.queue_snapshot().active_leases[0].task_id,
+            "task-worker-dispatch-fresh-failure-2"
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored_one = verify_store
+            .load_runtime(
+                "task-worker-dispatch-fresh-failure-1",
+                "effect-worker-dispatch-fresh-failure-1",
+            )
+            .unwrap()
+            .expect("first fresh failure runtime must reload");
+        let restored_two = verify_store
+            .load_runtime(
+                "task-worker-dispatch-fresh-failure-2",
+                "effect-worker-dispatch-fresh-failure-2",
+            )
+            .unwrap()
+            .expect("second fresh failure runtime must reload");
+        assert_eq!(restored_one.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored_one.effect.status, EffectStatus::Executed);
+        assert_eq!(restored_two.worker_state, WorkerState::Executing);
+        assert_eq!(restored_two.effect.status, EffectStatus::Prepared);
+    }
+
+    #[test]
+    fn worker_loop_dispatch_until_empty_stops_on_later_persisted_spawn_failure() {
+        let temp = TempWorkspace::new("dispatch-batch-persisted-spawn-failure");
+        let first_output = temp.root.join("dispatch-persisted-first.txt");
+        let second_output = temp.root.join("dispatch-persisted-second.txt");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-persisted-failure-1",
+                ScheduleIntent::write(format!("scope:{}", first_output.display())),
+                0,
+            ))
+            .unwrap();
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-persisted-failure-2",
+                ScheduleIntent::write(format!("scope:{}", second_output.display())),
+                1,
+            ))
+            .unwrap();
+        let mut runtime_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let effect = EffectRecord::new(
+            "effect-worker-dispatch-persisted-failure-2",
+            String::from("task-worker-dispatch-persisted-failure-2"),
+            "trace-worker-dispatch-persisted-failure-2",
+            "intent-worker-dispatch-persisted-failure-2",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            format!("scope:{}", second_output.display()),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+        runtime_store
+            .persist_runtime(
+                &runtime,
+                String::from("worker-loop:seed:persisted-pre-exec"),
+                "test",
+            )
+            .unwrap();
+        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store)
+            .with_lease_ttl_ms(25);
+
+        let error = loop_driver
+            .claim_and_dispatch_until_empty(
+                "worker-a",
+                0,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-persisted-failure-1" => {
+                            String::from("effect-worker-dispatch-persisted-failure-1")
+                        }
+                        "task-worker-dispatch-persisted-failure-2" => {
+                            String::from("effect-worker-dispatch-persisted-failure-2")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| match claim.task.task_id.as_str() {
+                    "task-worker-dispatch-persisted-failure-1" => {
+                        let effect = EffectRecord::new(
+                            "effect-worker-dispatch-persisted-failure-1",
+                            claim.task.task_id.clone(),
+                            "trace-worker-dispatch-persisted-failure-1",
+                            "intent-worker-dispatch-persisted-failure-1",
+                            EffectActor::Worker,
+                            EffectAction::FileWrite,
+                            claim.task.intent.target_scope.clone(),
+                            EffectTier::Tier1,
+                            EffectReversibility::Rollbackable,
+                            ProbeMode::Auto,
+                        );
+                        Ok((
+                            InMemoryTaskRuntime::new(effect),
+                            sandbox_write_command(&first_output, b"safeclaw dispatch persisted failure one\n"),
+                        ))
+                    }
+                    other => panic!("unexpected fresh task id: {other}"),
+                },
+                |claim, runtime| match claim.task.task_id.as_str() {
+                    "task-worker-dispatch-persisted-failure-2" => {
+                        assert_eq!(runtime.worker_state, WorkerState::Executing);
+                        Ok(sandbox_missing_program_command())
+                    }
+                    other => panic!("unexpected persisted task id: {other}"),
+                },
+            )
+            .unwrap_err();
+
+        assert!(matches!(error, WorkerLoopError::Sandbox(_)));
+        assert_eq!(
+            fs::read(&first_output).unwrap(),
+            b"safeclaw dispatch persisted failure one\n"
+        );
+        assert!(!second_output.exists());
+        assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
+        assert_eq!(
+            loop_driver.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-dispatch-persisted-failure-1")]
+        );
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(
+            loop_driver.queue_snapshot().active_leases[0].task_id,
+            "task-worker-dispatch-persisted-failure-2"
+        );
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored_one = verify_store
+            .load_runtime(
+                "task-worker-dispatch-persisted-failure-1",
+                "effect-worker-dispatch-persisted-failure-1",
+            )
+            .unwrap()
+            .expect("first persisted failure runtime must reload");
+        let restored_two = verify_store
+            .load_runtime(
+                "task-worker-dispatch-persisted-failure-2",
+                "effect-worker-dispatch-persisted-failure-2",
+            )
+            .unwrap()
+            .expect("second persisted failure runtime must reload");
+        assert_eq!(restored_one.worker_state, WorkerState::Succeeded);
+        assert_eq!(restored_one.effect.status, EffectStatus::Executed);
+        assert_eq!(restored_two.worker_state, WorkerState::Executing);
+        assert_eq!(restored_two.effect.status, EffectStatus::Prepared);
+    }
+
+    #[test]
     fn worker_loop_drives_multiple_queued_tasks_until_empty() {
         let temp = TempWorkspace::new("drain-batch");
         let first_output = temp.root.join("output-1.txt");
