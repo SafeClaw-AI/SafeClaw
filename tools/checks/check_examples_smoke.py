@@ -358,6 +358,70 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] shared output exists => true",
         ],
     ),
+    (
+        "batch-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_batch_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] drained batch => count=2",
+            "[demo] snapshot after-batch-complete => queued=0, active=0, completed=2",
+        ],
+    ),
+    (
+        "batch-conflict-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_batch_conflict_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] drained outcomes => 2",
+            "[demo] shared output exists => false",
+        ],
+    ),
+    (
+        "batch-failure-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_batch_failure_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] batch short-circuit error => Sandbox(Executor(Spawn(Error { kind: NotFound, message: \"program not found\" })))",
+            "[demo] restored runtimes => one=Succeeded/Executed, two=Executing/Prepared",
+        ],
+    ),
+    (
+        "batch-release-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_batch_release_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] release outcomes => 1",
+            "[demo] shared output exists => true",
+        ],
+    ),
 ]
 
 
