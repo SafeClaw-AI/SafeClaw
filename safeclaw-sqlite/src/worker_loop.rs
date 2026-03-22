@@ -353,10 +353,13 @@ impl SqliteSingleWorkerLoop {
                 task_id: claim.task.task_id.clone(),
                 effect_id: effect_id.to_string(),
             })?;
-        runtime
+        let summary = runtime
             .retry_failed(preflight)
             .map_err(WorkerLoopError::Runtime)?;
         self.persist_runtime(&runtime, &claim, "pre-exec")?;
+        if let Some(disposition) = parked_disposition_for_summary(&summary) {
+            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+        }
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -4304,6 +4307,85 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
         assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_retry_parks_confirmation_before_sandbox() {
+        let temp = TempWorkspace::new("retry-confirmation");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-retry-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let effect = EffectRecord::new(
+            "effect-worker-retry-confirmation",
+            String::from("task-worker-retry-confirmation"),
+            "trace-worker-retry-confirmation",
+            "intent-worker-retry-confirmation",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            format!("scope:{}", temp.output_path.display()),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        let failed = runtime.run_plan_failure().unwrap();
+        assert_eq!(failed.worker_state, WorkerState::Failed);
+        assert_eq!(failed.effect_status, EffectStatus::Prepared);
+
+        let mut store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        store
+            .persist_runtime(&runtime, String::from("worker-loop:seed:retry-failed"), "test")
+            .unwrap();
+
+        let mut retry_worker = SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
+        let outcome = retry_worker
+            .claim_and_retry_failed_once(
+                "worker-a",
+                0,
+                "effect-worker-retry-confirmation",
+                PreflightDecision::NeedsConfirmation,
+                |_, _| unreachable!(),
+            )
+            .unwrap()
+            .expect("failed runtime must claim for confirmation retry");
+
+        assert_eq!(outcome.claim.task.task_id, "task-worker-retry-confirmation");
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert!(!outcome.completed);
+        assert_eq!(outcome.report.exit_code, None);
+        assert_eq!(outcome.report.duration_ms, 0);
+        assert!(!outcome.report.timed_out);
+        assert!(!temp.output_path.exists());
+        assert_eq!(retry_worker.queue_snapshot().active_leases.len(), 1);
+        assert!(retry_worker.queue_snapshot().completed_task_ids.is_empty());
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-retry-confirmation",
+                "effect-worker-retry-confirmation",
+            )
+            .unwrap()
+            .expect("retry confirmation runtime must persist");
+        assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
+        assert!(restored.attempts.is_empty());
     }
 
     #[test]
