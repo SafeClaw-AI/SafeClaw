@@ -205,6 +205,11 @@ impl SqliteSingleWorkerLoop {
         };
 
         let (runtime, command) = build(&claim)?;
+        let summary = runtime_summary(&runtime);
+        if let Some(disposition) = parked_disposition_for_summary(&summary) {
+            self.persist_runtime(&runtime, &claim, "pre-resume")?;
+            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+        }
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
 
@@ -230,6 +235,11 @@ impl SqliteSingleWorkerLoop {
                 task_id: claim.task.task_id.clone(),
                 effect_id: effect_id.to_string(),
             })?;
+        let summary = runtime_summary(&runtime);
+        if let Some(disposition) = parked_disposition_for_summary(&summary) {
+            self.persist_runtime(&runtime, &claim, "pre-resume")?;
+            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+        }
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -4307,6 +4317,132 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
         assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_resume_parks_confirmation_before_sandbox() {
+        let temp = TempWorkspace::new("resume-confirmation");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-resume-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let outcome = loop_driver
+            .claim_and_resume_once("worker-a", 0, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-resume-confirmation",
+                    claim.task.task_id.clone(),
+                    "trace-worker-resume-confirmation",
+                    "intent-worker-resume-confirmation",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                let mut runtime = InMemoryTaskRuntime::new(effect);
+                let waiting = runtime.run_confirmation_checkpoint().unwrap();
+                assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+                Ok((runtime, sandbox_success_command()))
+            })
+            .unwrap()
+            .expect("confirmation runtime must be parked on resume");
+
+        assert_eq!(outcome.claim.task.task_id, "task-worker-resume-confirmation");
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert!(!outcome.completed);
+        assert_eq!(outcome.report.exit_code, None);
+        assert_eq!(outcome.report.duration_ms, 0);
+        assert!(!temp.output_path.exists());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime("task-worker-resume-confirmation", "effect-worker-resume-confirmation")
+            .unwrap()
+            .expect("resume confirmation runtime must persist");
+        assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
+        assert!(restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_resume_persisted_parks_confirmation_before_sandbox() {
+        let temp = TempWorkspace::new("resume-persisted-confirmation");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-resume-persisted-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let effect = EffectRecord::new(
+            "effect-worker-resume-persisted-confirmation",
+            String::from("task-worker-resume-persisted-confirmation"),
+            "trace-worker-resume-persisted-confirmation",
+            "intent-worker-resume-persisted-confirmation",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            format!("scope:{}", temp.output_path.display()),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        let waiting = runtime.run_confirmation_checkpoint().unwrap();
+        assert_eq!(waiting.worker_state, WorkerState::AwaitingConfirmation);
+
+        let mut store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        store
+            .persist_runtime(
+                &runtime,
+                String::from("worker-loop:seed:resume-confirmation"),
+                "test",
+            )
+            .unwrap();
+
+        let mut resume_worker = SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
+        let outcome = resume_worker
+            .claim_and_resume_persisted_once(
+                "worker-a",
+                0,
+                "effect-worker-resume-persisted-confirmation",
+                |_, _| unreachable!(),
+            )
+            .unwrap()
+            .expect("persisted confirmation runtime must park on resume");
+
+        assert_eq!(outcome.claim.task.task_id, "task-worker-resume-persisted-confirmation");
+        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert!(!outcome.completed);
+        assert_eq!(outcome.report.exit_code, None);
+        assert_eq!(outcome.report.duration_ms, 0);
+        assert!(!temp.output_path.exists());
+        assert_eq!(resume_worker.queue_snapshot().active_leases.len(), 1);
     }
 
     #[test]
