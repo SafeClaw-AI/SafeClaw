@@ -150,6 +150,70 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot after-second-write-claim => queued=0, active=3, completed=1",
         ],
     ),
+    (
+        "worker-read-fanout-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_read_fanout_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] second read outcome => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] snapshot after-second-read-complete => queued=0, active=1, completed=1",
+        ],
+    ),
+    (
+        "worker-write-under-reads-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_write_under_reads_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] write outcome => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] snapshot after-write-complete => queued=0, active=2, completed=1",
+        ],
+    ),
+    (
+        "worker-write-serial-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_write_serial_under_reads_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] second write blocked while first write active => true",
+            "[demo] snapshot after-second-write-complete => queued=0, active=2, completed=2",
+        ],
+    ),
+    (
+        "worker-scope-conflict-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_scope_conflict_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] only conflicting task remains => true",
+            "[demo] snapshot after-shared-task-complete => queued=0, active=0, completed=3",
+        ],
+    ),
 ]
 
 
