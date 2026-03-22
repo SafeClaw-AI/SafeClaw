@@ -456,7 +456,7 @@ mod tests {
         },
         scheduler::{OrchestratorTask, ScheduleIntent, TaskOrchestrator},
         worker_lifecycle::WorkerState,
-        InMemoryTaskRuntime, PreflightDecision,
+        InMemoryTaskRuntime, PreflightDecision, RuntimeError,
     };
     use std::{
         env, fs,
@@ -868,6 +868,61 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
         assert_eq!(restored.effect.status, EffectStatus::Executed);
         assert!(!restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_dispatch_rejects_unavailable_persisted_runtime_state() {
+        let temp = TempWorkspace::new("dispatch-unavailable");
+        let mut orchestrator = SqliteTaskOrchestrator::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        )
+        .with_lease_ttl_ms(25);
+        orchestrator
+            .enqueue(OrchestratorTask::new(
+                "task-worker-dispatch-unavailable",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+        let effect = EffectRecord::new(
+            "effect-worker-dispatch-unavailable",
+            String::from("task-worker-dispatch-unavailable"),
+            "trace-worker-dispatch-unavailable",
+            "intent-worker-dispatch-unavailable",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            format!("scope:{}", temp.output_path.display()),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let runtime = InMemoryTaskRuntime::new(effect);
+        let mut store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        store
+            .persist_runtime(&runtime, String::from("worker-loop:seed:planning"), "test")
+            .unwrap();
+
+        let mut dispatch_worker = SqliteSingleWorkerLoop::new(orchestrator, store);
+        let error = dispatch_worker
+            .claim_and_dispatch_once(
+                "worker-b",
+                0,
+                "effect-worker-dispatch-unavailable",
+                PreflightDecision::Permit,
+                |_| unreachable!(),
+                |_, _| unreachable!(),
+            )
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
+                state: WorkerState::Created,
+                ..
+            })
+        ));
+        assert!(!temp.output_path.exists());
     }
 
     #[test]
