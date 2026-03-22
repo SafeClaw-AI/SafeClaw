@@ -19,6 +19,8 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "--quiet",
         ],
         [
+            "[demo] diagnostic uncertain => worker=Uncertain effect=Uncertain attempts=1 events=1 transitions=2 disposition=QueueForManualReview",
+            "[demo] diagnostic reconciled => worker=Succeeded effect=Executed attempts=1 events=2 transitions=3 disposition=Resolved",
             "[demo] persisted reconciled runtime",
             "[demo] snapshot after-complete => queued=0, active=0, completed=1",
         ],

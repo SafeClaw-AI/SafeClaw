@@ -14,8 +14,8 @@ use safeclaw_core::{
     OrchestratorTask, PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, FileSystemProbeAdapter, LocalSandboxExecutor, SandboxCommand,
-    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
+    open_database, FileSystemProbeAdapter, LocalSandboxExecutor, RuntimeDiagnosticSnapshot,
+    SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -65,6 +65,11 @@ fn main() -> Result<(), String> {
     let connection = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
     let mut store = SqliteRuntimeStore::new(connection);
     into_demo(store.persist_runtime(&runtime, "demo-state-1", "full-lifecycle-demo"))?;
+    let uncertain_snapshot = store
+        .diagnostic_snapshot(&claim.task.task_id, "effect-demo-1")
+        .map_err(|error| format!("{error:?}"))?
+        .expect("uncertain runtime diagnostic snapshot must exist");
+    print_diagnostic("uncertain", &uncertain_snapshot);
     drop(store);
     println!("[demo] persisted uncertain runtime");
 
@@ -93,6 +98,11 @@ fn main() -> Result<(), String> {
     let final_connection = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))?;
     let mut final_store = SqliteRuntimeStore::new(final_connection);
     into_demo(final_store.persist_runtime(&restored, "demo-state-2", "full-lifecycle-demo"))?;
+    let reconciled_snapshot = final_store
+        .diagnostic_snapshot(&claim.task.task_id, "effect-demo-1")
+        .map_err(|error| format!("{error:?}"))?
+        .expect("reconciled runtime diagnostic snapshot must exist");
+    print_diagnostic("reconciled", &reconciled_snapshot);
     println!("[demo] persisted reconciled runtime");
 
     let completion_connection =
@@ -131,6 +141,18 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
         snapshot.queued_tasks.len(),
         snapshot.active_leases.len(),
         snapshot.completed_task_ids.len(),
+    );
+}
+
+fn print_diagnostic(label: &str, snapshot: &RuntimeDiagnosticSnapshot) {
+    println!(
+        "[demo] diagnostic {label} => worker={:?} effect={:?} attempts={} events={} transitions={} disposition={:?}",
+        snapshot.governance.worker_state,
+        snapshot.governance.effect_status,
+        snapshot.attempts.len(),
+        snapshot.state_events.len(),
+        snapshot.effect_transitions.len(),
+        snapshot.governance.disposition,
     );
 }
 
