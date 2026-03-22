@@ -15,9 +15,9 @@ use safeclaw_core::{
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
-    SqliteRuntimeStore, SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
-    WorkerLoopDispatchOutcome,
+    open_database, LocalSandboxExecutor, RuntimeGovernanceDisposition, SandboxCommand,
+    SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator, WorkerLoopDispatchOutcome,
 };
 
 fn main() -> Result<(), String> {
@@ -162,6 +162,18 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
             _ => panic!("unexpected parked dispatch outcome"),
         }
     }
+    let diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
+    let resolved_count = diagnostics
+        .iter()
+        .filter(|snapshot| {
+            snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
+        })
+        .count();
+    println!(
+        "[demo] executed batch diagnostics => count={} resolved={}",
+        diagnostics.len(),
+        resolved_count
+    );
     print_snapshot("executed-batch-after-complete", batch_worker.queue_snapshot());
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
@@ -267,6 +279,18 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
             _ => panic!("unexpected parked dispatch outcome"),
         }
     }
+    let diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
+    let resolved_count = diagnostics
+        .iter()
+        .filter(|snapshot| {
+            snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
+        })
+        .count();
+    println!(
+        "[demo] probe batch diagnostics => count={} resolved={}",
+        diagnostics.len(),
+        resolved_count
+    );
     print_snapshot("probe-batch-after-complete", batch_worker.queue_snapshot());
     Ok(())
 }

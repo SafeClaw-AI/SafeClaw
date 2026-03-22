@@ -99,6 +99,14 @@ impl SqliteWorkerService {
         self.worker_loop.diagnostic_snapshot(task_id, effect_id)
     }
 
+    pub fn diagnostic_snapshots_for_report(
+        &self,
+        report: &WorkerServiceRunReport,
+    ) -> Result<Vec<RuntimeDiagnosticSnapshot>, WorkerLoopError> {
+        self.worker_loop
+            .diagnostic_snapshots_for_outcomes(&report.outcomes)
+    }
+
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
         self.worker_loop.list_attempts(effect_id)
     }
@@ -316,6 +324,15 @@ mod tests {
         assert_eq!(view.worker_state, WorkerState::AwaitingConfirmation);
         assert_eq!(view.effect_status, EffectStatus::Prepared);
         assert_eq!(view.disposition, RuntimeGovernanceDisposition::QueueForConfirmation);
+
+        let diagnostics = service.diagnostic_snapshots_for_report(&report).unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].governance.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(diagnostics[0].governance.effect_status, EffectStatus::Prepared);
+        assert_eq!(
+            diagnostics[0].governance.disposition,
+            RuntimeGovernanceDisposition::QueueForConfirmation
+        );
 
         let snapshot = service.queue_snapshot();
         assert_eq!(snapshot.active_leases.len(), 1);
@@ -585,6 +602,84 @@ mod tests {
         assert_eq!(snapshot.effect_transitions[0].to_status, EffectStatus::Dispatched);
         assert_eq!(snapshot.effect_transitions[1].from_status, EffectStatus::Dispatched);
         assert_eq!(snapshot.effect_transitions[1].to_status, EffectStatus::Executed);
+    }
+
+    #[test]
+    fn worker_service_diagnostic_snapshots_for_report_collect_batch_snapshots() {
+        let temp = TempDatabase::new("diagnostic-report-batch");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25)
+        .with_poll_interval_ms(5);
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-diagnostic-report-a",
+                ScheduleIntent::write("scope:worker-service-diagnostic-report-a"),
+                0,
+            ))
+            .unwrap();
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-diagnostic-report-b",
+                ScheduleIntent::write("scope:worker-service-diagnostic-report-b"),
+                0,
+            ))
+            .unwrap();
+
+        let report = service
+            .run_dispatch_until_idle(
+                0,
+                1,
+                PreflightDecision::Permit,
+                |claim| Ok(format!("effect-{}", claim.task.task_id)),
+                |claim| {
+                    let effect_id = format!("effect-{}", claim.task.task_id);
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        "trace-worker-service-diagnostic-report",
+                        "intent-worker-service-diagnostic-report",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(report.executed_count(), 2);
+
+        let snapshots = service.diagnostic_snapshots_for_report(&report).unwrap();
+        assert_eq!(snapshots.len(), 2);
+        assert!(snapshots.iter().all(|snapshot| {
+            snapshot.governance.worker_state == WorkerState::Succeeded
+                && snapshot.governance.effect_status == EffectStatus::Executed
+                && snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
+                && snapshot.attempts.len() == snapshot.governance.attempt_count
+                && snapshot.state_events.len() == 2
+                && snapshot.effect_transitions.len() == 2
+        }));
+        let mut task_ids = snapshots
+            .iter()
+            .map(|snapshot| snapshot.governance.task_id.as_str())
+            .collect::<Vec<_>>();
+        task_ids.sort_unstable();
+        assert_eq!(
+            task_ids,
+            vec![
+                "task-worker-service-diagnostic-report-a",
+                "task-worker-service-diagnostic-report-b",
+            ]
+        );
     }
 
     fn sandbox_success_command() -> SandboxCommand {

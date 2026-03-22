@@ -30,6 +30,7 @@ pub enum WorkerLoopError {
 #[derive(Clone, Debug)]
 pub struct WorkerLoopOutcome {
     pub claim: OrchestratorClaim,
+    pub effect_id: String,
     pub report: SandboxExecutionReport,
     pub execution_summary: RunSummary,
     pub final_summary: RunSummary,
@@ -40,6 +41,7 @@ pub struct WorkerLoopOutcome {
 #[derive(Clone, Debug)]
 pub struct WorkerLoopProbeOutcome {
     pub claim: OrchestratorClaim,
+    pub effect_id: String,
     pub recovered_from: WorkerState,
     pub final_summary: RunSummary,
     pub completed: bool,
@@ -54,6 +56,7 @@ pub enum WorkerLoopDisposition {
 #[derive(Clone, Debug)]
 pub struct WorkerLoopParkedOutcome {
     pub claim: OrchestratorClaim,
+    pub effect_id: String,
     pub summary: RunSummary,
     pub disposition: WorkerLoopDisposition,
     pub completed: bool,
@@ -64,6 +67,24 @@ pub enum WorkerLoopDispatchOutcome {
     Executed(WorkerLoopOutcome),
     Probed(WorkerLoopProbeOutcome),
     Parked(WorkerLoopParkedOutcome),
+}
+
+impl WorkerLoopDispatchOutcome {
+    pub fn task_id(&self) -> &str {
+        match self {
+            WorkerLoopDispatchOutcome::Executed(outcome) => &outcome.claim.task.task_id,
+            WorkerLoopDispatchOutcome::Probed(outcome) => &outcome.claim.task.task_id,
+            WorkerLoopDispatchOutcome::Parked(outcome) => &outcome.claim.task.task_id,
+        }
+    }
+
+    pub fn effect_id(&self) -> &str {
+        match self {
+            WorkerLoopDispatchOutcome::Executed(outcome) => &outcome.effect_id,
+            WorkerLoopDispatchOutcome::Probed(outcome) => &outcome.effect_id,
+            WorkerLoopDispatchOutcome::Parked(outcome) => &outcome.effect_id,
+        }
+    }
 }
 
 pub struct SqliteSingleWorkerLoop {
@@ -137,6 +158,25 @@ impl SqliteSingleWorkerLoop {
             .map_err(WorkerLoopError::Store)
     }
 
+    pub fn diagnostic_snapshots_for_outcomes(
+        &self,
+        outcomes: &[WorkerLoopDispatchOutcome],
+    ) -> Result<Vec<RuntimeDiagnosticSnapshot>, WorkerLoopError> {
+        outcomes
+            .iter()
+            .map(|outcome| {
+                let task_id = outcome.task_id();
+                let effect_id = outcome.effect_id();
+                self.diagnostic_snapshot(task_id, effect_id)?.ok_or_else(|| {
+                    WorkerLoopError::PersistedRuntimeMissing {
+                        task_id: task_id.to_string(),
+                        effect_id: effect_id.to_string(),
+                    }
+                })
+            })
+            .collect()
+    }
+
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
         self.runtime_store
             .list_attempts(effect_id)
@@ -198,7 +238,12 @@ impl SqliteSingleWorkerLoop {
             .map_err(WorkerLoopError::Runtime)?;
         self.persist_runtime(&runtime, &claim, "pre-exec")?;
         if let Some(disposition) = parked_disposition_for_summary(&summary) {
-            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+            return Ok(Some(Self::parked_drive_outcome(
+                claim,
+                runtime.effect.effect_id.clone(),
+                summary,
+                disposition,
+            )));
         }
 
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
@@ -226,7 +271,12 @@ impl SqliteSingleWorkerLoop {
                 .map_err(WorkerLoopError::Runtime)?;
             self.persist_runtime(&runtime, &claim, "pre-exec")?;
             if let Some(disposition) = parked_disposition_for_summary(&summary) {
-                outcomes.push(Self::parked_drive_outcome(claim, summary, disposition));
+                outcomes.push(Self::parked_drive_outcome(
+                    claim,
+                    runtime.effect.effect_id.clone(),
+                    summary,
+                    disposition,
+                ));
                 continue;
             }
             outcomes.push(self.drive_claimed_runtime(claim, runtime, command)?);
@@ -251,7 +301,12 @@ impl SqliteSingleWorkerLoop {
         let summary = runtime_summary(&runtime);
         if let Some(disposition) = parked_disposition_for_summary(&summary) {
             self.persist_runtime(&runtime, &claim, "pre-resume")?;
-            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+            return Ok(Some(Self::parked_drive_outcome(
+                claim,
+                runtime.effect.effect_id.clone(),
+                summary,
+                disposition,
+            )));
         }
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
     }
@@ -281,7 +336,12 @@ impl SqliteSingleWorkerLoop {
         let summary = runtime_summary(&runtime);
         if let Some(disposition) = parked_disposition_for_summary(&summary) {
             self.persist_runtime(&runtime, &claim, "pre-resume")?;
-            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+            return Ok(Some(Self::parked_drive_outcome(
+                claim,
+                runtime.effect.effect_id.clone(),
+                summary,
+                disposition,
+            )));
         }
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
@@ -318,6 +378,7 @@ impl SqliteSingleWorkerLoop {
 
         Ok(Some(WorkerLoopProbeOutcome {
             claim,
+            effect_id: runtime.effect.effect_id.clone(),
             recovered_from,
             final_summary,
             completed,
@@ -411,7 +472,12 @@ impl SqliteSingleWorkerLoop {
             .map_err(WorkerLoopError::Runtime)?;
         self.persist_runtime(&runtime, &claim, "pre-exec")?;
         if let Some(disposition) = parked_disposition_for_summary(&summary) {
-            return Ok(Some(Self::parked_drive_outcome(claim, summary, disposition)));
+            return Ok(Some(Self::parked_drive_outcome(
+                claim,
+                runtime.effect.effect_id.clone(),
+                summary,
+                disposition,
+            )));
         }
         let command = build_command(&claim, &runtime)?;
         self.drive_claimed_runtime(claim, runtime, command).map(Some)
@@ -442,7 +508,12 @@ impl SqliteSingleWorkerLoop {
                     .map_err(WorkerLoopError::Runtime)?;
                 self.persist_runtime(&runtime, &claim, "pre-exec")?;
                 if let Some(disposition) = parked_disposition_for_summary(&summary) {
-                    return Ok(Self::parked_outcome(claim, summary, disposition));
+                    return Ok(Self::parked_outcome(
+                        claim,
+                        runtime.effect.effect_id.clone(),
+                        summary,
+                        disposition,
+                    ));
                 }
                 self.drive_claimed_runtime(claim, runtime, command)
                     .map(WorkerLoopDispatchOutcome::Executed)
@@ -454,7 +525,12 @@ impl SqliteSingleWorkerLoop {
                         .map_err(WorkerLoopError::Runtime)?;
                     self.persist_runtime(&runtime, &claim, "pre-exec")?;
                     if let Some(disposition) = parked_disposition_for_summary(&summary) {
-                        return Ok(Self::parked_outcome(claim, summary, disposition));
+                        return Ok(Self::parked_outcome(
+                            claim,
+                            runtime.effect.effect_id.clone(),
+                            summary,
+                            disposition,
+                        ));
                     }
                     let command = build_persisted_command(&claim, &runtime)?;
                     self.drive_claimed_runtime(claim, runtime, command)
@@ -481,6 +557,7 @@ impl SqliteSingleWorkerLoop {
                     }
                     Ok(WorkerLoopDispatchOutcome::Probed(WorkerLoopProbeOutcome {
                         claim,
+                        effect_id: runtime.effect.effect_id.clone(),
                         recovered_from,
                         final_summary,
                         completed,
@@ -488,6 +565,7 @@ impl SqliteSingleWorkerLoop {
                 }
                 _ => Ok(Self::parked_outcome(
                     claim,
+                    runtime.effect.effect_id.clone(),
                     runtime_summary(&runtime),
                     WorkerLoopDisposition::ParkedUnsupported,
                 )),
@@ -497,11 +575,13 @@ impl SqliteSingleWorkerLoop {
 
     fn parked_outcome(
         claim: OrchestratorClaim,
+        effect_id: String,
         summary: RunSummary,
         disposition: WorkerLoopDisposition,
     ) -> WorkerLoopDispatchOutcome {
         WorkerLoopDispatchOutcome::Parked(WorkerLoopParkedOutcome {
             claim,
+            effect_id,
             summary,
             disposition,
             completed: false,
@@ -510,11 +590,13 @@ impl SqliteSingleWorkerLoop {
 
     fn parked_drive_outcome(
         claim: OrchestratorClaim,
+        effect_id: String,
         summary: RunSummary,
         disposition: WorkerLoopDisposition,
     ) -> WorkerLoopOutcome {
         WorkerLoopOutcome {
             claim,
+            effect_id,
             report: empty_sandbox_report(),
             execution_summary: summary.clone(),
             final_summary: summary,
@@ -539,6 +621,7 @@ impl SqliteSingleWorkerLoop {
         mut runtime: InMemoryTaskRuntime,
         command: SandboxCommand,
     ) -> Result<WorkerLoopOutcome, WorkerLoopError> {
+        let effect_id = runtime.effect.effect_id.clone();
         let (report, execution_summary) = self
             .sandbox
             .run_and_apply(&mut runtime, &command)
@@ -560,6 +643,7 @@ impl SqliteSingleWorkerLoop {
 
         Ok(WorkerLoopOutcome {
             claim,
+            effect_id,
             report,
             execution_summary,
             final_summary,

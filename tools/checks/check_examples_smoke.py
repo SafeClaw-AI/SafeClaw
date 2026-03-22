@@ -38,6 +38,8 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         ],
         [
             "[demo] executed batch => count=3",
+            "[demo] executed batch diagnostics => count=3 resolved=3",
+            "[demo] probe batch diagnostics => count=1 resolved=1",
             "[demo] snapshot probe-batch-after-complete => queued=0, active=0, completed=4",
         ],
     ),
