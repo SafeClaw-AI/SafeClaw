@@ -6,7 +6,7 @@ use crate::{
     SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
-    effect_ledger::{EffectAction, EffectAttempt},
+    effect_ledger::{EffectAction, EffectAttempt, EffectTransitionRecord},
     recovery::probes::ProbeAdapterError,
     scheduler::{
         OrchestratorClaim, OrchestratorError, OrchestratorSnapshot, OrchestratorTask,
@@ -135,6 +135,15 @@ impl SqliteSingleWorkerLoop {
     pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, WorkerLoopError> {
         self.runtime_store
             .list_state_events(task_id)
+            .map_err(WorkerLoopError::Store)
+    }
+
+    pub fn list_effect_transitions(
+        &self,
+        effect_id: &str,
+    ) -> Result<Vec<EffectTransitionRecord>, WorkerLoopError> {
+        self.runtime_store
+            .list_effect_transitions(effect_id)
             .map_err(WorkerLoopError::Store)
     }
 

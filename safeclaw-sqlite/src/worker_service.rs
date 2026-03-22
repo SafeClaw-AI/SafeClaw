@@ -6,7 +6,7 @@ use crate::{
     WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
-    effect_ledger::EffectAttempt,
+    effect_ledger::{EffectAttempt, EffectTransitionRecord},
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask},
     state_engine::StateEvent,
     InMemoryTaskRuntime, PreflightDecision,
@@ -97,6 +97,13 @@ impl SqliteWorkerService {
 
     pub fn list_state_events(&self, task_id: &str) -> Result<Vec<StateEvent>, WorkerLoopError> {
         self.worker_loop.list_state_events(task_id)
+    }
+
+    pub fn list_effect_transitions(
+        &self,
+        effect_id: &str,
+    ) -> Result<Vec<EffectTransitionRecord>, WorkerLoopError> {
+        self.worker_loop.list_effect_transitions(effect_id)
     }
 
     pub fn filesystem_probe_mut(&mut self) -> &mut FileSystemProbeAdapter {
@@ -421,6 +428,63 @@ mod tests {
         assert_eq!(events[1].effect_status, EffectStatus::Executed);
         assert_eq!(events[0].triggered_by, "worker-loop");
         assert_eq!(events[1].triggered_by, "worker-loop");
+    }
+
+    #[test]
+    fn worker_service_exposes_effect_transition_history_for_executed_task() {
+        let temp = TempDatabase::new("transition-history");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-a",
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25)
+        .with_poll_interval_ms(5);
+        service
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-service-transition-history",
+                ScheduleIntent::write("scope:worker-service-transition-history"),
+                0,
+            ))
+            .unwrap();
+
+        let report = service
+            .run_dispatch_until_idle(
+                0,
+                1,
+                PreflightDecision::Permit,
+                |claim| Ok(format!("effect-{}", claim.task.task_id)),
+                |claim| {
+                    let effect_id = format!("effect-{}", claim.task.task_id);
+                    let effect = EffectRecord::new(
+                        effect_id,
+                        claim.task.task_id.clone(),
+                        "trace-worker-service-transition-history",
+                        "intent-worker-service-transition-history",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap();
+
+        assert_eq!(report.executed_count(), 1);
+
+        let transitions = service
+            .list_effect_transitions("effect-task-worker-service-transition-history")
+            .unwrap();
+        assert_eq!(transitions.len(), 2);
+        assert_eq!(transitions[0].from_status, EffectStatus::Prepared);
+        assert_eq!(transitions[0].to_status, EffectStatus::Dispatched);
+        assert_eq!(transitions[1].from_status, EffectStatus::Dispatched);
+        assert_eq!(transitions[1].to_status, EffectStatus::Executed);
     }
 
     fn sandbox_success_command() -> SandboxCommand {
