@@ -70,6 +70,38 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot after-empty-dispatch-drain => queued=0, active=0, completed=0",
         ],
     ),
+    (
+        "network-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_network_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] execution summary => worker=Uncertain, effect=Uncertain",
+            "[demo] final summary => worker=Succeeded, effect=Executed, completed=true",
+        ],
+    ),
+    (
+        "persisted-probe-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_persisted_probe_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] reclaim before expiry => true",
+            "[demo] probe recovery => from=Uncertain, worker=Succeeded, effect=Executed, completed=true",
+        ],
+    ),
 ]
 
 
