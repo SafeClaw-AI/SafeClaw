@@ -20,6 +20,12 @@ pub struct WorkerServiceRunReport {
     pub outcomes: Vec<WorkerLoopDispatchOutcome>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WorkerServiceGovernanceReport {
+    pub snapshots: Vec<RuntimeDiagnosticSnapshot>,
+    pub summary: RuntimeGovernanceSummary,
+}
+
 impl WorkerServiceRunReport {
     pub fn executed_count(&self) -> usize {
         self.outcomes
@@ -113,6 +119,15 @@ impl SqliteWorkerService {
         report: &WorkerServiceRunReport,
     ) -> Result<RuntimeGovernanceSummary, WorkerLoopError> {
         self.worker_loop.governance_summary_for_outcomes(&report.outcomes)
+    }
+
+    pub fn governance_report_for_report(
+        &self,
+        report: &WorkerServiceRunReport,
+    ) -> Result<WorkerServiceGovernanceReport, WorkerLoopError> {
+        let snapshots = self.diagnostic_snapshots_for_report(report)?;
+        let summary = RuntimeGovernanceSummary::from_snapshots(&snapshots);
+        Ok(WorkerServiceGovernanceReport { snapshots, summary })
     }
 
     pub fn list_attempts(&self, effect_id: &str) -> Result<Vec<EffectAttempt>, WorkerLoopError> {
@@ -266,6 +281,10 @@ mod tests {
         assert_eq!(report.poll_count, 2);
         assert_eq!(report.consecutive_idle_polls, 2);
         assert!(report.outcomes.is_empty());
+        let governance_report = service.governance_report_for_report(&report).unwrap();
+        assert!(governance_report.snapshots.is_empty());
+        assert_eq!(governance_report.summary.total, 0);
+        assert_eq!(governance_report.summary.resolved, 0);
         assert!(service.queue_snapshot().active_leases.is_empty());
         assert!(service.queue_snapshot().completed_task_ids.is_empty());
     }
@@ -342,10 +361,11 @@ mod tests {
             RuntimeGovernanceDisposition::QueueForConfirmation
         );
 
-        let summary = service.governance_summary_for_report(&report).unwrap();
-        assert_eq!(summary.total, 1);
-        assert_eq!(summary.queue_for_confirmation, 1);
-        assert_eq!(summary.resolved, 0);
+        let governance_report = service.governance_report_for_report(&report).unwrap();
+        assert_eq!(governance_report.snapshots.len(), 1);
+        assert_eq!(governance_report.summary.total, 1);
+        assert_eq!(governance_report.summary.queue_for_confirmation, 1);
+        assert_eq!(governance_report.summary.resolved, 0);
 
         let snapshot = service.queue_snapshot();
         assert_eq!(snapshot.active_leases.len(), 1);
@@ -671,9 +691,9 @@ mod tests {
 
         assert_eq!(report.executed_count(), 2);
 
-        let snapshots = service.diagnostic_snapshots_for_report(&report).unwrap();
-        assert_eq!(snapshots.len(), 2);
-        assert!(snapshots.iter().all(|snapshot| {
+        let governance_report = service.governance_report_for_report(&report).unwrap();
+        assert_eq!(governance_report.snapshots.len(), 2);
+        assert!(governance_report.snapshots.iter().all(|snapshot| {
             snapshot.governance.worker_state == WorkerState::Succeeded
                 && snapshot.governance.effect_status == EffectStatus::Executed
                 && snapshot.governance.disposition == RuntimeGovernanceDisposition::Resolved
@@ -681,12 +701,11 @@ mod tests {
                 && snapshot.state_events.len() == 2
                 && snapshot.effect_transitions.len() == 2
         }));
-        let summary = service.governance_summary_for_report(&report).unwrap();
-        assert_eq!(summary.total, 2);
-        assert_eq!(summary.resolved, 2);
-        assert_eq!(summary.queue_for_confirmation, 0);
-        assert_eq!(summary.queue_for_manual_review, 0);
-        let mut task_ids = snapshots
+        assert_eq!(governance_report.summary.total, 2);
+        assert_eq!(governance_report.summary.resolved, 2);
+        assert_eq!(governance_report.summary.queue_for_confirmation, 0);
+        assert_eq!(governance_report.summary.queue_for_manual_review, 0);
+        let mut task_ids = governance_report.snapshots
             .iter()
             .map(|snapshot| snapshot.governance.task_id.as_str())
             .collect::<Vec<_>>();

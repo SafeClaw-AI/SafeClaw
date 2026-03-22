@@ -37,7 +37,9 @@ pub use worker_loop::{
     SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError, WorkerLoopOutcome,
     WorkerLoopProbeOutcome,
 };
-pub use worker_service::{SqliteWorkerService, WorkerServiceRunReport};
+pub use worker_service::{
+    SqliteWorkerService, WorkerServiceGovernanceReport, WorkerServiceRunReport,
+};
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";
 
