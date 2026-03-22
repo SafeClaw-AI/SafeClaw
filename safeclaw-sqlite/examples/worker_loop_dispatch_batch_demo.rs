@@ -159,6 +159,7 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
             WorkerLoopDispatchOutcome::Probed(_) => {
                 return Err("executed batch unexpectedly probed".into())
             }
+            _ => panic!("unexpected parked dispatch outcome"),
         }
     }
     print_snapshot("executed-batch-after-complete", batch_worker.queue_snapshot());
@@ -263,6 +264,7 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
             WorkerLoopDispatchOutcome::Executed(_) => {
                 return Err("probe batch unexpectedly executed".into())
             }
+            _ => panic!("unexpected parked dispatch outcome"),
         }
     }
     print_snapshot("probe-batch-after-complete", batch_worker.queue_snapshot());

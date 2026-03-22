@@ -42,10 +42,25 @@ pub struct WorkerLoopProbeOutcome {
     pub completed: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkerLoopDisposition {
+    QueueForConfirmation,
+    ParkedUnsupported,
+}
+
+#[derive(Clone, Debug)]
+pub struct WorkerLoopParkedOutcome {
+    pub claim: OrchestratorClaim,
+    pub summary: RunSummary,
+    pub disposition: WorkerLoopDisposition,
+    pub completed: bool,
+}
+
 #[derive(Clone, Debug)]
 pub enum WorkerLoopDispatchOutcome {
     Executed(WorkerLoopOutcome),
     Probed(WorkerLoopProbeOutcome),
+    Parked(WorkerLoopParkedOutcome),
 }
 
 pub struct SqliteSingleWorkerLoop {
@@ -358,19 +373,25 @@ impl SqliteSingleWorkerLoop {
         match runtime {
             None => {
                 let (mut runtime, command) = build_fresh(&claim)?;
-                runtime
+                let summary = runtime
                     .begin_execution(preflight)
                     .map_err(WorkerLoopError::Runtime)?;
                 self.persist_runtime(&runtime, &claim, "pre-exec")?;
+                if let Some(disposition) = dispatch_disposition_for_summary(&summary) {
+                    return Ok(Self::parked_outcome(claim, summary, disposition));
+                }
                 self.drive_claimed_runtime(claim, runtime, command)
                     .map(WorkerLoopDispatchOutcome::Executed)
             }
             Some(mut runtime) => match runtime.worker_state {
                 WorkerState::Failed => {
-                    runtime
+                    let summary = runtime
                         .retry_failed(preflight)
                         .map_err(WorkerLoopError::Runtime)?;
                     self.persist_runtime(&runtime, &claim, "pre-exec")?;
+                    if let Some(disposition) = dispatch_disposition_for_summary(&summary) {
+                        return Ok(Self::parked_outcome(claim, summary, disposition));
+                    }
                     let command = build_persisted_command(&claim, &runtime)?;
                     self.drive_claimed_runtime(claim, runtime, command)
                         .map(WorkerLoopDispatchOutcome::Executed)
@@ -401,12 +422,26 @@ impl SqliteSingleWorkerLoop {
                         completed,
                     }))
                 }
-                state => Err(WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
-                    state,
-                    effect_status: runtime.effect.status,
-                })),
+                _ => Ok(Self::parked_outcome(
+                    claim,
+                    runtime_summary(&runtime),
+                    WorkerLoopDisposition::ParkedUnsupported,
+                )),
             },
         }
+    }
+
+    fn parked_outcome(
+        claim: OrchestratorClaim,
+        summary: RunSummary,
+        disposition: WorkerLoopDisposition,
+    ) -> WorkerLoopDispatchOutcome {
+        WorkerLoopDispatchOutcome::Parked(WorkerLoopParkedOutcome {
+            claim,
+            summary,
+            disposition,
+            completed: false,
+        })
     }
 
     fn claim_once(
@@ -489,10 +524,42 @@ impl SqliteSingleWorkerLoop {
     }
 }
 
+fn dispatch_disposition_for_summary(summary: &RunSummary) -> Option<WorkerLoopDisposition> {
+    match summary.worker_state {
+        WorkerState::AwaitingConfirmation => Some(WorkerLoopDisposition::QueueForConfirmation),
+        WorkerState::Created
+        | WorkerState::Planning
+        | WorkerState::Hibernated
+        | WorkerState::Committing
+        | WorkerState::RollingBack
+        | WorkerState::RolledBack
+        | WorkerState::AwaitingDoctor
+        | WorkerState::Repairing
+        | WorkerState::Repaired
+        | WorkerState::RepairFailed
+        | WorkerState::FailedTerminal
+        | WorkerState::Closed => Some(WorkerLoopDisposition::ParkedUnsupported),
+        WorkerState::Executing | WorkerState::Uncertain | WorkerState::Succeeded | WorkerState::Failed => {
+            None
+        }
+    }
+}
+
+fn runtime_summary(runtime: &InMemoryTaskRuntime) -> RunSummary {
+    RunSummary {
+        worker_state: runtime.worker_state,
+        effect_status: runtime.effect.status,
+        attempt_count: runtime.attempts.len(),
+        compensation_count: runtime.compensation_effects.len(),
+        quarantined_scopes: runtime.quarantined_scopes.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError,
+        SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopDisposition,
+        WorkerLoopError,
     };
     use crate::{
         open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
@@ -505,7 +572,7 @@ mod tests {
         },
         scheduler::{OrchestratorTask, ScheduleIntent, TaskOrchestrator},
         worker_lifecycle::WorkerState,
-        InMemoryTaskRuntime, PreflightDecision, RuntimeError,
+        InMemoryTaskRuntime, PreflightDecision,
     };
     use std::{
         env, fs,
@@ -668,8 +735,85 @@ mod tests {
                 assert!(executed.completed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("fresh dispatch must execute directly"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
+    }
+
+    #[test]
+    fn worker_loop_dispatch_parks_confirmation_before_sandbox() {
+        let temp = TempWorkspace::new("dispatch-confirmation");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let outcome = loop_driver
+            .claim_and_dispatch_once(
+                "worker-a",
+                0,
+                "effect-worker-dispatch-confirmation",
+                PreflightDecision::NeedsConfirmation,
+                |claim| {
+                    let effect = EffectRecord::new(
+                        "effect-worker-dispatch-confirmation",
+                        claim.task.task_id.clone(),
+                        "trace-worker-dispatch-confirmation",
+                        "intent-worker-dispatch-confirmation",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap()
+            .expect("confirmation dispatch must claim task");
+
+        match outcome {
+            WorkerLoopDispatchOutcome::Parked(parked) => {
+                assert_eq!(parked.claim.task.task_id, "task-worker-dispatch-confirmation");
+                assert_eq!(parked.summary.worker_state, WorkerState::AwaitingConfirmation);
+                assert_eq!(parked.summary.effect_status, EffectStatus::Prepared);
+                assert_eq!(parked.disposition, WorkerLoopDisposition::QueueForConfirmation);
+                assert!(!parked.completed);
+            }
+            WorkerLoopDispatchOutcome::Executed(_) => {
+                panic!("confirmation dispatch must not execute sandbox")
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => {
+                panic!("confirmation dispatch must not probe runtime")
+            }
+        }
+        assert!(!temp.output_path.exists());
+        assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
+
+        let verify_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        let restored = verify_store
+            .load_runtime(
+                "task-worker-dispatch-confirmation",
+                "effect-worker-dispatch-confirmation",
+            )
+            .unwrap()
+            .expect("confirmation runtime must persist before parking");
+        assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(restored.effect.status, EffectStatus::Prepared);
+        assert!(restored.attempts.is_empty());
     }
 
     #[test]
@@ -737,6 +881,7 @@ mod tests {
                 assert!(executed.completed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("failed dispatch must retry via execution"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
     }
@@ -820,6 +965,7 @@ mod tests {
                 assert!(probed.completed);
             }
             WorkerLoopDispatchOutcome::Executed(_) => panic!("uncertain dispatch must probe"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
     }
@@ -904,6 +1050,7 @@ mod tests {
                 assert!(executed.completed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("executing dispatch must resume via execution"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
 
@@ -920,7 +1067,7 @@ mod tests {
     }
 
     #[test]
-    fn worker_loop_dispatch_rejects_unavailable_persisted_runtime_state() {
+    fn worker_loop_dispatch_parks_unavailable_persisted_runtime_state() {
         let temp = TempWorkspace::new("dispatch-unavailable");
         let mut orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -954,7 +1101,7 @@ mod tests {
             .unwrap();
 
         let mut dispatch_worker = SqliteSingleWorkerLoop::new(orchestrator, store);
-        let error = dispatch_worker
+        let outcome = dispatch_worker
             .claim_and_dispatch_once(
                 "worker-b",
                 0,
@@ -963,15 +1110,24 @@ mod tests {
                 |_| unreachable!(),
                 |_, _| unreachable!(),
             )
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
-                state: WorkerState::Created,
-                ..
-            })
-        ));
+            .unwrap()
+            .expect("unavailable runtime must still return a parked outcome");
+        match outcome {
+            WorkerLoopDispatchOutcome::Parked(parked) => {
+                assert_eq!(parked.summary.worker_state, WorkerState::Created);
+                assert_eq!(parked.summary.effect_status, EffectStatus::Prepared);
+                assert_eq!(parked.disposition, WorkerLoopDisposition::ParkedUnsupported);
+                assert!(!parked.completed);
+            }
+            WorkerLoopDispatchOutcome::Executed(_) => {
+                panic!("unavailable runtime must not execute")
+            }
+            WorkerLoopDispatchOutcome::Probed(_) => {
+                panic!("unavailable runtime must not probe")
+            }
+        }
         assert!(!temp.output_path.exists());
+        assert_eq!(dispatch_worker.queue_snapshot().active_leases.len(), 1);
     }
 
     #[test]
@@ -1160,6 +1316,7 @@ mod tests {
                 WorkerLoopDispatchOutcome::Probed(_) => {
                     panic!("executed-branch batch must not probe")
                 }
+                _ => panic!("unexpected parked dispatch outcome"),
             }
         }
         executed_ids.sort();
@@ -1257,6 +1414,7 @@ mod tests {
                 assert!(probed.completed);
             }
             WorkerLoopDispatchOutcome::Executed(_) => panic!("probe batch must recover uncertain runtime"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_probe);
         assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
@@ -1265,7 +1423,7 @@ mod tests {
     }
 
     #[test]
-    fn worker_loop_dispatch_until_empty_stops_on_later_unavailable_runtime() {
+    fn worker_loop_dispatch_until_empty_returns_parked_later_unavailable_runtime() {
         let temp = TempWorkspace::new("dispatch-batch-stop");
         let first_output = temp.root.join("dispatch-first.txt");
         let second_output = temp.root.join("dispatch-second.txt");
@@ -1322,7 +1480,7 @@ mod tests {
         )
         .unwrap()
         .with_lease_ttl_ms(25);
-        let error = batch_worker
+        let outcomes = batch_worker
             .claim_and_dispatch_until_empty(
                 "worker-batch",
                 0,
@@ -1361,15 +1519,27 @@ mod tests {
                 },
                 |_, _| unreachable!(),
             )
-            .unwrap_err();
+            .unwrap();
 
-        assert!(matches!(
-            error,
-            WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
-                state: WorkerState::Created,
-                ..
-            })
-        ));
+        assert_eq!(outcomes.len(), 2);
+        match &outcomes[0] {
+            WorkerLoopDispatchOutcome::Executed(executed) => {
+                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-stop-fresh");
+                assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
+                assert!(executed.completed);
+            }
+            _ => panic!("first batch outcome must execute"),
+        }
+        match &outcomes[1] {
+            WorkerLoopDispatchOutcome::Parked(parked) => {
+                assert_eq!(parked.claim.task.task_id, "task-worker-dispatch-stop-created");
+                assert_eq!(parked.summary.worker_state, WorkerState::Created);
+                assert_eq!(parked.summary.effect_status, EffectStatus::Prepared);
+                assert_eq!(parked.disposition, WorkerLoopDisposition::ParkedUnsupported);
+                assert!(!parked.completed);
+            }
+            _ => panic!("second batch outcome must park unsupported runtime"),
+        }
         assert_eq!(fs::read(&first_output).unwrap(), expected_first);
         assert!(!second_output.exists());
         assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
@@ -1744,12 +1914,14 @@ mod tests {
                 assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-other-1")
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("conflict skip branch must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         match &outcomes[1] {
             WorkerLoopDispatchOutcome::Executed(executed) => {
                 assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-other-2")
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("conflict skip branch must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(
             fs::read(&other_one_output).unwrap(),
@@ -1942,6 +2114,7 @@ mod tests {
                 assert!(executed.completed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("released conflict must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(
             fs::read(&shared_output).unwrap(),
@@ -2035,6 +2208,7 @@ mod tests {
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("same-scope second read must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(read_worker.queue_snapshot().queued_tasks.len(), 0);
         assert_eq!(read_worker.queue_snapshot().active_leases.len(), 1);
@@ -2148,6 +2322,7 @@ mod tests {
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("same-scope write under reads must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(
             fs::read(&write_output).unwrap(),
@@ -2295,6 +2470,7 @@ mod tests {
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
             }
             WorkerLoopDispatchOutcome::Probed(_) => panic!("released second write must execute"),
+            _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(
             fs::read(&second_write_output).unwrap(),

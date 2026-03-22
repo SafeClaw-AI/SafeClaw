@@ -75,6 +75,7 @@ fn run_fresh_branch(temp: &DemoArtifacts) -> Result<(), String> {
             executed.completed
         ),
         WorkerLoopDispatchOutcome::Probed(_) => return Err("fresh branch unexpectedly probed".into()),
+        _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("fresh-after-complete", worker.queue_snapshot());
     Ok(())
@@ -138,6 +139,7 @@ fn run_retry_branch(temp: &DemoArtifacts) -> Result<(), String> {
             executed.completed
         ),
         WorkerLoopDispatchOutcome::Probed(_) => return Err("retry branch unexpectedly probed".into()),
+        _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("retry-after-complete", retry_worker.queue_snapshot());
     Ok(())
@@ -215,6 +217,7 @@ fn run_resume_branch(temp: &DemoArtifacts) -> Result<(), String> {
         WorkerLoopDispatchOutcome::Probed(_) => {
             return Err("resume branch unexpectedly probed".into())
         }
+        _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("resume-after-complete", resume_worker.queue_snapshot());
     Ok(())
@@ -286,6 +289,7 @@ fn run_probe_branch(temp: &DemoArtifacts) -> Result<(), String> {
             probed.completed
         ),
         WorkerLoopDispatchOutcome::Executed(_) => return Err("probe branch unexpectedly executed".into()),
+        _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("probe-after-complete", probe_worker.queue_snapshot());
     Ok(())
