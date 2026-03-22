@@ -278,6 +278,86 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot after-missing-runtime-error => queued=0, active=1, completed=0",
         ],
     ),
+    (
+        "resume-conflict-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_resume_conflict_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] resume attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] shared output exists => false",
+        ],
+    ),
+    (
+        "resume-release-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_resume_release_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] release attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] shared output exists => true",
+        ],
+    ),
+    (
+        "retry-conflict-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_retry_conflict_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] retry attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] shared output exists => false",
+        ],
+    ),
+    (
+        "retry-pre-exec-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_retry_pre_exec_spawn_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] retry spawn error => Sandbox(Executor(Spawn(Error { kind: NotFound, message: \"program not found\" })))",
+            "[demo] resume completion => worker=Succeeded, effect=Executed, completed=true",
+        ],
+    ),
+    (
+        "retry-release-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_retry_release_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] release attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] shared output exists => true",
+        ],
+    ),
 ]
 
 
