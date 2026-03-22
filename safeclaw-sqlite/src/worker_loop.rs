@@ -1265,6 +1265,120 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_dispatch_until_empty_stops_on_later_unavailable_runtime() {
+        let temp = TempWorkspace::new("dispatch-batch-stop");
+        let first_output = temp.root.join("dispatch-first.txt");
+        let second_output = temp.root.join("dispatch-second.txt");
+
+        let mut seed_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        seed_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-stop-fresh",
+                ScheduleIntent::write(format!("scope:{}", first_output.display())),
+                0,
+            ))
+            .unwrap();
+        seed_worker
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-dispatch-stop-created",
+                ScheduleIntent::write(format!("scope:{}", second_output.display())),
+                1,
+            ))
+            .unwrap();
+
+        let created_effect = EffectRecord::new(
+            "effect-worker-dispatch-stop-created",
+            String::from("task-worker-dispatch-stop-created"),
+            "trace-worker-dispatch-stop-created",
+            "intent-worker-dispatch-stop-created",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            format!("scope:{}", second_output.display()),
+            EffectTier::Tier1,
+            EffectReversibility::Rollbackable,
+            ProbeMode::Auto,
+        );
+        let created_runtime = InMemoryTaskRuntime::new(created_effect);
+        let mut seed_store = SqliteRuntimeStore::new(
+            open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
+        );
+        seed_store
+            .persist_runtime(
+                &created_runtime,
+                String::from("worker-loop:seed:created"),
+                "test",
+            )
+            .unwrap();
+
+        let expected_first = b"safeclaw dispatch stop first\n";
+        let mut batch_worker = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        let error = batch_worker
+            .claim_and_dispatch_until_empty(
+                "worker-batch",
+                0,
+                PreflightDecision::Permit,
+                |claim| {
+                    Ok(match claim.task.task_id.as_str() {
+                        "task-worker-dispatch-stop-fresh" => {
+                            String::from("effect-worker-dispatch-stop-fresh")
+                        }
+                        "task-worker-dispatch-stop-created" => {
+                            String::from("effect-worker-dispatch-stop-created")
+                        }
+                        other => panic!("unexpected task id: {other}"),
+                    })
+                },
+                |claim| match claim.task.task_id.as_str() {
+                    "task-worker-dispatch-stop-fresh" => {
+                        let effect = EffectRecord::new(
+                            "effect-worker-dispatch-stop-fresh",
+                            claim.task.task_id.clone(),
+                            "trace-worker-dispatch-stop-fresh",
+                            "intent-worker-dispatch-stop-fresh",
+                            EffectActor::Worker,
+                            EffectAction::FileWrite,
+                            claim.task.intent.target_scope.clone(),
+                            EffectTier::Tier1,
+                            EffectReversibility::Rollbackable,
+                            ProbeMode::Auto,
+                        );
+                        Ok((
+                            InMemoryTaskRuntime::new(effect),
+                            sandbox_write_command(&first_output, expected_first),
+                        ))
+                    }
+                    other => panic!("unexpected fresh task id: {other}"),
+                },
+                |_, _| unreachable!(),
+            )
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            WorkerLoopError::Runtime(RuntimeError::ReconcileUnavailable {
+                state: WorkerState::Created,
+                ..
+            })
+        ));
+        assert_eq!(fs::read(&first_output).unwrap(), expected_first);
+        assert!(!second_output.exists());
+        assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
+        assert_eq!(batch_worker.queue_snapshot().completed_task_ids, vec![String::from("task-worker-dispatch-stop-fresh")]);
+        assert_eq!(batch_worker.queue_snapshot().active_leases.len(), 1);
+        assert_eq!(batch_worker.queue_snapshot().active_leases[0].task_id, "task-worker-dispatch-stop-created");
+    }
+
+    #[test]
     fn worker_loop_drives_multiple_queued_tasks_until_empty() {
         let temp = TempWorkspace::new("drain-batch");
         let first_output = temp.root.join("output-1.txt");
