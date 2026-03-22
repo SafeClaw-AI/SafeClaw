@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::{
     open_database, FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter,
-    SandboxCommand, SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError,
-    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
+    RuntimeGovernanceView, SandboxCommand, SandboxExecutionReport, SandboxRuntimeError,
+    SqliteAdapterError, SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
     effect_ledger::EffectAction,
@@ -113,6 +113,16 @@ impl SqliteSingleWorkerLoop {
 
     pub fn queue_snapshot(&self) -> OrchestratorSnapshot {
         self.orchestrator.queue_snapshot()
+    }
+
+    pub fn governance_view(
+        &self,
+        task_id: &str,
+        effect_id: &str,
+    ) -> Result<Option<RuntimeGovernanceView>, WorkerLoopError> {
+        self.runtime_store
+            .governance_view(task_id, effect_id)
+            .map_err(WorkerLoopError::Store)
     }
 
     pub fn renew_claim_lease(
@@ -609,8 +619,8 @@ mod tests {
         WorkerLoopError,
     };
     use crate::{
-        open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
-        SqliteRuntimeStore, SqliteTaskOrchestrator,
+        open_database, LocalSandboxExecutor, RuntimeGovernanceDisposition, SandboxCommand,
+        SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
     };
     use safeclaw_core::{
         effect_ledger::{
@@ -712,6 +722,19 @@ mod tests {
     }
 
     #[test]
+    fn worker_loop_governance_view_returns_none_when_runtime_is_missing() {
+        let temp = TempWorkspace::new("governance-view-missing");
+        let loop_driver = SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+            .unwrap();
+
+        let view = loop_driver
+            .governance_view("task-worker-governance-missing", "effect-worker-governance-missing")
+            .unwrap();
+
+        assert!(view.is_none());
+    }
+
+    #[test]
     fn worker_loop_drive_until_empty_returns_empty_batch_when_queue_is_empty() {
         let temp = TempWorkspace::new("empty-batch");
         let orchestrator = SqliteTaskOrchestrator::new(
@@ -786,6 +809,63 @@ mod tests {
         assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
         assert_eq!(restored.effect.status, EffectStatus::Prepared);
         assert!(restored.attempts.is_empty());
+    }
+
+    #[test]
+    fn worker_loop_governance_view_surfaces_confirmation_runtime() {
+        let temp = TempWorkspace::new("governance-view-confirmation");
+        let mut loop_driver = SqliteSingleWorkerLoop::open(
+            &temp.db_path,
+            SqliteOpenOptions::default(),
+        )
+        .unwrap()
+        .with_lease_ttl_ms(25);
+        loop_driver
+            .enqueue_task(OrchestratorTask::new(
+                "task-worker-governance-confirmation",
+                ScheduleIntent::write(format!("scope:{}", temp.output_path.display())),
+                0,
+            ))
+            .unwrap();
+
+        let outcome = loop_driver
+            .claim_and_drive_once("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
+                let effect = EffectRecord::new(
+                    "effect-worker-governance-confirmation",
+                    claim.task.task_id.clone(),
+                    "trace-worker-governance-confirmation",
+                    "intent-worker-governance-confirmation",
+                    EffectActor::Worker,
+                    EffectAction::FileWrite,
+                    claim.task.intent.target_scope.clone(),
+                    EffectTier::Tier1,
+                    EffectReversibility::Rollbackable,
+                    ProbeMode::Auto,
+                );
+                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+            })
+            .unwrap()
+            .expect("governance confirmation run must claim task");
+
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
+        assert!(!outcome.completed);
+
+        let view = loop_driver
+            .governance_view(
+                "task-worker-governance-confirmation",
+                "effect-worker-governance-confirmation",
+            )
+            .unwrap()
+            .expect("governance view must exist after parked confirmation");
+
+        assert_eq!(view.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(view.effect_status, EffectStatus::Prepared);
+        assert_eq!(view.attempt_count, 0);
+        assert_eq!(view.disposition, RuntimeGovernanceDisposition::QueueForConfirmation);
+        assert!(!view.has_recovery_lease);
     }
 
     #[test]
