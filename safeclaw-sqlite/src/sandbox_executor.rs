@@ -175,7 +175,7 @@ impl LocalSandboxExecutor {
 mod tests {
     use super::{
         LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
-        SandboxExecutionReport, SandboxRuntimeError,
+        SandboxExecutionReport, SandboxExecutorError, SandboxRuntimeError,
     };
     use safeclaw_core::{
         effect_ledger::{
@@ -333,6 +333,24 @@ mod tests {
 
         let error = executor.run_and_apply(&mut runtime, &command).unwrap_err();
         assert!(matches!(error, SandboxRuntimeError::Runtime(_)));
+    }
+
+    #[test]
+    fn executor_run_and_apply_surfaces_spawn_failures() {
+        let executor = LocalSandboxExecutor::new();
+        let command =
+            SandboxCommand::new("safeclaw-command-does-not-exist", std::iter::empty::<&str>(), 2_000);
+        let mut runtime = demo_runtime();
+        runtime.begin_execution(PreflightDecision::Permit).unwrap();
+
+        let error = executor.run_and_apply(&mut runtime, &command).unwrap_err();
+        assert!(matches!(
+            error,
+            SandboxRuntimeError::Executor(SandboxExecutorError::Spawn(_))
+        ));
+        assert_eq!(runtime.worker_state, WorkerState::Executing);
+        assert_eq!(runtime.effect.status, EffectStatus::Prepared);
+        assert!(runtime.attempts.is_empty());
     }
 
     fn demo_runtime() -> InMemoryTaskRuntime {
