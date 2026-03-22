@@ -38,6 +38,38 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot probe-batch-after-complete => queued=0, active=0, completed=4",
         ],
     ),
+    (
+        "dispatch-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_dispatch_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] fresh => task=task-worker-dispatch-demo-fresh worker=Succeeded effect=Executed completed=true",
+            "[demo] snapshot probe-after-complete => queued=0, active=0, completed=4",
+        ],
+    ),
+    (
+        "empty-queue-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_empty_queue_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] claim_and_dispatch_until_empty on empty queue => count=0",
+            "[demo] snapshot after-empty-dispatch-drain => queued=0, active=0, completed=0",
+        ],
+    ),
 ]
 
 
