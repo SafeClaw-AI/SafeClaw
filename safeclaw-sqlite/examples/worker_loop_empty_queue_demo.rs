@@ -38,6 +38,21 @@ fn main() -> Result<(), String> {
     println!("[demo] claim_and_drive_until_empty on empty queue => count={}", drained.len());
     print_snapshot("after-empty-drain", worker.queue_snapshot());
 
+    let dispatched = into_demo(worker.claim_and_dispatch_until_empty(
+        "worker-a",
+        2,
+        PreflightDecision::Permit,
+        |_| unreachable!(),
+        |_| unreachable!(),
+        |_, _| unreachable!(),
+    ))?;
+    assert!(dispatched.is_empty());
+    println!(
+        "[demo] claim_and_dispatch_until_empty on empty queue => count={}",
+        dispatched.len()
+    );
+    print_snapshot("after-empty-dispatch-drain", worker.queue_snapshot());
+
     println!("[demo] db: {}", temp.db_path().display());
     Ok(())
 }
