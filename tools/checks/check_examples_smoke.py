@@ -214,6 +214,70 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "[demo] snapshot after-shared-task-complete => queued=0, active=0, completed=3",
         ],
     ),
+    (
+        "resume-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_resume_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] resume attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] snapshot after-resume-complete => queued=0, active=0, completed=1",
+        ],
+    ),
+    (
+        "retry-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_retry_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] retry attempt => worker=Succeeded, effect=Executed, completed=true",
+            "[demo] snapshot after-retry-complete => queued=0, active=0, completed=1",
+        ],
+    ),
+    (
+        "resume-missing-runtime-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_resume_missing_runtime_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] missing persisted runtime => task=task-worker-loop-missing-resume-demo effect=effect-worker-loop-missing-resume-demo",
+            "[demo] snapshot after-missing-runtime-error => queued=0, active=1, completed=0",
+        ],
+    ),
+    (
+        "retry-missing-runtime-demo",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "worker_loop_retry_missing_runtime_demo",
+            "--quiet",
+        ],
+        [
+            "[demo] missing persisted runtime => task=task-worker-loop-missing-retry-demo effect=effect-worker-loop-missing-retry-demo",
+            "[demo] snapshot after-missing-runtime-error => queued=0, active=1, completed=0",
+        ],
+    ),
 ]
 
 
