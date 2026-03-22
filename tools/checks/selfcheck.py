@@ -40,6 +40,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         [PYTHON, "-u", "tools/checks/check_tooling_smoke.py"],
     ),
     (
+        "Example smoke",
+        [PYTHON, "-u", "tools/checks/check_examples_smoke.py"],
+    ),
+    (
         "Generated sync",
         [PYTHON, "-u", "tools/checks/check_generated_sync.py"],
     ),

@@ -11,6 +11,7 @@
 - `check_public_docs.py`：公开文档对齐检查
 - `check_scaffold.py`：仓库骨架检查
 - `check_tooling_smoke.py`：工具烟测
+- `check_examples_smoke.py`：高层示例烟测
 - `check_generated_sync.py`：生成产物同步检查
 - `selfcheck.py`：串起全部门禁的统一入口
 
