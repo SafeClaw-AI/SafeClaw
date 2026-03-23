@@ -45,6 +45,25 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         ],
     ),
     (
+        "safeclaw-mvp-entry",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "safeclaw_mvp_entry",
+            "--quiet",
+        ],
+        [
+            "[mvp] accepted task => task=task-safeclaw-mvp-",
+            "[mvp] run report => polls=3 idle=2 executed=1 probed=0 parked=0",
+            "[mvp] governance resolved => total=1 resolved=1 confirmation=0 manual_review=0",
+            "[mvp] output exists => true",
+            "[mvp] output content => safeclaw mvp entry\\n",
+        ],
+    ),
+    (
         "dispatch-batch-demo",
         [
             "cargo",
