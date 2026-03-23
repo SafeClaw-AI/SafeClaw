@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::{
     FileSystemProbeAdapter, NetworkProbeAdapter, RuntimeDiagnosticSnapshot,
-    RuntimeGovernanceSummary, RuntimeGovernanceView, SandboxCommand,
-    SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
+    RuntimeGovernanceDisposition, RuntimeGovernanceSummary, RuntimeGovernanceView,
+    SandboxCommand, SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
     WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
@@ -24,6 +24,38 @@ pub struct WorkerServiceRunReport {
 pub struct WorkerServiceGovernanceReport {
     pub snapshots: Vec<RuntimeDiagnosticSnapshot>,
     pub summary: RuntimeGovernanceSummary,
+}
+
+impl WorkerServiceGovernanceReport {
+    pub fn snapshots_for_disposition(
+        &self,
+        disposition: RuntimeGovernanceDisposition,
+    ) -> Vec<&RuntimeDiagnosticSnapshot> {
+        self.snapshots
+            .iter()
+            .filter(|snapshot| snapshot.governance.disposition == disposition)
+            .collect()
+    }
+
+    pub fn task_ids_for_disposition(
+        &self,
+        disposition: RuntimeGovernanceDisposition,
+    ) -> Vec<String> {
+        self.snapshots_for_disposition(disposition)
+            .into_iter()
+            .map(|snapshot| snapshot.governance.task_id.clone())
+            .collect()
+    }
+
+    pub fn effect_ids_for_disposition(
+        &self,
+        disposition: RuntimeGovernanceDisposition,
+    ) -> Vec<String> {
+        self.snapshots_for_disposition(disposition)
+            .into_iter()
+            .map(|snapshot| snapshot.governance.effect_id.clone())
+            .collect()
+    }
 }
 
 impl WorkerServiceRunReport {
@@ -366,6 +398,18 @@ mod tests {
         assert_eq!(governance_report.summary.total, 1);
         assert_eq!(governance_report.summary.queue_for_confirmation, 1);
         assert_eq!(governance_report.summary.resolved, 0);
+        assert_eq!(
+            governance_report.task_ids_for_disposition(
+                RuntimeGovernanceDisposition::QueueForConfirmation
+            ),
+            vec![String::from("task-worker-service-confirmation")]
+        );
+        assert_eq!(
+            governance_report.effect_ids_for_disposition(
+                RuntimeGovernanceDisposition::QueueForConfirmation
+            ),
+            vec![String::from("effect-task-worker-service-confirmation")]
+        );
 
         let snapshot = service.queue_snapshot();
         assert_eq!(snapshot.active_leases.len(), 1);
@@ -705,6 +749,26 @@ mod tests {
         assert_eq!(governance_report.summary.resolved, 2);
         assert_eq!(governance_report.summary.queue_for_confirmation, 0);
         assert_eq!(governance_report.summary.queue_for_manual_review, 0);
+        let mut resolved_task_ids = governance_report
+            .task_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
+        resolved_task_ids.sort();
+        assert_eq!(
+            resolved_task_ids,
+            vec![
+                String::from("task-worker-service-diagnostic-report-a"),
+                String::from("task-worker-service-diagnostic-report-b"),
+            ]
+        );
+        let mut resolved_effect_ids = governance_report
+            .effect_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
+        resolved_effect_ids.sort();
+        assert_eq!(
+            resolved_effect_ids,
+            vec![
+                String::from("effect-task-worker-service-diagnostic-report-a"),
+                String::from("effect-task-worker-service-diagnostic-report-b"),
+            ]
+        );
         let mut task_ids = governance_report.snapshots
             .iter()
             .map(|snapshot| snapshot.governance.task_id.as_str())

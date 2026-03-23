@@ -14,7 +14,8 @@ use safeclaw_core::{
     InMemoryTaskRuntime, PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    SandboxCommand, SqliteOpenOptions, SqliteWorkerService,
+    RuntimeGovernanceDisposition, SandboxCommand, SqliteOpenOptions,
+    SqliteWorkerService,
 };
 
 fn main() -> Result<(), String> {
@@ -48,6 +49,12 @@ fn main() -> Result<(), String> {
         resolved_governance.summary.queue_for_confirmation,
         resolved_governance.summary.queue_for_manual_review,
     );
+    println!(
+        "[demo] service governance resolved tasks => {}",
+        resolved_governance
+            .task_ids_for_disposition(RuntimeGovernanceDisposition::Resolved)
+            .join(",")
+    );
     print_snapshot("after-resolved", service.queue_snapshot());
 
     enqueue_demo_task(&mut service, "task-worker-service-governance-confirmation")?;
@@ -69,6 +76,12 @@ fn main() -> Result<(), String> {
         confirmation_governance.summary.resolved,
         confirmation_governance.summary.queue_for_confirmation,
         confirmation_governance.summary.queue_for_manual_review,
+    );
+    println!(
+        "[demo] service governance confirmation tasks => {}",
+        confirmation_governance
+            .task_ids_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation)
+            .join(",")
     );
     print_snapshot("after-confirmation", service.queue_snapshot());
     println!("[demo] db: {}", temp.path().display());

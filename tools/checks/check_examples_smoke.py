@@ -38,7 +38,9 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         ],
         [
             "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0",
+            "[demo] service governance resolved tasks => task-worker-service-governance-a,task-worker-service-governance-b",
             "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0",
+            "[demo] service governance confirmation tasks => task-worker-service-governance-confirmation",
             "[demo] snapshot after-confirmation => queued=0, active=1, completed=2",
         ],
     ),
