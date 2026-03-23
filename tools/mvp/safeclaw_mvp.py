@@ -23,7 +23,7 @@ LINKER = (
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
-LOCAL_ACTIONS = {"session", "sessions", "use"}
+LOCAL_ACTIONS = {"session", "sessions", "use", "demo"}
 
 
 def main(argv: list[str]) -> int:
@@ -38,15 +38,37 @@ def main(argv: list[str]) -> int:
         return print_sessions(raw_args[1:])
     if action == "use":
         return activate_session(raw_args[1:])
+    if action == "demo":
+        return run_demo(raw_args[1:])
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args)
 
+    return execute_session_action(raw_args)
+
+
+def execute_session_action(args: list[str]) -> int:
+    action = args[0]
     session = load_session()
-    prepared = prepare_args(action, raw_args, session)
+    prepared = prepare_args(action, args, session)
     exit_code = run_cargo(prepared)
     if exit_code == 0 and action in WRITES_SESSION:
         save_session(build_session(prepared))
     return exit_code
+
+
+def run_demo(args: list[str]) -> int:
+    shared_args = [item for item in args if item != "--reset"]
+    steps = [
+        ["run", "--reset", *shared_args],
+        ["status", *shared_args],
+        ["report", *shared_args],
+    ]
+    for step in steps:
+        print(f"[mvp-wrapper] demo => {step[0]}")
+        exit_code = execute_session_action(step)
+        if exit_code != 0:
+            return exit_code
+    return 0
 
 
 def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -> list[str]:

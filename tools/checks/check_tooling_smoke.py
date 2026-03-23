@@ -157,6 +157,24 @@ def collect_errors() -> list[str]:
     elif "[mvp] status target => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_status_after_use_output:
         errors.append("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a")
 
+    wrapper_demo = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_demo_output = (wrapper_demo.stdout or "") + (wrapper_demo.stderr or "")
+    if wrapper_demo.returncode != 0:
+        errors.append(f"mvp-wrapper-demo 执行失败: exit={wrapper_demo.returncode}")
+    elif "[mvp-wrapper] demo => run" not in wrapper_demo_output:
+        errors.append("mvp-wrapper-demo 输出缺少 run 标记")
+    elif "[mvp-wrapper] demo => status" not in wrapper_demo_output:
+        errors.append("mvp-wrapper-demo 输出缺少 status 标记")
+    elif "[mvp-wrapper] demo => report" not in wrapper_demo_output:
+        errors.append("mvp-wrapper-demo 输出缺少 report 标记")
+    elif "[mvp] report target => task=task-wrapper-demo effect=effect-task-wrapper-demo" not in wrapper_demo_output:
+        errors.append("mvp-wrapper-demo 输出缺少 task-wrapper-demo report 目标")
+
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
         errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
