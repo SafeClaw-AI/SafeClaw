@@ -297,6 +297,10 @@ def print_help() -> int:
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json"
     )
+    print(
+        "[mvp-wrapper] errors => invalid-argument / missing-task-context；"
+        "组合动作 JSON 失败会额外附带 failed_step 与 error_message"
+    )
     return 0
 
 

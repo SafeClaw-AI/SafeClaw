@@ -187,6 +187,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
     elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
+    elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step 与 error_message" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
 
     wrapper_doctor = subprocess.run(
         [
