@@ -10,13 +10,19 @@ use safeclaw_core::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
         ProbeMode,
     },
-    scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask},
+    scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask, TaskOrchestrator},
     InMemoryTaskRuntime, PreflightDecision, ScheduleIntent,
 };
-use safeclaw_sqlite::{SandboxCommand, SqliteOpenOptions, SqliteWorkerService};
+use safeclaw_sqlite::{
+    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteSingleWorkerLoop, SqliteTaskOrchestrator, SqliteWorkerService,
+};
 
 const DEFAULT_CONTENT: &str = "safeclaw mvp entry\n";
 const DEFAULT_OWNER_ID: &str = "safeclaw-mvp";
+const RECOVERY_LEASE_TTL_MS: u64 = 25;
+const RECOVERY_BLOCKED_NOW_MS: u64 = 10;
+const RECOVERY_RECLAIM_NOW_MS: u64 = 26;
 
 fn main() -> Result<(), String> {
     let raw_args = env::args().skip(1).collect::<Vec<_>>();
@@ -29,6 +35,8 @@ fn main() -> Result<(), String> {
     match args.action {
         CliAction::Run => run_action(&args),
         CliAction::Report => report_action(&args),
+        CliAction::SeedCrash => seed_crash_action(&args),
+        CliAction::Recover => recover_action(&args),
     }
 }
 
@@ -112,16 +120,10 @@ fn run_action(args: &CliArgs) -> Result<(), String> {
     }
 
     print_snapshot("after-run", service.queue_snapshot());
-    println!("[mvp] output exists => {}", args.output_path.exists());
-    let rendered = fs::read_to_string(&args.output_path).map_err(|error| error.to_string())?;
-    println!(
-        "[mvp] output content => {}",
-        rendered.replace('\r', "\\r").replace('\n', "\\n")
-    );
+    print_output_state(&args.output_path)?;
     println!("[mvp] db: {}", args.db_path.display());
     println!("[mvp] output: {}", args.output_path.display());
     println!("[mvp] owner: {}", args.owner_id);
-
     println!(
         "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
         args.db_path.display(),
@@ -147,7 +149,6 @@ fn report_action(args: &CliArgs) -> Result<(), String> {
         .governance_view(&args.task_id, &effect_id)
         .map_err(|error| format!("{error:?}"))?
         .ok_or_else(|| format!("missing governance view for task={} effect={effect_id}", args.task_id))?;
-
     println!(
         "[mvp] governance view => disposition={:?} worker={:?} effect={:?} attempts={}",
         governance.disposition,
@@ -162,20 +163,132 @@ fn report_action(args: &CliArgs) -> Result<(), String> {
         .ok_or_else(|| format!("missing diagnostic snapshot for task={} effect={effect_id}", args.task_id))?;
     println!("[mvp] diagnostic => {}", snapshot.render_line());
     print_snapshot("report", service.queue_snapshot());
-
-    let output_exists = args.output_path.exists();
-    println!("[mvp] output exists => {output_exists}");
-    if output_exists {
-        let rendered = fs::read_to_string(&args.output_path).map_err(|error| error.to_string())?;
-        println!(
-            "[mvp] output content => {}",
-            rendered.replace('\r', "\\r").replace('\n', "\\n")
-        );
-    }
-
+    print_output_state(&args.output_path)?;
     println!("[mvp] db: {}", args.db_path.display());
     println!("[mvp] output: {}", args.output_path.display());
     println!("[mvp] owner: {}", args.owner_id);
+    Ok(())
+}
+
+fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
+    ensure_parent_dir(&args.db_path)?;
+    ensure_parent_dir(&args.output_path)?;
+    if args.reset {
+        reset_session_artifacts(&args.db_path, &args.output_path);
+    }
+
+    let effect_id = args.effect_id();
+    let mut orchestrator = SqliteTaskOrchestrator::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    )
+    .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    orchestrator
+        .enqueue(OrchestratorTask::new(
+            &args.task_id,
+            ScheduleIntent::write(format!("scope:{}", args.output_path.display())),
+            0,
+        ))
+        .map_err(|error| format!("{error:?}"))?;
+
+    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    print_snapshot("after-enqueue", orchestrator.queue_snapshot());
+
+    let claim = orchestrator
+        .claim_next(&args.owner_id, 0)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
+    println!(
+        "[mvp] crash claim => task={} lease={} fence={}",
+        claim.task.task_id,
+        claim.lease.lease_id,
+        claim.lease.fencing_token
+    );
+
+    let mut runtime = build_runtime(&claim, &effect_id);
+    runtime
+        .begin_execution(PreflightDecision::Permit)
+        .map_err(|error| format!("{error:?}"))?;
+    let executor = LocalSandboxExecutor::new();
+    let (report, execution_summary) = executor
+        .run_and_apply(
+            &mut runtime,
+            &sandbox_write_then_timeout_command(&args.output_path, args.content.as_bytes()),
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    println!(
+        "[mvp] crash phase => worker={:?}, effect={:?}, timed_out={}",
+        execution_summary.worker_state,
+        execution_summary.effect_status,
+        report.timed_out
+    );
+
+    let mut store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    store
+        .persist_runtime(
+            &runtime,
+            format!("safeclaw-mvp:{}:post-exec", claim.lease.lease_id),
+            "safeclaw-mvp-entry",
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    print_snapshot("after-seed", orchestrator.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next recover => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- recover --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    if args.content != DEFAULT_CONTENT {
+        println!("[mvp] note => recover requires the same --content used during seed-crash");
+    }
+    Ok(())
+}
+
+fn recover_action(args: &CliArgs) -> Result<(), String> {
+    let effect_id = args.effect_id();
+    let mut loop_driver = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+        .map_err(|error| format!("{error:?}"))?
+        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    loop_driver.filesystem_probe_mut().register_expected_blake3(
+        effect_id.clone(),
+        blake3::hash(args.content.as_bytes()).to_hex().to_string(),
+    );
+
+    let blocked = loop_driver
+        .claim_and_probe_persisted_once(&args.owner_id, RECOVERY_BLOCKED_NOW_MS, &effect_id)
+        .map_err(|error| format!("{error:?}"))?;
+    println!("[mvp] recover blocked before expiry => {}", blocked.is_none());
+
+    let recovered = loop_driver
+        .claim_and_probe_persisted_once(&args.owner_id, RECOVERY_RECLAIM_NOW_MS, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no recoverable runtime for task={} effect={effect_id}", args.task_id))?;
+    println!("[mvp] recover result => {}", recovered.render_recovery_status_line());
+
+    print_snapshot("after-recover", loop_driver.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    if args.content != DEFAULT_CONTENT {
+        println!("[mvp] note => recover requires the same --content used during seed-crash");
+    }
     Ok(())
 }
 
@@ -183,6 +296,8 @@ fn report_action(args: &CliArgs) -> Result<(), String> {
 enum CliAction {
     Run,
     Report,
+    SeedCrash,
+    Recover,
 }
 
 #[derive(Clone, Debug)]
@@ -226,6 +341,14 @@ impl CliArgs {
                     action = CliAction::Report;
                     action_set = true;
                 }
+                "seed-crash" if !action_set => {
+                    action = CliAction::SeedCrash;
+                    action_set = true;
+                }
+                "recover" if !action_set => {
+                    action = CliAction::Recover;
+                    action_set = true;
+                }
                 "--db" => db_path = Some(PathBuf::from(next_value(&mut args, "--db")?)),
                 "--output" => {
                     output_path = Some(PathBuf::from(next_value(&mut args, "--output")?))
@@ -240,18 +363,18 @@ impl CliArgs {
         }
 
         let (db_path, output_path, task_id) = match action {
-            CliAction::Run => {
+            CliAction::Run | CliAction::SeedCrash => {
                 let output_path = output_path.unwrap_or(default_output);
                 let db_path = db_path.unwrap_or(default_db);
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
                 (db_path, output_path, task_id)
             }
-            CliAction::Report => {
+            CliAction::Report | CliAction::Recover => {
                 let db_path = db_path.ok_or_else(|| {
-                    format!("report requires --db\n\n{}", usage_text())
+                    format!("{} requires --db\n\n{}", action_name(action), usage_text())
                 })?;
                 let task_id = task_id.ok_or_else(|| {
-                    format!("report requires --task-id\n\n{}", usage_text())
+                    format!("{} requires --task-id\n\n{}", action_name(action), usage_text())
                 })?;
                 let output_path = output_path.unwrap_or_else(|| {
                     db_path
@@ -282,6 +405,15 @@ impl CliArgs {
     }
 }
 
+fn action_name(action: CliAction) -> &'static str {
+    match action {
+        CliAction::Run => "run",
+        CliAction::Report => "report",
+        CliAction::SeedCrash => "seed-crash",
+        CliAction::Recover => "recover",
+    }
+}
+
 fn next_value(
     args: &mut impl Iterator<Item = String>,
     flag: &str,
@@ -291,7 +423,7 @@ fn next_value(
 }
 
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -350,6 +482,19 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
     );
 }
 
+fn print_output_state(output_path: &Path) -> Result<(), String> {
+    let output_exists = output_path.exists();
+    println!("[mvp] output exists => {output_exists}");
+    if output_exists {
+        let rendered = fs::read_to_string(output_path).map_err(|error| error.to_string())?;
+        println!(
+            "[mvp] output content => {}",
+            rendered.replace('\r', "\\r").replace('\n', "\\n")
+        );
+    }
+    Ok(())
+}
+
 fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
     let bytes_literal = output_bytes
         .iter()
@@ -380,6 +525,40 @@ fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxComm
                 ),
             ],
             5_000,
+        )
+    }
+}
+
+fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
+    let bytes_literal = output_bytes
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    if cfg!(windows) {
+        SandboxCommand::new(
+            "powershell",
+            [
+                "-Command",
+                &format!(
+                    "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes); Start-Sleep -Milliseconds 1000",
+                    output_path.display()
+                ),
+            ],
+            500,
+        )
+    } else {
+        SandboxCommand::new(
+            "python3",
+            [
+                "-c",
+                &format!(
+                    "from pathlib import Path; import time; Path(r'''{}''').write_bytes(bytes([{}])); time.sleep(1)",
+                    output_path.display(),
+                    bytes_literal
+                ),
+            ],
+            500,
         )
     }
 }
