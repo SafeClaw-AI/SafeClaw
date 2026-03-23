@@ -24,7 +24,7 @@
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话
 - `sessions`：列出当前数据库里的最近任务快照；默认优先使用 remembered session 的 `db`，并在文本/JSON 输出里标出来源
-- `use`：按 `--index` 或 `--task-id` 激活某条历史会话
+- `use`：按 `--index` 或 `--task-id` 激活某条历史会话，并在文本/JSON 输出里标出选择来源及 `db` / `output` / `owner_id` 来源
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`

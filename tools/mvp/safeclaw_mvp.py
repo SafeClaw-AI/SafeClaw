@@ -500,7 +500,16 @@ def print_sessions(args: list[str]) -> int:
 
 def activate_session(args: list[str]) -> int:
     session = load_session()
-    db = get_flag(args, "--db") or (session or {}).get("db") or render_repo_path(DEFAULT_DB)
+    db_flag = get_flag(args, "--db")
+    if db_flag is not None:
+        db = db_flag
+        db_source = "flag"
+    elif session is not None:
+        db = session["db"]
+        db_source = "session"
+    else:
+        db = render_repo_path(DEFAULT_DB)
+        db_source = "default"
     db_path = resolve_repo_path(db)
 
     task_id = get_flag(args, "--task-id")
@@ -542,26 +551,37 @@ def activate_session(args: list[str]) -> int:
             return 2
         source = f"task:{task_id}"
 
-    output = get_flag(args, "--output")
-    if output is None:
-        if session is not None and session.get("db") == db:
-            output = session["output"]
-        else:
-            output = default_output_for_db(db)
+    output_flag = get_flag(args, "--output")
+    if output_flag is not None:
+        output = output_flag
+        output_source = "flag"
+    elif session is not None and session.get("db") == db:
+        output = session["output"]
+        output_source = "session"
+    else:
+        output = default_output_for_db(db)
+        output_source = "default"
 
-    owner_id = get_flag(args, "--owner-id")
-    if owner_id is None:
-        if session is not None and session.get("db") == db:
-            owner_id = session["owner_id"]
-        else:
-            owner_id = DEFAULT_OWNER_ID
+    owner_id_flag = get_flag(args, "--owner-id")
+    if owner_id_flag is not None:
+        owner_id = owner_id_flag
+        owner_id_source = "flag"
+    elif session is not None and session.get("db") == db:
+        owner_id = session["owner_id"]
+        owner_id_source = "session"
+    else:
+        owner_id = DEFAULT_OWNER_ID
+        owner_id_source = "default"
 
     selected_session = {
         "task_id": target["task_id"],
         "effect_id": get_flag(args, "--effect-id") or target["effect_id"],
         "db": db,
+        "db_source": db_source,
         "output": output,
+        "output_source": output_source,
         "owner_id": owner_id,
+        "owner_id_source": owner_id_source,
         "source": source,
     }
     save_session({key: selected_session[key] for key in SESSION_FIELDS})
@@ -570,7 +590,8 @@ def activate_session(args: list[str]) -> int:
     print(
         "[mvp-wrapper] activated => "
         f"task={selected_session['task_id']} effect={selected_session['effect_id']} db={selected_session['db']} "
-        f"output={selected_session['output']} owner={selected_session['owner_id']} source={source}"
+        f"output={selected_session['output']} owner={selected_session['owner_id']} source={source} "
+        f"db_source={db_source} output_source={output_source} owner_source={owner_id_source}"
     )
     return 0
 

@@ -435,6 +435,8 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-use 执行失败: exit={wrapper_use.returncode}")
     elif "[mvp-wrapper] activated => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_use_output:
         errors.append("mvp-wrapper-use 输出缺少切回 task-wrapper-a")
+    elif "source=index:1 db_source=session output_source=session owner_source=session" not in wrapper_use_output:
+        errors.append("mvp-wrapper-use 输出缺少来源说明")
 
     wrapper_session_after_use = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
@@ -472,6 +474,12 @@ def collect_errors() -> list[str]:
         if result is not None:
             if result.get("task_id") != "task-wrapper-b" or result.get("source") != "index:0":
                 errors.append("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b")
+            elif result.get("db_source") != "session":
+                errors.append("mvp-wrapper-use-json 输出缺少 db_source=session")
+            elif result.get("output_source") != "session":
+                errors.append("mvp-wrapper-use-json 输出缺少 output_source=session")
+            elif result.get("owner_id_source") != "session":
+                errors.append("mvp-wrapper-use-json 输出缺少 owner_id_source=session")
 
     wrapper_report_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--json"],
