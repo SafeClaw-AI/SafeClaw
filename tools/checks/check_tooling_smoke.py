@@ -217,6 +217,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor 输出缺少 linker 检查")
     elif "[mvp-wrapper] doctor source => db=flag output=flag" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少来源提示")
+    elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
 
     wrapper_doctor_json = subprocess.run(
         [
@@ -237,7 +239,11 @@ def collect_errors() -> list[str]:
     if payload is not None:
         result = extract_json_result(payload, errors, "mvp-wrapper-doctor-json", "doctor")
         if result is not None:
-            if result.get("cargo", {}).get("ok") is not True:
+            if result.get("status") != "ready":
+                errors.append("mvp-wrapper-doctor-json 输出缺少 status=ready")
+            elif result.get("failing_checks") != []:
+                errors.append("mvp-wrapper-doctor-json 输出缺少空 failing_checks")
+            elif result.get("cargo", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 cargo ok")
             elif result.get("toolchain", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 toolchain ok")

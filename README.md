@@ -155,7 +155,7 @@ SafeClaw 还在很早期。
 - `retry-demo`：一条命令串起 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 当前治理视图
 - `status`：在只给 `--db` 时自动查看最新任务状态
-- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径，并显式标出当前 `db` / `output` 来源（`flag` / `session` / `default`）
+- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径，并显式标出当前 `db` / `output` 来源（`flag` / `session` / `default`）；`--json` 结果还会给出聚合 `status` 与 `failing_checks`
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，并统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本与后续自动化接入

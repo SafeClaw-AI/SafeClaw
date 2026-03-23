@@ -372,9 +372,17 @@ def run_doctor(args: list[str]) -> int:
     linker_ok = linker_path.exists()
     db_path = resolve_repo_path(db)
     output_path = resolve_repo_path(output)
+    failing_checks = [
+        name
+        for name, ok in (("cargo", cargo_ok), ("toolchain", toolchain_ok), ("linker", linker_ok))
+        if not ok
+    ]
+    doctor_status = "ready" if not failing_checks else "degraded"
 
     payload = {
         "repo": str(REPO_ROOT),
+        "status": doctor_status,
+        "failing_checks": failing_checks,
         "python": {"ok": True, "detail": sys.executable},
         "cargo": {"ok": cargo_ok, "detail": cargo_detail},
         "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
@@ -387,7 +395,7 @@ def run_doctor(args: list[str]) -> int:
         return emit_json_result(
             "doctor",
             payload,
-            exit_code=0 if cargo_ok and toolchain_ok and linker_ok else 1,
+            exit_code=0 if doctor_status == "ready" else 1,
         )
 
     print(f"[mvp-wrapper] doctor repo => {REPO_ROOT}")
@@ -412,7 +420,11 @@ def run_doctor(args: list[str]) -> int:
         f"[mvp-wrapper] doctor output => {'present' if output_path.exists() else 'missing'} {render_repo_path(output_path)}"
     )
     print(f"[mvp-wrapper] doctor source => db={db_source} output={output_source}")
-    return 0 if cargo_ok and toolchain_ok and linker_ok else 1
+    print(
+        f"[mvp-wrapper] doctor summary => {doctor_status}"
+        + ("" if not failing_checks else f" failing={','.join(failing_checks)}")
+    )
+    return 0 if doctor_status == "ready" else 1
 
 
 def print_sessions(args: list[str]) -> int:
