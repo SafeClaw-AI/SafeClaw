@@ -301,6 +301,10 @@ def print_help() -> int:
         "[mvp-wrapper] errors => invalid-argument / missing-task-context；"
         "组合动作 JSON 失败会额外附带 failed_step 与 error_message"
     )
+    print(
+        "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；"
+        "status/report/recover/retry/doctor 会尽量复用它"
+    )
     return 0
 
 
