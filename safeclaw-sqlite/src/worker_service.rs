@@ -26,6 +26,37 @@ pub struct WorkerServiceGovernanceReport {
     pub summary: RuntimeGovernanceSummary,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WorkerServiceGovernanceBucket {
+    pub task_ids: Vec<String>,
+    pub effect_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WorkerServiceGovernanceGroups {
+    pub in_flight: WorkerServiceGovernanceBucket,
+    pub queue_for_confirmation: WorkerServiceGovernanceBucket,
+    pub retry_eligible: WorkerServiceGovernanceBucket,
+    pub queue_for_manual_review: WorkerServiceGovernanceBucket,
+    pub resolved: WorkerServiceGovernanceBucket,
+    pub parked_unsupported: WorkerServiceGovernanceBucket,
+}
+
+impl WorkerServiceGovernanceGroups {
+    fn observe(&mut self, snapshot: &RuntimeDiagnosticSnapshot) {
+        let bucket = match snapshot.governance.disposition {
+            RuntimeGovernanceDisposition::InFlight => &mut self.in_flight,
+            RuntimeGovernanceDisposition::QueueForConfirmation => &mut self.queue_for_confirmation,
+            RuntimeGovernanceDisposition::RetryEligible => &mut self.retry_eligible,
+            RuntimeGovernanceDisposition::QueueForManualReview => &mut self.queue_for_manual_review,
+            RuntimeGovernanceDisposition::Resolved => &mut self.resolved,
+            RuntimeGovernanceDisposition::ParkedUnsupported => &mut self.parked_unsupported,
+        };
+        bucket.task_ids.push(snapshot.governance.task_id.clone());
+        bucket.effect_ids.push(snapshot.governance.effect_id.clone());
+    }
+}
+
 impl WorkerServiceGovernanceReport {
     pub fn snapshots_for_disposition(
         &self,
@@ -55,6 +86,14 @@ impl WorkerServiceGovernanceReport {
             .into_iter()
             .map(|snapshot| snapshot.governance.effect_id.clone())
             .collect()
+    }
+
+    pub fn disposition_groups(&self) -> WorkerServiceGovernanceGroups {
+        let mut groups = WorkerServiceGovernanceGroups::default();
+        for snapshot in &self.snapshots {
+            groups.observe(snapshot);
+        }
+        groups
     }
 }
 
@@ -317,6 +356,9 @@ mod tests {
         assert!(governance_report.snapshots.is_empty());
         assert_eq!(governance_report.summary.total, 0);
         assert_eq!(governance_report.summary.resolved, 0);
+        let groups = governance_report.disposition_groups();
+        assert!(groups.resolved.task_ids.is_empty());
+        assert!(groups.queue_for_confirmation.task_ids.is_empty());
         assert!(service.queue_snapshot().active_leases.is_empty());
         assert!(service.queue_snapshot().completed_task_ids.is_empty());
     }
@@ -408,6 +450,15 @@ mod tests {
             governance_report.effect_ids_for_disposition(
                 RuntimeGovernanceDisposition::QueueForConfirmation
             ),
+            vec![String::from("effect-task-worker-service-confirmation")]
+        );
+        let groups = governance_report.disposition_groups();
+        assert_eq!(
+            groups.queue_for_confirmation.task_ids,
+            vec![String::from("task-worker-service-confirmation")]
+        );
+        assert_eq!(
+            groups.queue_for_confirmation.effect_ids,
             vec![String::from("effect-task-worker-service-confirmation")]
         );
 
@@ -764,6 +815,25 @@ mod tests {
         resolved_effect_ids.sort();
         assert_eq!(
             resolved_effect_ids,
+            vec![
+                String::from("effect-task-worker-service-diagnostic-report-a"),
+                String::from("effect-task-worker-service-diagnostic-report-b"),
+            ]
+        );
+        let groups = governance_report.disposition_groups();
+        let mut grouped_task_ids = groups.resolved.task_ids;
+        grouped_task_ids.sort();
+        assert_eq!(
+            grouped_task_ids,
+            vec![
+                String::from("task-worker-service-diagnostic-report-a"),
+                String::from("task-worker-service-diagnostic-report-b"),
+            ]
+        );
+        let mut grouped_effect_ids = groups.resolved.effect_ids;
+        grouped_effect_ids.sort();
+        assert_eq!(
+            grouped_effect_ids,
             vec![
                 String::from("effect-task-worker-service-diagnostic-report-a"),
                 String::from("effect-task-worker-service-diagnostic-report-b"),
