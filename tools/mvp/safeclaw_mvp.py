@@ -84,8 +84,27 @@ def dispatch_local_action(action: str, args: list[str], handler) -> int:
     return handler(args)
 
 
+def execute_session_action_capture(args: list[str]) -> dict[str, object]:
+    action = args[0]
+    session = load_session()
+    prepared = prepare_args(action, args, session)
+    exit_code, output = run_cargo_capture(prepared, action=action)
+    saved_session = None
+    if exit_code == 0 and action in WRITES_SESSION:
+        saved_session = build_session(prepared)
+        save_session(saved_session)
+    return {
+        "action": action,
+        "prepared": prepared,
+        "exit_code": exit_code,
+        "output": output,
+        "saved_session": saved_session,
+    }
+
+
 def run_demo(args: list[str]) -> int:
-    shared_args = [item for item in args if item != "--reset"]
+    json_mode = has_flag(args, "--json")
+    shared_args = [item for item in args if item not in {"--reset", "--json"}]
     return run_sequence(
         "demo",
         [
@@ -93,11 +112,13 @@ def run_demo(args: list[str]) -> int:
             ["status", *shared_args],
             ["report", *shared_args],
         ],
+        json_mode=json_mode,
     )
 
 
 def run_recover_demo(args: list[str]) -> int:
-    shared_args = [item for item in args if item != "--reset"]
+    json_mode = has_flag(args, "--json")
+    shared_args = [item for item in args if item not in {"--reset", "--json"}]
     return run_sequence(
         "recover-demo",
         [
@@ -105,11 +126,13 @@ def run_recover_demo(args: list[str]) -> int:
             ["recover", *shared_args],
             ["report", *shared_args],
         ],
+        json_mode=json_mode,
     )
 
 
 def run_retry_demo(args: list[str]) -> int:
-    shared_args = [item for item in args if item != "--reset"]
+    json_mode = has_flag(args, "--json")
+    shared_args = [item for item in args if item not in {"--reset", "--json"}]
     return run_sequence(
         "retry-demo",
         [
@@ -117,10 +140,13 @@ def run_retry_demo(args: list[str]) -> int:
             ["retry", *shared_args],
             ["report", *shared_args],
         ],
+        json_mode=json_mode,
     )
 
 
-def run_sequence(name: str, steps: list[list[str]]) -> int:
+def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
+    if json_mode:
+        return run_sequence_json(name, steps)
     for step in steps:
         print(f"[mvp-wrapper] {name} => {step[0]}")
         exit_code = execute_session_action(step)
@@ -192,7 +218,7 @@ def print_help() -> int:
         "[mvp-wrapper] examples => "
         "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | forget | doctor"
     )
-    print("[mvp-wrapper] json => session/sessions/use/forget/doctor 支持 --json")
+    print("[mvp-wrapper] json => demo/recover-demo/retry-demo/session/sessions/use/forget/doctor 支持 --json")
     return 0
 
 
@@ -550,6 +576,15 @@ def lookup_latest_effect_id(db_path: Path, task_id: str) -> str | None:
 
 
 def run_cargo(args: list[str], action: str | None = None) -> int:
+    exit_code, _ = run_cargo_capture(args, action=action, replay_output=True)
+    return exit_code
+
+
+def run_cargo_capture(
+    args: list[str],
+    action: str | None = None,
+    replay_output: bool = False,
+) -> tuple[int, str]:
     env = os.environ.copy()
     env["RUSTUP_TOOLCHAIN"] = TOOLCHAIN
     env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
@@ -570,13 +605,26 @@ def run_cargo(args: list[str], action: str | None = None) -> int:
             ],
             cwd=REPO_ROOT,
             env=env,
+            capture_output=True,
+            text=True,
         )
     except OSError as error:
-        print(f"[mvp-wrapper] cargo => error action={action_name} error={error}", file=sys.stderr)
-        return 1
-    if completed.returncode != 0:
-        print(f"[mvp-wrapper] cargo => failed action={action_name} exit={completed.returncode}", file=sys.stderr)
-    return completed.returncode
+        message = str(error)
+        if replay_output:
+            print(f"[mvp-wrapper] cargo => error action={action_name} error={message}", file=sys.stderr)
+        return 1, message
+
+    stdout = completed.stdout or ""
+    stderr = completed.stderr or ""
+    combined_output = stdout + stderr
+    if replay_output:
+        if stdout:
+            print(stdout, end="")
+        if stderr:
+            print(stderr, end="", file=sys.stderr)
+        if completed.returncode != 0:
+            print(f"[mvp-wrapper] cargo => failed action={action_name} exit={completed.returncode}", file=sys.stderr)
+    return completed.returncode, combined_output
 
 
 def probe_command(command: list[str]) -> tuple[bool, str]:
@@ -666,6 +714,32 @@ def emit_local_action_error(action: str, args: list[str], message: str, exit_cod
     return exit_code
 
 
+def run_sequence_json(name: str, steps: list[list[str]]) -> int:
+    step_results: list[dict[str, object]] = []
+    for step in steps:
+        result = execute_session_action_capture(step)
+        step_results.append(
+            {
+                "action": result["action"],
+                "ok": result["exit_code"] == 0,
+                "exit_code": result["exit_code"],
+            }
+        )
+        if result["exit_code"] != 0:
+            return emit_json_error(
+                name,
+                f"failed step={result['action']}",
+                exit_code=int(result["exit_code"]),
+                details={
+                    "failed_step": result["action"],
+                    "steps": step_results,
+                    "captured_output": str(result["output"]).strip(),
+                    "session": load_session(),
+                },
+            )
+    return emit_json_result(name, {"steps": step_results, "session": load_session()})
+
+
 def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:
     payload = {
         "ok": exit_code == 0,
@@ -677,12 +751,20 @@ def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:
     return exit_code
 
 
-def emit_json_error(action: str, message: str, exit_code: int = 1) -> int:
+def emit_json_error(
+    action: str,
+    message: str,
+    exit_code: int = 1,
+    details: object | None = None,
+) -> int:
+    error_payload: dict[str, object] = {"message": message, "exit_code": exit_code}
+    if details is not None:
+        error_payload["details"] = details
     payload = {
         "ok": False,
         "action": action,
         "schema_version": "mvp-wrapper.v1",
-        "error": {"message": message, "exit_code": exit_code},
+        "error": error_payload,
     }
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     return exit_code

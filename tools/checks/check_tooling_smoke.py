@@ -458,6 +458,51 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-demo effect=effect-task-wrapper-demo" not in wrapper_demo_output:
         errors.append("mvp-wrapper-demo 输出缺少 task-wrapper-demo report 目标")
 
+    wrapper_demo_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_demo_json.returncode != 0:
+        errors.append(f"mvp-wrapper-demo-json 执行失败: exit={wrapper_demo_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_demo_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-demo-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            steps = result.get("steps") or []
+            session = result.get("session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "demo":
+                errors.append("mvp-wrapper-demo-json 输出缺少统一信封")
+            elif [step.get("action") for step in steps] != ["run", "status", "report"]:
+                errors.append("mvp-wrapper-demo-json 步骤序列不正确")
+            elif session.get("task_id") != "task-wrapper-demo-json":
+                errors.append("mvp-wrapper-demo-json 缺少当前会话 task-wrapper-demo-json")
+
+    wrapper_demo_fail_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_demo_fail_json.returncode == 0:
+        errors.append("mvp-wrapper-demo-fail-json 未按预期返回非 0")
+    else:
+        try:
+            payload = json.loads(wrapper_demo_fail_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-demo-fail-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            details = error.get("details") or {}
+            if payload.get("ok") is not False or payload.get("action") != "demo":
+                errors.append("mvp-wrapper-demo-fail-json 输出缺少统一错误信封")
+            elif details.get("failed_step") != "run":
+                errors.append("mvp-wrapper-demo-fail-json 缺少失败步骤 run")
+
     wrapper_recover_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],
         cwd=REPO_ROOT,
@@ -476,6 +521,30 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-recover-demo effect=effect-task-wrapper-recover-demo" not in wrapper_recover_demo_output:
         errors.append("mvp-wrapper-recover-demo 输出缺少 task-wrapper-recover-demo report 目标")
 
+    wrapper_recover_demo_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_recover_demo_json.returncode != 0:
+        errors.append(f"mvp-wrapper-recover-demo-json 执行失败: exit={wrapper_recover_demo_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_recover_demo_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-recover-demo-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            steps = result.get("steps") or []
+            session = result.get("session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "recover-demo":
+                errors.append("mvp-wrapper-recover-demo-json 输出缺少统一信封")
+            elif [step.get("action") for step in steps] != ["seed-crash", "recover", "report"]:
+                errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
+            elif session.get("task_id") != "task-wrapper-recover-demo-json":
+                errors.append("mvp-wrapper-recover-demo-json 缺少当前会话 task-wrapper-recover-demo-json")
+
     wrapper_retry_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo"],
         cwd=REPO_ROOT,
@@ -493,6 +562,30 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-retry-demo 输出缺少 report 标记")
     elif "[mvp] report target => task=task-wrapper-retry-demo effect=effect-task-wrapper-retry-demo" not in wrapper_retry_demo_output:
         errors.append("mvp-wrapper-retry-demo 输出缺少 task-wrapper-retry-demo report 目标")
+
+    wrapper_retry_demo_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_retry_demo_json.returncode != 0:
+        errors.append(f"mvp-wrapper-retry-demo-json 执行失败: exit={wrapper_retry_demo_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_retry_demo_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-retry-demo-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            steps = result.get("steps") or []
+            session = result.get("session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "retry-demo":
+                errors.append("mvp-wrapper-retry-demo-json 输出缺少统一信封")
+            elif [step.get("action") for step in steps] != ["seed-failed", "retry", "report"]:
+                errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
+            elif session.get("task_id") != "task-wrapper-retry-demo-json":
+                errors.append("mvp-wrapper-retry-demo-json 缺少当前会话 task-wrapper-retry-demo-json")
 
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
