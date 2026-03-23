@@ -120,11 +120,14 @@ def collect_errors() -> list[str]:
         except json.JSONDecodeError:
             errors.append("mvp-wrapper-doctor-json 输出不是合法 JSON")
         else:
-            if payload.get("cargo", {}).get("ok") is not True:
+            result = payload.get("result") or {}
+            if payload.get("ok") is not True or payload.get("action") != "doctor":
+                errors.append("mvp-wrapper-doctor-json 输出缺少统一信封")
+            elif result.get("cargo", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 cargo ok")
-            elif payload.get("toolchain", {}).get("ok") is not True:
+            elif result.get("toolchain", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 toolchain ok")
-            elif payload.get("linker", {}).get("ok") is not True:
+            elif result.get("linker", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 linker ok")
 
     wrapper_run_a = subprocess.run(
@@ -190,7 +193,10 @@ def collect_errors() -> list[str]:
         except json.JSONDecodeError:
             errors.append("mvp-wrapper-session-json 输出不是合法 JSON")
         else:
-            if payload.get("task_id") != "task-wrapper-b" or payload.get("effect_id") != "effect-task-wrapper-b":
+            result = payload.get("result") or {}
+            if payload.get("ok") is not True or payload.get("action") != "session":
+                errors.append("mvp-wrapper-session-json 输出缺少统一信封")
+            elif result.get("task_id") != "task-wrapper-b" or result.get("effect_id") != "effect-task-wrapper-b":
                 errors.append("mvp-wrapper-session-json 输出缺少当前会话 task-wrapper-b")
 
     wrapper_sessions = subprocess.run(
@@ -221,8 +227,11 @@ def collect_errors() -> list[str]:
         except json.JSONDecodeError:
             errors.append("mvp-wrapper-sessions-json 输出不是合法 JSON")
         else:
-            rows = payload.get("rows") or []
-            if not rows or rows[0].get("task_id") != "task-wrapper-b":
+            result = payload.get("result") or {}
+            rows = result.get("rows") or []
+            if payload.get("ok") is not True or payload.get("action") != "sessions":
+                errors.append("mvp-wrapper-sessions-json 输出缺少统一信封")
+            elif not rows or rows[0].get("task_id") != "task-wrapper-b":
                 errors.append("mvp-wrapper-sessions-json 输出缺少最近任务 task-wrapper-b")
             elif len(rows) < 2 or rows[1].get("task_id") != "task-wrapper-a":
                 errors.append("mvp-wrapper-sessions-json 输出缺少旧任务 task-wrapper-a")
@@ -277,7 +286,10 @@ def collect_errors() -> list[str]:
         except json.JSONDecodeError:
             errors.append("mvp-wrapper-use-json 输出不是合法 JSON")
         else:
-            if payload.get("task_id") != "task-wrapper-b" or payload.get("source") != "index:0":
+            result = payload.get("result") or {}
+            if payload.get("ok") is not True or payload.get("action") != "use":
+                errors.append("mvp-wrapper-use-json 输出缺少统一信封")
+            elif result.get("task_id") != "task-wrapper-b" or result.get("source") != "index:0":
                 errors.append("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b")
 
     wrapper_forget = subprocess.run(
@@ -306,7 +318,10 @@ def collect_errors() -> list[str]:
         except json.JSONDecodeError:
             errors.append("mvp-wrapper-forget-json 输出不是合法 JSON")
         else:
-            if payload.get("forgot") is not False or payload.get("path") != "target\\mvp\\last_session.json":
+            result = payload.get("result") or {}
+            if payload.get("ok") is not True or payload.get("action") != "forget":
+                errors.append("mvp-wrapper-forget-json 输出缺少统一信封")
+            elif result.get("forgot") is not False or result.get("path") != "target\\mvp\\last_session.json":
                 errors.append("mvp-wrapper-forget-json 输出不符合预期")
 
     wrapper_session_after_forget = subprocess.run(
@@ -320,6 +335,26 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-session-after-forget 执行失败: exit={wrapper_session_after_forget.returncode}")
     elif "[mvp-wrapper] session => none" not in wrapper_session_after_forget_output:
         errors.append("mvp-wrapper-session-after-forget 输出缺少 none")
+
+    wrapper_invalid_sessions_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions", "--limit", "bad", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_invalid_sessions_json.returncode != 2:
+        errors.append(f"mvp-wrapper-invalid-sessions-json 执行失败: exit={wrapper_invalid_sessions_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_invalid_sessions_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-invalid-sessions-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            if payload.get("ok") is not False or payload.get("action") != "sessions":
+                errors.append("mvp-wrapper-invalid-sessions-json 输出缺少统一错误信封")
+            elif "invalid --limit" not in error.get("message", ""):
+                errors.append("mvp-wrapper-invalid-sessions-json 输出缺少错误信息")
 
     wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
     wrapper_session_file.parent.mkdir(parents=True, exist_ok=True)

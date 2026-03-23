@@ -181,7 +181,7 @@ def print_help() -> int:
 def print_session(args: list[str]) -> int:
     session = load_session()
     if has_flag(args, "--json"):
-        return emit_json(session)
+        return emit_json_result("session", session)
     if session is None:
         print("[mvp-wrapper] session => none")
         return 0
@@ -196,16 +196,18 @@ def print_session(args: list[str]) -> int:
 def forget_session(args: list[str]) -> int:
     if not SESSION_FILE.exists():
         if has_flag(args, "--json"):
-            return emit_json({"forgot": False, "path": render_repo_path(SESSION_FILE), "reason": "none"})
+            return emit_json_result("forget", {"forgot": False, "path": render_repo_path(SESSION_FILE), "reason": "none"})
         print("[mvp-wrapper] forgot => none")
         return 0
     try:
         SESSION_FILE.unlink()
     except OSError as error:
+        if has_flag(args, "--json"):
+            return emit_json_error("forget", f"failed to delete remembered session: {error}", exit_code=1)
         print(f"[mvp-wrapper] forgot => error {error}", file=sys.stderr)
         return 1
     if has_flag(args, "--json"):
-        return emit_json({"forgot": True, "path": render_repo_path(SESSION_FILE), "reason": "removed"})
+        return emit_json_result("forget", {"forgot": True, "path": render_repo_path(SESSION_FILE), "reason": "removed"})
     print(f"[mvp-wrapper] forgot => {render_repo_path(SESSION_FILE)}")
     return 0
 
@@ -238,7 +240,11 @@ def run_doctor(args: list[str]) -> int:
         "output": {"path": render_repo_path(output_path), "exists": output_path.exists()},
     }
     if has_flag(args, "--json"):
-        return emit_json(payload, exit_code=0 if cargo_ok and toolchain_ok and linker_ok else 1)
+        return emit_json_result(
+            "doctor",
+            payload,
+            exit_code=0 if cargo_ok and toolchain_ok and linker_ok else 1,
+        )
 
     print(f"[mvp-wrapper] doctor repo => {REPO_ROOT}")
     print(f"[mvp-wrapper] doctor python => ok {sys.executable}")
@@ -270,6 +276,8 @@ def print_sessions(args: list[str]) -> int:
     try:
         limit = max(1, int(limit_raw))
     except ValueError:
+        if has_flag(args, "--json"):
+            return emit_json_error("sessions", f"invalid --limit: {limit_raw}", exit_code=2)
         print(f"[mvp-wrapper] invalid --limit: {limit_raw}", file=sys.stderr)
         return 2
 
@@ -288,7 +296,10 @@ def print_sessions(args: list[str]) -> int:
         for row in rows
     ]
     if has_flag(args, "--json"):
-        return emit_json({"db": db, "limit": limit, "current_session": session, "rows": rows_with_current})
+        return emit_json_result(
+            "sessions",
+            {"db": db, "limit": limit, "current_session": session, "rows": rows_with_current},
+        )
 
     print(f"[mvp-wrapper] sessions => db={db} limit={limit}")
     if session is not None:
@@ -319,6 +330,8 @@ def activate_session(args: list[str]) -> int:
     task_id = get_flag(args, "--task-id")
     index_raw = get_flag(args, "--index")
     if task_id is not None and index_raw is not None:
+        if has_flag(args, "--json"):
+            return emit_json_error("use", "use requires either --task-id or --index, not both", exit_code=2)
         print("[mvp-wrapper] use requires either --task-id or --index, not both", file=sys.stderr)
         return 2
 
@@ -327,13 +340,19 @@ def activate_session(args: list[str]) -> int:
         try:
             index = int(index_raw)
         except ValueError:
+            if has_flag(args, "--json"):
+                return emit_json_error("use", f"invalid --index: {index_raw}", exit_code=2)
             print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
             return 2
         if index < 0:
+            if has_flag(args, "--json"):
+                return emit_json_error("use", f"invalid --index: {index_raw}", exit_code=2)
             print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
             return 2
         rows = load_recent_tasks(db_path, max(index + 1, DEFAULT_LIST_LIMIT))
         if index >= len(rows):
+            if has_flag(args, "--json"):
+                return emit_json_error("use", f"no recent task at index {index} for db={db}", exit_code=2)
             print(f"[mvp-wrapper] no recent task at index {index} for db={db}", file=sys.stderr)
             return 2
         target = rows[index]
@@ -341,6 +360,8 @@ def activate_session(args: list[str]) -> int:
     else:
         target = lookup_task_entry(db_path, task_id)
         if target is None:
+            if has_flag(args, "--json"):
+                return emit_json_error("use", f"missing task snapshot for task={task_id} db={db}", exit_code=2)
             print(f"[mvp-wrapper] missing task snapshot for task={task_id} db={db}", file=sys.stderr)
             return 2
         source = f"task:{task_id}"
@@ -369,7 +390,7 @@ def activate_session(args: list[str]) -> int:
     }
     save_session({key: selected_session[key] for key in SESSION_FIELDS})
     if has_flag(args, "--json"):
-        return emit_json(selected_session)
+        return emit_json_result("use", selected_session)
     print(
         "[mvp-wrapper] activated => "
         f"task={selected_session['task_id']} effect={selected_session['effect_id']} db={selected_session['db']} "
@@ -592,7 +613,24 @@ def has_flag(args: list[str], flag: str) -> bool:
     return flag in args
 
 
-def emit_json(payload: object, exit_code: int = 0) -> int:
+def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:
+    payload = {
+        "ok": exit_code == 0,
+        "action": action,
+        "schema_version": "mvp-wrapper.v1",
+        "result": result,
+    }
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    return exit_code
+
+
+def emit_json_error(action: str, message: str, exit_code: int = 1) -> int:
+    payload = {
+        "ok": False,
+        "action": action,
+        "schema_version": "mvp-wrapper.v1",
+        "error": {"message": message, "exit_code": exit_code},
+    }
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     return exit_code
 
