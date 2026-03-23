@@ -157,6 +157,7 @@ SafeClaw 还在很早期。
 - `status`：在只给 `--db` 时自动查看最新任务状态
 - `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
+- 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 

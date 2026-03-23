@@ -24,6 +24,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
+SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
 
 
 def main(argv: list[str]) -> int:
@@ -356,12 +357,41 @@ def activate_session(args: list[str]) -> int:
 def load_session() -> dict[str, str] | None:
     if not SESSION_FILE.exists():
         return None
-    return json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        repair_invalid_session(str(error))
+        return None
+    if not isinstance(payload, dict):
+        repair_invalid_session("expected object payload")
+        return None
+    session = {key: payload.get(key) for key in SESSION_FIELDS}
+    if any(not isinstance(value, str) or value == "" for value in session.values()):
+        repair_invalid_session("missing required string fields")
+        return None
+    return session
 
 
 def save_session(session: dict[str, str]) -> None:
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
     SESSION_FILE.write_text(json.dumps(session, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def repair_invalid_session(reason: str) -> None:
+    try:
+        SESSION_FILE.unlink(missing_ok=True)
+    except OSError as error:
+        print(
+            "[mvp-wrapper] session repair => "
+            f"failed to drop invalid {render_repo_path(SESSION_FILE)} reason={reason} error={error}",
+            file=sys.stderr,
+        )
+        return
+    print(
+        "[mvp-wrapper] session repair => "
+        f"dropped invalid {render_repo_path(SESSION_FILE)} reason={reason}",
+        file=sys.stderr,
+    )
 
 
 def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:

@@ -26,6 +26,7 @@
 - `sessions`：列出当前数据库里的最近任务快照
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
+- 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime

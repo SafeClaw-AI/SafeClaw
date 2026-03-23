@@ -219,6 +219,26 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] session => none" not in wrapper_session_after_forget_output:
         errors.append("mvp-wrapper-session-after-forget 输出缺少 none")
 
+    wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
+    wrapper_session_file.parent.mkdir(parents=True, exist_ok=True)
+    wrapper_session_file.write_text("{broken", encoding="utf-8")
+
+    wrapper_session_after_corrupt = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_session_after_corrupt_output = (wrapper_session_after_corrupt.stdout or "") + (wrapper_session_after_corrupt.stderr or "")
+    if wrapper_session_after_corrupt.returncode != 0:
+        errors.append(f"mvp-wrapper-session-after-corrupt 执行失败: exit={wrapper_session_after_corrupt.returncode}")
+    elif "[mvp-wrapper] session repair => dropped invalid target\\mvp\\last_session.json" not in wrapper_session_after_corrupt_output:
+        errors.append("mvp-wrapper-session-after-corrupt 输出缺少损坏会话修复提示")
+    elif "[mvp-wrapper] session => none" not in wrapper_session_after_corrupt_output:
+        errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none")
+    elif wrapper_session_file.exists():
+        errors.append("mvp-wrapper-session-after-corrupt 未移除损坏会话文件")
+
     wrapper_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],
         cwd=REPO_ROOT,
