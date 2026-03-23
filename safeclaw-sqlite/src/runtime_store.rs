@@ -35,6 +35,30 @@ pub enum RuntimeGovernanceDisposition {
     ParkedUnsupported,
 }
 
+impl RuntimeGovernanceDisposition {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::InFlight => "in_flight",
+            Self::QueueForConfirmation => "queue_for_confirmation",
+            Self::RetryEligible => "retry_eligible",
+            Self::QueueForManualReview => "queue_for_manual_review",
+            Self::Resolved => "resolved",
+            Self::ParkedUnsupported => "parked_unsupported",
+        }
+    }
+
+    pub fn display_label(&self) -> &'static str {
+        match self {
+            Self::InFlight => "in-flight",
+            Self::QueueForConfirmation => "confirmation",
+            Self::RetryEligible => "retry",
+            Self::QueueForManualReview => "manual-review",
+            Self::Resolved => "resolved",
+            Self::ParkedUnsupported => "unsupported",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeGovernanceView {
     pub task_id: String,
@@ -58,6 +82,20 @@ pub struct RuntimeDiagnosticSnapshot {
     pub attempts: Vec<EffectAttempt>,
     pub state_events: Vec<StateEvent>,
     pub effect_transitions: Vec<EffectTransitionRecord>,
+}
+
+impl RuntimeDiagnosticSnapshot {
+    pub fn render_line(&self) -> String {
+        format!(
+            "worker={:?} effect={:?} attempts={} events={} transitions={} disposition={:?}",
+            self.governance.worker_state,
+            self.governance.effect_status,
+            self.attempts.len(),
+            self.state_events.len(),
+            self.effect_transitions.len(),
+            self.governance.disposition,
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -90,6 +128,59 @@ impl RuntimeGovernanceSummary {
             summary.observe(&snapshot.governance);
         }
         summary
+    }
+
+    pub fn primary_disposition(&self) -> Option<RuntimeGovernanceDisposition> {
+        let mut dispositions = [
+            (self.in_flight, RuntimeGovernanceDisposition::InFlight),
+            (
+                self.queue_for_confirmation,
+                RuntimeGovernanceDisposition::QueueForConfirmation,
+            ),
+            (self.retry_eligible, RuntimeGovernanceDisposition::RetryEligible),
+            (
+                self.queue_for_manual_review,
+                RuntimeGovernanceDisposition::QueueForManualReview,
+            ),
+            (self.resolved, RuntimeGovernanceDisposition::Resolved),
+            (
+                self.parked_unsupported,
+                RuntimeGovernanceDisposition::ParkedUnsupported,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(count, disposition)| (count > 0).then_some(disposition));
+
+        let first = dispositions.next()?;
+        if dispositions.next().is_some() {
+            None
+        } else {
+            Some(first)
+        }
+    }
+
+    pub fn primary_label(&self) -> &'static str {
+        if self.total == 0 {
+            "empty"
+        } else {
+            self.primary_disposition()
+                .map(|disposition| disposition.display_label())
+                .unwrap_or("mixed")
+        }
+    }
+
+    pub fn render_counts(&self) -> String {
+        format!(
+            "total={} resolved={} confirmation={} manual_review={}",
+            self.total,
+            self.resolved,
+            self.queue_for_confirmation,
+            self.queue_for_manual_review,
+        )
+    }
+
+    pub fn render_line(&self) -> String {
+        format!("{} => {}", self.primary_label(), self.render_counts())
     }
 }
 
@@ -333,7 +424,7 @@ fn map_state_engine_error(
 #[cfg(test)]
 mod tests {
     use super::{
-        RuntimeGovernanceDisposition, SqliteRuntimeStore,
+        RuntimeGovernanceDisposition, RuntimeGovernanceSummary, SqliteRuntimeStore,
     };
     use crate::{open_database, SqliteEffectStore, SqliteOpenOptions, SqliteStateEngine};
     use safeclaw_core::{
@@ -637,6 +728,83 @@ mod tests {
             Some(safeclaw_core::effect_ledger::AttemptResultStatus::Success)
         );
         assert_eq!(resolved_view.attempt_count, 1);
+    }
+
+    #[test]
+    fn governance_render_helpers_emit_stable_text() {
+        let temp_db = TempDatabase::new("governance-rendering");
+        let connection = open_database(temp_db.path(), SqliteOpenOptions::default())
+            .expect("sqlite adapter must open runtime database");
+        let mut store = SqliteRuntimeStore::new(connection);
+
+        let mut runtime = InMemoryTaskRuntime::new(demo_effect_with_ids(
+            "effect-governance-rendering",
+            "task-governance-rendering",
+            ProbeMode::Auto,
+        ));
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+            .unwrap();
+        store
+            .persist_runtime(
+                &runtime,
+                "runtime-governance-rendering",
+                "runtime-store",
+            )
+            .unwrap();
+
+        let snapshot = store
+            .diagnostic_snapshot(
+                "task-governance-rendering",
+                "effect-governance-rendering",
+            )
+            .unwrap()
+            .expect("diagnostic snapshot must exist");
+        assert_eq!(snapshot.governance.disposition.label(), "resolved");
+        assert_eq!(snapshot.governance.disposition.display_label(), "resolved");
+        assert_eq!(
+            snapshot.render_line(),
+            "worker=Succeeded effect=Executed attempts=1 events=1 transitions=2 disposition=Resolved"
+        );
+
+        let empty = RuntimeGovernanceSummary::default();
+        assert_eq!(empty.primary_disposition(), None);
+        assert_eq!(empty.primary_label(), "empty");
+        assert_eq!(
+            empty.render_counts(),
+            "total=0 resolved=0 confirmation=0 manual_review=0"
+        );
+        assert_eq!(
+            empty.render_line(),
+            "empty => total=0 resolved=0 confirmation=0 manual_review=0"
+        );
+
+        let summary = RuntimeGovernanceSummary::from_snapshots(std::slice::from_ref(&snapshot));
+        assert_eq!(
+            summary.primary_disposition(),
+            Some(RuntimeGovernanceDisposition::Resolved)
+        );
+        assert_eq!(summary.primary_label(), "resolved");
+        assert_eq!(
+            summary.render_counts(),
+            "total=1 resolved=1 confirmation=0 manual_review=0"
+        );
+        assert_eq!(
+            summary.render_line(),
+            "resolved => total=1 resolved=1 confirmation=0 manual_review=0"
+        );
+
+        let mut mixed = RuntimeGovernanceSummary::default();
+        mixed.observe(&snapshot.governance);
+        let mut confirmation_view = snapshot.governance.clone();
+        confirmation_view.disposition = RuntimeGovernanceDisposition::QueueForConfirmation;
+        mixed.observe(&confirmation_view);
+        assert_eq!(mixed.primary_disposition(), None);
+        assert_eq!(mixed.primary_label(), "mixed");
+        assert_eq!(
+            mixed.render_line(),
+            "mixed => total=2 resolved=1 confirmation=1 manual_review=0"
+        );
     }
 
     fn demo_effect(probe_mode: ProbeMode) -> EffectRecord {

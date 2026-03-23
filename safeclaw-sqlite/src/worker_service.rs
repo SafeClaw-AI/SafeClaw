@@ -41,25 +41,11 @@ pub struct WorkerServiceGovernanceSection {
 
 impl WorkerServiceGovernanceSection {
     pub fn label(&self) -> &'static str {
-        match self.disposition {
-            RuntimeGovernanceDisposition::InFlight => "in_flight",
-            RuntimeGovernanceDisposition::QueueForConfirmation => "queue_for_confirmation",
-            RuntimeGovernanceDisposition::RetryEligible => "retry_eligible",
-            RuntimeGovernanceDisposition::QueueForManualReview => "queue_for_manual_review",
-            RuntimeGovernanceDisposition::Resolved => "resolved",
-            RuntimeGovernanceDisposition::ParkedUnsupported => "parked_unsupported",
-        }
+        self.disposition.label()
     }
 
     pub fn display_label(&self) -> &'static str {
-        match self.disposition {
-            RuntimeGovernanceDisposition::InFlight => "in-flight",
-            RuntimeGovernanceDisposition::QueueForConfirmation => "confirmation",
-            RuntimeGovernanceDisposition::RetryEligible => "retry",
-            RuntimeGovernanceDisposition::QueueForManualReview => "manual-review",
-            RuntimeGovernanceDisposition::Resolved => "resolved",
-            RuntimeGovernanceDisposition::ParkedUnsupported => "unsupported",
-        }
+        self.disposition.display_label()
     }
 
     pub fn render_task_line(&self) -> String {
@@ -188,14 +174,7 @@ impl WorkerServiceGovernanceReport {
     }
 
     pub fn render_summary_line(&self) -> String {
-        format!(
-            "{} => total={} resolved={} confirmation={} manual_review={}",
-            self.primary_label(),
-            self.summary.total,
-            self.summary.resolved,
-            self.summary.queue_for_confirmation,
-            self.summary.queue_for_manual_review,
-        )
+        format!("{} => {}", self.primary_label(), self.summary.render_counts())
     }
 
     pub fn render_lines(&self) -> Vec<String> {

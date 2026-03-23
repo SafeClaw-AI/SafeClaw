@@ -165,11 +165,8 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
     let _diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
     let summary = into_demo(batch_worker.governance_summary_for_outcomes(&outcomes))?;
     println!(
-        "[demo] executed batch governance => total={} resolved={} confirmation={} manual_review={}",
-        summary.total,
-        summary.resolved,
-        summary.queue_for_confirmation,
-        summary.queue_for_manual_review
+        "[demo] executed batch governance => {}",
+        summary.render_counts()
     );
     print_snapshot("executed-batch-after-complete", batch_worker.queue_snapshot());
 
@@ -278,13 +275,7 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
     }
     let _diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
     let summary = into_demo(batch_worker.governance_summary_for_outcomes(&outcomes))?;
-    println!(
-        "[demo] probe batch governance => total={} resolved={} confirmation={} manual_review={}",
-        summary.total,
-        summary.resolved,
-        summary.queue_for_confirmation,
-        summary.queue_for_manual_review
-    );
+    println!("[demo] probe batch governance => {}", summary.render_counts());
     print_snapshot("probe-batch-after-complete", batch_worker.queue_snapshot());
     Ok(())
 }

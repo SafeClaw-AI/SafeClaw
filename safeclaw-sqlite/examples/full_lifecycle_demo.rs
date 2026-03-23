@@ -145,15 +145,7 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
 }
 
 fn print_diagnostic(label: &str, snapshot: &RuntimeDiagnosticSnapshot) {
-    println!(
-        "[demo] diagnostic {label} => worker={:?} effect={:?} attempts={} events={} transitions={} disposition={:?}",
-        snapshot.governance.worker_state,
-        snapshot.governance.effect_status,
-        snapshot.attempts.len(),
-        snapshot.state_events.len(),
-        snapshot.effect_transitions.len(),
-        snapshot.governance.disposition,
-    );
+    println!("[demo] diagnostic {label} => {}", snapshot.render_line());
 }
 
 fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> Result<SandboxCommand, String> {
