@@ -18,7 +18,9 @@
 
 - `run`：创建任务并执行到完成
 - `report`：查看指定任务 / effect 的治理视图
-- `status`：只给 `--db` 时自动查看最新任务状态，也可配合 `--task-id` 使用
+- `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
+- `session`：显示当前记忆的最近成功会话
+- `sessions`：列出当前数据库里的最近任务快照
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
 - `seed-failed`：制造失败态但不自动结案
@@ -30,6 +32,8 @@
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd run --reset
+tools\mvp\safeclaw_mvp.cmd session
+tools\mvp\safeclaw_mvp.cmd sessions
 tools\mvp\safeclaw_mvp.cmd status
 tools\mvp\safeclaw_mvp.cmd report
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset

@@ -83,6 +83,30 @@ def collect_errors() -> list[str]:
     elif "[mvp] status target => task=task-safeclaw-mvp-" not in wrapper_status_output:
         errors.append("mvp-wrapper-status 输出缺少最近会话 task 前缀")
 
+    wrapper_session = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_session_output = (wrapper_session.stdout or "") + (wrapper_session.stderr or "")
+    if wrapper_session.returncode != 0:
+        errors.append(f"mvp-wrapper-session 执行失败: exit={wrapper_session.returncode}")
+    elif "[mvp-wrapper] session => task=task-safeclaw-mvp-" not in wrapper_session_output:
+        errors.append("mvp-wrapper-session 输出缺少最近会话 task 前缀")
+
+    wrapper_sessions = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_sessions_output = (wrapper_sessions.stdout or "") + (wrapper_sessions.stderr or "")
+    if wrapper_sessions.returncode != 0:
+        errors.append(f"mvp-wrapper-sessions 执行失败: exit={wrapper_sessions.returncode}")
+    elif "[mvp-wrapper] recent[0] => task=task-safeclaw-mvp-" not in wrapper_sessions_output:
+        errors.append("mvp-wrapper-sessions 输出缺少最近任务 task 前缀")
+
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
         errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
