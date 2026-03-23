@@ -336,6 +336,46 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] session => none" not in wrapper_session_after_forget_output:
         errors.append("mvp-wrapper-session-after-forget 输出缺少 none")
 
+    wrapper_invalid_session_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--bogus", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_invalid_session_json.returncode != 2:
+        errors.append(f"mvp-wrapper-invalid-session-json 执行失败: exit={wrapper_invalid_session_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_invalid_session_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-invalid-session-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            if payload.get("ok") is not False or payload.get("action") != "session":
+                errors.append("mvp-wrapper-invalid-session-json 输出缺少统一错误信封")
+            elif "unknown argument" not in error.get("message", ""):
+                errors.append("mvp-wrapper-invalid-session-json 输出缺少错误信息")
+
+    wrapper_invalid_doctor_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "doctor", "--db", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_invalid_doctor_json.returncode != 2:
+        errors.append(f"mvp-wrapper-invalid-doctor-json 执行失败: exit={wrapper_invalid_doctor_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_invalid_doctor_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-invalid-doctor-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            if payload.get("ok") is not False or payload.get("action") != "doctor":
+                errors.append("mvp-wrapper-invalid-doctor-json 输出缺少统一错误信封")
+            elif "missing value after --db" not in error.get("message", ""):
+                errors.append("mvp-wrapper-invalid-doctor-json 输出缺少错误信息")
+
     wrapper_invalid_sessions_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions", "--limit", "bad", "--json"],
         cwd=REPO_ROOT,

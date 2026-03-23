@@ -25,6 +25,16 @@ WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
+LOCAL_ACTION_FLAG_SPECS = {
+    "session": {"value": set(), "boolean": {"--json"}},
+    "sessions": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
+    "use": {
+        "value": {"--db", "--task-id", "--index", "--output", "--owner-id", "--effect-id"},
+        "boolean": {"--json"},
+    },
+    "forget": {"value": set(), "boolean": {"--json"}},
+    "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
+}
 
 
 def main(argv: list[str]) -> int:
@@ -36,15 +46,15 @@ def main(argv: list[str]) -> int:
     if action in {"-h", "--help", "help"}:
         return print_help()
     if action == "session":
-        return print_session(raw_args[1:])
+        return dispatch_local_action("session", raw_args[1:], print_session)
     if action == "sessions":
-        return print_sessions(raw_args[1:])
+        return dispatch_local_action("sessions", raw_args[1:], print_sessions)
     if action == "use":
-        return activate_session(raw_args[1:])
+        return dispatch_local_action("use", raw_args[1:], activate_session)
     if action == "forget":
-        return forget_session(raw_args[1:])
+        return dispatch_local_action("forget", raw_args[1:], forget_session)
     if action == "doctor":
-        return run_doctor(raw_args[1:])
+        return dispatch_local_action("doctor", raw_args[1:], run_doctor)
     if action == "demo":
         return run_demo(raw_args[1:])
     if action == "recover-demo":
@@ -65,6 +75,13 @@ def execute_session_action(args: list[str]) -> int:
     if exit_code == 0 and action in WRITES_SESSION:
         save_session(build_session(prepared))
     return exit_code
+
+
+def dispatch_local_action(action: str, args: list[str], handler) -> int:
+    validation_error = validate_local_action_args(action, args)
+    if validation_error is not None:
+        return emit_local_action_error(action, args, validation_error, exit_code=2)
+    return handler(args)
 
 
 def run_demo(args: list[str]) -> int:
@@ -611,6 +628,34 @@ def ensure_flag(args: list[str], flag: str, value: str) -> None:
 
 def has_flag(args: list[str], flag: str) -> bool:
     return flag in args
+
+
+def validate_local_action_args(action: str, args: list[str]) -> str | None:
+    spec = LOCAL_ACTION_FLAG_SPECS[action]
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token in spec["boolean"]:
+            index += 1
+            continue
+        if token in spec["value"]:
+            if index + 1 >= len(args) or looks_like_flag(args[index + 1]):
+                return f"missing value after {token}"
+            index += 2
+            continue
+        return f"unknown argument: {token}"
+    return None
+
+
+def looks_like_flag(token: str) -> bool:
+    return token.startswith("--")
+
+
+def emit_local_action_error(action: str, args: list[str], message: str, exit_code: int = 1) -> int:
+    if has_flag(args, "--json"):
+        return emit_json_error(action, message, exit_code=exit_code)
+    print(f"[mvp-wrapper] {action} => error {message}", file=sys.stderr)
+    return exit_code
 
 
 def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:
