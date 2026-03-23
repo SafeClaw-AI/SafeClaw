@@ -42,6 +42,43 @@ CHECKS: list[tuple[str, list[str], str]] = [
 ]
 
 
+def load_json_payload(
+    completed: subprocess.CompletedProcess[str],
+    errors: list[str],
+    name: str,
+    expected_exit: int,
+) -> dict[str, object] | None:
+    if completed.returncode != expected_exit:
+        errors.append(f"{name} 执行失败: exit={completed.returncode}")
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        errors.append(f"{name} 输出不是合法 JSON")
+        return None
+    if not isinstance(payload, dict):
+        errors.append(f"{name} 输出不是对象 JSON")
+        return None
+    return payload
+
+
+def extract_json_error(
+    payload: dict[str, object],
+    errors: list[str],
+    name: str,
+    action: str,
+) -> tuple[dict[str, object] | None, dict[str, object] | None]:
+    error = payload.get("error") or {}
+    details = error.get("details") or {}
+    if payload.get("ok") is not False or payload.get("action") != action:
+        errors.append(f"{name} 输出缺少统一错误信封")
+        return None, None
+    return (
+        error if isinstance(error, dict) else None,
+        details if isinstance(details, dict) else None,
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
 
@@ -216,19 +253,11 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_status_fail_json.returncode != 2:
-        errors.append(f"mvp-wrapper-status-fail-json 执行失败: exit={wrapper_status_fail_json.returncode}")
-    else:
-        try:
-            payload = json.loads(wrapper_status_fail_json.stdout)
-        except json.JSONDecodeError:
-            errors.append("mvp-wrapper-status-fail-json 输出不是合法 JSON")
-        else:
-            error = payload.get("error") or {}
-            details = error.get("details") or {}
-            if payload.get("ok") is not False or payload.get("action") != "status":
-                errors.append("mvp-wrapper-status-fail-json 输出缺少统一错误信封")
-            elif "unknown argument" not in error.get("message", ""):
+    payload = load_json_payload(wrapper_status_fail_json, errors, "mvp-wrapper-status-fail-json", expected_exit=2)
+    if payload is not None:
+        error, details = extract_json_error(payload, errors, "mvp-wrapper-status-fail-json", "status")
+        if error is not None and details is not None:
+            if "unknown argument" not in str(error.get("message", "")):
                 errors.append("mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument")
             elif details.get("code") != "invalid-argument":
                 errors.append("mvp-wrapper-status-fail-json 缺少错误代码 invalid-argument")
@@ -241,19 +270,11 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_status_missing_db_json.returncode != 2:
-        errors.append(f"mvp-wrapper-status-missing-db-json 执行失败: exit={wrapper_status_missing_db_json.returncode}")
-    else:
-        try:
-            payload = json.loads(wrapper_status_missing_db_json.stdout)
-        except json.JSONDecodeError:
-            errors.append("mvp-wrapper-status-missing-db-json 输出不是合法 JSON")
-        else:
-            error = payload.get("error") or {}
-            details = error.get("details") or {}
-            if payload.get("ok") is not False or payload.get("action") != "status":
-                errors.append("mvp-wrapper-status-missing-db-json 输出缺少统一错误信封")
-            elif "missing value after --db" not in error.get("message", ""):
+    payload = load_json_payload(wrapper_status_missing_db_json, errors, "mvp-wrapper-status-missing-db-json", expected_exit=2)
+    if payload is not None:
+        error, details = extract_json_error(payload, errors, "mvp-wrapper-status-missing-db-json", "status")
+        if error is not None and details is not None:
+            if "missing value after --db" not in str(error.get("message", "")):
                 errors.append("mvp-wrapper-status-missing-db-json 缺少 missing value after --db")
             elif details.get("code") != "invalid-argument":
                 errors.append("mvp-wrapper-status-missing-db-json 缺少错误代码 invalid-argument")
@@ -871,23 +892,15 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_demo_fail_json.returncode != 2:
-        errors.append(f"mvp-wrapper-demo-fail-json 执行失败: exit={wrapper_demo_fail_json.returncode}")
-    else:
-        try:
-            payload = json.loads(wrapper_demo_fail_json.stdout)
-        except json.JSONDecodeError:
-            errors.append("mvp-wrapper-demo-fail-json 输出不是合法 JSON")
-        else:
-            error = payload.get("error") or {}
-            details = error.get("details") or {}
-            if payload.get("ok") is not False or payload.get("action") != "demo":
-                errors.append("mvp-wrapper-demo-fail-json 输出缺少统一错误信封")
-            elif details.get("failed_step") != "run":
+    payload = load_json_payload(wrapper_demo_fail_json, errors, "mvp-wrapper-demo-fail-json", expected_exit=2)
+    if payload is not None:
+        error, details = extract_json_error(payload, errors, "mvp-wrapper-demo-fail-json", "demo")
+        if error is not None and details is not None:
+            if details.get("failed_step") != "run":
                 errors.append("mvp-wrapper-demo-fail-json 缺少失败步骤 run")
             elif details.get("code") != "invalid-argument":
                 errors.append("mvp-wrapper-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in details.get("error_message", ""):
+            elif "unknown argument" not in str(details.get("error_message", "")):
                 errors.append("mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument")
 
     wrapper_recover_demo = subprocess.run(
@@ -950,23 +963,15 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_recover_demo_fail_json.returncode != 2:
-        errors.append(f"mvp-wrapper-recover-demo-fail-json 执行失败: exit={wrapper_recover_demo_fail_json.returncode}")
-    else:
-        try:
-            payload = json.loads(wrapper_recover_demo_fail_json.stdout)
-        except json.JSONDecodeError:
-            errors.append("mvp-wrapper-recover-demo-fail-json 输出不是合法 JSON")
-        else:
-            error = payload.get("error") or {}
-            details = error.get("details") or {}
-            if payload.get("ok") is not False or payload.get("action") != "recover-demo":
-                errors.append("mvp-wrapper-recover-demo-fail-json 输出缺少统一错误信封")
-            elif details.get("failed_step") != "seed-crash":
+    payload = load_json_payload(wrapper_recover_demo_fail_json, errors, "mvp-wrapper-recover-demo-fail-json", expected_exit=2)
+    if payload is not None:
+        error, details = extract_json_error(payload, errors, "mvp-wrapper-recover-demo-fail-json", "recover-demo")
+        if error is not None and details is not None:
+            if details.get("failed_step") != "seed-crash":
                 errors.append("mvp-wrapper-recover-demo-fail-json 缺少失败步骤 seed-crash")
             elif details.get("code") != "invalid-argument":
                 errors.append("mvp-wrapper-recover-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in details.get("error_message", ""):
+            elif "unknown argument" not in str(details.get("error_message", "")):
                 errors.append("mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument")
 
     wrapper_retry_demo = subprocess.run(
@@ -1029,23 +1034,15 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_retry_demo_fail_json.returncode != 2:
-        errors.append(f"mvp-wrapper-retry-demo-fail-json 执行失败: exit={wrapper_retry_demo_fail_json.returncode}")
-    else:
-        try:
-            payload = json.loads(wrapper_retry_demo_fail_json.stdout)
-        except json.JSONDecodeError:
-            errors.append("mvp-wrapper-retry-demo-fail-json 输出不是合法 JSON")
-        else:
-            error = payload.get("error") or {}
-            details = error.get("details") or {}
-            if payload.get("ok") is not False or payload.get("action") != "retry-demo":
-                errors.append("mvp-wrapper-retry-demo-fail-json 输出缺少统一错误信封")
-            elif details.get("failed_step") != "seed-failed":
+    payload = load_json_payload(wrapper_retry_demo_fail_json, errors, "mvp-wrapper-retry-demo-fail-json", expected_exit=2)
+    if payload is not None:
+        error, details = extract_json_error(payload, errors, "mvp-wrapper-retry-demo-fail-json", "retry-demo")
+        if error is not None and details is not None:
+            if details.get("failed_step") != "seed-failed":
                 errors.append("mvp-wrapper-retry-demo-fail-json 缺少失败步骤 seed-failed")
             elif details.get("code") != "invalid-argument":
                 errors.append("mvp-wrapper-retry-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in details.get("error_message", ""):
+            elif "unknown argument" not in str(details.get("error_message", "")):
                 errors.append("mvp-wrapper-retry-demo-fail-json 缺少 wrapper 级 unknown argument")
 
     root_index = REPO_ROOT / "generated" / "index.json"
