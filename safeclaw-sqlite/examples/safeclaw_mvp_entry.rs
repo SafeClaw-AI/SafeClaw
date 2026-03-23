@@ -10,7 +10,7 @@ use safeclaw_core::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
         ProbeMode,
     },
-    scheduler::OrchestratorTask,
+    scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask},
     InMemoryTaskRuntime, PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{SandboxCommand, SqliteOpenOptions, SqliteWorkerService};
@@ -26,10 +26,20 @@ fn main() -> Result<(), String> {
     }
 
     let args = CliArgs::parse(raw_args)?;
+    match args.action {
+        CliAction::Run => run_action(&args),
+        CliAction::Report => report_action(&args),
+    }
+}
+
+fn run_action(args: &CliArgs) -> Result<(), String> {
     ensure_parent_dir(&args.db_path)?;
     ensure_parent_dir(&args.output_path)?;
+    if args.reset {
+        reset_session_artifacts(&args.db_path, &args.output_path);
+    }
 
-    let effect_id = format!("effect-{}", args.task_id);
+    let effect_id = args.effect_id();
     let mut service = SqliteWorkerService::open(
         &args.db_path,
         SqliteOpenOptions::default(),
@@ -111,16 +121,80 @@ fn main() -> Result<(), String> {
     println!("[mvp] db: {}", args.db_path.display());
     println!("[mvp] output: {}", args.output_path.display());
     println!("[mvp] owner: {}", args.owner_id);
+
+    println!(
+        "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
     Ok(())
+}
+
+fn report_action(args: &CliArgs) -> Result<(), String> {
+    let effect_id = args.effect_id();
+    let service = SqliteWorkerService::open(
+        &args.db_path,
+        SqliteOpenOptions::default(),
+        args.owner_id.clone(),
+    )
+    .map_err(|error| format!("{error:?}"))?;
+
+    println!("[mvp] report target => task={} effect={}", args.task_id, effect_id);
+
+    let governance = service
+        .governance_view(&args.task_id, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing governance view for task={} effect={effect_id}", args.task_id))?;
+
+    println!(
+        "[mvp] governance view => disposition={:?} worker={:?} effect={:?} attempts={}",
+        governance.disposition,
+        governance.worker_state,
+        governance.effect_status,
+        governance.attempt_count
+    );
+
+    let snapshot = service
+        .diagnostic_snapshot(&args.task_id, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing diagnostic snapshot for task={} effect={effect_id}", args.task_id))?;
+    println!("[mvp] diagnostic => {}", snapshot.render_line());
+    print_snapshot("report", service.queue_snapshot());
+
+    let output_exists = args.output_path.exists();
+    println!("[mvp] output exists => {output_exists}");
+    if output_exists {
+        let rendered = fs::read_to_string(&args.output_path).map_err(|error| error.to_string())?;
+        println!(
+            "[mvp] output content => {}",
+            rendered.replace('\r', "\\r").replace('\n', "\\n")
+        );
+    }
+
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CliAction {
+    Run,
+    Report,
 }
 
 #[derive(Clone, Debug)]
 struct CliArgs {
+    action: CliAction,
     db_path: PathBuf,
     output_path: PathBuf,
     content: String,
     task_id: String,
     owner_id: String,
+    effect_id: Option<String>,
+    reset: bool,
 }
 
 impl CliArgs {
@@ -131,15 +205,27 @@ impl CliArgs {
         let default_output = default_root.join("output.txt");
         let default_db = default_root.join("session.db");
 
+        let mut action = CliAction::Run;
+        let mut action_set = false;
         let mut db_path = None;
         let mut output_path = None;
         let mut content = String::from(DEFAULT_CONTENT);
         let mut task_id = None;
         let mut owner_id = String::from(DEFAULT_OWNER_ID);
+        let mut effect_id = None;
+        let mut reset = false;
 
         let mut args = raw_args.into_iter();
         while let Some(arg) = args.next() {
             match arg.as_str() {
+                "run" if !action_set => {
+                    action = CliAction::Run;
+                    action_set = true;
+                }
+                "report" if !action_set => {
+                    action = CliAction::Report;
+                    action_set = true;
+                }
                 "--db" => db_path = Some(PathBuf::from(next_value(&mut args, "--db")?)),
                 "--output" => {
                     output_path = Some(PathBuf::from(next_value(&mut args, "--output")?))
@@ -147,21 +233,52 @@ impl CliArgs {
                 "--content" => content = next_value(&mut args, "--content")?,
                 "--task-id" => task_id = Some(next_value(&mut args, "--task-id")?),
                 "--owner-id" => owner_id = next_value(&mut args, "--owner-id")?,
+                "--effect-id" => effect_id = Some(next_value(&mut args, "--effect-id")?),
+                "--reset" => reset = true,
                 _ => return Err(format!("unknown argument: {arg}\n\n{}", usage_text())),
             }
         }
 
-        let output_path = output_path.unwrap_or(default_output);
-        let db_path = db_path.unwrap_or(default_db);
-        let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
+        let (db_path, output_path, task_id) = match action {
+            CliAction::Run => {
+                let output_path = output_path.unwrap_or(default_output);
+                let db_path = db_path.unwrap_or(default_db);
+                let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
+                (db_path, output_path, task_id)
+            }
+            CliAction::Report => {
+                let db_path = db_path.ok_or_else(|| {
+                    format!("report requires --db\n\n{}", usage_text())
+                })?;
+                let task_id = task_id.ok_or_else(|| {
+                    format!("report requires --task-id\n\n{}", usage_text())
+                })?;
+                let output_path = output_path.unwrap_or_else(|| {
+                    db_path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join("output.txt")
+                });
+                (db_path, output_path, task_id)
+            }
+        };
 
         Ok(Self {
+            action,
             db_path,
             output_path,
             content,
             task_id,
             owner_id,
+            effect_id,
+            reset,
         })
+    }
+
+    fn effect_id(&self) -> String {
+        self.effect_id
+            .clone()
+            .unwrap_or_else(|| format!("effect-{}", self.task_id))
     }
 }
 
@@ -174,7 +291,7 @@ fn next_value(
 }
 
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -196,7 +313,19 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn build_runtime(claim: &safeclaw_core::scheduler::OrchestratorClaim, effect_id: &str) -> InMemoryTaskRuntime {
+fn reset_session_artifacts(db_path: &Path, output_path: &Path) {
+    let _ = fs::remove_file(output_path);
+    for suffix in ["", "-wal", "-shm"] {
+        let candidate = if suffix.is_empty() {
+            db_path.to_path_buf()
+        } else {
+            PathBuf::from(format!("{}{}", db_path.display(), suffix))
+        };
+        let _ = fs::remove_file(candidate);
+    }
+}
+
+fn build_runtime(claim: &OrchestratorClaim, effect_id: &str) -> InMemoryTaskRuntime {
     let effect = EffectRecord::new(
         effect_id,
         claim.task.task_id.clone(),
@@ -212,7 +341,7 @@ fn build_runtime(claim: &safeclaw_core::scheduler::OrchestratorClaim, effect_id:
     InMemoryTaskRuntime::new(effect)
 }
 
-fn print_snapshot(label: &str, snapshot: safeclaw_core::scheduler::OrchestratorSnapshot) {
+fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
     println!(
         "[mvp] snapshot {label} => queued={}, active={}, completed={}",
         snapshot.queued_tasks.len(),

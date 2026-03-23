@@ -45,7 +45,7 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         ],
     ),
     (
-        "safeclaw-mvp-entry",
+        "safeclaw-mvp-run",
         [
             "cargo",
             "run",
@@ -54,11 +54,47 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
             "--example",
             "safeclaw_mvp_entry",
             "--quiet",
+            "--",
+            "run",
+            "--reset",
+            "--db",
+            "target/smoke/safeclaw-mvp-entry/session.db",
+            "--output",
+            "target/smoke/safeclaw-mvp-entry/output.txt",
+            "--task-id",
+            "task-smoke-mvp-entry",
         ],
         [
-            "[mvp] accepted task => task=task-safeclaw-mvp-",
+            "[mvp] accepted task => task=task-smoke-mvp-entry effect=effect-task-smoke-mvp-entry",
             "[mvp] run report => polls=3 idle=2 executed=1 probed=0 parked=0",
             "[mvp] governance resolved => total=1 resolved=1 confirmation=0 manual_review=0",
+            "[mvp] output exists => true",
+            "[mvp] output content => safeclaw mvp entry\\n",
+        ],
+    ),
+    (
+        "safeclaw-mvp-report",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "safeclaw_mvp_entry",
+            "--quiet",
+            "--",
+            "report",
+            "--db",
+            "target/smoke/safeclaw-mvp-entry/session.db",
+            "--output",
+            "target/smoke/safeclaw-mvp-entry/output.txt",
+            "--task-id",
+            "task-smoke-mvp-entry",
+        ],
+        [
+            "[mvp] report target => task=task-smoke-mvp-entry effect=effect-task-smoke-mvp-entry",
+            "[mvp] governance view => disposition=Resolved worker=Succeeded effect=Executed attempts=1",
+            "[mvp] diagnostic => worker=Succeeded effect=Executed attempts=1 events=2 transitions=2 disposition=Resolved",
             "[mvp] output exists => true",
             "[mvp] output content => safeclaw mvp entry\\n",
         ],
@@ -518,7 +554,7 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
 
 def collect_coverage_errors() -> list[str]:
     errors: list[str] = []
-    configured_examples: dict[str, str] = {}
+    configured_examples: dict[str, list[str]] = {}
 
     for check_name, command, _ in CHECKS:
         try:
@@ -531,11 +567,7 @@ def collect_coverage_errors() -> list[str]:
             continue
 
         example_name = command[example_flag_index + 1]
-        previous = configured_examples.get(example_name)
-        if previous is not None:
-            errors.append(f"example smoke 重复注册: {example_name} ({previous}, {check_name})")
-            continue
-        configured_examples[example_name] = check_name
+        configured_examples.setdefault(example_name, []).append(check_name)
 
     on_disk_examples = {path.stem for path in EXAMPLES_ROOT.glob("*.rs")}
     for example_name in sorted(on_disk_examples - configured_examples.keys()):
