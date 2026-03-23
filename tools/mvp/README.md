@@ -27,7 +27,7 @@
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
 - `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
@@ -46,6 +46,7 @@ tools\mvp\safeclaw_mvp.cmd recover-demo --json
 tools\mvp\safeclaw_mvp.cmd retry-demo
 tools\mvp\safeclaw_mvp.cmd retry-demo --json
 tools\mvp\safeclaw_mvp.cmd run --reset
+tools\mvp\safeclaw_mvp.cmd run --reset --json
 tools\mvp\safeclaw_mvp.cmd session
 tools\mvp\safeclaw_mvp.cmd session --json
 tools\mvp\safeclaw_mvp.cmd sessions
@@ -54,11 +55,17 @@ tools\mvp\safeclaw_mvp.cmd forget
 tools\mvp\safeclaw_mvp.cmd doctor
 tools\mvp\safeclaw_mvp.cmd doctor --json
 tools\mvp\safeclaw_mvp.cmd status
+tools\mvp\safeclaw_mvp.cmd status --json
 tools\mvp\safeclaw_mvp.cmd report
+tools\mvp\safeclaw_mvp.cmd report --json
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset
+tools\mvp\safeclaw_mvp.cmd seed-failed --reset --json
 tools\mvp\safeclaw_mvp.cmd retry
+tools\mvp\safeclaw_mvp.cmd retry --json
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --json
 tools\mvp\safeclaw_mvp.cmd recover
+tools\mvp\safeclaw_mvp.cmd recover --json
 ```
 
 如果你想显式控制路径，也仍然支持完整参数：

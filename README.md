@@ -158,7 +158,7 @@ SafeClaw 还在很早期。
 - `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，并统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本与后续自动化接入
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，并统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本与后续自动化接入
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 
@@ -167,7 +167,7 @@ SafeClaw 还在很早期。
 - 这是 **MVP-first** 路线，不是最终产品形态
 - 当前更像单 worker 的本地治理操作台，不是完整多用户系统
 - 当前最适合开发者或愿意手动执行命令的早期体验者
-- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `session` / `sessions` 浏览、`use` 激活、`forget` 清空与 `doctor` 自检，因此首轮体验、异常链验证与环境排障都可以缩短到更短命令
+- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` 直连治理动作、`session` / `sessions` 浏览、`use` 激活、`forget` 清空与 `doctor` 自检，因此首轮体验、异常链验证与环境排障都可以缩短到更短命令
 
 ---
 

@@ -130,6 +130,27 @@ def collect_errors() -> list[str]:
             elif result.get("linker", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 linker ok")
 
+    wrapper_run_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_run_json.returncode != 0:
+        errors.append(f"mvp-wrapper-run-json 执行失败: exit={wrapper_run_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_run_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-run-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            session = result.get("saved_session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "run":
+                errors.append("mvp-wrapper-run-json 输出缺少统一信封")
+            elif session.get("task_id") != "task-wrapper-json":
+                errors.append("mvp-wrapper-run-json 缺少保存后的 task-wrapper-json 会话")
+
     wrapper_run_a = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
         cwd=REPO_ROOT,
@@ -165,6 +186,50 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-status 执行失败: exit={wrapper_status.returncode}")
     elif "[mvp] status target => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_status_output:
         errors.append("mvp-wrapper-status 输出缺少当前会话 task-wrapper-b")
+
+    wrapper_status_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_status_json.returncode != 0:
+        errors.append(f"mvp-wrapper-status-json 执行失败: exit={wrapper_status_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_status_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-status-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            if payload.get("ok") is not True or payload.get("action") != "status":
+                errors.append("mvp-wrapper-status-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "status":
+                errors.append("mvp-wrapper-status-json 缺少 prepared status")
+            elif "task-wrapper-b" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-status-json 缺少当前会话 task-wrapper-b 输出")
+
+    wrapper_status_fail_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--bogus", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_status_fail_json.returncode == 0:
+        errors.append("mvp-wrapper-status-fail-json 未按预期返回非 0")
+    else:
+        try:
+            payload = json.loads(wrapper_status_fail_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-status-fail-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            details = error.get("details") or {}
+            if payload.get("ok") is not False or payload.get("action") != "status":
+                errors.append("mvp-wrapper-status-fail-json 输出缺少统一错误信封")
+            elif "unknown argument" not in (details.get("captured_output") or ""):
+                errors.append("mvp-wrapper-status-fail-json 缺少底层错误输出")
 
     wrapper_session = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],

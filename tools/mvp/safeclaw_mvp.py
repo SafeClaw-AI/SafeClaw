@@ -64,6 +64,8 @@ def main(argv: list[str]) -> int:
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args, action=action)
 
+    if has_flag(raw_args[1:], "--json"):
+        return execute_session_action_json(raw_args)
     return execute_session_action(raw_args)
 
 
@@ -82,6 +84,30 @@ def dispatch_local_action(action: str, args: list[str], handler) -> int:
     if validation_error is not None:
         return emit_local_action_error(action, args, validation_error, exit_code=2)
     return handler(args)
+
+
+def execute_session_action_json(args: list[str]) -> int:
+    action = args[0]
+    clean_args = [action, *[item for item in args[1:] if item != "--json"]]
+    try:
+        result = execute_session_action_capture(clean_args)
+    except Exception as error:
+        return emit_json_error(action, f"failed to prepare action: {error}", exit_code=1)
+
+    payload = {
+        "prepared": result["prepared"],
+        "captured_output": str(result["output"]),
+        "saved_session": result["saved_session"],
+        "remembered_session": load_session(),
+    }
+    if result["exit_code"] != 0:
+        return emit_json_error(
+            action,
+            "underlying action failed",
+            exit_code=int(result["exit_code"]),
+            details=payload,
+        )
+    return emit_json_result(action, payload)
 
 
 def execute_session_action_capture(args: list[str]) -> dict[str, object]:
@@ -218,7 +244,10 @@ def print_help() -> int:
         "[mvp-wrapper] examples => "
         "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | forget | doctor"
     )
-    print("[mvp-wrapper] json => demo/recover-demo/retry-demo/session/sessions/use/forget/doctor 支持 --json")
+    print(
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
+        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json"
+    )
     return 0
 
 
