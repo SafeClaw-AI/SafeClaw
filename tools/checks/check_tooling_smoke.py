@@ -399,6 +399,8 @@ def collect_errors() -> list[str]:
     wrapper_sessions_output = (wrapper_sessions.stdout or "") + (wrapper_sessions.stderr or "")
     if wrapper_sessions.returncode != 0:
         errors.append(f"mvp-wrapper-sessions 执行失败: exit={wrapper_sessions.returncode}")
+    elif "[mvp-wrapper] sessions => db=target\\mvp\\session.db limit=5 source=session" not in wrapper_sessions_output:
+        errors.append("mvp-wrapper-sessions 输出缺少 db source=session")
     elif "[mvp-wrapper] recent[0] => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_sessions_output:
         errors.append("mvp-wrapper-sessions 输出缺少最近任务 task-wrapper-b")
     elif "[mvp-wrapper] recent[1] => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_sessions_output:
@@ -415,7 +417,9 @@ def collect_errors() -> list[str]:
         result = extract_json_result(payload, errors, "mvp-wrapper-sessions-json", "sessions")
         if result is not None:
             rows = result.get("rows") or []
-            if not rows or rows[0].get("task_id") != "task-wrapper-b":
+            if result.get("db_source") != "session":
+                errors.append("mvp-wrapper-sessions-json 输出缺少 db_source=session")
+            elif not rows or rows[0].get("task_id") != "task-wrapper-b":
                 errors.append("mvp-wrapper-sessions-json 输出缺少最近任务 task-wrapper-b")
             elif len(rows) < 2 or rows[1].get("task_id") != "task-wrapper-a":
                 errors.append("mvp-wrapper-sessions-json 输出缺少旧任务 task-wrapper-a")

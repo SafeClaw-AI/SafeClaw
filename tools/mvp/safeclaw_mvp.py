@@ -432,7 +432,17 @@ def run_doctor(args: list[str]) -> int:
 
 
 def print_sessions(args: list[str]) -> int:
-    db = get_flag(args, "--db") or (load_session() or {}).get("db") or render_repo_path(DEFAULT_DB)
+    session = load_session()
+    db_flag = get_flag(args, "--db")
+    if db_flag is not None:
+        db = db_flag
+        db_source = "flag"
+    elif session is not None:
+        db = session["db"]
+        db_source = "session"
+    else:
+        db = render_repo_path(DEFAULT_DB)
+        db_source = "default"
     limit_raw = get_flag(args, "--limit") or str(DEFAULT_LIST_LIMIT)
     try:
         limit = max(1, int(limit_raw))
@@ -443,7 +453,6 @@ def print_sessions(args: list[str]) -> int:
         return 2
 
     db_path = resolve_repo_path(db)
-    session = load_session()
     rows = load_recent_tasks(db_path, limit)
     rows_with_current = [
         {
@@ -459,10 +468,16 @@ def print_sessions(args: list[str]) -> int:
     if has_flag(args, "--json"):
         return emit_json_result(
             "sessions",
-            {"db": db, "limit": limit, "current_session": session, "rows": rows_with_current},
+            {
+                "db": db,
+                "db_source": db_source,
+                "limit": limit,
+                "current_session": session,
+                "rows": rows_with_current,
+            },
         )
 
-    print(f"[mvp-wrapper] sessions => db={db} limit={limit}")
+    print(f"[mvp-wrapper] sessions => db={db} limit={limit} source={db_source}")
     if session is not None:
         current = "true" if session.get("db") == db else "false"
         print(

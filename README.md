@@ -159,6 +159,7 @@ SafeClaw 还在很早期。
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，并统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本与后续自动化接入
+- `sessions` 默认优先复用 remembered session 的 `db`，并在文本/JSON 输出里标出来源，方便脚本与人工排障快速确认上下文
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 
