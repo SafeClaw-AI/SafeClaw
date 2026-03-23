@@ -25,6 +25,8 @@
 - `session`：显示当前记忆的最近成功会话
 - `sessions`：列出当前数据库里的最近任务快照
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话
+- `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
+- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
 - `seed-failed`：制造失败态但不自动结案
@@ -42,6 +44,8 @@ tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd session
 tools\mvp\safeclaw_mvp.cmd sessions
 tools\mvp\safeclaw_mvp.cmd use --index 0
+tools\mvp\safeclaw_mvp.cmd forget
+tools\mvp\safeclaw_mvp.cmd doctor
 tools\mvp\safeclaw_mvp.cmd status
 tools\mvp\safeclaw_mvp.cmd report
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset
@@ -60,4 +64,5 @@ tools\mvp\safeclaw_mvp.cmd seed-crash --reset --db target\demo\session.db --outp
 tools\mvp\safeclaw_mvp.cmd recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
+tools\mvp\safeclaw_mvp.cmd doctor --db target\demo\session.db --output target\demo\output.txt
 ```

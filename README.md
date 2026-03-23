@@ -155,6 +155,8 @@ SafeClaw 还在很早期。
 - `retry-demo`：一条命令串起 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 当前治理视图
 - `status`：在只给 `--db` 时自动查看最新任务状态
+- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径
+- `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 
@@ -163,7 +165,7 @@ SafeClaw 还在很早期。
 - 这是 **MVP-first** 路线，不是最终产品形态
 - 当前更像单 worker 的本地治理操作台，不是完整多用户系统
 - 当前最适合开发者或愿意手动执行命令的早期体验者
-- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `session` / `sessions` 浏览与 `use` 激活，因此首轮体验与异常链验证都可以缩短到更短命令
+- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `session` / `sessions` 浏览、`use` 激活、`forget` 清空与 `doctor` 自检，因此首轮体验、异常链验证与环境排障都可以缩短到更短命令
 
 ---
 

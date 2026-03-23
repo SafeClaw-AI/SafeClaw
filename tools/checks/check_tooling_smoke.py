@@ -59,6 +59,44 @@ def collect_errors() -> list[str]:
         if expected not in output:
             errors.append(f"{name} 输出缺少关键文本: {expected}")
 
+    wrapper_help = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_help_output = (wrapper_help.stdout or "") + (wrapper_help.stderr or "")
+    if wrapper_help.returncode != 0:
+        errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
+    elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少包装入口说明")
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少本地动作列表")
+
+    wrapper_doctor = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "doctor",
+            "--db",
+            "target/mvp/doctor-check.db",
+            "--output",
+            "target/mvp/doctor-check.txt",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_doctor_output = (wrapper_doctor.stdout or "") + (wrapper_doctor.stderr or "")
+    if wrapper_doctor.returncode != 0:
+        errors.append(f"mvp-wrapper-doctor 执行失败: exit={wrapper_doctor.returncode}")
+    elif "[mvp-wrapper] doctor cargo => ok" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少 cargo 检查")
+    elif "[mvp-wrapper] doctor toolchain => ok" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少 toolchain 检查")
+    elif "[mvp-wrapper] doctor linker => ok" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少 linker 检查")
+
     wrapper_run_a = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
         cwd=REPO_ROOT,
@@ -156,6 +194,30 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-status-after-use 执行失败: exit={wrapper_status_after_use.returncode}")
     elif "[mvp] status target => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_status_after_use_output:
         errors.append("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a")
+
+    wrapper_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_forget_output = (wrapper_forget.stdout or "") + (wrapper_forget.stderr or "")
+    if wrapper_forget.returncode != 0:
+        errors.append(f"mvp-wrapper-forget 执行失败: exit={wrapper_forget.returncode}")
+    elif "[mvp-wrapper] forgot => target\\mvp\\last_session.json" not in wrapper_forget_output:
+        errors.append("mvp-wrapper-forget 输出缺少会话清空标记")
+
+    wrapper_session_after_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_session_after_forget_output = (wrapper_session_after_forget.stdout or "") + (wrapper_session_after_forget.stderr or "")
+    if wrapper_session_after_forget.returncode != 0:
+        errors.append(f"mvp-wrapper-session-after-forget 执行失败: exit={wrapper_session_after_forget.returncode}")
+    elif "[mvp-wrapper] session => none" not in wrapper_session_after_forget_output:
+        errors.append("mvp-wrapper-session-after-forget 输出缺少 none")
 
     wrapper_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],

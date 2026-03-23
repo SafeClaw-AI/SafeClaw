@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_ROOT = REPO_ROOT / "safeclaw-sqlite" / "examples"
+WINDOWS_GNU_TOOLCHAIN = "stable-x86_64-pc-windows-gnu"
+WINDOWS_GNU_LINKER = Path(
+    r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
+    r"WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\x86_64-w64-mingw32-gcc.exe"
+)
 CHECKS: list[tuple[str, list[str], list[str]]] = [
     (
         "full-lifecycle-demo",
@@ -715,6 +721,8 @@ def collect_errors() -> list[str]:
     if errors:
         return errors
 
+    env = build_example_env()
+
     for name, command, expected_markers in CHECKS:
         try:
             completed = subprocess.run(
@@ -722,6 +730,7 @@ def collect_errors() -> list[str]:
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
+                env=env,
             )
         except OSError as error:
             errors.append(f"{name} 无法启动: {error}")
@@ -736,6 +745,14 @@ def collect_errors() -> list[str]:
                 errors.append(f"{name} 输出缺少关键文本: {marker}")
 
     return errors
+
+
+def build_example_env() -> dict[str, str]:
+    env = os.environ.copy()
+    if sys.platform == "win32":
+        env.setdefault("RUSTUP_TOOLCHAIN", WINDOWS_GNU_TOOLCHAIN)
+        env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", str(WINDOWS_GNU_LINKER))
+    return env
 
 
 def main() -> int:

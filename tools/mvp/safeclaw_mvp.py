@@ -23,21 +23,27 @@ LINKER = (
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
-LOCAL_ACTIONS = {"session", "sessions", "use", "demo", "recover-demo", "retry-demo"}
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
 
 
 def main(argv: list[str]) -> int:
     raw_args = argv[1:]
-    if not raw_args or raw_args[0] in {"-h", "--help"}:
-        return run_cargo(["--help"])
+    if not raw_args:
+        return print_help()
 
     action = raw_args[0]
+    if action in {"-h", "--help", "help"}:
+        return print_help()
     if action == "session":
         return print_session()
     if action == "sessions":
         return print_sessions(raw_args[1:])
     if action == "use":
         return activate_session(raw_args[1:])
+    if action == "forget":
+        return forget_session()
+    if action == "doctor":
+        return run_doctor(raw_args[1:])
     if action == "demo":
         return run_demo(raw_args[1:])
     if action == "recover-demo":
@@ -155,6 +161,21 @@ def build_session(args: list[str]) -> dict[str, str]:
     }
 
 
+def print_help() -> int:
+    print("[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]")
+    print(f"[mvp-wrapper] local actions => {', '.join(LOCAL_ACTIONS)}")
+    print(f"[mvp-wrapper] passthrough actions => {', '.join(sorted(SESSION_ACTIONS))}")
+    print(
+        "[mvp-wrapper] defaults => write actions auto-fill --db/--output/--task-id/--effect-id/--owner-id, "
+        "read actions reuse the remembered session when possible"
+    )
+    print(
+        "[mvp-wrapper] examples => "
+        "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | forget | doctor"
+    )
+    return 0
+
+
 def print_session() -> int:
     session = load_session()
     if session is None:
@@ -166,6 +187,68 @@ def print_session() -> int:
         f"output={session['output']} owner={session['owner_id']}"
     )
     return 0
+
+
+def forget_session() -> int:
+    if not SESSION_FILE.exists():
+        print("[mvp-wrapper] forgot => none")
+        return 0
+    try:
+        SESSION_FILE.unlink()
+    except OSError as error:
+        print(f"[mvp-wrapper] forgot => error {error}", file=sys.stderr)
+        return 1
+    print(f"[mvp-wrapper] forgot => {render_repo_path(SESSION_FILE)}")
+    return 0
+
+
+def run_doctor(args: list[str]) -> int:
+    session_error: str | None = None
+    try:
+        session = load_session()
+    except (OSError, json.JSONDecodeError) as error:
+        session = None
+        session_error = str(error)
+
+    db = get_flag(args, "--db") or (session["db"] if session is not None else render_repo_path(DEFAULT_DB))
+    output = get_flag(args, "--output")
+    if output is None:
+        if session is not None and session.get("db") == db:
+            output = session["output"]
+        else:
+            output = default_output_for_db(db)
+
+    cargo_ok, cargo_detail = probe_command(["cargo", "--version"])
+    toolchain_ok, toolchain_detail = probe_command(["rustc", f"+{TOOLCHAIN}", "--version"])
+    linker_path = Path(LINKER)
+    linker_ok = linker_path.exists()
+    db_path = resolve_repo_path(db)
+    output_path = resolve_repo_path(output)
+
+    print(f"[mvp-wrapper] doctor repo => {REPO_ROOT}")
+    print(f"[mvp-wrapper] doctor python => ok {sys.executable}")
+    print(f"[mvp-wrapper] doctor cargo => {'ok' if cargo_ok else 'error'} {cargo_detail}")
+    print(f"[mvp-wrapper] doctor toolchain => {'ok' if toolchain_ok else 'error'} {toolchain_detail}")
+    print(
+        f"[mvp-wrapper] doctor linker => {'ok' if linker_ok else 'error'} {render_repo_path(linker_path)}"
+    )
+    if session_error is not None:
+        print(f"[mvp-wrapper] doctor session => error {session_error}")
+    elif session is None:
+        print("[mvp-wrapper] doctor session => none")
+    else:
+        print(
+            "[mvp-wrapper] doctor session => "
+            f"task={session['task_id']} effect={session['effect_id']} db={session['db']} "
+            f"output={session['output']} owner={session['owner_id']}"
+        )
+    print(
+        f"[mvp-wrapper] doctor db => {'present' if db_path.exists() else 'missing'} {render_repo_path(db_path)}"
+    )
+    print(
+        f"[mvp-wrapper] doctor output => {'present' if output_path.exists() else 'missing'} {render_repo_path(output_path)}"
+    )
+    return 0 if cargo_ok and toolchain_ok and linker_ok else 1
 
 
 def print_sessions(args: list[str]) -> int:
@@ -394,6 +477,23 @@ def run_cargo(args: list[str]) -> int:
         env=env,
     )
     return completed.returncode
+
+
+def probe_command(command: list[str]) -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return False, str(error)
+
+    combined = ((completed.stdout or "") + (completed.stderr or "")).strip()
+    detail = combined.splitlines()[0] if combined else f"exit={completed.returncode}"
+    return completed.returncode == 0, detail
 
 
 def resolve_repo_path(path_str: str) -> Path:
