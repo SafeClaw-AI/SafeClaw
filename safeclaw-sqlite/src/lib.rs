@@ -39,7 +39,8 @@ pub use worker_loop::{
 };
 pub use worker_service::{
     SqliteWorkerService, WorkerServiceGovernanceBucket, WorkerServiceGovernanceGroups,
-    WorkerServiceGovernanceReport, WorkerServiceRunReport,
+    WorkerServiceGovernanceReport, WorkerServiceGovernanceSection,
+    WorkerServiceRunReport,
 };
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";

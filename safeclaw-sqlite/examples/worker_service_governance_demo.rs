@@ -48,10 +48,12 @@ fn main() -> Result<(), String> {
         resolved_governance.summary.queue_for_confirmation,
         resolved_governance.summary.queue_for_manual_review,
     );
-    let resolved_groups = resolved_governance.disposition_groups();
+    let resolved_section = resolved_governance
+        .section_for_disposition(safeclaw_sqlite::RuntimeGovernanceDisposition::Resolved)
+        .expect("resolved section must exist after resolved run");
     println!(
         "[demo] service governance resolved tasks => {}",
-        resolved_groups.resolved.task_ids.join(",")
+        resolved_section.task_ids.join(",")
     );
     print_snapshot("after-resolved", service.queue_snapshot());
 
@@ -75,10 +77,14 @@ fn main() -> Result<(), String> {
         confirmation_governance.summary.queue_for_confirmation,
         confirmation_governance.summary.queue_for_manual_review,
     );
-    let confirmation_groups = confirmation_governance.disposition_groups();
+    let confirmation_section = confirmation_governance
+        .section_for_disposition(
+            safeclaw_sqlite::RuntimeGovernanceDisposition::QueueForConfirmation,
+        )
+        .expect("confirmation section must exist after parked confirmation");
     println!(
         "[demo] service governance confirmation tasks => {}",
-        confirmation_groups.queue_for_confirmation.task_ids.join(",")
+        confirmation_section.task_ids.join(",")
     );
     print_snapshot("after-confirmation", service.queue_snapshot());
     println!("[demo] db: {}", temp.path().display());

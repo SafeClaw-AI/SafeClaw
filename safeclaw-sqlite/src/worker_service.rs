@@ -32,6 +32,26 @@ pub struct WorkerServiceGovernanceBucket {
     pub effect_ids: Vec<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkerServiceGovernanceSection {
+    pub disposition: RuntimeGovernanceDisposition,
+    pub task_ids: Vec<String>,
+    pub effect_ids: Vec<String>,
+}
+
+impl WorkerServiceGovernanceSection {
+    pub fn label(&self) -> &'static str {
+        match self.disposition {
+            RuntimeGovernanceDisposition::InFlight => "in_flight",
+            RuntimeGovernanceDisposition::QueueForConfirmation => "queue_for_confirmation",
+            RuntimeGovernanceDisposition::RetryEligible => "retry_eligible",
+            RuntimeGovernanceDisposition::QueueForManualReview => "queue_for_manual_review",
+            RuntimeGovernanceDisposition::Resolved => "resolved",
+            RuntimeGovernanceDisposition::ParkedUnsupported => "parked_unsupported",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct WorkerServiceGovernanceGroups {
     pub in_flight: WorkerServiceGovernanceBucket,
@@ -94,6 +114,53 @@ impl WorkerServiceGovernanceReport {
             groups.observe(snapshot);
         }
         groups
+    }
+
+    pub fn sections(&self) -> Vec<WorkerServiceGovernanceSection> {
+        let groups = self.disposition_groups();
+        [
+            (
+                RuntimeGovernanceDisposition::InFlight,
+                groups.in_flight,
+            ),
+            (
+                RuntimeGovernanceDisposition::QueueForConfirmation,
+                groups.queue_for_confirmation,
+            ),
+            (
+                RuntimeGovernanceDisposition::RetryEligible,
+                groups.retry_eligible,
+            ),
+            (
+                RuntimeGovernanceDisposition::QueueForManualReview,
+                groups.queue_for_manual_review,
+            ),
+            (
+                RuntimeGovernanceDisposition::Resolved,
+                groups.resolved,
+            ),
+            (
+                RuntimeGovernanceDisposition::ParkedUnsupported,
+                groups.parked_unsupported,
+            ),
+        ]
+        .into_iter()
+        .filter(|(_, bucket)| !(bucket.task_ids.is_empty() && bucket.effect_ids.is_empty()))
+        .map(|(disposition, bucket)| WorkerServiceGovernanceSection {
+            disposition,
+            task_ids: bucket.task_ids,
+            effect_ids: bucket.effect_ids,
+        })
+        .collect()
+    }
+
+    pub fn section_for_disposition(
+        &self,
+        disposition: RuntimeGovernanceDisposition,
+    ) -> Option<WorkerServiceGovernanceSection> {
+        self.sections()
+            .into_iter()
+            .find(|section| section.disposition == disposition)
     }
 }
 
@@ -359,6 +426,12 @@ mod tests {
         let groups = governance_report.disposition_groups();
         assert!(groups.resolved.task_ids.is_empty());
         assert!(groups.queue_for_confirmation.task_ids.is_empty());
+        assert!(governance_report.sections().is_empty());
+        assert!(
+            governance_report
+                .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
+                .is_none()
+        );
         assert!(service.queue_snapshot().active_leases.is_empty());
         assert!(service.queue_snapshot().completed_task_ids.is_empty());
     }
@@ -460,6 +533,16 @@ mod tests {
         assert_eq!(
             groups.queue_for_confirmation.effect_ids,
             vec![String::from("effect-task-worker-service-confirmation")]
+        );
+        let sections = governance_report.sections();
+        assert_eq!(sections.len(), 1);
+        assert_eq!(sections[0].label(), "queue_for_confirmation");
+        assert_eq!(
+            governance_report
+                .section_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation)
+                .unwrap()
+                .task_ids,
+            vec![String::from("task-worker-service-confirmation")]
         );
 
         let snapshot = service.queue_snapshot();
@@ -837,6 +920,21 @@ mod tests {
             vec![
                 String::from("effect-task-worker-service-diagnostic-report-a"),
                 String::from("effect-task-worker-service-diagnostic-report-b"),
+            ]
+        );
+        let sections = governance_report.sections();
+        assert_eq!(sections.len(), 1);
+        assert_eq!(sections[0].label(), "resolved");
+        let mut section_task_ids = governance_report
+            .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
+            .unwrap()
+            .task_ids;
+        section_task_ids.sort();
+        assert_eq!(
+            section_task_ids,
+            vec![
+                String::from("task-worker-service-diagnostic-report-a"),
+                String::from("task-worker-service-diagnostic-report-b"),
             ]
         );
         let mut task_ids = governance_report.snapshots
