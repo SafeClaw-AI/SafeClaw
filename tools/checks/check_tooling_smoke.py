@@ -932,6 +932,43 @@ def collect_errors() -> list[str]:
             elif session.get("task_id") != "task-wrapper-recover-demo-json":
                 errors.append("mvp-wrapper-recover-demo-json 缺少当前会话 task-wrapper-recover-demo-json")
 
+    wrapper_recover_demo_fail = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_recover_demo_fail_output = (wrapper_recover_demo_fail.stdout or "") + (wrapper_recover_demo_fail.stderr or "")
+    if wrapper_recover_demo_fail.returncode != 2:
+        errors.append(f"mvp-wrapper-recover-demo-fail 执行失败: exit={wrapper_recover_demo_fail.returncode}")
+    elif "[mvp-wrapper] recover-demo => failed step=seed-crash exit=2" not in wrapper_recover_demo_fail_output:
+        errors.append("mvp-wrapper-recover-demo-fail 输出缺少组合动作失败承接提示")
+
+    wrapper_recover_demo_fail_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_recover_demo_fail_json.returncode != 2:
+        errors.append(f"mvp-wrapper-recover-demo-fail-json 执行失败: exit={wrapper_recover_demo_fail_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_recover_demo_fail_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-recover-demo-fail-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            details = error.get("details") or {}
+            if payload.get("ok") is not False or payload.get("action") != "recover-demo":
+                errors.append("mvp-wrapper-recover-demo-fail-json 输出缺少统一错误信封")
+            elif details.get("failed_step") != "seed-crash":
+                errors.append("mvp-wrapper-recover-demo-fail-json 缺少失败步骤 seed-crash")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-recover-demo-fail-json 缺少错误代码 invalid-argument")
+            elif "unknown argument" not in details.get("error_message", ""):
+                errors.append("mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument")
+
     wrapper_retry_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo"],
         cwd=REPO_ROOT,
@@ -973,6 +1010,43 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
             elif session.get("task_id") != "task-wrapper-retry-demo-json":
                 errors.append("mvp-wrapper-retry-demo-json 缺少当前会话 task-wrapper-retry-demo-json")
+
+    wrapper_retry_demo_fail = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--bogus"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_retry_demo_fail_output = (wrapper_retry_demo_fail.stdout or "") + (wrapper_retry_demo_fail.stderr or "")
+    if wrapper_retry_demo_fail.returncode != 2:
+        errors.append(f"mvp-wrapper-retry-demo-fail 执行失败: exit={wrapper_retry_demo_fail.returncode}")
+    elif "[mvp-wrapper] retry-demo => failed step=seed-failed exit=2" not in wrapper_retry_demo_fail_output:
+        errors.append("mvp-wrapper-retry-demo-fail 输出缺少组合动作失败承接提示")
+
+    wrapper_retry_demo_fail_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--bogus", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_retry_demo_fail_json.returncode != 2:
+        errors.append(f"mvp-wrapper-retry-demo-fail-json 执行失败: exit={wrapper_retry_demo_fail_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_retry_demo_fail_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-retry-demo-fail-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            details = error.get("details") or {}
+            if payload.get("ok") is not False or payload.get("action") != "retry-demo":
+                errors.append("mvp-wrapper-retry-demo-fail-json 输出缺少统一错误信封")
+            elif details.get("failed_step") != "seed-failed":
+                errors.append("mvp-wrapper-retry-demo-fail-json 缺少失败步骤 seed-failed")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-retry-demo-fail-json 缺少错误代码 invalid-argument")
+            elif "unknown argument" not in details.get("error_message", ""):
+                errors.append("mvp-wrapper-retry-demo-fail-json 缺少 wrapper 级 unknown argument")
 
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
