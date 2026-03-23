@@ -8,6 +8,7 @@
 - `tools/lint/`：稳定命名检查
 - `tools/codegen/`：最小稳定索引生成
 - `tools/schema_diff/`：schema 比较与自动化 diff
+- `tools/mvp/`：当前 Win11 本地 MVP 操作入口与示例命令
 
 ## 推荐入口
 

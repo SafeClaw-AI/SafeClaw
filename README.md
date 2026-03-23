@@ -124,6 +124,7 @@ SafeClaw 目前还处于非常早期的阶段。
 版本：3.2.0
 阶段：Phase 0 — 协议真源闭环 + Rust Core 起步前夜
 重点：四阶段 Effect Ledger / Probe / Fencing / Scope Quarantine / Reconcile
+可体验路径：Win11 本地 MVP 操作入口（tools/mvp/）
 ```
 
 SafeClaw 还在很早期。  
@@ -136,6 +137,28 @@ SafeClaw 还在很早期。
 **做一个让普通人用起来安心的自动化系统。**
 
 我们慢慢来，但会认真做。
+
+## 当前可手动体验的本地 MVP
+
+目前还没有正式 GUI，也还不是“开箱即用的产品”。  
+但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动使用最小闭环。
+
+- 固定入口：`tools/mvp/safeclaw_mvp.cmd`
+- PowerShell 包装：`tools/mvp/safeclaw_mvp.ps1`
+- 详细命令：见 `tools/mvp/README.md`
+
+当前已支持的最小动作：
+
+- `run`：创建任务并执行到落盘完成
+- `report`：查看单任务 / 单 effect 当前治理视图
+- `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
+- `seed-failed` + `retry`：模拟失败后重新领取并重试
+
+当前边界也需要说清楚：
+
+- 这是 **MVP-first** 路线，不是最终产品形态
+- 当前更像单 worker 的本地治理操作台，不是完整多用户系统
+- 当前最适合开发者或愿意手动执行命令的早期体验者
 
 ---
 
@@ -202,7 +225,7 @@ Instead of pushing users to trust a black box, SafeClaw tries to:
 
 Licensed under GPL-3.0. Commercial closed-source licensing is available upon request.
 
-Current status: Version `3.2.0` · Phase `0` · protocol source-of-truth closed loop, ready for Rust core scaffolding.
+Current status: Version `3.2.0` · Phase `0` · protocol source-of-truth closed loop, with an early Win11 local MVP operator path under `tools/mvp/`.
 
 📮 **safeclaw.ai@gmail.com** · [GitHub](https://github.com/SafeClaw-AI/SafeClaw)
 
