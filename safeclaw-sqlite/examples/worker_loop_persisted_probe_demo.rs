@@ -96,11 +96,8 @@ fn main() -> Result<(), String> {
     ))?
     .expect("expired uncertain runtime must be claimable for probe");
     println!(
-        "[demo] probe recovery => from={:?}, worker={:?}, effect={:?}, completed={}",
-        recovered.recovered_from,
-        recovered.final_summary.worker_state,
-        recovered.final_summary.effect_status,
-        recovered.completed
+        "[demo] probe recovery => {}",
+        recovered.render_recovery_status_line()
     );
     print_snapshot("after-probe-complete", probe_worker.queue_snapshot());
 

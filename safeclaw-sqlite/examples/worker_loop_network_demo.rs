@@ -71,17 +71,8 @@ fn main() -> Result<(), String> {
         outcome.report.exit_code,
         outcome.report.duration_ms
     );
-    println!(
-        "[demo] execution summary => worker={:?}, effect={:?}",
-        outcome.execution_summary.worker_state,
-        outcome.execution_summary.effect_status
-    );
-    println!(
-        "[demo] final summary => worker={:?}, effect={:?}, completed={}",
-        outcome.final_summary.worker_state,
-        outcome.final_summary.effect_status,
-        outcome.completed
-    );
+    println!("[demo] execution summary => {}", outcome.render_execution_status_line());
+    println!("[demo] final summary => {}", outcome.render_final_status_line());
 
     print_snapshot("after-complete", loop_driver.queue_snapshot());
 

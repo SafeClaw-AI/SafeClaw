@@ -38,6 +38,22 @@ pub struct WorkerLoopOutcome {
     pub disposition: Option<WorkerLoopDisposition>,
 }
 
+impl WorkerLoopOutcome {
+    pub fn render_execution_status_line(&self) -> String {
+        format!(
+            "worker={:?}, effect={:?}",
+            self.execution_summary.worker_state, self.execution_summary.effect_status
+        )
+    }
+
+    pub fn render_final_status_line(&self) -> String {
+        format!(
+            "worker={:?}, effect={:?}, completed={}",
+            self.final_summary.worker_state, self.final_summary.effect_status, self.completed
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct WorkerLoopProbeOutcome {
     pub claim: OrchestratorClaim,
@@ -45,6 +61,18 @@ pub struct WorkerLoopProbeOutcome {
     pub recovered_from: WorkerState,
     pub final_summary: RunSummary,
     pub completed: bool,
+}
+
+impl WorkerLoopProbeOutcome {
+    pub fn render_recovery_status_line(&self) -> String {
+        format!(
+            "from={:?}, worker={:?}, effect={:?}, completed={}",
+            self.recovered_from,
+            self.final_summary.worker_state,
+            self.final_summary.effect_status,
+            self.completed
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -4061,6 +4089,14 @@ mod tests {
         assert_eq!(outcome.final_summary.worker_state, WorkerState::Succeeded);
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Executed);
         assert!(outcome.completed);
+        assert_eq!(
+            outcome.render_execution_status_line(),
+            "worker=Uncertain, effect=Uncertain"
+        );
+        assert_eq!(
+            outcome.render_final_status_line(),
+            "worker=Succeeded, effect=Executed, completed=true"
+        );
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
         assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
         assert!(loop_driver.queue_snapshot().active_leases.is_empty());
@@ -4160,6 +4196,10 @@ mod tests {
         assert_eq!(recovered.final_summary.worker_state, WorkerState::Succeeded);
         assert_eq!(recovered.final_summary.effect_status, EffectStatus::Executed);
         assert!(recovered.completed);
+        assert_eq!(
+            recovered.render_recovery_status_line(),
+            "from=Uncertain, worker=Succeeded, effect=Executed, completed=true"
+        );
         assert!(probe_worker.queue_snapshot().queued_tasks.is_empty());
         assert!(probe_worker.queue_snapshot().active_leases.is_empty());
         assert_eq!(
