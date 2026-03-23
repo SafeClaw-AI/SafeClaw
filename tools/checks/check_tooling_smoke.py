@@ -191,7 +191,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
     elif "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；status/report/recover/retry/doctor 会尽量复用它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 remembered session 提示")
-    elif "[mvp-wrapper] doctor => 文本模式给出 summary；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
+    elif "[mvp-wrapper] doctor => 文本模式给出 summary 与 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 聚合状态提示")
 
     wrapper_doctor = subprocess.run(

@@ -306,7 +306,8 @@ def print_help() -> int:
         "status/report/recover/retry/doctor 会尽量复用它"
     )
     print(
-        "[mvp-wrapper] doctor => 文本模式给出 summary；--json 会额外返回 status 与 failing_checks"
+        "[mvp-wrapper] doctor => 文本模式给出 summary 与 db/output 来源；"
+        "--json 会额外返回 status 与 failing_checks"
     )
     return 0
 
