@@ -150,7 +150,8 @@ SafeClaw 还在很早期。
 当前已支持的最小动作：
 
 - `run`：创建任务并执行到落盘完成
-- `report`：查看单任务 / 单 effect 当前治理视图
+- `report`：查看指定任务 / effect 当前治理视图
+- `status`：在只给 `--db` 时自动查看最新任务状态
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 

@@ -5,6 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use rusqlite::{Connection, OptionalExtension};
 use safeclaw_core::{
     effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
@@ -35,6 +36,7 @@ fn main() -> Result<(), String> {
     match args.action {
         CliAction::Run => run_action(&args),
         CliAction::Report => report_action(&args),
+        CliAction::Status => status_action(&args),
         CliAction::SeedCrash => seed_crash_action(&args),
         CliAction::Recover => recover_action(&args),
         CliAction::SeedFailed => seed_failed_action(&args),
@@ -145,31 +147,19 @@ fn report_action(args: &CliArgs) -> Result<(), String> {
     )
     .map_err(|error| format!("{error:?}"))?;
 
-    println!("[mvp] report target => task={} effect={}", args.task_id, effect_id);
+    print_runtime_status(&service, args, "report", &args.task_id, &effect_id)
+}
 
-    let governance = service
-        .governance_view(&args.task_id, &effect_id)
-        .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("missing governance view for task={} effect={effect_id}", args.task_id))?;
-    println!(
-        "[mvp] governance view => disposition={:?} worker={:?} effect={:?} attempts={}",
-        governance.disposition,
-        governance.worker_state,
-        governance.effect_status,
-        governance.attempt_count
-    );
+fn status_action(args: &CliArgs) -> Result<(), String> {
+    let (task_id, effect_id) = resolve_status_target(args)?;
+    let service = SqliteWorkerService::open(
+        &args.db_path,
+        SqliteOpenOptions::default(),
+        args.owner_id.clone(),
+    )
+    .map_err(|error| format!("{error:?}"))?;
 
-    let snapshot = service
-        .diagnostic_snapshot(&args.task_id, &effect_id)
-        .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("missing diagnostic snapshot for task={} effect={effect_id}", args.task_id))?;
-    println!("[mvp] diagnostic => {}", snapshot.render_line());
-    print_snapshot("report", service.queue_snapshot());
-    print_output_state(&args.output_path)?;
-    println!("[mvp] db: {}", args.db_path.display());
-    println!("[mvp] output: {}", args.output_path.display());
-    println!("[mvp] owner: {}", args.owner_id);
-    Ok(())
+    print_runtime_status(&service, args, "status", &task_id, &effect_id)
 }
 
 fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
@@ -390,6 +380,7 @@ fn retry_action(args: &CliArgs) -> Result<(), String> {
 enum CliAction {
     Run,
     Report,
+    Status,
     SeedCrash,
     Recover,
     SeedFailed,
@@ -435,6 +426,10 @@ impl CliArgs {
                 }
                 "report" if !action_set => {
                     action = CliAction::Report;
+                    action_set = true;
+                }
+                "status" if !action_set => {
+                    action = CliAction::Status;
                     action_set = true;
                 }
                 "seed-crash" if !action_set => {
@@ -488,6 +483,18 @@ impl CliArgs {
                 });
                 (db_path, output_path, task_id)
             }
+            CliAction::Status => {
+                let db_path = db_path.ok_or_else(|| {
+                    format!("{} requires --db\n\n{}", action_name(action), usage_text())
+                })?;
+                let output_path = output_path.unwrap_or_else(|| {
+                    db_path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join("output.txt")
+                });
+                (db_path, output_path, task_id.unwrap_or_default())
+            }
         };
 
         Ok(Self {
@@ -513,6 +520,7 @@ fn action_name(action: CliAction) -> &'static str {
     match action {
         CliAction::Run => "run",
         CliAction::Report => "report",
+        CliAction::Status => "status",
         CliAction::SeedCrash => "seed-crash",
         CliAction::Recover => "recover",
         CliAction::SeedFailed => "seed-failed",
@@ -529,11 +537,85 @@ fn next_value(
 }
 
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
     println!("{}", usage_text());
+}
+
+fn print_runtime_status(
+    service: &SqliteWorkerService,
+    args: &CliArgs,
+    label: &str,
+    task_id: &str,
+    effect_id: &str,
+) -> Result<(), String> {
+    println!("[mvp] {label} target => task={task_id} effect={effect_id}");
+
+    let governance = service
+        .governance_view(task_id, effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing governance view for task={task_id} effect={effect_id}"))?;
+    println!(
+        "[mvp] governance view => disposition={:?} worker={:?} effect={:?} attempts={}",
+        governance.disposition,
+        governance.worker_state,
+        governance.effect_status,
+        governance.attempt_count
+    );
+
+    let snapshot = service
+        .diagnostic_snapshot(task_id, effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing diagnostic snapshot for task={task_id} effect={effect_id}"))?;
+    println!("[mvp] diagnostic => {}", snapshot.render_line());
+    print_snapshot(label, service.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    Ok(())
+}
+
+fn resolve_status_target(args: &CliArgs) -> Result<(String, String), String> {
+    let connection = open_database(&args.db_path, SqliteOpenOptions::default())
+        .map_err(|error| format!("{error:?}"))?;
+    let task_id = if args.task_id.is_empty() {
+        load_latest_task_id(&connection)?
+            .ok_or_else(|| format!("no persisted task snapshots in {}", args.db_path.display()))?
+    } else {
+        args.task_id.clone()
+    };
+    let effect_id = if let Some(effect_id) = args.effect_id.clone() {
+        effect_id
+    } else {
+        load_latest_effect_id(&connection, &task_id)?
+            .unwrap_or_else(|| format!("effect-{task_id}"))
+    };
+    Ok((task_id, effect_id))
+}
+
+fn load_latest_task_id(connection: &Connection) -> Result<Option<String>, String> {
+    connection
+        .query_row(
+            "SELECT task_id FROM task_snapshots ORDER BY updated_at DESC, task_id DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn load_latest_effect_id(connection: &Connection, task_id: &str) -> Result<Option<String>, String> {
+    connection
+        .query_row(
+            "SELECT effect_id FROM effects WHERE task_id = ?1 ORDER BY rowid DESC LIMIT 1",
+            [task_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())
 }
 
 fn unique_suffix() -> Result<String, String> {

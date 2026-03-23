@@ -100,6 +100,31 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         ],
     ),
     (
+        "safeclaw-mvp-status",
+        [
+            "cargo",
+            "run",
+            "-p",
+            "safeclaw-sqlite",
+            "--example",
+            "safeclaw_mvp_entry",
+            "--quiet",
+            "--",
+            "status",
+            "--db",
+            "target/smoke/safeclaw-mvp-entry/session.db",
+            "--output",
+            "target/smoke/safeclaw-mvp-entry/output.txt",
+        ],
+        [
+            "[mvp] status target => task=task-smoke-mvp-entry effect=effect-task-smoke-mvp-entry",
+            "[mvp] governance view => disposition=Resolved worker=Succeeded effect=Executed attempts=1",
+            "[mvp] diagnostic => worker=Succeeded effect=Executed attempts=1 events=2 transitions=2 disposition=Resolved",
+            "[mvp] output exists => true",
+            "[mvp] output content => safeclaw mvp entry\\n",
+        ],
+    ),
+    (
         "safeclaw-mvp-seed-crash",
         [
             "cargo",
