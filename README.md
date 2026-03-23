@@ -162,6 +162,12 @@ SafeClaw 还在很早期。
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
 - `seed-failed` + `retry`：模拟失败后重新领取并重试
 
+当前 Win11 MVP 包装层还额外稳定了两类 JSON 错误代码，便于脚本直接消费：
+
+- `invalid-argument`：wrapper 已识别出未知参数或缺少 flag 值，例如 `--bogus`、`--db` 后缺值。
+- `missing-task-context`：`report` / `recover` / `retry` 缺少 `--task-id` 且没有 remembered session；此时可显式传入 `--task-id`，或先建立 / 激活会话。
+- 组合动作 `demo` / `recover-demo` / `retry-demo` 在 wrapper 预处理阶段失败时，`error.details` 会附带 `failed_step`、`code`、`error_message`，可直接定位失败步骤。
+
 当前边界也需要说清楚：
 
 - 这是 **MVP-first** 路线，不是最终产品形态

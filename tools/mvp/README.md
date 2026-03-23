@@ -34,6 +34,16 @@
 - `seed-failed`：制造失败态但不自动结案
 - `retry`：在租约过期后重新领取失败态并重试
 
+## JSON 错误约定
+
+- 包装层失败统一返回 `{ok: false, action, schema_version, error}`。
+- `error.message` 是稳定的 wrapper 级错误消息，不再要求脚本解析底层 cargo 文案。
+- `error.details.code` 当前已稳定提供：`invalid-argument`、`missing-task-context`。
+- `invalid-argument` 表示包装层已识别出未知参数或缺少 flag 值，如 `--bogus`、`--db` 后缺值。
+- `missing-task-context` 表示 `report` / `recover` / `retry` 缺少 `--task-id`，且当前没有可复用 remembered session；此时可显式传入 `--task-id`，或先执行 `use` / `run` / `seed-crash` / `seed-failed` 建立上下文。
+- 对 `demo` / `recover-demo` / `retry-demo` 这类组合动作，若失败发生在 wrapper 预处理阶段，`error.details` 还会带上 `failed_step`、`code`、`error_message`，便于脚本直接定位失败步骤。
+- 若当前存在 remembered session，包装层会在错误细节中尽量附带 `remembered_session` 或 `session`，方便脚本决定是否重试或切换上下文。
+
 ## 最常用命令
 
 第一次运行可以直接走默认会话路径：
