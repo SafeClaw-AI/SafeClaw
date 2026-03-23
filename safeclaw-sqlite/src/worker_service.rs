@@ -50,6 +50,21 @@ impl WorkerServiceGovernanceSection {
             RuntimeGovernanceDisposition::ParkedUnsupported => "parked_unsupported",
         }
     }
+
+    pub fn display_label(&self) -> &'static str {
+        match self.disposition {
+            RuntimeGovernanceDisposition::InFlight => "in-flight",
+            RuntimeGovernanceDisposition::QueueForConfirmation => "confirmation",
+            RuntimeGovernanceDisposition::RetryEligible => "retry",
+            RuntimeGovernanceDisposition::QueueForManualReview => "manual-review",
+            RuntimeGovernanceDisposition::Resolved => "resolved",
+            RuntimeGovernanceDisposition::ParkedUnsupported => "unsupported",
+        }
+    }
+
+    pub fn render_task_line(&self) -> String {
+        format!("{} tasks => {}", self.display_label(), self.task_ids.join(","))
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -161,6 +176,40 @@ impl WorkerServiceGovernanceReport {
         self.sections()
             .into_iter()
             .find(|section| section.disposition == disposition)
+    }
+
+    pub fn primary_label(&self) -> &'static str {
+        let sections = self.sections();
+        match sections.as_slice() {
+            [] => "empty",
+            [section] => section.display_label(),
+            _ => "mixed",
+        }
+    }
+
+    pub fn render_summary_line(&self) -> String {
+        format!(
+            "{} => total={} resolved={} confirmation={} manual_review={}",
+            self.primary_label(),
+            self.summary.total,
+            self.summary.resolved,
+            self.summary.queue_for_confirmation,
+            self.summary.queue_for_manual_review,
+        )
+    }
+
+    pub fn render_lines(&self) -> Vec<String> {
+        if self.snapshots.is_empty() {
+            return Vec::new();
+        }
+
+        let mut lines = vec![self.render_summary_line()];
+        lines.extend(
+            self.sections()
+                .into_iter()
+                .map(|section| section.render_task_line()),
+        );
+        lines
     }
 }
 
@@ -432,6 +481,9 @@ mod tests {
                 .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
                 .is_none()
         );
+        assert_eq!(governance_report.primary_label(), "empty");
+        assert_eq!(governance_report.render_summary_line(), "empty => total=0 resolved=0 confirmation=0 manual_review=0");
+        assert!(governance_report.render_lines().is_empty());
         assert!(service.queue_snapshot().active_leases.is_empty());
         assert!(service.queue_snapshot().completed_task_ids.is_empty());
     }
@@ -537,12 +589,28 @@ mod tests {
         let sections = governance_report.sections();
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].label(), "queue_for_confirmation");
+        assert_eq!(sections[0].display_label(), "confirmation");
+        assert_eq!(sections[0].render_task_line(), "confirmation tasks => task-worker-service-confirmation");
         assert_eq!(
             governance_report
                 .section_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation)
                 .unwrap()
                 .task_ids,
             vec![String::from("task-worker-service-confirmation")]
+        );
+        assert_eq!(governance_report.primary_label(), "confirmation");
+        assert_eq!(
+            governance_report.render_summary_line(),
+            "confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
+        );
+        assert_eq!(
+            governance_report.render_lines(),
+            vec![
+                String::from(
+                    "confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
+                ),
+                String::from("confirmation tasks => task-worker-service-confirmation"),
+            ]
         );
 
         let snapshot = service.queue_snapshot();
@@ -925,6 +993,7 @@ mod tests {
         let sections = governance_report.sections();
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].label(), "resolved");
+        assert_eq!(sections[0].display_label(), "resolved");
         let mut section_task_ids = governance_report
             .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
             .unwrap()
@@ -935,6 +1004,20 @@ mod tests {
             vec![
                 String::from("task-worker-service-diagnostic-report-a"),
                 String::from("task-worker-service-diagnostic-report-b"),
+            ]
+        );
+        assert_eq!(governance_report.primary_label(), "resolved");
+        assert_eq!(
+            governance_report.render_summary_line(),
+            "resolved => total=2 resolved=2 confirmation=0 manual_review=0"
+        );
+        assert_eq!(
+            governance_report.render_lines(),
+            vec![
+                String::from("resolved => total=2 resolved=2 confirmation=0 manual_review=0"),
+                String::from(
+                    "resolved tasks => task-worker-service-diagnostic-report-a,task-worker-service-diagnostic-report-b"
+                ),
             ]
         );
         let mut task_ids = governance_report.snapshots

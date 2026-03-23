@@ -41,20 +41,9 @@ fn main() -> Result<(), String> {
     let resolved_governance = service
         .governance_report_for_report(&resolved_report)
         .map_err(|error| format!("{error:?}"))?;
-    println!(
-        "[demo] service governance resolved => total={} resolved={} confirmation={} manual_review={}",
-        resolved_governance.summary.total,
-        resolved_governance.summary.resolved,
-        resolved_governance.summary.queue_for_confirmation,
-        resolved_governance.summary.queue_for_manual_review,
-    );
-    let resolved_section = resolved_governance
-        .section_for_disposition(safeclaw_sqlite::RuntimeGovernanceDisposition::Resolved)
-        .expect("resolved section must exist after resolved run");
-    println!(
-        "[demo] service governance resolved tasks => {}",
-        resolved_section.task_ids.join(",")
-    );
+    for line in resolved_governance.render_lines() {
+        println!("[demo] service governance {line}");
+    }
     print_snapshot("after-resolved", service.queue_snapshot());
 
     enqueue_demo_task(&mut service, "task-worker-service-governance-confirmation")?;
@@ -70,22 +59,9 @@ fn main() -> Result<(), String> {
     let confirmation_governance = service
         .governance_report_for_report(&confirmation_report)
         .map_err(|error| format!("{error:?}"))?;
-    println!(
-        "[demo] service governance confirmation => total={} resolved={} confirmation={} manual_review={}",
-        confirmation_governance.summary.total,
-        confirmation_governance.summary.resolved,
-        confirmation_governance.summary.queue_for_confirmation,
-        confirmation_governance.summary.queue_for_manual_review,
-    );
-    let confirmation_section = confirmation_governance
-        .section_for_disposition(
-            safeclaw_sqlite::RuntimeGovernanceDisposition::QueueForConfirmation,
-        )
-        .expect("confirmation section must exist after parked confirmation");
-    println!(
-        "[demo] service governance confirmation tasks => {}",
-        confirmation_section.task_ids.join(",")
-    );
+    for line in confirmation_governance.render_lines() {
+        println!("[demo] service governance {line}");
+    }
     print_snapshot("after-confirmation", service.queue_snapshot());
     println!("[demo] db: {}", temp.path().display());
     Ok(())
