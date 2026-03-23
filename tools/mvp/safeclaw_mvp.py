@@ -314,15 +314,16 @@ def print_help() -> int:
 
 def print_session(args: list[str]) -> int:
     session = load_session()
+    session_path = render_repo_path(SESSION_FILE)
     if has_flag(args, "--json"):
         return emit_json_result("session", session)
     if session is None:
-        print("[mvp-wrapper] session => none")
+        print(f"[mvp-wrapper] session => none path={session_path}")
         return 0
     print(
         "[mvp-wrapper] session => "
         f"task={session['task_id']} effect={session['effect_id']} db={session['db']} "
-        f"output={session['output']} owner={session['owner_id']}"
+        f"output={session['output']} owner={session['owner_id']} path={session_path}"
     )
     return 0
 

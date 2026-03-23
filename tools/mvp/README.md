@@ -22,7 +22,7 @@
 - `retry-demo`：一键演示 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
-- `session`：显示当前记忆的最近成功会话
+- `session`：显示当前记忆的最近成功会话，并在文本输出里带上 remembered session 文件路径
 - `sessions`：列出当前数据库里的最近任务快照；默认优先使用 remembered session 的 `db`，并在文本/JSON 输出里标出来源
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话，并在文本/JSON 输出里标出选择来源及 `db` / `output` / `owner_id` 来源
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`

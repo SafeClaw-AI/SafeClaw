@@ -375,6 +375,8 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-session 执行失败: exit={wrapper_session.returncode}")
     elif "[mvp-wrapper] session => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_session_output:
         errors.append("mvp-wrapper-session 输出缺少当前会话 task-wrapper-b")
+    elif "path=target\\mvp\\last_session.json" not in wrapper_session_output:
+        errors.append("mvp-wrapper-session 输出缺少 remembered session 路径")
 
     wrapper_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--json"],
@@ -449,6 +451,8 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-session-after-use 执行失败: exit={wrapper_session_after_use.returncode}")
     elif "[mvp-wrapper] session => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_session_after_use_output:
         errors.append("mvp-wrapper-session-after-use 输出缺少已切换 task-wrapper-a")
+    elif "path=target\\mvp\\last_session.json" not in wrapper_session_after_use_output:
+        errors.append("mvp-wrapper-session-after-use 输出缺少 remembered session 路径")
 
     wrapper_status_after_use = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
@@ -535,8 +539,8 @@ def collect_errors() -> list[str]:
     wrapper_session_after_forget_output = (wrapper_session_after_forget.stdout or "") + (wrapper_session_after_forget.stderr or "")
     if wrapper_session_after_forget.returncode != 0:
         errors.append(f"mvp-wrapper-session-after-forget 执行失败: exit={wrapper_session_after_forget.returncode}")
-    elif "[mvp-wrapper] session => none" not in wrapper_session_after_forget_output:
-        errors.append("mvp-wrapper-session-after-forget 输出缺少 none")
+    elif "[mvp-wrapper] session => none path=target\\mvp\\last_session.json" not in wrapper_session_after_forget_output:
+        errors.append("mvp-wrapper-session-after-forget 输出缺少 none/path")
 
     wrapper_report_without_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--json"],
@@ -853,8 +857,8 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-session-after-corrupt 执行失败: exit={wrapper_session_after_corrupt.returncode}")
     elif "[mvp-wrapper] session repair => dropped invalid target\\mvp\\last_session.json" not in wrapper_session_after_corrupt_output:
         errors.append("mvp-wrapper-session-after-corrupt 输出缺少损坏会话修复提示")
-    elif "[mvp-wrapper] session => none" not in wrapper_session_after_corrupt_output:
-        errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none")
+    elif "[mvp-wrapper] session => none path=target\\mvp\\last_session.json" not in wrapper_session_after_corrupt_output:
+        errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none/path")
     elif wrapper_session_file.exists():
         errors.append("mvp-wrapper-session-after-corrupt 未移除损坏会话文件")
 
