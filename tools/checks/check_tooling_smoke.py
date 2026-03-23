@@ -357,6 +357,31 @@ def collect_errors() -> list[str]:
             elif result.get("task_id") != "task-wrapper-b" or result.get("source") != "index:0":
                 errors.append("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b")
 
+    wrapper_report_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_report_json.returncode != 0:
+        errors.append(f"mvp-wrapper-report-json 执行失败: exit={wrapper_report_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_report_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-report-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            if payload.get("ok") is not True or payload.get("action") != "report":
+                errors.append("mvp-wrapper-report-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "report":
+                errors.append("mvp-wrapper-report-json 缺少 prepared report")
+            elif "task-wrapper-b" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-report-json 缺少当前会话 task-wrapper-b 输出")
+            elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
+                errors.append("mvp-wrapper-report-json 缺少 remembered session task-wrapper-b")
+
     wrapper_forget = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
         cwd=REPO_ROOT,
@@ -504,6 +529,108 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none")
     elif wrapper_session_file.exists():
         errors.append("mvp-wrapper-session-after-corrupt 未移除损坏会话文件")
+
+    wrapper_seed_crash_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--task-id", "task-wrapper-seed-crash-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_seed_crash_json.returncode != 0:
+        errors.append(f"mvp-wrapper-seed-crash-json 执行失败: exit={wrapper_seed_crash_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_seed_crash_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-seed-crash-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            session = result.get("saved_session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "seed-crash":
+                errors.append("mvp-wrapper-seed-crash-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "seed-crash":
+                errors.append("mvp-wrapper-seed-crash-json 缺少 prepared seed-crash")
+            elif session.get("task_id") != "task-wrapper-seed-crash-json":
+                errors.append("mvp-wrapper-seed-crash-json 缺少保存后的 task-wrapper-seed-crash-json 会话")
+            elif "task-wrapper-seed-crash-json" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-seed-crash-json 缺少 task-wrapper-seed-crash-json 输出")
+
+    wrapper_recover_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_recover_json.returncode != 0:
+        errors.append(f"mvp-wrapper-recover-json 执行失败: exit={wrapper_recover_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_recover_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-recover-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            if payload.get("ok") is not True or payload.get("action") != "recover":
+                errors.append("mvp-wrapper-recover-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "recover":
+                errors.append("mvp-wrapper-recover-json 缺少 prepared recover")
+            elif "task-wrapper-seed-crash-json" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-recover-json 缺少当前会话 task-wrapper-seed-crash-json 输出")
+            elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-seed-crash-json":
+                errors.append("mvp-wrapper-recover-json 缺少 remembered session task-wrapper-seed-crash-json")
+
+    wrapper_seed_failed_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-failed", "--reset", "--task-id", "task-wrapper-seed-failed-json", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_seed_failed_json.returncode != 0:
+        errors.append(f"mvp-wrapper-seed-failed-json 执行失败: exit={wrapper_seed_failed_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_seed_failed_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-seed-failed-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            session = result.get("saved_session") or {}
+            if payload.get("ok") is not True or payload.get("action") != "seed-failed":
+                errors.append("mvp-wrapper-seed-failed-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "seed-failed":
+                errors.append("mvp-wrapper-seed-failed-json 缺少 prepared seed-failed")
+            elif session.get("task_id") != "task-wrapper-seed-failed-json":
+                errors.append("mvp-wrapper-seed-failed-json 缺少保存后的 task-wrapper-seed-failed-json 会话")
+            elif "task-wrapper-seed-failed-json" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-seed-failed-json 缺少 task-wrapper-seed-failed-json 输出")
+
+    wrapper_retry_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_retry_json.returncode != 0:
+        errors.append(f"mvp-wrapper-retry-json 执行失败: exit={wrapper_retry_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_retry_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-retry-json 输出不是合法 JSON")
+        else:
+            result = payload.get("result") or {}
+            prepared = result.get("prepared") or []
+            if payload.get("ok") is not True or payload.get("action") != "retry":
+                errors.append("mvp-wrapper-retry-json 输出缺少统一信封")
+            elif not prepared or prepared[0] != "retry":
+                errors.append("mvp-wrapper-retry-json 缺少 prepared retry")
+            elif "task-wrapper-seed-failed-json" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-retry-json 缺少当前会话 task-wrapper-seed-failed-json 输出")
+            elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-seed-failed-json":
+                errors.append("mvp-wrapper-retry-json 缺少 remembered session task-wrapper-seed-failed-json")
 
     wrapper_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],
