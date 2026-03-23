@@ -62,7 +62,7 @@ def main(argv: list[str]) -> int:
     if action == "retry-demo":
         return run_retry_demo(raw_args[1:])
     if action not in SESSION_ACTIONS:
-        return run_cargo(raw_args)
+        return run_cargo(raw_args, action=action)
 
     return execute_session_action(raw_args)
 
@@ -71,7 +71,7 @@ def execute_session_action(args: list[str]) -> int:
     action = args[0]
     session = load_session()
     prepared = prepare_args(action, args, session)
-    exit_code = run_cargo(prepared)
+    exit_code = run_cargo(prepared, action=action)
     if exit_code == 0 and action in WRITES_SESSION:
         save_session(build_session(prepared))
     return exit_code
@@ -125,6 +125,7 @@ def run_sequence(name: str, steps: list[list[str]]) -> int:
         print(f"[mvp-wrapper] {name} => {step[0]}")
         exit_code = execute_session_action(step)
         if exit_code != 0:
+            print(f"[mvp-wrapper] {name} => failed step={step[0]} exit={exit_code}", file=sys.stderr)
             return exit_code
     return 0
 
@@ -548,26 +549,33 @@ def lookup_latest_effect_id(db_path: Path, task_id: str) -> str | None:
     return None if row is None else str(row[0])
 
 
-def run_cargo(args: list[str]) -> int:
+def run_cargo(args: list[str], action: str | None = None) -> int:
     env = os.environ.copy()
     env["RUSTUP_TOOLCHAIN"] = TOOLCHAIN
     env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
-    completed = subprocess.run(
-        [
-            "cargo",
-            f"+{TOOLCHAIN}",
-            "run",
-            "-p",
-            "safeclaw-sqlite",
-            "--example",
-            "safeclaw_mvp_entry",
-            "--quiet",
-            "--",
-            *args,
-        ],
-        cwd=REPO_ROOT,
-        env=env,
-    )
+    action_name = action or (args[0] if args else "unknown")
+    try:
+        completed = subprocess.run(
+            [
+                "cargo",
+                f"+{TOOLCHAIN}",
+                "run",
+                "-p",
+                "safeclaw-sqlite",
+                "--example",
+                "safeclaw_mvp_entry",
+                "--quiet",
+                "--",
+                *args,
+            ],
+            cwd=REPO_ROOT,
+            env=env,
+        )
+    except OSError as error:
+        print(f"[mvp-wrapper] cargo => error action={action_name} error={error}", file=sys.stderr)
+        return 1
+    if completed.returncode != 0:
+        print(f"[mvp-wrapper] cargo => failed action={action_name} exit={completed.returncode}", file=sys.stderr)
     return completed.returncode
 
 

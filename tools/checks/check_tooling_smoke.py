@@ -396,6 +396,30 @@ def collect_errors() -> list[str]:
             elif "invalid --limit" not in error.get("message", ""):
                 errors.append("mvp-wrapper-invalid-sessions-json 输出缺少错误信息")
 
+    wrapper_passthrough_fail = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "not-real-action"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_passthrough_fail_output = (wrapper_passthrough_fail.stdout or "") + (wrapper_passthrough_fail.stderr or "")
+    if wrapper_passthrough_fail.returncode == 0:
+        errors.append("mvp-wrapper-passthrough-fail 未按预期返回非 0")
+    elif "[mvp-wrapper] cargo => failed action=not-real-action exit=1" not in wrapper_passthrough_fail_output:
+        errors.append("mvp-wrapper-passthrough-fail 输出缺少透传失败承接提示")
+
+    wrapper_demo_fail = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_demo_fail_output = (wrapper_demo_fail.stdout or "") + (wrapper_demo_fail.stderr or "")
+    if wrapper_demo_fail.returncode == 0:
+        errors.append("mvp-wrapper-demo-fail 未按预期返回非 0")
+    elif "[mvp-wrapper] demo => failed step=run exit=1" not in wrapper_demo_fail_output:
+        errors.append("mvp-wrapper-demo-fail 输出缺少组合动作失败承接提示")
+
     wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
     wrapper_session_file.parent.mkdir(parents=True, exist_ok=True)
     wrapper_session_file.write_text("{broken", encoding="utf-8")
