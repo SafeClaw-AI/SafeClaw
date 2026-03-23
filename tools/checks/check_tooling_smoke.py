@@ -95,6 +95,53 @@ def extract_json_result(
     return result
 
 
+def assert_json_error_fields(
+    error: dict[str, object] | None,
+    details: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_error_message_substring: str | None = None,
+    error_message_label: str | None = None,
+    expected_code: str | None = None,
+    expected_failed_step: str | None = None,
+    expected_details_message_substring: str | None = None,
+    details_message_field: str = "error_message",
+    details_message_label: str | None = None,
+    expected_remembered_session_task_id: str | None = None,
+    remembered_session_label: str | None = None,
+    expect_no_remembered_session: bool = False,
+) -> None:
+    if error is None:
+        return
+    if expected_error_message_substring is not None:
+        if expected_error_message_substring not in str(error.get("message", "")):
+            errors.append(error_message_label or f"{name} 输出缺少错误信息")
+            return
+    if details is None:
+        return
+    if expected_failed_step is not None:
+        if details.get("failed_step") != expected_failed_step:
+            errors.append(f"{name} 缺少失败步骤 {expected_failed_step}")
+            return
+    if expected_code is not None:
+        if details.get("code") != expected_code:
+            errors.append(f"{name} 缺少错误代码 {expected_code}")
+            return
+    if expected_details_message_substring is not None:
+        if expected_details_message_substring not in str(details.get(details_message_field, "")):
+            errors.append(details_message_label or f"{name} 缺少错误明细")
+            return
+    if expect_no_remembered_session:
+        if details.get("remembered_session") is not None:
+            errors.append(f"{name} remembered_session 预期为空")
+            return
+    if expected_remembered_session_task_id is not None:
+        remembered_session = details.get("remembered_session") or {}
+        if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_remembered_session_task_id:
+            errors.append(remembered_session_label or f"{name} remembered_session 缺少 {expected_remembered_session_task_id}")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
 
@@ -251,13 +298,17 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_status_fail_json, errors, "mvp-wrapper-status-fail-json", expected_exit=2)
     if payload is not None:
         error, details = extract_json_error(payload, errors, "mvp-wrapper-status-fail-json", "status")
-        if error is not None and details is not None:
-            if "unknown argument" not in str(error.get("message", "")):
-                errors.append("mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-status-fail-json 缺少错误代码 invalid-argument")
-            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
-                errors.append("mvp-wrapper-status-fail-json remembered_session 缺少 task-wrapper-b")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-status-fail-json",
+            expected_error_message_substring="unknown argument",
+            error_message_label="mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument",
+            expected_code="invalid-argument",
+            expected_remembered_session_task_id="task-wrapper-b",
+            remembered_session_label="mvp-wrapper-status-fail-json remembered_session 缺少 task-wrapper-b",
+        )
 
     wrapper_status_missing_db_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--db", "--json"],
@@ -268,13 +319,17 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_status_missing_db_json, errors, "mvp-wrapper-status-missing-db-json", expected_exit=2)
     if payload is not None:
         error, details = extract_json_error(payload, errors, "mvp-wrapper-status-missing-db-json", "status")
-        if error is not None and details is not None:
-            if "missing value after --db" not in str(error.get("message", "")):
-                errors.append("mvp-wrapper-status-missing-db-json 缺少 missing value after --db")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-status-missing-db-json 缺少错误代码 invalid-argument")
-            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
-                errors.append("mvp-wrapper-status-missing-db-json remembered_session 缺少 task-wrapper-b")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-status-missing-db-json",
+            expected_error_message_substring="missing value after --db",
+            error_message_label="mvp-wrapper-status-missing-db-json 缺少 missing value after --db",
+            expected_code="invalid-argument",
+            expected_remembered_session_task_id="task-wrapper-b",
+            remembered_session_label="mvp-wrapper-status-missing-db-json remembered_session 缺少 task-wrapper-b",
+        )
 
     wrapper_session = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
@@ -455,13 +510,16 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-report-without-session-json",
             "report",
         )
-        if error is not None and details is not None:
-            if "missing task context" not in error.get("message", ""):
-                errors.append("mvp-wrapper-report-without-session-json 缺少 wrapper 级错误消息")
-            elif details.get("code") != "missing-task-context":
-                errors.append("mvp-wrapper-report-without-session-json 缺少错误代码 missing-task-context")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-report-without-session-json remembered_session 预期为空")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-report-without-session-json",
+            expected_error_message_substring="missing task context",
+            error_message_label="mvp-wrapper-report-without-session-json 缺少 wrapper 级错误消息",
+            expected_code="missing-task-context",
+            expect_no_remembered_session=True,
+        )
 
     wrapper_recover_without_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover", "--json"],
@@ -482,13 +540,16 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-recover-without-session-json",
             "recover",
         )
-        if error is not None and details is not None:
-            if "missing task context" not in error.get("message", ""):
-                errors.append("mvp-wrapper-recover-without-session-json 缺少 wrapper 级错误消息")
-            elif details.get("code") != "missing-task-context":
-                errors.append("mvp-wrapper-recover-without-session-json 缺少错误代码 missing-task-context")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-recover-without-session-json remembered_session 预期为空")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-recover-without-session-json",
+            expected_error_message_substring="missing task context",
+            error_message_label="mvp-wrapper-recover-without-session-json 缺少 wrapper 级错误消息",
+            expected_code="missing-task-context",
+            expect_no_remembered_session=True,
+        )
 
     wrapper_retry_without_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--json"],
@@ -509,13 +570,16 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-retry-without-session-json",
             "retry",
         )
-        if error is not None and details is not None:
-            if "missing task context" not in error.get("message", ""):
-                errors.append("mvp-wrapper-retry-without-session-json 缺少 wrapper 级错误消息")
-            elif details.get("code") != "missing-task-context":
-                errors.append("mvp-wrapper-retry-without-session-json 缺少错误代码 missing-task-context")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-retry-without-session-json remembered_session 预期为空")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-retry-without-session-json",
+            expected_error_message_substring="missing task context",
+            error_message_label="mvp-wrapper-retry-without-session-json 缺少 wrapper 级错误消息",
+            expected_code="missing-task-context",
+            expect_no_remembered_session=True,
+        )
 
     wrapper_invalid_json_base = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-invalid-json-base"],
@@ -548,13 +612,17 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-report-invalid-json",
             "report",
         )
-        if error is not None and details is not None:
-            if "unknown argument" not in error.get("message", ""):
-                errors.append("mvp-wrapper-report-invalid-json 缺少 wrapper 级 unknown argument")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-report-invalid-json 缺少错误代码 invalid-argument")
-            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
-                errors.append("mvp-wrapper-report-invalid-json remembered_session 缺少基座会话")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-report-invalid-json",
+            expected_error_message_substring="unknown argument",
+            error_message_label="mvp-wrapper-report-invalid-json 缺少 wrapper 级 unknown argument",
+            expected_code="invalid-argument",
+            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+            remembered_session_label="mvp-wrapper-report-invalid-json remembered_session 缺少基座会话",
+        )
 
     wrapper_recover_invalid_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover", "--bogus", "--json"],
@@ -575,13 +643,17 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-recover-invalid-json",
             "recover",
         )
-        if error is not None and details is not None:
-            if "unknown argument" not in error.get("message", ""):
-                errors.append("mvp-wrapper-recover-invalid-json 缺少 wrapper 级 unknown argument")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-recover-invalid-json 缺少错误代码 invalid-argument")
-            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
-                errors.append("mvp-wrapper-recover-invalid-json remembered_session 缺少基座会话")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-recover-invalid-json",
+            expected_error_message_substring="unknown argument",
+            error_message_label="mvp-wrapper-recover-invalid-json 缺少 wrapper 级 unknown argument",
+            expected_code="invalid-argument",
+            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+            remembered_session_label="mvp-wrapper-recover-invalid-json remembered_session 缺少基座会话",
+        )
 
     wrapper_retry_invalid_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--bogus", "--json"],
@@ -602,13 +674,17 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-retry-invalid-json",
             "retry",
         )
-        if error is not None and details is not None:
-            if "unknown argument" not in error.get("message", ""):
-                errors.append("mvp-wrapper-retry-invalid-json 缺少 wrapper 级 unknown argument")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-retry-invalid-json 缺少错误代码 invalid-argument")
-            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
-                errors.append("mvp-wrapper-retry-invalid-json remembered_session 缺少基座会话")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-retry-invalid-json",
+            expected_error_message_substring="unknown argument",
+            error_message_label="mvp-wrapper-retry-invalid-json 缺少 wrapper 级 unknown argument",
+            expected_code="invalid-argument",
+            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+            remembered_session_label="mvp-wrapper-retry-invalid-json remembered_session 缺少基座会话",
+        )
 
     wrapper_invalid_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--bogus", "--json"],
@@ -623,14 +699,19 @@ def collect_errors() -> list[str]:
         2,
     )
     if payload is not None:
-        error, _ = extract_json_error(
+        error, details = extract_json_error(
             payload,
             errors,
             "mvp-wrapper-invalid-session-json",
             "session",
         )
-        if error is not None and "unknown argument" not in error.get("message", ""):
-            errors.append("mvp-wrapper-invalid-session-json 输出缺少错误信息")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-invalid-session-json",
+            expected_error_message_substring="unknown argument",
+        )
 
     wrapper_invalid_doctor_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "doctor", "--db", "--json"],
@@ -645,14 +726,19 @@ def collect_errors() -> list[str]:
         2,
     )
     if payload is not None:
-        error, _ = extract_json_error(
+        error, details = extract_json_error(
             payload,
             errors,
             "mvp-wrapper-invalid-doctor-json",
             "doctor",
         )
-        if error is not None and "missing value after --db" not in error.get("message", ""):
-            errors.append("mvp-wrapper-invalid-doctor-json 输出缺少错误信息")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-invalid-doctor-json",
+            expected_error_message_substring="missing value after --db",
+        )
 
     wrapper_invalid_sessions_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions", "--limit", "bad", "--json"],
@@ -667,14 +753,19 @@ def collect_errors() -> list[str]:
         2,
     )
     if payload is not None:
-        error, _ = extract_json_error(
+        error, details = extract_json_error(
             payload,
             errors,
             "mvp-wrapper-invalid-sessions-json",
             "sessions",
         )
-        if error is not None and "invalid --limit" not in error.get("message", ""):
-            errors.append("mvp-wrapper-invalid-sessions-json 输出缺少错误信息")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-invalid-sessions-json",
+            expected_error_message_substring="invalid --limit",
+        )
 
     wrapper_passthrough_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "not-real-action"],
@@ -838,13 +929,16 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_demo_fail_json, errors, "mvp-wrapper-demo-fail-json", expected_exit=2)
     if payload is not None:
         error, details = extract_json_error(payload, errors, "mvp-wrapper-demo-fail-json", "demo")
-        if error is not None and details is not None:
-            if details.get("failed_step") != "run":
-                errors.append("mvp-wrapper-demo-fail-json 缺少失败步骤 run")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in str(details.get("error_message", "")):
-                errors.append("mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-demo-fail-json",
+            expected_failed_step="run",
+            expected_code="invalid-argument",
+            expected_details_message_substring="unknown argument",
+            details_message_label="mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument",
+        )
 
     wrapper_recover_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],
@@ -902,13 +996,16 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_recover_demo_fail_json, errors, "mvp-wrapper-recover-demo-fail-json", expected_exit=2)
     if payload is not None:
         error, details = extract_json_error(payload, errors, "mvp-wrapper-recover-demo-fail-json", "recover-demo")
-        if error is not None and details is not None:
-            if details.get("failed_step") != "seed-crash":
-                errors.append("mvp-wrapper-recover-demo-fail-json 缺少失败步骤 seed-crash")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-recover-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in str(details.get("error_message", "")):
-                errors.append("mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-recover-demo-fail-json",
+            expected_failed_step="seed-crash",
+            expected_code="invalid-argument",
+            expected_details_message_substring="unknown argument",
+            details_message_label="mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument",
+        )
 
     wrapper_retry_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo"],
@@ -966,13 +1063,16 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_retry_demo_fail_json, errors, "mvp-wrapper-retry-demo-fail-json", expected_exit=2)
     if payload is not None:
         error, details = extract_json_error(payload, errors, "mvp-wrapper-retry-demo-fail-json", "retry-demo")
-        if error is not None and details is not None:
-            if details.get("failed_step") != "seed-failed":
-                errors.append("mvp-wrapper-retry-demo-fail-json 缺少失败步骤 seed-failed")
-            elif details.get("code") != "invalid-argument":
-                errors.append("mvp-wrapper-retry-demo-fail-json 缺少错误代码 invalid-argument")
-            elif "unknown argument" not in str(details.get("error_message", "")):
-                errors.append("mvp-wrapper-retry-demo-fail-json 缺少 wrapper 级 unknown argument")
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-retry-demo-fail-json",
+            expected_failed_step="seed-failed",
+            expected_code="invalid-argument",
+            expected_details_message_substring="unknown argument",
+            details_message_label="mvp-wrapper-retry-demo-fail-json 缺少 wrapper 级 unknown argument",
+        )
 
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
