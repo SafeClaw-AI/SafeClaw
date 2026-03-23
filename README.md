@@ -151,6 +151,8 @@ SafeClaw 还在很早期。
 
 - `run`：创建任务并执行到落盘完成
 - `demo`：一条命令串起 `run -> status -> report`
+- `recover-demo`：一条命令串起 `seed-crash -> recover -> report`
+- `retry-demo`：一条命令串起 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 当前治理视图
 - `status`：在只给 `--db` 时自动查看最新任务状态
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
@@ -161,7 +163,7 @@ SafeClaw 还在很早期。
 - 这是 **MVP-first** 路线，不是最终产品形态
 - 当前更像单 worker 的本地治理操作台，不是完整多用户系统
 - 当前最适合开发者或愿意手动执行命令的早期体验者
-- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` 一键演示，以及 `session` / `sessions` 浏览与 `use` 激活，因此首轮体验与二次查看状态都可以缩短到更短命令
+- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `session` / `sessions` 浏览与 `use` 激活，因此首轮体验与异常链验证都可以缩短到更短命令
 
 ---
 

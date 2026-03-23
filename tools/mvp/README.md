@@ -18,6 +18,8 @@
 
 - `run`：创建任务并执行到完成
 - `demo`：一键演示默认会话的 `run -> status -> report`
+- `recover-demo`：一键演示 `seed-crash -> recover -> report`
+- `retry-demo`：一键演示 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话
@@ -34,6 +36,8 @@
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd demo
+tools\mvp\safeclaw_mvp.cmd recover-demo
+tools\mvp\safeclaw_mvp.cmd retry-demo
 tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd session
 tools\mvp\safeclaw_mvp.cmd sessions

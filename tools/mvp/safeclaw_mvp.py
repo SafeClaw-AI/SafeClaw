@@ -23,7 +23,7 @@ LINKER = (
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
-LOCAL_ACTIONS = {"session", "sessions", "use", "demo"}
+LOCAL_ACTIONS = {"session", "sessions", "use", "demo", "recover-demo", "retry-demo"}
 
 
 def main(argv: list[str]) -> int:
@@ -40,6 +40,10 @@ def main(argv: list[str]) -> int:
         return activate_session(raw_args[1:])
     if action == "demo":
         return run_demo(raw_args[1:])
+    if action == "recover-demo":
+        return run_recover_demo(raw_args[1:])
+    if action == "retry-demo":
+        return run_retry_demo(raw_args[1:])
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args)
 
@@ -58,13 +62,43 @@ def execute_session_action(args: list[str]) -> int:
 
 def run_demo(args: list[str]) -> int:
     shared_args = [item for item in args if item != "--reset"]
-    steps = [
-        ["run", "--reset", *shared_args],
-        ["status", *shared_args],
-        ["report", *shared_args],
-    ]
+    return run_sequence(
+        "demo",
+        [
+            ["run", "--reset", *shared_args],
+            ["status", *shared_args],
+            ["report", *shared_args],
+        ],
+    )
+
+
+def run_recover_demo(args: list[str]) -> int:
+    shared_args = [item for item in args if item != "--reset"]
+    return run_sequence(
+        "recover-demo",
+        [
+            ["seed-crash", "--reset", *shared_args],
+            ["recover", *shared_args],
+            ["report", *shared_args],
+        ],
+    )
+
+
+def run_retry_demo(args: list[str]) -> int:
+    shared_args = [item for item in args if item != "--reset"]
+    return run_sequence(
+        "retry-demo",
+        [
+            ["seed-failed", "--reset", *shared_args],
+            ["retry", *shared_args],
+            ["report", *shared_args],
+        ],
+    )
+
+
+def run_sequence(name: str, steps: list[list[str]]) -> int:
     for step in steps:
-        print(f"[mvp-wrapper] demo => {step[0]}")
+        print(f"[mvp-wrapper] {name} => {step[0]}")
         exit_code = execute_session_action(step)
         if exit_code != 0:
             return exit_code

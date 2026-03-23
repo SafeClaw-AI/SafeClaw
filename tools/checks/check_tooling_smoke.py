@@ -175,6 +175,42 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-demo effect=effect-task-wrapper-demo" not in wrapper_demo_output:
         errors.append("mvp-wrapper-demo 输出缺少 task-wrapper-demo report 目标")
 
+    wrapper_recover_demo = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_recover_demo_output = (wrapper_recover_demo.stdout or "") + (wrapper_recover_demo.stderr or "")
+    if wrapper_recover_demo.returncode != 0:
+        errors.append(f"mvp-wrapper-recover-demo 执行失败: exit={wrapper_recover_demo.returncode}")
+    elif "[mvp-wrapper] recover-demo => seed-crash" not in wrapper_recover_demo_output:
+        errors.append("mvp-wrapper-recover-demo 输出缺少 seed-crash 标记")
+    elif "[mvp-wrapper] recover-demo => recover" not in wrapper_recover_demo_output:
+        errors.append("mvp-wrapper-recover-demo 输出缺少 recover 标记")
+    elif "[mvp-wrapper] recover-demo => report" not in wrapper_recover_demo_output:
+        errors.append("mvp-wrapper-recover-demo 输出缺少 report 标记")
+    elif "[mvp] report target => task=task-wrapper-recover-demo effect=effect-task-wrapper-recover-demo" not in wrapper_recover_demo_output:
+        errors.append("mvp-wrapper-recover-demo 输出缺少 task-wrapper-recover-demo report 目标")
+
+    wrapper_retry_demo = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_retry_demo_output = (wrapper_retry_demo.stdout or "") + (wrapper_retry_demo.stderr or "")
+    if wrapper_retry_demo.returncode != 0:
+        errors.append(f"mvp-wrapper-retry-demo 执行失败: exit={wrapper_retry_demo.returncode}")
+    elif "[mvp-wrapper] retry-demo => seed-failed" not in wrapper_retry_demo_output:
+        errors.append("mvp-wrapper-retry-demo 输出缺少 seed-failed 标记")
+    elif "[mvp-wrapper] retry-demo => retry" not in wrapper_retry_demo_output:
+        errors.append("mvp-wrapper-retry-demo 输出缺少 retry 标记")
+    elif "[mvp-wrapper] retry-demo => report" not in wrapper_retry_demo_output:
+        errors.append("mvp-wrapper-retry-demo 输出缺少 report 标记")
+    elif "[mvp] report target => task=task-wrapper-retry-demo effect=effect-task-wrapper-retry-demo" not in wrapper_retry_demo_output:
+        errors.append("mvp-wrapper-retry-demo 输出缺少 task-wrapper-retry-demo report 目标")
+
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
         errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
