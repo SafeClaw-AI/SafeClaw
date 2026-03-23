@@ -305,6 +305,9 @@ def print_help() -> int:
         "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；"
         "status/report/recover/retry/doctor 会尽量复用它"
     )
+    print(
+        "[mvp-wrapper] doctor => 文本模式给出 summary；--json 会额外返回 status 与 failing_checks"
+    )
     return 0
 
 
