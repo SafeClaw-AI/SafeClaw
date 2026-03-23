@@ -37,6 +37,8 @@ fn main() -> Result<(), String> {
         CliAction::Report => report_action(&args),
         CliAction::SeedCrash => seed_crash_action(&args),
         CliAction::Recover => recover_action(&args),
+        CliAction::SeedFailed => seed_failed_action(&args),
+        CliAction::Retry => retry_action(&args),
     }
 }
 
@@ -292,12 +294,106 @@ fn recover_action(args: &CliArgs) -> Result<(), String> {
     Ok(())
 }
 
+fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
+    ensure_parent_dir(&args.db_path)?;
+    ensure_parent_dir(&args.output_path)?;
+    if args.reset {
+        reset_session_artifacts(&args.db_path, &args.output_path);
+    }
+
+    let effect_id = args.effect_id();
+    let mut loop_driver = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+        .map_err(|error| format!("{error:?}"))?
+        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    loop_driver
+        .enqueue_task(OrchestratorTask::new(
+            &args.task_id,
+            ScheduleIntent::write(format!("scope:{}", args.output_path.display())),
+            0,
+        ))
+        .map_err(|error| format!("{error:?}"))?;
+
+    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    print_snapshot("after-enqueue", loop_driver.queue_snapshot());
+
+    let failed = loop_driver
+        .claim_and_drive_once(&args.owner_id, 0, PreflightDecision::Permit, {
+            let effect_id = effect_id.clone();
+            move |claim| Ok((build_runtime(claim, &effect_id), sandbox_fail_command()))
+        })
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
+    println!("[mvp] first failure => {}", failed.render_final_status_line());
+
+    print_snapshot("after-failed-attempt", loop_driver.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next retry => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- retry --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    if args.content != DEFAULT_CONTENT {
+        println!("[mvp] note => retry requires the same --content intended for the successful write");
+    }
+    Ok(())
+}
+
+fn retry_action(args: &CliArgs) -> Result<(), String> {
+    let effect_id = args.effect_id();
+
+    let mut blocked_worker = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+        .map_err(|error| format!("{error:?}"))?
+        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let blocked = blocked_worker
+        .claim_and_resume_once(&args.owner_id, RECOVERY_BLOCKED_NOW_MS, |_| unreachable!())
+        .map_err(|error| format!("{error:?}"))?;
+    println!("[mvp] retry blocked before expiry => {}", blocked.is_none());
+
+    let mut retry_worker = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+        .map_err(|error| format!("{error:?}"))?
+        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let output_path = args.output_path.clone();
+    let content = args.content.clone();
+    let retried = retry_worker
+        .claim_and_retry_failed_once(
+            &args.owner_id,
+            RECOVERY_RECLAIM_NOW_MS,
+            &effect_id,
+            PreflightDecision::Permit,
+            move |_, _| Ok(sandbox_write_command(&output_path, content.as_bytes())),
+        )
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no failed runtime ready for retry task={} effect={effect_id}", args.task_id))?;
+    println!("[mvp] retry result => {}", retried.render_final_status_line());
+
+    print_snapshot("after-retry", retry_worker.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CliAction {
     Run,
     Report,
     SeedCrash,
     Recover,
+    SeedFailed,
+    Retry,
 }
 
 #[derive(Clone, Debug)]
@@ -349,6 +445,14 @@ impl CliArgs {
                     action = CliAction::Recover;
                     action_set = true;
                 }
+                "seed-failed" if !action_set => {
+                    action = CliAction::SeedFailed;
+                    action_set = true;
+                }
+                "retry" if !action_set => {
+                    action = CliAction::Retry;
+                    action_set = true;
+                }
                 "--db" => db_path = Some(PathBuf::from(next_value(&mut args, "--db")?)),
                 "--output" => {
                     output_path = Some(PathBuf::from(next_value(&mut args, "--output")?))
@@ -363,13 +467,13 @@ impl CliArgs {
         }
 
         let (db_path, output_path, task_id) = match action {
-            CliAction::Run | CliAction::SeedCrash => {
+            CliAction::Run | CliAction::SeedCrash | CliAction::SeedFailed => {
                 let output_path = output_path.unwrap_or(default_output);
                 let db_path = db_path.unwrap_or(default_db);
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
                 (db_path, output_path, task_id)
             }
-            CliAction::Report | CliAction::Recover => {
+            CliAction::Report | CliAction::Recover | CliAction::Retry => {
                 let db_path = db_path.ok_or_else(|| {
                     format!("{} requires --db\n\n{}", action_name(action), usage_text())
                 })?;
@@ -411,6 +515,8 @@ fn action_name(action: CliAction) -> &'static str {
         CliAction::Report => "report",
         CliAction::SeedCrash => "seed-crash",
         CliAction::Recover => "recover",
+        CliAction::SeedFailed => "seed-failed",
+        CliAction::Retry => "retry",
     }
 }
 
@@ -423,7 +529,7 @@ fn next_value(
 }
 
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -493,6 +599,14 @@ fn print_output_state(output_path: &Path) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+fn sandbox_fail_command() -> SandboxCommand {
+    if cfg!(windows) {
+        SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+    } else {
+        SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
+    }
 }
 
 fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
