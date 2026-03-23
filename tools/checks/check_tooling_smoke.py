@@ -95,6 +95,21 @@ def extract_json_result(
     return result
 
 
+def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        errors.append(f"{name} 读取失败: {exc}")
+        return None
+    except json.JSONDecodeError:
+        errors.append(f"{name} 输出不是合法 JSON")
+        return None
+    if not isinstance(payload, dict):
+        errors.append(f"{name} 输出不是对象 JSON")
+        return None
+    return payload
+
+
 def assert_json_error_fields(
     error: dict[str, object] | None,
     details: dict[str, object] | None,
@@ -1105,11 +1120,12 @@ def collect_errors() -> list[str]:
         elif not json_out.exists():
             errors.append("schema-diff 未生成 JSON 输出文件")
         else:
-            payload = json.loads(json_out.read_text(encoding="utf-8"))
-            if payload.get("mode") != "file":
-                errors.append("schema-diff JSON 输出 mode 不正确")
-            if "added_keys" not in payload or "changed_keys" not in payload:
-                errors.append("schema-diff JSON 输出缺少关键字段")
+            payload = load_json_file_payload(json_out, errors, "schema-diff JSON 输出")
+            if payload is not None:
+                if payload.get("mode") != "file":
+                    errors.append("schema-diff JSON 输出 mode 不正确")
+                if "added_keys" not in payload or "changed_keys" not in payload:
+                    errors.append("schema-diff JSON 输出缺少关键字段")
 
         fail_run = subprocess.run(
             [PYTHON, "tools/schema_diff/main.py", str(old_path), str(new_path), "--fail-on-diff"],
