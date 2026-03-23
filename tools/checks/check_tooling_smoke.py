@@ -432,8 +432,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_report_without_session_json.returncode == 0:
-        errors.append("mvp-wrapper-report-without-session-json 未按预期返回非 0")
+    if wrapper_report_without_session_json.returncode != 2:
+        errors.append(f"mvp-wrapper-report-without-session-json 执行失败: exit={wrapper_report_without_session_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_report_without_session_json.stdout)
@@ -442,15 +442,12 @@ def collect_errors() -> list[str]:
         else:
             error = payload.get("error") or {}
             details = error.get("details") or {}
-            prepared = details.get("prepared") or []
             if payload.get("ok") is not False or payload.get("action") != "report":
                 errors.append("mvp-wrapper-report-without-session-json 输出缺少统一错误信封")
-            elif error.get("message") != "underlying action failed":
-                errors.append("mvp-wrapper-report-without-session-json 缺少上层失败消息")
-            elif not prepared or prepared[0] != "report":
-                errors.append("mvp-wrapper-report-without-session-json 缺少 prepared report")
-            elif "requires --task-id" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-report-without-session-json 缺少 requires --task-id")
+            elif "missing task context" not in error.get("message", ""):
+                errors.append("mvp-wrapper-report-without-session-json 缺少 wrapper 级错误消息")
+            elif details.get("code") != "missing-task-context":
+                errors.append("mvp-wrapper-report-without-session-json 缺少错误代码 missing-task-context")
             elif details.get("remembered_session") is not None:
                 errors.append("mvp-wrapper-report-without-session-json remembered_session 预期为空")
 
@@ -460,8 +457,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_recover_without_session_json.returncode == 0:
-        errors.append("mvp-wrapper-recover-without-session-json 未按预期返回非 0")
+    if wrapper_recover_without_session_json.returncode != 2:
+        errors.append(f"mvp-wrapper-recover-without-session-json 执行失败: exit={wrapper_recover_without_session_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_recover_without_session_json.stdout)
@@ -470,15 +467,12 @@ def collect_errors() -> list[str]:
         else:
             error = payload.get("error") or {}
             details = error.get("details") or {}
-            prepared = details.get("prepared") or []
             if payload.get("ok") is not False or payload.get("action") != "recover":
                 errors.append("mvp-wrapper-recover-without-session-json 输出缺少统一错误信封")
-            elif error.get("message") != "underlying action failed":
-                errors.append("mvp-wrapper-recover-without-session-json 缺少上层失败消息")
-            elif not prepared or prepared[0] != "recover":
-                errors.append("mvp-wrapper-recover-without-session-json 缺少 prepared recover")
-            elif "requires --task-id" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-recover-without-session-json 缺少 requires --task-id")
+            elif "missing task context" not in error.get("message", ""):
+                errors.append("mvp-wrapper-recover-without-session-json 缺少 wrapper 级错误消息")
+            elif details.get("code") != "missing-task-context":
+                errors.append("mvp-wrapper-recover-without-session-json 缺少错误代码 missing-task-context")
             elif details.get("remembered_session") is not None:
                 errors.append("mvp-wrapper-recover-without-session-json remembered_session 预期为空")
 
@@ -488,8 +482,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_retry_without_session_json.returncode == 0:
-        errors.append("mvp-wrapper-retry-without-session-json 未按预期返回非 0")
+    if wrapper_retry_without_session_json.returncode != 2:
+        errors.append(f"mvp-wrapper-retry-without-session-json 执行失败: exit={wrapper_retry_without_session_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_retry_without_session_json.stdout)
@@ -498,17 +492,26 @@ def collect_errors() -> list[str]:
         else:
             error = payload.get("error") or {}
             details = error.get("details") or {}
-            prepared = details.get("prepared") or []
             if payload.get("ok") is not False or payload.get("action") != "retry":
                 errors.append("mvp-wrapper-retry-without-session-json 输出缺少统一错误信封")
-            elif error.get("message") != "underlying action failed":
-                errors.append("mvp-wrapper-retry-without-session-json 缺少上层失败消息")
-            elif not prepared or prepared[0] != "retry":
-                errors.append("mvp-wrapper-retry-without-session-json 缺少 prepared retry")
-            elif "requires --task-id" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-retry-without-session-json 缺少 requires --task-id")
+            elif "missing task context" not in error.get("message", ""):
+                errors.append("mvp-wrapper-retry-without-session-json 缺少 wrapper 级错误消息")
+            elif details.get("code") != "missing-task-context":
+                errors.append("mvp-wrapper-retry-without-session-json 缺少错误代码 missing-task-context")
             elif details.get("remembered_session") is not None:
                 errors.append("mvp-wrapper-retry-without-session-json remembered_session 预期为空")
+
+    wrapper_invalid_json_base = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-invalid-json-base"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_invalid_json_base_output = (wrapper_invalid_json_base.stdout or "") + (wrapper_invalid_json_base.stderr or "")
+    if wrapper_invalid_json_base.returncode != 0:
+        errors.append(f"mvp-wrapper-invalid-json-base 执行失败: exit={wrapper_invalid_json_base.returncode}")
+    elif "[mvp] accepted task => task=task-wrapper-invalid-json-base effect=effect-task-wrapper-invalid-json-base" not in wrapper_invalid_json_base_output:
+        errors.append("mvp-wrapper-invalid-json-base 输出缺少基座会话 task-wrapper-invalid-json-base")
 
     wrapper_report_invalid_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--bogus", "--json"],
@@ -530,8 +533,8 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-report-invalid-json 输出缺少统一错误信封")
             elif "unknown argument" not in (details.get("captured_output") or ""):
                 errors.append("mvp-wrapper-report-invalid-json 缺少 unknown argument")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-report-invalid-json remembered_session 预期为空")
+            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
+                errors.append("mvp-wrapper-report-invalid-json remembered_session 缺少基座会话")
 
     wrapper_recover_invalid_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover", "--bogus", "--json"],
@@ -553,8 +556,8 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-recover-invalid-json 输出缺少统一错误信封")
             elif "unknown argument" not in (details.get("captured_output") or ""):
                 errors.append("mvp-wrapper-recover-invalid-json 缺少 unknown argument")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-recover-invalid-json remembered_session 预期为空")
+            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
+                errors.append("mvp-wrapper-recover-invalid-json remembered_session 缺少基座会话")
 
     wrapper_retry_invalid_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--bogus", "--json"],
@@ -576,8 +579,8 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-retry-invalid-json 输出缺少统一错误信封")
             elif "unknown argument" not in (details.get("captured_output") or ""):
                 errors.append("mvp-wrapper-retry-invalid-json 缺少 unknown argument")
-            elif details.get("remembered_session") is not None:
-                errors.append("mvp-wrapper-retry-invalid-json remembered_session 预期为空")
+            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
+                errors.append("mvp-wrapper-retry-invalid-json remembered_session 缺少基座会话")
 
     wrapper_invalid_session_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--bogus", "--json"],

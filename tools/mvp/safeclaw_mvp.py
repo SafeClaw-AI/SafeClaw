@@ -23,6 +23,7 @@ LINKER = (
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
+TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
 LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
 LOCAL_ACTION_FLAG_SPECS = {
@@ -72,7 +73,11 @@ def main(argv: list[str]) -> int:
 def execute_session_action(args: list[str]) -> int:
     action = args[0]
     session = load_session()
-    prepared = prepare_args(action, args, session)
+    try:
+        prepared = prepare_args(action, args, session)
+    except ValueError as error:
+        print(f"[mvp-wrapper] {action} => error {error}", file=sys.stderr)
+        return 2
     exit_code = run_cargo(prepared, action=action)
     if exit_code == 0 and action in WRITES_SESSION:
         save_session(build_session(prepared))
@@ -91,6 +96,11 @@ def execute_session_action_json(args: list[str]) -> int:
     clean_args = [action, *[item for item in args[1:] if item != "--json"]]
     try:
         result = execute_session_action_capture(clean_args)
+    except ValueError as error:
+        details = {"remembered_session": load_session()}
+        if str(error).startswith("missing task context"):
+            details["code"] = "missing-task-context"
+        return emit_json_error(action, str(error), exit_code=2, details=details)
     except Exception as error:
         return emit_json_error(action, f"failed to prepare action: {error}", exit_code=1)
 
@@ -210,6 +220,10 @@ def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -
     if task_id is None and session_matches_db:
         task_id = session["task_id"]
         ensure_flag(prepared, "--task-id", task_id)
+    if task_id is None and action in TASK_CONTEXT_ACTIONS:
+        raise ValueError(
+            f"missing task context for {action}: pass --task-id or activate a remembered session"
+        )
 
     effect_id = get_flag(prepared, "--effect-id")
     if effect_id is None and task_id is not None:
