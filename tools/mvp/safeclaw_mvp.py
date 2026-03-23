@@ -328,10 +328,11 @@ def print_session(args: list[str]) -> int:
 
 
 def forget_session(args: list[str]) -> int:
+    session_path = render_repo_path(SESSION_FILE)
     if not SESSION_FILE.exists():
         if has_flag(args, "--json"):
-            return emit_json_result("forget", {"forgot": False, "path": render_repo_path(SESSION_FILE), "reason": "none"})
-        print("[mvp-wrapper] forgot => none")
+            return emit_json_result("forget", {"forgot": False, "path": session_path, "reason": "none"})
+        print(f"[mvp-wrapper] forgot => none path={session_path}")
         return 0
     try:
         SESSION_FILE.unlink()
@@ -341,8 +342,8 @@ def forget_session(args: list[str]) -> int:
         print(f"[mvp-wrapper] forgot => error {error}", file=sys.stderr)
         return 1
     if has_flag(args, "--json"):
-        return emit_json_result("forget", {"forgot": True, "path": render_repo_path(SESSION_FILE), "reason": "removed"})
-    print(f"[mvp-wrapper] forgot => {render_repo_path(SESSION_FILE)}")
+        return emit_json_result("forget", {"forgot": True, "path": session_path, "reason": "removed"})
+    print(f"[mvp-wrapper] forgot => removed path={session_path}")
     return 0
 
 
