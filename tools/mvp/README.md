@@ -43,6 +43,7 @@
 - `missing-task-context` 表示 `report` / `recover` / `retry` 缺少 `--task-id`，且当前没有可复用 remembered session；此时可显式传入 `--task-id`，或先执行 `use` / `run` / `seed-crash` / `seed-failed` 建立上下文。
 - 对 `demo` / `recover-demo` / `retry-demo` 这类组合动作，若失败发生在 wrapper 预处理阶段，`error.details` 还会带上 `failed_step`、`code`、`error_message`，便于脚本直接定位失败步骤。
 - 若当前存在 remembered session，包装层会在错误细节中尽量附带 `remembered_session` 或 `session`，方便脚本决定是否重试或切换上下文。
+- `status` / `report` / `recover` / `retry` 的成功 `--json` 结果现在会额外给出 `result.source_hints`，标出 `db` / `output` / `owner_id` / `task_context` 的来源，便于脚本确认是否复用了 remembered session。
 
 ## 最常用命令
 

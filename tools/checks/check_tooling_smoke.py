@@ -317,10 +317,13 @@ def collect_errors() -> list[str]:
         result = extract_json_result(payload, errors, "mvp-wrapper-status-json", "status")
         if result is not None:
             prepared = result.get("prepared") or []
+            source_hints = result.get("source_hints") or {}
             if not prepared or prepared[0] != "status":
                 errors.append("mvp-wrapper-status-json 缺少 prepared status")
             elif "task-wrapper-b" not in (result.get("captured_output") or ""):
                 errors.append("mvp-wrapper-status-json 缺少当前会话 task-wrapper-b 输出")
+            elif source_hints.get("task_context") != "session":
+                errors.append("mvp-wrapper-status-json 缺少 task_context=session")
 
     wrapper_status_fail_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--bogus", "--json"],
@@ -496,12 +499,15 @@ def collect_errors() -> list[str]:
         result = extract_json_result(payload, errors, "mvp-wrapper-report-json", "report")
         if result is not None:
             prepared = result.get("prepared") or []
+            source_hints = result.get("source_hints") or {}
             if not prepared or prepared[0] != "report":
                 errors.append("mvp-wrapper-report-json 缺少 prepared report")
             elif "task-wrapper-b" not in (result.get("captured_output") or ""):
                 errors.append("mvp-wrapper-report-json 缺少当前会话 task-wrapper-b 输出")
             elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
                 errors.append("mvp-wrapper-report-json 缺少 remembered session task-wrapper-b")
+            elif source_hints.get("task_context") != "session":
+                errors.append("mvp-wrapper-report-json 缺少 task_context=session")
 
     wrapper_forget = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
@@ -892,12 +898,15 @@ def collect_errors() -> list[str]:
         result = extract_json_result(payload, errors, "mvp-wrapper-recover-json", "recover")
         if result is not None:
             prepared = result.get("prepared") or []
+            source_hints = result.get("source_hints") or {}
             if not prepared or prepared[0] != "recover":
                 errors.append("mvp-wrapper-recover-json 缺少 prepared recover")
             elif "task-wrapper-seed-crash-json" not in (result.get("captured_output") or ""):
                 errors.append("mvp-wrapper-recover-json 缺少当前会话 task-wrapper-seed-crash-json 输出")
             elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-seed-crash-json":
                 errors.append("mvp-wrapper-recover-json 缺少 remembered session task-wrapper-seed-crash-json")
+            elif source_hints.get("task_context") != "session":
+                errors.append("mvp-wrapper-recover-json 缺少 task_context=session")
 
     wrapper_seed_failed_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-failed", "--reset", "--task-id", "task-wrapper-seed-failed-json", "--json"],
@@ -929,12 +938,15 @@ def collect_errors() -> list[str]:
         result = extract_json_result(payload, errors, "mvp-wrapper-retry-json", "retry")
         if result is not None:
             prepared = result.get("prepared") or []
+            source_hints = result.get("source_hints") or {}
             if not prepared or prepared[0] != "retry":
                 errors.append("mvp-wrapper-retry-json 缺少 prepared retry")
             elif "task-wrapper-seed-failed-json" not in (result.get("captured_output") or ""):
                 errors.append("mvp-wrapper-retry-json 缺少当前会话 task-wrapper-seed-failed-json 输出")
             elif (result.get("remembered_session") or {}).get("task_id") != "task-wrapper-seed-failed-json":
                 errors.append("mvp-wrapper-retry-json 缺少 remembered session task-wrapper-seed-failed-json")
+            elif source_hints.get("task_context") != "session":
+                errors.append("mvp-wrapper-retry-json 缺少 task_context=session")
 
     wrapper_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],

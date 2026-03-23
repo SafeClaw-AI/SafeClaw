@@ -141,6 +141,7 @@ def execute_session_action_json(args: list[str]) -> int:
         "captured_output": str(result["output"]),
         "saved_session": result["saved_session"],
         "remembered_session": load_session(),
+        "source_hints": result["source_hints"],
     }
     if result["exit_code"] != 0:
         return emit_json_error(
@@ -167,6 +168,7 @@ def execute_session_action_capture(args: list[str]) -> dict[str, object]:
         "exit_code": exit_code,
         "output": output,
         "saved_session": saved_session,
+        "source_hints": describe_prepared_sources(action, args, session, prepared),
     }
 
 
@@ -268,6 +270,65 @@ def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -
         ensure_flag(prepared, "--effect-id", resolved_effect or f"effect-{task_id}")
 
     return prepared
+
+
+def describe_prepared_sources(
+    action: str,
+    original_args: list[str],
+    session: dict[str, str] | None,
+    prepared: list[str],
+) -> dict[str, str]:
+    prepared_db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
+    session_matches_db = session is not None and session.get("db") == prepared_db
+
+    if get_flag(original_args, "--db") is not None:
+        db_source = "flag"
+    elif action in WRITES_SESSION:
+        db_source = "default"
+    elif session is not None:
+        db_source = "session"
+    else:
+        db_source = "default"
+
+    if get_flag(original_args, "--output") is not None:
+        output_source = "flag"
+    elif action in WRITES_SESSION:
+        output_source = "default"
+    elif session_matches_db:
+        output_source = "session"
+    else:
+        output_source = "default"
+
+    if get_flag(original_args, "--owner-id") is not None:
+        owner_id_source = "flag"
+    elif action in WRITES_SESSION:
+        owner_id_source = "default"
+    elif session_matches_db:
+        owner_id_source = "session"
+    else:
+        owner_id_source = "default"
+
+    if get_flag(original_args, "--task-id") is not None:
+        task_context_source = "flag"
+    elif action in WRITES_SESSION:
+        task_context_source = "generated"
+    elif action in TASK_CONTEXT_ACTIONS and session_matches_db:
+        task_context_source = "session"
+    elif action in TASK_CONTEXT_ACTIONS:
+        task_context_source = "missing"
+    elif action == "status" and session_matches_db and get_flag(prepared, "--task-id") is not None:
+        task_context_source = "session"
+    elif action == "status":
+        task_context_source = "latest"
+    else:
+        task_context_source = "none"
+
+    return {
+        "db": db_source,
+        "output": output_source,
+        "owner_id": owner_id_source,
+        "task_context": task_context_source,
+    }
 
 
 def build_session(args: list[str]) -> dict[str, str]:
