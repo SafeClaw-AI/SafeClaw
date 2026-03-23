@@ -36,13 +36,13 @@ def main(argv: list[str]) -> int:
     if action in {"-h", "--help", "help"}:
         return print_help()
     if action == "session":
-        return print_session()
+        return print_session(raw_args[1:])
     if action == "sessions":
         return print_sessions(raw_args[1:])
     if action == "use":
         return activate_session(raw_args[1:])
     if action == "forget":
-        return forget_session()
+        return forget_session(raw_args[1:])
     if action == "doctor":
         return run_doctor(raw_args[1:])
     if action == "demo":
@@ -174,11 +174,14 @@ def print_help() -> int:
         "[mvp-wrapper] examples => "
         "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | forget | doctor"
     )
+    print("[mvp-wrapper] json => session/sessions/use/forget/doctor 支持 --json")
     return 0
 
 
-def print_session() -> int:
+def print_session(args: list[str]) -> int:
     session = load_session()
+    if has_flag(args, "--json"):
+        return emit_json(session)
     if session is None:
         print("[mvp-wrapper] session => none")
         return 0
@@ -190,8 +193,10 @@ def print_session() -> int:
     return 0
 
 
-def forget_session() -> int:
+def forget_session(args: list[str]) -> int:
     if not SESSION_FILE.exists():
+        if has_flag(args, "--json"):
+            return emit_json({"forgot": False, "path": render_repo_path(SESSION_FILE), "reason": "none"})
         print("[mvp-wrapper] forgot => none")
         return 0
     try:
@@ -199,18 +204,14 @@ def forget_session() -> int:
     except OSError as error:
         print(f"[mvp-wrapper] forgot => error {error}", file=sys.stderr)
         return 1
+    if has_flag(args, "--json"):
+        return emit_json({"forgot": True, "path": render_repo_path(SESSION_FILE), "reason": "removed"})
     print(f"[mvp-wrapper] forgot => {render_repo_path(SESSION_FILE)}")
     return 0
 
 
 def run_doctor(args: list[str]) -> int:
-    session_error: str | None = None
-    try:
-        session = load_session()
-    except (OSError, json.JSONDecodeError) as error:
-        session = None
-        session_error = str(error)
-
+    session = load_session()
     db = get_flag(args, "--db") or (session["db"] if session is not None else render_repo_path(DEFAULT_DB))
     output = get_flag(args, "--output")
     if output is None:
@@ -226,6 +227,19 @@ def run_doctor(args: list[str]) -> int:
     db_path = resolve_repo_path(db)
     output_path = resolve_repo_path(output)
 
+    payload = {
+        "repo": str(REPO_ROOT),
+        "python": {"ok": True, "detail": sys.executable},
+        "cargo": {"ok": cargo_ok, "detail": cargo_detail},
+        "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
+        "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
+        "session": session,
+        "db": {"path": render_repo_path(db_path), "exists": db_path.exists()},
+        "output": {"path": render_repo_path(output_path), "exists": output_path.exists()},
+    }
+    if has_flag(args, "--json"):
+        return emit_json(payload, exit_code=0 if cargo_ok and toolchain_ok and linker_ok else 1)
+
     print(f"[mvp-wrapper] doctor repo => {REPO_ROOT}")
     print(f"[mvp-wrapper] doctor python => ok {sys.executable}")
     print(f"[mvp-wrapper] doctor cargo => {'ok' if cargo_ok else 'error'} {cargo_detail}")
@@ -233,9 +247,7 @@ def run_doctor(args: list[str]) -> int:
     print(
         f"[mvp-wrapper] doctor linker => {'ok' if linker_ok else 'error'} {render_repo_path(linker_path)}"
     )
-    if session_error is not None:
-        print(f"[mvp-wrapper] doctor session => error {session_error}")
-    elif session is None:
+    if session is None:
         print("[mvp-wrapper] doctor session => none")
     else:
         print(
@@ -263,6 +275,21 @@ def print_sessions(args: list[str]) -> int:
 
     db_path = resolve_repo_path(db)
     session = load_session()
+    rows = load_recent_tasks(db_path, limit)
+    rows_with_current = [
+        {
+            **row,
+            "current": (
+                session is not None
+                and session.get("db") == db
+                and session.get("task_id") == row["task_id"]
+            ),
+        }
+        for row in rows
+    ]
+    if has_flag(args, "--json"):
+        return emit_json({"db": db, "limit": limit, "current_session": session, "rows": rows_with_current})
+
     print(f"[mvp-wrapper] sessions => db={db} limit={limit}")
     if session is not None:
         current = "true" if session.get("db") == db else "false"
@@ -271,21 +298,15 @@ def print_sessions(args: list[str]) -> int:
             f"task={session['task_id']} effect={session['effect_id']} current_db={current}"
         )
 
-    rows = load_recent_tasks(db_path, limit)
-    if not rows:
+    if not rows_with_current:
         print("[mvp-wrapper] recent => empty")
         return 0
 
-    for index, row in enumerate(rows):
-        current = (
-            session is not None
-            and session.get("db") == db
-            and session.get("task_id") == row["task_id"]
-        )
+    for index, row in enumerate(rows_with_current):
         print(
             f"[mvp-wrapper] recent[{index}] => "
             f"task={row['task_id']} effect={row['effect_id']} worker={row['worker_state']} "
-            f"effect_status={row['effect_status']} updated_at={row['updated_at']} current={str(current).lower()}"
+            f"effect_status={row['effect_status']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
 
@@ -344,8 +365,11 @@ def activate_session(args: list[str]) -> int:
         "db": db,
         "output": output,
         "owner_id": owner_id,
+        "source": source,
     }
-    save_session(selected_session)
+    save_session({key: selected_session[key] for key in SESSION_FIELDS})
+    if has_flag(args, "--json"):
+        return emit_json(selected_session)
     print(
         "[mvp-wrapper] activated => "
         f"task={selected_session['task_id']} effect={selected_session['effect_id']} db={selected_session['db']} "
@@ -562,6 +586,15 @@ def require_flag(args: list[str], flag: str) -> str:
 def ensure_flag(args: list[str], flag: str, value: str) -> None:
     if get_flag(args, flag) is None:
         args.extend([flag, value])
+
+
+def has_flag(args: list[str], flag: str) -> bool:
+    return flag in args
+
+
+def emit_json(payload: object, exit_code: int = 0) -> int:
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    return exit_code
 
 
 if __name__ == "__main__":
