@@ -23,7 +23,7 @@ LINKER = (
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
-LOCAL_ACTIONS = {"session", "sessions"}
+LOCAL_ACTIONS = {"session", "sessions", "use"}
 
 
 def main(argv: list[str]) -> int:
@@ -36,6 +36,8 @@ def main(argv: list[str]) -> int:
         return print_session()
     if action == "sessions":
         return print_sessions(raw_args[1:])
+    if action == "use":
+        return activate_session(raw_args[1:])
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args)
 
@@ -148,6 +150,70 @@ def print_sessions(args: list[str]) -> int:
     return 0
 
 
+def activate_session(args: list[str]) -> int:
+    session = load_session()
+    db = get_flag(args, "--db") or (session or {}).get("db") or render_repo_path(DEFAULT_DB)
+    db_path = resolve_repo_path(db)
+
+    task_id = get_flag(args, "--task-id")
+    index_raw = get_flag(args, "--index")
+    if task_id is not None and index_raw is not None:
+        print("[mvp-wrapper] use requires either --task-id or --index, not both", file=sys.stderr)
+        return 2
+
+    if task_id is None:
+        index_raw = index_raw or "0"
+        try:
+            index = int(index_raw)
+        except ValueError:
+            print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
+            return 2
+        if index < 0:
+            print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
+            return 2
+        rows = load_recent_tasks(db_path, max(index + 1, DEFAULT_LIST_LIMIT))
+        if index >= len(rows):
+            print(f"[mvp-wrapper] no recent task at index {index} for db={db}", file=sys.stderr)
+            return 2
+        target = rows[index]
+        source = f"index:{index}"
+    else:
+        target = lookup_task_entry(db_path, task_id)
+        if target is None:
+            print(f"[mvp-wrapper] missing task snapshot for task={task_id} db={db}", file=sys.stderr)
+            return 2
+        source = f"task:{task_id}"
+
+    output = get_flag(args, "--output")
+    if output is None:
+        if session is not None and session.get("db") == db:
+            output = session["output"]
+        else:
+            output = default_output_for_db(db)
+
+    owner_id = get_flag(args, "--owner-id")
+    if owner_id is None:
+        if session is not None and session.get("db") == db:
+            owner_id = session["owner_id"]
+        else:
+            owner_id = DEFAULT_OWNER_ID
+
+    selected_session = {
+        "task_id": target["task_id"],
+        "effect_id": get_flag(args, "--effect-id") or target["effect_id"],
+        "db": db,
+        "output": output,
+        "owner_id": owner_id,
+    }
+    save_session(selected_session)
+    print(
+        "[mvp-wrapper] activated => "
+        f"task={selected_session['task_id']} effect={selected_session['effect_id']} db={selected_session['db']} "
+        f"output={selected_session['output']} owner={selected_session['owner_id']} source={source}"
+    )
+    return 0
+
+
 def load_session() -> dict[str, str] | None:
     if not SESSION_FILE.exists():
         return None
@@ -198,6 +264,45 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
         }
         for row in rows
     ]
+
+
+def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
+    if not db_path.exists():
+        return None
+
+    with sqlite3.connect(db_path) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                task_id,
+                worker_state,
+                effect_status,
+                updated_at,
+                COALESCE(
+                    (
+                        SELECT effect_id
+                        FROM effects effect_view
+                        WHERE effect_view.task_id = task_snapshots.task_id
+                        ORDER BY rowid DESC
+                        LIMIT 1
+                    ),
+                    ''
+                ) AS effect_id
+            FROM task_snapshots
+            WHERE task_id = ?1
+            LIMIT 1
+            """,
+            (task_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "task_id": row[0],
+        "worker_state": row[1],
+        "effect_status": row[2],
+        "updated_at": row[3],
+        "effect_id": row[4] or f"effect-{row[0]}",
+    }
 
 
 def lookup_latest_effect_id(db_path: Path, task_id: str) -> str | None:

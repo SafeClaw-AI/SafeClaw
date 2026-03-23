@@ -59,17 +59,29 @@ def collect_errors() -> list[str]:
         if expected not in output:
             errors.append(f"{name} 输出缺少关键文本: {expected}")
 
-    wrapper_run = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset"],
+    wrapper_run_a = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
     )
-    wrapper_run_output = (wrapper_run.stdout or "") + (wrapper_run.stderr or "")
-    if wrapper_run.returncode != 0:
-        errors.append(f"mvp-wrapper-run 执行失败: exit={wrapper_run.returncode}")
-    elif "[mvp] accepted task => task=task-safeclaw-mvp-" not in wrapper_run_output:
-        errors.append("mvp-wrapper-run 输出缺少自动会话 task 前缀")
+    wrapper_run_a_output = (wrapper_run_a.stdout or "") + (wrapper_run_a.stderr or "")
+    if wrapper_run_a.returncode != 0:
+        errors.append(f"mvp-wrapper-run-a 执行失败: exit={wrapper_run_a.returncode}")
+    elif "[mvp] accepted task => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_run_a_output:
+        errors.append("mvp-wrapper-run-a 输出缺少 task-wrapper-a")
+
+    wrapper_run_b = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--task-id", "task-wrapper-b"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_run_b_output = (wrapper_run_b.stdout or "") + (wrapper_run_b.stderr or "")
+    if wrapper_run_b.returncode != 0:
+        errors.append(f"mvp-wrapper-run-b 执行失败: exit={wrapper_run_b.returncode}")
+    elif "[mvp] accepted task => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_run_b_output:
+        errors.append("mvp-wrapper-run-b 输出缺少 task-wrapper-b")
 
     wrapper_status = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
@@ -80,8 +92,8 @@ def collect_errors() -> list[str]:
     wrapper_status_output = (wrapper_status.stdout or "") + (wrapper_status.stderr or "")
     if wrapper_status.returncode != 0:
         errors.append(f"mvp-wrapper-status 执行失败: exit={wrapper_status.returncode}")
-    elif "[mvp] status target => task=task-safeclaw-mvp-" not in wrapper_status_output:
-        errors.append("mvp-wrapper-status 输出缺少最近会话 task 前缀")
+    elif "[mvp] status target => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_status_output:
+        errors.append("mvp-wrapper-status 输出缺少当前会话 task-wrapper-b")
 
     wrapper_session = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
@@ -92,8 +104,8 @@ def collect_errors() -> list[str]:
     wrapper_session_output = (wrapper_session.stdout or "") + (wrapper_session.stderr or "")
     if wrapper_session.returncode != 0:
         errors.append(f"mvp-wrapper-session 执行失败: exit={wrapper_session.returncode}")
-    elif "[mvp-wrapper] session => task=task-safeclaw-mvp-" not in wrapper_session_output:
-        errors.append("mvp-wrapper-session 输出缺少最近会话 task 前缀")
+    elif "[mvp-wrapper] session => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_session_output:
+        errors.append("mvp-wrapper-session 输出缺少当前会话 task-wrapper-b")
 
     wrapper_sessions = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions"],
@@ -104,8 +116,46 @@ def collect_errors() -> list[str]:
     wrapper_sessions_output = (wrapper_sessions.stdout or "") + (wrapper_sessions.stderr or "")
     if wrapper_sessions.returncode != 0:
         errors.append(f"mvp-wrapper-sessions 执行失败: exit={wrapper_sessions.returncode}")
-    elif "[mvp-wrapper] recent[0] => task=task-safeclaw-mvp-" not in wrapper_sessions_output:
-        errors.append("mvp-wrapper-sessions 输出缺少最近任务 task 前缀")
+    elif "[mvp-wrapper] recent[0] => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_sessions_output:
+        errors.append("mvp-wrapper-sessions 输出缺少最近任务 task-wrapper-b")
+    elif "[mvp-wrapper] recent[1] => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_sessions_output:
+        errors.append("mvp-wrapper-sessions 输出缺少旧任务 task-wrapper-a")
+
+    wrapper_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "1"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_use_output = (wrapper_use.stdout or "") + (wrapper_use.stderr or "")
+    if wrapper_use.returncode != 0:
+        errors.append(f"mvp-wrapper-use 执行失败: exit={wrapper_use.returncode}")
+    elif "[mvp-wrapper] activated => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_use_output:
+        errors.append("mvp-wrapper-use 输出缺少切回 task-wrapper-a")
+
+    wrapper_session_after_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_session_after_use_output = (wrapper_session_after_use.stdout or "") + (wrapper_session_after_use.stderr or "")
+    if wrapper_session_after_use.returncode != 0:
+        errors.append(f"mvp-wrapper-session-after-use 执行失败: exit={wrapper_session_after_use.returncode}")
+    elif "[mvp-wrapper] session => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_session_after_use_output:
+        errors.append("mvp-wrapper-session-after-use 输出缺少已切换 task-wrapper-a")
+
+    wrapper_status_after_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_status_after_use_output = (wrapper_status_after_use.stdout or "") + (wrapper_status_after_use.stderr or "")
+    if wrapper_status_after_use.returncode != 0:
+        errors.append(f"mvp-wrapper-status-after-use 执行失败: exit={wrapper_status_after_use.returncode}")
+    elif "[mvp] status target => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_status_after_use_output:
+        errors.append("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a")
 
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():

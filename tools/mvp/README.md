@@ -21,6 +21,7 @@
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话
 - `sessions`：列出当前数据库里的最近任务快照
+- `use`：按 `--index` 或 `--task-id` 激活某条历史会话
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
 - `seed-failed`：制造失败态但不自动结案
@@ -34,6 +35,7 @@
 tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd session
 tools\mvp\safeclaw_mvp.cmd sessions
+tools\mvp\safeclaw_mvp.cmd use --index 0
 tools\mvp\safeclaw_mvp.cmd status
 tools\mvp\safeclaw_mvp.cmd report
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset
