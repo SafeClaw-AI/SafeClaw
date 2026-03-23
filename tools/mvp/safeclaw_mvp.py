@@ -340,13 +340,27 @@ def forget_session(args: list[str]) -> int:
 
 def run_doctor(args: list[str]) -> int:
     session = load_session()
-    db = get_flag(args, "--db") or (session["db"] if session is not None else render_repo_path(DEFAULT_DB))
-    output = get_flag(args, "--output")
-    if output is None:
-        if session is not None and session.get("db") == db:
-            output = session["output"]
-        else:
-            output = default_output_for_db(db)
+    db_flag = get_flag(args, "--db")
+    if db_flag is not None:
+        db = db_flag
+        db_source = "flag"
+    elif session is not None:
+        db = session["db"]
+        db_source = "session"
+    else:
+        db = render_repo_path(DEFAULT_DB)
+        db_source = "default"
+
+    output_flag = get_flag(args, "--output")
+    if output_flag is not None:
+        output = output_flag
+        output_source = "flag"
+    elif session is not None and session.get("db") == db:
+        output = session["output"]
+        output_source = "session"
+    else:
+        output = default_output_for_db(db)
+        output_source = "default"
 
     cargo_ok, cargo_detail = probe_command(["cargo", "--version"])
     toolchain_ok, toolchain_detail = probe_command(["rustc", f"+{TOOLCHAIN}", "--version"])
@@ -362,8 +376,8 @@ def run_doctor(args: list[str]) -> int:
         "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
         "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
         "session": session,
-        "db": {"path": render_repo_path(db_path), "exists": db_path.exists()},
-        "output": {"path": render_repo_path(output_path), "exists": output_path.exists()},
+        "db": {"path": render_repo_path(db_path), "exists": db_path.exists(), "source": db_source},
+        "output": {"path": render_repo_path(output_path), "exists": output_path.exists(), "source": output_source},
     }
     if has_flag(args, "--json"):
         return emit_json_result(
@@ -393,6 +407,7 @@ def run_doctor(args: list[str]) -> int:
     print(
         f"[mvp-wrapper] doctor output => {'present' if output_path.exists() else 'missing'} {render_repo_path(output_path)}"
     )
+    print(f"[mvp-wrapper] doctor source => db={db_source} output={output_source}")
     return 0 if cargo_ok and toolchain_ok and linker_ok else 1
 
 

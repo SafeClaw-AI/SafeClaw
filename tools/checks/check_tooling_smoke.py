@@ -213,6 +213,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor 输出缺少 toolchain 检查")
     elif "[mvp-wrapper] doctor linker => ok" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少 linker 检查")
+    elif "[mvp-wrapper] doctor source => db=flag output=flag" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少来源提示")
 
     wrapper_doctor_json = subprocess.run(
         [
@@ -239,6 +241,10 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 toolchain ok")
             elif result.get("linker", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 linker ok")
+            elif result.get("db", {}).get("source") != "flag":
+                errors.append("mvp-wrapper-doctor-json 输出缺少 db source=flag")
+            elif result.get("output", {}).get("source") != "flag":
+                errors.append("mvp-wrapper-doctor-json 输出缺少 output source=flag")
 
     wrapper_run_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-json", "--json"],
