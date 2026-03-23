@@ -12,6 +12,7 @@
 
 - `tools/mvp/safeclaw_mvp.cmd`：推荐入口，适合 `cmd.exe` 与直接双击/脚本调用
 - `tools/mvp/safeclaw_mvp.ps1`：PowerShell 包装，内部转调 `.cmd`
+- `tools/mvp/safeclaw_mvp.py`：会话薄层实现，负责默认路径与最近会话复用
 
 ## 当前支持的动作
 
@@ -24,6 +25,20 @@
 - `retry`：在租约过期后重新领取失败态并重试
 
 ## 最常用命令
+
+第一次运行可以直接走默认会话路径：
+
+```bat
+tools\mvp\safeclaw_mvp.cmd run --reset
+tools\mvp\safeclaw_mvp.cmd status
+tools\mvp\safeclaw_mvp.cmd report
+tools\mvp\safeclaw_mvp.cmd seed-failed --reset
+tools\mvp\safeclaw_mvp.cmd retry
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset
+tools\mvp\safeclaw_mvp.cmd recover
+```
+
+如果你想显式控制路径，也仍然支持完整参数：
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo

@@ -59,6 +59,30 @@ def collect_errors() -> list[str]:
         if expected not in output:
             errors.append(f"{name} 输出缺少关键文本: {expected}")
 
+    wrapper_run = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_run_output = (wrapper_run.stdout or "") + (wrapper_run.stderr or "")
+    if wrapper_run.returncode != 0:
+        errors.append(f"mvp-wrapper-run 执行失败: exit={wrapper_run.returncode}")
+    elif "[mvp] accepted task => task=task-safeclaw-mvp-" not in wrapper_run_output:
+        errors.append("mvp-wrapper-run 输出缺少自动会话 task 前缀")
+
+    wrapper_status = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_status_output = (wrapper_status.stdout or "") + (wrapper_status.stderr or "")
+    if wrapper_status.returncode != 0:
+        errors.append(f"mvp-wrapper-status 执行失败: exit={wrapper_status.returncode}")
+    elif "[mvp] status target => task=task-safeclaw-mvp-" not in wrapper_status_output:
+        errors.append("mvp-wrapper-status 输出缺少最近会话 task 前缀")
+
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
         errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
