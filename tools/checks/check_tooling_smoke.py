@@ -512,7 +512,7 @@ def collect_errors() -> list[str]:
     wrapper_forget_output = (wrapper_forget.stdout or "") + (wrapper_forget.stderr or "")
     if wrapper_forget.returncode != 0:
         errors.append(f"mvp-wrapper-forget 执行失败: exit={wrapper_forget.returncode}")
-    elif "[mvp-wrapper] forgot => removed path=target\\mvp\\last_session.json" not in wrapper_forget_output:
+    elif "[mvp-wrapper] forgot => reason=removed path=target\\mvp\\last_session.json" not in wrapper_forget_output:
         errors.append("mvp-wrapper-forget 输出缺少会话清空标记")
 
     wrapper_forget_json = subprocess.run(

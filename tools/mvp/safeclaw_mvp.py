@@ -333,7 +333,7 @@ def forget_session(args: list[str]) -> int:
     if not SESSION_FILE.exists():
         if has_flag(args, "--json"):
             return emit_json_result("forget", {"forgot": False, "path": session_path, "reason": "none"})
-        print(f"[mvp-wrapper] forgot => none path={session_path}")
+        print(f"[mvp-wrapper] forgot => reason=none path={session_path}")
         return 0
     try:
         SESSION_FILE.unlink()
@@ -344,7 +344,7 @@ def forget_session(args: list[str]) -> int:
         return 1
     if has_flag(args, "--json"):
         return emit_json_result("forget", {"forgot": True, "path": session_path, "reason": "removed"})
-    print(f"[mvp-wrapper] forgot => removed path={session_path}")
+    print(f"[mvp-wrapper] forgot => reason=removed path={session_path}")
     return 0
 
 
