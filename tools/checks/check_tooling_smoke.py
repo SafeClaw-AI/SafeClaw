@@ -216,8 +216,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_status_fail_json.returncode == 0:
-        errors.append("mvp-wrapper-status-fail-json 未按预期返回非 0")
+    if wrapper_status_fail_json.returncode != 2:
+        errors.append(f"mvp-wrapper-status-fail-json 执行失败: exit={wrapper_status_fail_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_status_fail_json.stdout)
@@ -228,8 +228,37 @@ def collect_errors() -> list[str]:
             details = error.get("details") or {}
             if payload.get("ok") is not False or payload.get("action") != "status":
                 errors.append("mvp-wrapper-status-fail-json 输出缺少统一错误信封")
-            elif "unknown argument" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-status-fail-json 缺少底层错误输出")
+            elif "unknown argument" not in error.get("message", ""):
+                errors.append("mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-status-fail-json 缺少错误代码 invalid-argument")
+            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
+                errors.append("mvp-wrapper-status-fail-json remembered_session 缺少 task-wrapper-b")
+
+    wrapper_status_missing_db_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--db", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if wrapper_status_missing_db_json.returncode != 2:
+        errors.append(f"mvp-wrapper-status-missing-db-json 执行失败: exit={wrapper_status_missing_db_json.returncode}")
+    else:
+        try:
+            payload = json.loads(wrapper_status_missing_db_json.stdout)
+        except json.JSONDecodeError:
+            errors.append("mvp-wrapper-status-missing-db-json 输出不是合法 JSON")
+        else:
+            error = payload.get("error") or {}
+            details = error.get("details") or {}
+            if payload.get("ok") is not False or payload.get("action") != "status":
+                errors.append("mvp-wrapper-status-missing-db-json 输出缺少统一错误信封")
+            elif "missing value after --db" not in error.get("message", ""):
+                errors.append("mvp-wrapper-status-missing-db-json 缺少 missing value after --db")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-status-missing-db-json 缺少错误代码 invalid-argument")
+            elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-b":
+                errors.append("mvp-wrapper-status-missing-db-json remembered_session 缺少 task-wrapper-b")
 
     wrapper_session = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
@@ -519,8 +548,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_report_invalid_json.returncode == 0:
-        errors.append("mvp-wrapper-report-invalid-json 未按预期返回非 0")
+    if wrapper_report_invalid_json.returncode != 2:
+        errors.append(f"mvp-wrapper-report-invalid-json 执行失败: exit={wrapper_report_invalid_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_report_invalid_json.stdout)
@@ -531,8 +560,10 @@ def collect_errors() -> list[str]:
             details = error.get("details") or {}
             if payload.get("ok") is not False or payload.get("action") != "report":
                 errors.append("mvp-wrapper-report-invalid-json 输出缺少统一错误信封")
-            elif "unknown argument" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-report-invalid-json 缺少 unknown argument")
+            elif "unknown argument" not in error.get("message", ""):
+                errors.append("mvp-wrapper-report-invalid-json 缺少 wrapper 级 unknown argument")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-report-invalid-json 缺少错误代码 invalid-argument")
             elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
                 errors.append("mvp-wrapper-report-invalid-json remembered_session 缺少基座会话")
 
@@ -542,8 +573,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_recover_invalid_json.returncode == 0:
-        errors.append("mvp-wrapper-recover-invalid-json 未按预期返回非 0")
+    if wrapper_recover_invalid_json.returncode != 2:
+        errors.append(f"mvp-wrapper-recover-invalid-json 执行失败: exit={wrapper_recover_invalid_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_recover_invalid_json.stdout)
@@ -554,8 +585,10 @@ def collect_errors() -> list[str]:
             details = error.get("details") or {}
             if payload.get("ok") is not False or payload.get("action") != "recover":
                 errors.append("mvp-wrapper-recover-invalid-json 输出缺少统一错误信封")
-            elif "unknown argument" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-recover-invalid-json 缺少 unknown argument")
+            elif "unknown argument" not in error.get("message", ""):
+                errors.append("mvp-wrapper-recover-invalid-json 缺少 wrapper 级 unknown argument")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-recover-invalid-json 缺少错误代码 invalid-argument")
             elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
                 errors.append("mvp-wrapper-recover-invalid-json remembered_session 缺少基座会话")
 
@@ -565,8 +598,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_retry_invalid_json.returncode == 0:
-        errors.append("mvp-wrapper-retry-invalid-json 未按预期返回非 0")
+    if wrapper_retry_invalid_json.returncode != 2:
+        errors.append(f"mvp-wrapper-retry-invalid-json 执行失败: exit={wrapper_retry_invalid_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_retry_invalid_json.stdout)
@@ -577,8 +610,10 @@ def collect_errors() -> list[str]:
             details = error.get("details") or {}
             if payload.get("ok") is not False or payload.get("action") != "retry":
                 errors.append("mvp-wrapper-retry-invalid-json 输出缺少统一错误信封")
-            elif "unknown argument" not in (details.get("captured_output") or ""):
-                errors.append("mvp-wrapper-retry-invalid-json 缺少 unknown argument")
+            elif "unknown argument" not in error.get("message", ""):
+                errors.append("mvp-wrapper-retry-invalid-json 缺少 wrapper 级 unknown argument")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-retry-invalid-json 缺少错误代码 invalid-argument")
             elif (details.get("remembered_session") or {}).get("task_id") != "task-wrapper-invalid-json-base":
                 errors.append("mvp-wrapper-retry-invalid-json remembered_session 缺少基座会话")
 
@@ -661,9 +696,9 @@ def collect_errors() -> list[str]:
         text=True,
     )
     wrapper_demo_fail_output = (wrapper_demo_fail.stdout or "") + (wrapper_demo_fail.stderr or "")
-    if wrapper_demo_fail.returncode == 0:
-        errors.append("mvp-wrapper-demo-fail 未按预期返回非 0")
-    elif "[mvp-wrapper] demo => failed step=run exit=1" not in wrapper_demo_fail_output:
+    if wrapper_demo_fail.returncode != 2:
+        errors.append(f"mvp-wrapper-demo-fail 执行失败: exit={wrapper_demo_fail.returncode}")
+    elif "[mvp-wrapper] demo => failed step=run exit=2" not in wrapper_demo_fail_output:
         errors.append("mvp-wrapper-demo-fail 输出缺少组合动作失败承接提示")
 
     wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
@@ -836,8 +871,8 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-    if wrapper_demo_fail_json.returncode == 0:
-        errors.append("mvp-wrapper-demo-fail-json 未按预期返回非 0")
+    if wrapper_demo_fail_json.returncode != 2:
+        errors.append(f"mvp-wrapper-demo-fail-json 执行失败: exit={wrapper_demo_fail_json.returncode}")
     else:
         try:
             payload = json.loads(wrapper_demo_fail_json.stdout)
@@ -850,6 +885,10 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-demo-fail-json 输出缺少统一错误信封")
             elif details.get("failed_step") != "run":
                 errors.append("mvp-wrapper-demo-fail-json 缺少失败步骤 run")
+            elif details.get("code") != "invalid-argument":
+                errors.append("mvp-wrapper-demo-fail-json 缺少错误代码 invalid-argument")
+            elif "unknown argument" not in details.get("error_message", ""):
+                errors.append("mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument")
 
     wrapper_recover_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],

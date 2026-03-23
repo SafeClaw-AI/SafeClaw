@@ -36,6 +36,36 @@ LOCAL_ACTION_FLAG_SPECS = {
     "forget": {"value": set(), "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
 }
+SESSION_ACTION_FLAG_SPECS = {
+    "run": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"},
+        "boolean": {"--reset"},
+    },
+    "report": {
+        "value": {"--db", "--task-id", "--output", "--owner-id", "--effect-id"},
+        "boolean": set(),
+    },
+    "status": {
+        "value": {"--db", "--task-id", "--output", "--owner-id", "--effect-id"},
+        "boolean": set(),
+    },
+    "seed-crash": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"},
+        "boolean": {"--reset"},
+    },
+    "recover": {
+        "value": {"--db", "--task-id", "--output", "--content", "--owner-id", "--effect-id"},
+        "boolean": set(),
+    },
+    "seed-failed": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"},
+        "boolean": {"--reset"},
+    },
+    "retry": {
+        "value": {"--db", "--task-id", "--output", "--content", "--owner-id", "--effect-id"},
+        "boolean": set(),
+    },
+}
 
 
 def main(argv: list[str]) -> int:
@@ -100,6 +130,8 @@ def execute_session_action_json(args: list[str]) -> int:
         details = {"remembered_session": load_session()}
         if str(error).startswith("missing task context"):
             details["code"] = "missing-task-context"
+        else:
+            details["code"] = "invalid-argument"
         return emit_json_error(action, str(error), exit_code=2, details=details)
     except Exception as error:
         return emit_json_error(action, f"failed to prepare action: {error}", exit_code=1)
@@ -194,6 +226,9 @@ def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> 
 
 def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -> list[str]:
     prepared = list(args)
+    validation_error = validate_session_action_args(action, prepared[1:])
+    if validation_error is not None:
+        raise ValueError(validation_error)
     if action in WRITES_SESSION:
         db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
         ensure_flag(prepared, "--db", db)
@@ -730,7 +765,14 @@ def has_flag(args: list[str], flag: str) -> bool:
 
 
 def validate_local_action_args(action: str, args: list[str]) -> str | None:
-    spec = LOCAL_ACTION_FLAG_SPECS[action]
+    return validate_flag_args(args, LOCAL_ACTION_FLAG_SPECS[action])
+
+
+def validate_session_action_args(action: str, args: list[str]) -> str | None:
+    return validate_flag_args(args, SESSION_ACTION_FLAG_SPECS[action])
+
+
+def validate_flag_args(args: list[str], spec: dict[str, set[str]]) -> str | None:
     index = 0
     while index < len(args):
         token = args[index]
@@ -760,7 +802,21 @@ def emit_local_action_error(action: str, args: list[str], message: str, exit_cod
 def run_sequence_json(name: str, steps: list[list[str]]) -> int:
     step_results: list[dict[str, object]] = []
     for step in steps:
-        result = execute_session_action_capture(step)
+        try:
+            result = execute_session_action_capture(step)
+        except ValueError as error:
+            step_results.append({"action": step[0], "ok": False, "exit_code": 2})
+            details = {
+                "failed_step": step[0],
+                "steps": step_results,
+                "error_message": str(error),
+                "session": load_session(),
+            }
+            if str(error).startswith("missing task context"):
+                details["code"] = "missing-task-context"
+            else:
+                details["code"] = "invalid-argument"
+            return emit_json_error(name, f"failed step={step[0]}", exit_code=2, details=details)
         step_results.append(
             {
                 "action": result["action"],
