@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-status", "session", "sessions", "use", "forget", "doctor")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -41,6 +41,7 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "forget": {"value": set(), "boolean": {"--json"}},
     "service-demo": {"value": set(), "boolean": {"--json"}},
+    "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
@@ -195,6 +196,8 @@ def main(argv: list[str]) -> int:
         return run_retry_demo(raw_args[1:])
     if action == "service-demo":
         return dispatch_local_action("service-demo", raw_args[1:], run_service_demo)
+    if action == "service-status":
+        return dispatch_local_action("service-status", raw_args[1:], run_service_status)
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args, action=action)
 
@@ -343,6 +346,75 @@ def run_service_demo(args: list[str]) -> int:
 
     if json_mode:
         return emit_json_result("service-demo", payload)
+    return 0
+
+
+def run_service_status(args: list[str]) -> int:
+    session = load_session()
+    db, db_source = resolve_db_selection(args, session)
+    limit_raw = get_flag(args, "--limit") or str(DEFAULT_LIST_LIMIT)
+    try:
+        limit = max(1, int(limit_raw))
+    except ValueError:
+        return emit_local_action_error(
+            "service-status",
+            args,
+            f"invalid --limit: {limit_raw}",
+            exit_code=2,
+            text_message=f"[mvp-wrapper] invalid --limit: {limit_raw}",
+        )
+
+    db_path = resolve_repo_path(db)
+    queue = load_service_queue_counts(db_path)
+    workers = load_task_snapshot_counts(db_path, "worker_state")
+    effects = load_task_snapshot_counts(db_path, "effect_status")
+    probes = load_task_snapshot_counts(db_path, "probe_state")
+    rows = load_recent_tasks(db_path, limit)
+    rows_with_current = [
+        {
+            **row,
+            "current": matches_session_db(session, db) and session.get("task_id") == row["task_id"],
+        }
+        for row in rows
+    ]
+    payload = {
+        "db": db,
+        "db_source": db_source,
+        "limit": limit,
+        "current_session": session,
+        "current_db": matches_session_db(session, db),
+        "queue": queue,
+        "workers": workers,
+        "effects": effects,
+        "probes": probes,
+        "recent_tasks": rows_with_current,
+    }
+    if has_flag(args, "--json"):
+        return emit_json_result("service-status", payload)
+
+    print(f"[mvp-wrapper] service-status => db={db} limit={limit} source={db_source}")
+    print(
+        "[mvp-wrapper] service queue => "
+        f"queued={queue['queued']} active={queue['active']} expired={queue['expired']} completed={queue['completed']}"
+    )
+    print(f"[mvp-wrapper] service workers => {render_count_summary(workers)}")
+    print(f"[mvp-wrapper] service effects => {render_count_summary(effects)}")
+    print(f"[mvp-wrapper] service probes => {render_count_summary(probes)}")
+    if session is not None:
+        current = "true" if matches_session_db(session, db) else "false"
+        print(
+            "[mvp-wrapper] service current => "
+            f"task={session['task_id']} effect={session['effect_id']} current_db={current}"
+        )
+    if not rows_with_current:
+        print("[mvp-wrapper] service recent => empty")
+        return 0
+    for index, row in enumerate(rows_with_current):
+        print(
+            f"[mvp-wrapper] service recent[{index}] => "
+            f"task={row['task_id']} effect={row['effect_id']} worker={row['worker_state']} "
+            f"effect_status={row['effect_status']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
+        )
     return 0
 
 
@@ -551,7 +623,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；"
@@ -562,7 +634,7 @@ def print_help() -> int:
         "seed-failed/retry 演示失败态重试"
     )
     print(
-        "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-status/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
@@ -593,6 +665,10 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] service demo => service-demo 演示 worker service 对 resolved / confirmation 两类队列的治理汇总；"
         "--json 会返回结构化摘要与原始输出"
+    )
+    print(
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; "
+        "supports --db / --limit / --json"
     )
     print(
         "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
@@ -985,6 +1061,81 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
         }
         for row in rows
     ]
+
+
+def load_service_queue_counts(db_path: Path) -> dict[str, int]:
+    counts = {"queued": 0, "active": 0, "expired": 0, "completed": 0}
+    if not db_path.exists():
+        return counts
+
+    now_ms = int(time.time() * 1000)
+    with sqlite3.connect(db_path) as connection:
+        counts["queued"] = int(
+            connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM orchestrator_tasks task_view
+                WHERE task_view.is_completed = 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM orchestrator_leases lease_view
+                      WHERE lease_view.task_id = task_view.task_id
+                        AND lease_view.released_at_ms IS NULL
+                  )
+                """
+            ).fetchone()[0]
+        )
+        counts["active"] = int(
+            connection.execute(
+                """
+                SELECT COUNT(DISTINCT task_id)
+                FROM orchestrator_leases
+                WHERE released_at_ms IS NULL
+                  AND expires_at_ms > ?1
+                """,
+                (now_ms,),
+            ).fetchone()[0]
+        )
+        counts["expired"] = int(
+            connection.execute(
+                """
+                SELECT COUNT(DISTINCT task_id)
+                FROM orchestrator_leases
+                WHERE released_at_ms IS NULL
+                  AND expires_at_ms <= ?1
+                """,
+                (now_ms,),
+            ).fetchone()[0]
+        )
+        counts["completed"] = int(
+            connection.execute(
+                "SELECT COUNT(*) FROM orchestrator_tasks WHERE is_completed = 1"
+            ).fetchone()[0]
+        )
+    return counts
+
+
+
+def load_task_snapshot_counts(db_path: Path, field: str) -> dict[str, int]:
+    if not db_path.exists():
+        return {}
+
+    select_field = field
+    if field == "probe_state":
+        select_field = "COALESCE(probe_state, 'none')"
+
+    with sqlite3.connect(db_path) as connection:
+        rows = connection.execute(
+            f"SELECT {select_field} AS label, COUNT(*) FROM task_snapshots GROUP BY label ORDER BY label",
+        ).fetchall()
+    return {str(row[0]): int(row[1]) for row in rows if row[0] is not None}
+
+
+
+def render_count_summary(counts: dict[str, int]) -> str:
+    if not counts:
+        return "none"
+    return ", ".join(f"{key}={value}" for key, value in counts.items())
 
 
 def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:

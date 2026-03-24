@@ -180,6 +180,57 @@ def assert_service_demo_json_result(
         errors.append(f"{name} missing confirmation governance output")
 
 
+def assert_service_status_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_db: str,
+    expected_db_source: str,
+    expected_task_id: str,
+) -> None:
+    if result is None:
+        return
+    queue = result.get("queue") or {}
+    workers = result.get("workers") or {}
+    effects = result.get("effects") or {}
+    probes = result.get("probes") or {}
+    recent_tasks = result.get("recent_tasks") or []
+    current_session = result.get("current_session") or {}
+    actual_db = str(result.get("db") or "").replace("\\", "/")
+    normalized_expected_db = expected_db.replace("\\", "/")
+    worker_succeeded = None if not isinstance(workers, dict) else (workers.get("succeeded") if "succeeded" in workers else workers.get("Succeeded"))
+    effect_executed = None if not isinstance(effects, dict) else (effects.get("executed") if "executed" in effects else effects.get("Executed"))
+    if actual_db != normalized_expected_db:
+        errors.append(f"{name} missing db={expected_db}")
+    elif result.get("db_source") != expected_db_source:
+        errors.append(f"{name} missing db_source={expected_db_source}")
+    elif result.get("limit") != 5:
+        errors.append(f"{name} missing limit=5")
+    elif result.get("current_db") is not True:
+        errors.append(f"{name} missing current_db=true")
+    elif not isinstance(current_session, dict) or current_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing current_session {expected_task_id}")
+    elif not isinstance(queue, dict) or queue.get("queued") != 0:
+        errors.append(f"{name} missing queue.queued=0")
+    elif queue.get("active") != 0:
+        errors.append(f"{name} missing queue.active=0")
+    elif queue.get("expired") != 0:
+        errors.append(f"{name} missing queue.expired=0")
+    elif queue.get("completed") != 1:
+        errors.append(f"{name} missing queue.completed=1")
+    elif worker_succeeded != 1:
+        errors.append(f"{name} missing workers.succeeded=1")
+    elif effect_executed != 1:
+        errors.append(f"{name} missing effects.executed=1")
+    elif not isinstance(probes, dict) or probes.get("none") != 1:
+        errors.append(f"{name} missing probes.none=1")
+    elif not isinstance(recent_tasks, list) or not recent_tasks or recent_tasks[0].get("task_id") != expected_task_id:
+        errors.append(f"{name} missing recent task {expected_task_id}")
+    elif recent_tasks[0].get("current") is not True:
+        errors.append(f"{name} missing recent current=true")
+
+
 def assert_run_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -542,22 +593,24 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-status, session, sessions, use, forget, doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；retry-demo=seed-failed->retry->report" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，统一返回 {ok, action, schema_version, result|error} 信封" not in wrapper_help_output:
-        errors.append("mvp-wrapper-help 输出缺少 JSON 信封提示")
+    elif "demo/recover-demo/retry-demo/service-demo/service-status/run/report/status/" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
     elif "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误码解释提示")
     elif "[mvp-wrapper] error message => error.message 是稳定的 wrapper 级消息；脚本无需解析底层 cargo 文案" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少稳定 error.message 提示")
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; supports --db / --limit / --json" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
     elif "[mvp-wrapper] session => session 显示当前记忆的最近成功会话；sessions/use/forget 管理 remembered session；status/report/recover/retry/doctor 会尽量复用它" not in wrapper_help_output:
@@ -752,6 +805,88 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-doctor-no-cargo-path-json",
         expected_db_path="target\mvp\doctor-no-path.db",
         expected_output_path="target\mvp\doctor-no-path.txt",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-status",
+            "--db",
+            "target/mvp/service-status.db",
+            "--output",
+            "target/mvp/service-status.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-seed-run-json",
+        "run",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-seed-run-json",
+        expected_task_id="task-wrapper-service-status",
+        expected_db_path="target/mvp/service-status.db",
+        expected_output_path="target/mvp/service-status.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    wrapper_service_status = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status.db",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_output = (wrapper_service_status.stdout or "") + (wrapper_service_status.stderr or "")
+    if wrapper_service_status.returncode != 0:
+        errors.append(f"mvp-wrapper-service-status ????: exit={wrapper_service_status.returncode}")
+    elif "[mvp-wrapper] service-status => db=target/mvp/service-status.db limit=1 source=flag" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status ????????")
+    elif "[mvp-wrapper] service queue => queued=0 active=0 expired=0 completed=1" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status ???? queue ??")
+    elif "[mvp-wrapper] service workers => succeeded=1" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing worker summary")
+    elif "[mvp-wrapper] service effects => executed=1" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing effect summary")
+    elif "[mvp-wrapper] service probes => none=1" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status ???? probe ??")
+    elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status ???? recent task")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
+        errors,
+        "mvp-wrapper-cmd-service-status-json",
+        "service-status",
+    )
+    assert_service_status_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-status-json",
+        expected_db="target\mvp\service-status.db",
+        expected_db_source="session",
+        expected_task_id="task-wrapper-service-status",
+    )
+
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-status", "--limit", "bogus", "--json"],
+        errors,
+        "mvp-wrapper-service-status-invalid-limit-json",
+        "service-status",
+        expected_error_message_substring="invalid --limit: bogus",
     )
 
     wrapper_service_demo = subprocess.run(
