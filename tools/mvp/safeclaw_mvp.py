@@ -417,7 +417,8 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
-        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json"
+        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
+        "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
         "[mvp-wrapper] errors => invalid-argument / missing-task-context；"

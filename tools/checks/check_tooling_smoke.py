@@ -235,6 +235,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
     elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
+    elif "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，统一返回 {ok, action, schema_version, result|error} 信封" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 JSON 信封提示")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step 与 error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
     elif "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；status/report/recover/retry/doctor 会尽量复用它" not in wrapper_help_output:
