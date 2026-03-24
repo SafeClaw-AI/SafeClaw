@@ -127,3 +127,9 @@
 - 完成内容：为 `preflight` 增加可选 `--scope` / `--write` / `--doctor-bypass`；在保持动作级 allow / deny 不变的前提下，执行前显式返回 `permission_tier` / `permission_policy` / `permission_reason`；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: add scope-aware preflight permission hints`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 U
+- 完成时间：2026-03-25 06:32:50 +0800
+- 完成内容：为 `preflight` 增加 `--enforce-permission` 严格权限阻断；在显式提供 `--scope` / `--write` / `--doctor-bypass` 后，`confirm` / `deny` 会直接非零退出，`allow` 才放行；同时补 `action_allowed` / `action_decision` / `action_reason` 以区分动作门禁与权限门禁；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: enforce preflight permission gates`；最终 hash 以当前 `HEAD` 为准。

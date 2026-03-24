@@ -82,7 +82,7 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
-    "preflight": {"value": {"--action", "--scope"}, "boolean": {"--json", "--write", "--doctor-bypass"}},
+    "preflight": {"value": {"--action", "--scope"}, "boolean": {"--json", "--write", "--doctor-bypass", "--enforce-permission"}},
     "verify": {"value": set(), "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
@@ -674,6 +674,7 @@ def run_preflight(args: list[str]) -> int:
         target_scope=get_flag(args, "--scope") or "",
         requires_write=has_flag(args, "--write"),
         doctor_bypass=has_flag(args, "--doctor-bypass"),
+        permission_enforced=has_flag(args, "--enforce-permission"),
     )
     exit_code = 0 if bool(payload.get("allowed")) else 1
     if has_flag(args, "--json"):
@@ -687,6 +688,7 @@ def run_preflight(args: list[str]) -> int:
         f"requires_write={str(bool(payload['requires_write'])).lower()} "
         f"doctor_bypass={str(bool(payload['doctor_bypass'])).lower()} "
         f"perm_ctx={str(bool(payload['permission_context_applied'])).lower()} "
+        f"enforce_perm={str(bool(payload['permission_enforced'])).lower()} "
         f"perm={payload['permission_policy']} perm_tier={payload['permission_tier']} "
         f"perm_reason={payload['permission_reason']} "
         f"decision={payload['decision']} allowed={str(bool(payload['allowed'])).lower()} "
@@ -973,12 +975,84 @@ def build_permission_decision_payload(
     }
 
 
+def build_preflight_gate_payload(
+    *,
+    action_allowed: bool,
+    action_decision: str,
+    action_reason: str,
+    permission_enforced: bool,
+    permission_context_applied: bool,
+    permission_policy: str,
+    permission_reason: str,
+) -> dict[str, object]:
+    if not action_allowed:
+        return {
+            "permission_enforced": permission_enforced,
+            "action_allowed": action_allowed,
+            "action_decision": action_decision,
+            "action_reason": action_reason,
+            "allowed": False,
+            "decision": action_decision,
+            "reason": action_reason,
+        }
+    if not permission_enforced:
+        return {
+            "permission_enforced": False,
+            "action_allowed": action_allowed,
+            "action_decision": action_decision,
+            "action_reason": action_reason,
+            "allowed": True,
+            "decision": action_decision,
+            "reason": action_reason,
+        }
+    if not permission_context_applied:
+        return {
+            "permission_enforced": True,
+            "action_allowed": action_allowed,
+            "action_decision": action_decision,
+            "action_reason": action_reason,
+            "allowed": False,
+            "decision": "deny",
+            "reason": "permission_context_required_for_enforcement",
+        }
+    if permission_policy == "allow":
+        return {
+            "permission_enforced": True,
+            "action_allowed": action_allowed,
+            "action_decision": action_decision,
+            "action_reason": action_reason,
+            "allowed": True,
+            "decision": "allow",
+            "reason": permission_reason,
+        }
+    if permission_policy == "confirm":
+        return {
+            "permission_enforced": True,
+            "action_allowed": action_allowed,
+            "action_decision": action_decision,
+            "action_reason": action_reason,
+            "allowed": False,
+            "decision": "confirm",
+            "reason": permission_reason,
+        }
+    return {
+        "permission_enforced": True,
+        "action_allowed": action_allowed,
+        "action_decision": action_decision,
+        "action_reason": action_reason,
+        "allowed": False,
+        "decision": "deny",
+        "reason": permission_reason,
+    }
+
+
 def build_preflight_payload(
     requested_action: str,
     *,
     target_scope: str = "",
     requires_write: bool = False,
     doctor_bypass: bool = False,
+    permission_enforced: bool = False,
 ) -> dict[str, object]:
     action = requested_action.strip()
     runtime_profile = build_runtime_profile_payload()
@@ -993,7 +1067,23 @@ def build_preflight_payload(
         doctor_bypass,
         context_available=permission_context_applied,
     )
-    if action not in KNOWN_PREFLIGHT_ACTIONS:
+    action_allowed = action in KNOWN_PREFLIGHT_ACTIONS
+    action_decision = "allow" if action_allowed else "deny"
+    action_reason = (
+        "current_mvp_action_is_local_only"
+        if action_allowed
+        else "unknown_action_defaults_to_strict_deny"
+    )
+    gate_payload = build_preflight_gate_payload(
+        action_allowed=action_allowed,
+        action_decision=action_decision,
+        action_reason=action_reason,
+        permission_enforced=permission_enforced,
+        permission_context_applied=permission_context_applied,
+        permission_policy=str(permission_payload["permission_policy"]),
+        permission_reason=str(permission_payload["permission_reason"]),
+    )
+    if not action_allowed:
         return {
             "requested_action": action,
             "known": False,
@@ -1002,13 +1092,11 @@ def build_preflight_payload(
             "writes_state": False,
             "permission_context_applied": permission_context_applied,
             **permission_payload,
-            "allowed": False,
-            "decision": "deny",
+            **gate_payload,
             "offline_ready": False,
             "requires_model": False,
             "requires_sidecar": False,
             "degradation_mode": "deny_unknown",
-            "reason": "unknown_action_defaults_to_strict_deny",
             "detail": "preflight only allows known local MVP wrapper and session actions in the current offline entry",
             "runtime_profile": runtime_profile,
             "model_provider": model_provider,
@@ -1023,13 +1111,11 @@ def build_preflight_payload(
         "writes_state": writes_state,
         "permission_context_applied": permission_context_applied,
         **permission_payload,
-        "allowed": True,
-        "decision": "allow",
+        **gate_payload,
         "offline_ready": True,
         "requires_model": False,
         "requires_sidecar": False,
         "degradation_mode": "local_only_ok",
-        "reason": "current_mvp_action_is_local_only",
         "detail": "current MVP wrapper action stays available without an external model provider or sidecar",
         "runtime_profile": runtime_profile,
         "model_provider": model_provider,
@@ -1129,7 +1215,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --scope demo.workspace | verify"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-status --scope demo.workspace --write --enforce-permission | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
@@ -1194,7 +1280,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; "
-        "optional --scope / --write / --doctor-bypass also surface permission decisions before execution; supports --action <name> / --scope <value> / --json"
+        "optional --scope / --write / --doctor-bypass surface permission decisions, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
