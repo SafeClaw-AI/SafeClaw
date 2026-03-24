@@ -410,6 +410,20 @@ def assert_command_json_error(
     return details
 
 
+def assert_command_json_result(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    action: str,
+    *,
+    expected_exit: int = 0,
+) -> dict[str, object] | None:
+    payload = load_json_payload(run_wrapper_command(command), errors, name, expected_exit)
+    if payload is None:
+        return None
+    return extract_json_result(payload, errors, name, action)
+
+
 def assert_step_source_hints(
     steps: object,
     errors: list[str],
@@ -1605,37 +1619,34 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-demo effect=effect-task-wrapper-demo" not in wrapper_demo_output:
         errors.append("mvp-wrapper-demo 输出缺少 task-wrapper-demo report 目标")
 
-    wrapper_demo_json = subprocess.run(
+    result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo-json", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-demo-json",
+        "demo",
     )
-    payload = load_json_payload(wrapper_demo_json, errors, "mvp-wrapper-demo-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-demo-json", "demo")
-        if result is not None:
-            steps = result.get("steps") or []
-            session = result.get("session") or {}
-            remembered_session = result.get("remembered_session") or {}
-            if [step.get("action") for step in steps] != ["run", "status", "report"]:
-                errors.append("mvp-wrapper-demo-json 步骤序列不正确")
-            elif remembered_session.get("task_id") != "task-wrapper-demo-json":
-                errors.append("mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json")
-            elif session.get("task_id") != "task-wrapper-demo-json":
-                errors.append("mvp-wrapper-demo-json 缺少兼容 session task-wrapper-demo-json")
-            else:
-                assert_matching_session_alias(result, errors, "mvp-wrapper-demo-json")
-                assert_step_source_hints(
-                    steps,
-                    errors,
-                    "mvp-wrapper-demo-json",
-                    [
-                        ("run", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
-                        ("status", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                    ],
-                )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["run", "status", "report"]:
+            errors.append("mvp-wrapper-demo-json 步骤序列不正确")
+        elif remembered_session.get("task_id") != "task-wrapper-demo-json":
+            errors.append("mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json")
+        elif session.get("task_id") != "task-wrapper-demo-json":
+            errors.append("mvp-wrapper-demo-json 缺少兼容 session task-wrapper-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-demo-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-demo-json",
+                [
+                    ("run", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                    ("status", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
 
     assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
@@ -1716,37 +1727,34 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-recover-demo effect=effect-task-wrapper-recover-demo" not in wrapper_recover_demo_output:
         errors.append("mvp-wrapper-recover-demo 输出缺少 task-wrapper-recover-demo report 目标")
 
-    wrapper_recover_demo_json = subprocess.run(
+    result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo-json", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-recover-demo-json",
+        "recover-demo",
     )
-    payload = load_json_payload(wrapper_recover_demo_json, errors, "mvp-wrapper-recover-demo-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-recover-demo-json", "recover-demo")
-        if result is not None:
-            steps = result.get("steps") or []
-            session = result.get("session") or {}
-            remembered_session = result.get("remembered_session") or {}
-            if [step.get("action") for step in steps] != ["seed-crash", "recover", "report"]:
-                errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
-            elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
-                errors.append("mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json")
-            elif session.get("task_id") != "task-wrapper-recover-demo-json":
-                errors.append("mvp-wrapper-recover-demo-json 缺少兼容 session task-wrapper-recover-demo-json")
-            else:
-                assert_matching_session_alias(result, errors, "mvp-wrapper-recover-demo-json")
-                assert_step_source_hints(
-                    steps,
-                    errors,
-                    "mvp-wrapper-recover-demo-json",
-                    [
-                        ("seed-crash", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
-                        ("recover", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                    ],
-                )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["seed-crash", "recover", "report"]:
+            errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
+        elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
+            errors.append("mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json")
+        elif session.get("task_id") != "task-wrapper-recover-demo-json":
+            errors.append("mvp-wrapper-recover-demo-json 缺少兼容 session task-wrapper-recover-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-recover-demo-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-recover-demo-json",
+                [
+                    ("seed-crash", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                    ("recover", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
 
     assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "recover-demo", "--bogus"],
@@ -1817,37 +1825,34 @@ def collect_errors() -> list[str]:
     elif "[mvp] report target => task=task-wrapper-retry-demo effect=effect-task-wrapper-retry-demo" not in wrapper_retry_demo_output:
         errors.append("mvp-wrapper-retry-demo 输出缺少 task-wrapper-retry-demo report 目标")
 
-    wrapper_retry_demo_json = subprocess.run(
+    result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo-json", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-retry-demo-json",
+        "retry-demo",
     )
-    payload = load_json_payload(wrapper_retry_demo_json, errors, "mvp-wrapper-retry-demo-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-retry-demo-json", "retry-demo")
-        if result is not None:
-            steps = result.get("steps") or []
-            session = result.get("session") or {}
-            remembered_session = result.get("remembered_session") or {}
-            if [step.get("action") for step in steps] != ["seed-failed", "retry", "report"]:
-                errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
-            elif remembered_session.get("task_id") != "task-wrapper-retry-demo-json":
-                errors.append("mvp-wrapper-retry-demo-json 缺少 remembered_session task-wrapper-retry-demo-json")
-            elif session.get("task_id") != "task-wrapper-retry-demo-json":
-                errors.append("mvp-wrapper-retry-demo-json 缺少兼容 session task-wrapper-retry-demo-json")
-            else:
-                assert_matching_session_alias(result, errors, "mvp-wrapper-retry-demo-json")
-                assert_step_source_hints(
-                    steps,
-                    errors,
-                    "mvp-wrapper-retry-demo-json",
-                    [
-                        ("seed-failed", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
-                        ("retry", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
-                    ],
-                )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["seed-failed", "retry", "report"]:
+            errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
+        elif remembered_session.get("task_id") != "task-wrapper-retry-demo-json":
+            errors.append("mvp-wrapper-retry-demo-json 缺少 remembered_session task-wrapper-retry-demo-json")
+        elif session.get("task_id") != "task-wrapper-retry-demo-json":
+            errors.append("mvp-wrapper-retry-demo-json 缺少兼容 session task-wrapper-retry-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-retry-demo-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-retry-demo-json",
+                [
+                    ("seed-failed", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                    ("retry", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
 
     assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "retry-demo", "--bogus"],
