@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 03:47:04 +0800
+最后更新时间：2026-03-25 04:01:27 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -66,4 +66,10 @@
 - 完成时间：2026-03-25 03:47:04 +0800
 - 完成内容：让 `service-status` 的 recent task 显式展示 `target_scope` / `requires_write` / `doctor_bypass`；同步根 README、`tools/mvp/README.md` 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: surface scope diagnostics in service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`651483c feat: surface scope diagnostics in service status`
+
+### 轮次 K
+- 完成时间：2026-03-25 04:01:27 +0800
+- 完成内容：让 `service-status` 的 recent task 显式展示最新 lease 新鲜度，补 `lease_state` / `lease_owner_id` / `lease_fencing_token` 等字段；同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: surface lease freshness in service status`；最终 hash 以当前 `HEAD` 为准。

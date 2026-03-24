@@ -676,6 +676,8 @@ def run_service_status(args: list[str]) -> int:
             f"effect_status={row['effect_status']} scope={row['target_scope']} "
             f"write={str(bool(row['requires_write'])).lower()} "
             f"doctor_bypass={str(bool(row['doctor_bypass'])).lower()} "
+            f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
+            f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
@@ -992,7 +994,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope and latest lease freshness; "
         "supports --db / --limit / --json"
     )
     print(
@@ -1555,10 +1557,26 @@ def repair_invalid_session(reason: str) -> None:
     )
 
 
+def classify_orchestrator_lease_state(
+    expires_at_ms: int | None,
+    released_at_ms: int | None,
+    now_ms: int,
+) -> str:
+    if expires_at_ms is None:
+        return "none"
+    if released_at_ms is not None:
+        return "released"
+    if expires_at_ms > now_ms:
+        return "active"
+    return "expired"
+
+
+
 def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
 
+    now_ms = int(time.time() * 1000)
     with sqlite3.connect(db_path) as connection:
         rows = connection.execute(
             """
@@ -1579,10 +1597,22 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
                 ) AS effect_id,
                 COALESCE(orchestrator_tasks.target_scope, '') AS target_scope,
                 COALESCE(orchestrator_tasks.requires_write, 0) AS requires_write,
-                COALESCE(orchestrator_tasks.doctor_bypass, 0) AS doctor_bypass
+                COALESCE(orchestrator_tasks.doctor_bypass, 0) AS doctor_bypass,
+                COALESCE(latest_lease.owner_id, '') AS lease_owner_id,
+                latest_lease.fencing_token AS lease_fencing_token,
+                latest_lease.expires_at_ms AS lease_expires_at_ms,
+                latest_lease.released_at_ms AS lease_released_at_ms
             FROM task_snapshots
             LEFT JOIN orchestrator_tasks
               ON orchestrator_tasks.task_id = task_snapshots.task_id
+            LEFT JOIN orchestrator_leases AS latest_lease
+              ON latest_lease.lease_id = (
+                  SELECT lease_view.lease_id
+                  FROM orchestrator_leases AS lease_view
+                  WHERE lease_view.task_id = task_snapshots.task_id
+                  ORDER BY lease_view.fencing_token DESC, lease_view.rowid DESC
+                  LIMIT 1
+              )
             ORDER BY task_snapshots.updated_at DESC, task_snapshots.task_id DESC
             LIMIT ?1
             """,
@@ -1599,6 +1629,15 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
             "target_scope": row[5] or '',
             "requires_write": bool(row[6]),
             "doctor_bypass": bool(row[7]),
+            "lease_owner_id": row[8] or '',
+            "lease_fencing_token": None if row[9] is None else int(row[9]),
+            "lease_expires_at_ms": None if row[10] is None else int(row[10]),
+            "lease_released_at_ms": None if row[11] is None else int(row[11]),
+            "lease_state": classify_orchestrator_lease_state(
+                None if row[10] is None else int(row[10]),
+                None if row[11] is None else int(row[11]),
+                now_ms,
+            ),
         }
         for row in rows
     ]
@@ -2040,12 +2079,3 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
-
-
-
-
-
-
-
-
-

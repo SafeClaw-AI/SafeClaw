@@ -1,11 +1,11 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 03:47:04 +0800
+最后更新时间：2026-03-25 04:01:27 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前两刀为 doctor 离线边界诊断 / scope 可见化
+当前阶段：已进入 M1b，前三刀为 doctor 离线边界诊断 / scope 可见化 / lease 可见化
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
-- 当前主线（M1b 生存层补完）：约 2 ~ 4 天
+- 当前主线（M1b 生存层补完）：约 1.5 ~ 3.5 天
 - 下一阶段（M2 首轮价值层）：约 1 ~ 2 周
 
 ## 进展
@@ -19,6 +19,7 @@
 | [x] | M1a 最后一轮可手用验收 | `01_文档/03_开发蓝图.md` M1 验收 | 根入口 `workspace -> doctor -> service-run/retry/recover -> verify` 已进 smoke；`selfcheck` 全绿 | 当前主线已收口 |
 | [x] | M1b 首刀：doctor 离线边界诊断 | `01_文档/03_开发蓝图.md` M1b | `doctor` 现已显式返回 `runtime_profile` / `model_provider` / `sidecar`，说明当前 local MVP 离线可跑、无 provider/sidecar 也属正常 | 已落地，降低使用歧义 |
 | [x] | M1b 第二刀：service-status scope 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回并输出 `target_scope` / `requires_write` / `doctor_bypass`，让当前任务边界直接可见 | 已落地，降低权限边界不可见性 |
+| [x] | M1b 第三刀：service-status lease 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回并输出 `lease_state` / `lease_owner_id` / `lease_fencing_token`，让最新租约是否 active / expired / released 直接可见 | 已落地，降低恢复判断成本 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 权限 scope / 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

@@ -290,6 +290,9 @@ def assert_service_status_json_result(
     expected_target_scope: str | None = None,
     expected_requires_write: bool | None = None,
     expected_doctor_bypass: bool | None = None,
+    expected_lease_state: str | None = None,
+    expected_lease_owner_id: str | None = None,
+    expected_lease_fencing_token: int | None = None,
 ) -> None:
     if result is None:
         return
@@ -337,6 +340,12 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent requires_write={expected_requires_write}")
     elif expected_doctor_bypass is not None and recent_tasks[0].get("doctor_bypass") != expected_doctor_bypass:
         errors.append(f"{name} missing recent doctor_bypass={expected_doctor_bypass}")
+    elif expected_lease_state is not None and recent_tasks[0].get("lease_state") != expected_lease_state:
+        errors.append(f"{name} missing recent lease_state={expected_lease_state}")
+    elif expected_lease_owner_id is not None and recent_tasks[0].get("lease_owner_id") != expected_lease_owner_id:
+        errors.append(f"{name} missing recent lease_owner_id={expected_lease_owner_id}")
+    elif expected_lease_fencing_token is not None and recent_tasks[0].get("lease_fencing_token") != expected_lease_fencing_token:
+        errors.append(f"{name} missing recent lease_fencing_token={expected_lease_fencing_token}")
 
 
 def assert_service_run_json_result(
@@ -990,7 +999,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope and latest lease freshness; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -1604,6 +1613,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? recent task")
     elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing scope visibility")
+    elif "lease=released lease_owner=safeclaw-mvp lease_fence=1" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing lease visibility")
 
     result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
@@ -1621,6 +1632,9 @@ def collect_errors() -> list[str]:
         expected_target_scope="scope:target/mvp/service-status.txt",
         expected_requires_write=True,
         expected_doctor_bypass=False,
+        expected_lease_state="released",
+        expected_lease_owner_id="safeclaw-mvp",
+        expected_lease_fencing_token=1,
     )
 
     assert_command_json_error(

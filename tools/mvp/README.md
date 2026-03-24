@@ -35,7 +35,7 @@
 - `service-retry`: retry a failed task and immediately print the matching service summary
 - `service-recover`: recover an uncertain task and immediately print the matching service summary
 - `--report`: append `report` after `service-status`, so the practical path can end with a governance view in one command
-- `service-status`: queue / lease / task snapshot summary for the selected db, including recent task `scope` / `write` / `doctor_bypass` visibility
+- `service-status`: queue / lease / task snapshot summary for the selected db, including recent task `scope` / `write` / `doctor_bypass` visibility and latest lease freshness
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话，并在文本输出里带上 remembered session 文件路径
@@ -68,7 +68,7 @@
 - `service-run` successful `--json` returns combo `steps`, a nested `run` result, and `service_status` summary fields.
 - `service-retry` successful `--json` returns combo `steps`, a nested `retry` result, and `service_status` summary fields.
 - `service-recover` successful `--json` returns combo `steps`, a nested `recover` result, and `service_status` summary fields.
-- `service-status` successful `--json` returns structured fields like `queue`, `workers`, `effects`, `probes`, and `recent_tasks`; each recent task now also includes `target_scope`, `requires_write`, and `doctor_bypass`.
+- `service-status` successful `--json` returns structured fields like `queue`, `workers`, `effects`, `probes`, and `recent_tasks`; each recent task now also includes `target_scope`, `requires_write`, `doctor_bypass`, `lease_state`, `lease_owner_id`, and latest lease snapshot fields.
 - 若组合动作在底层执行阶段失败，错误 JSON 的 `error.details.steps[*].source_hints` 也会保留已进入失败步骤的来源，便于脚本区分“预处理失败”与“底层动作失败”。
 
 ## 最常用命令
