@@ -80,6 +80,22 @@ REQUIRED_MARKERS = {
         "tests/fixtures/",
         "合同测试",
     ],
+    MVP_PROGRESS_FILE: [
+        "整体计划实现进展表",
+        "当前阶段",
+        "当前预估",
+        "## 进展",
+    ],
+    PUSH_LOG_FILE: [
+        "提交推送流水账",
+        "## 记录规则",
+        "## 流水",
+    ],
+}
+
+QUESTION_MARK_FORBIDDEN = {
+    MVP_PROGRESS_FILE: True,
+    PUSH_LOG_FILE: True,
 }
 
 
@@ -91,6 +107,7 @@ def collect_errors() -> list[str]:
         if not path.exists():
             errors.append(f"缺少公开文档: {path.relative_to(REPO_ROOT).as_posix()}")
             continue
+
         text = path.read_text(encoding="utf-8")
         for marker in markers:
             current_marker = repo_version if marker == "0.1.1" else marker
@@ -98,6 +115,11 @@ def collect_errors() -> list[str]:
                 errors.append(
                     f"公开文档缺少关键标记: {path.relative_to(REPO_ROOT).as_posix()} -> {current_marker}"
                 )
+
+        if QUESTION_MARK_FORBIDDEN.get(path) and ("?" in text or "�" in text):
+            errors.append(
+                f"公开文档疑似编码损坏: {path.relative_to(REPO_ROOT).as_posix()} 含有意外占位符"
+            )
 
     return errors
 
