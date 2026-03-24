@@ -1436,36 +1436,17 @@ def collect_errors() -> list[str]:
     elif "[mvp] accepted task => task=task-wrapper-invalid-json-base effect=effect-task-wrapper-invalid-json-base" not in wrapper_invalid_json_base_output:
         errors.append("mvp-wrapper-invalid-json-base 输出缺少基座会话 task-wrapper-invalid-json-base")
 
-    wrapper_cmd_report_invalid_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_cmd_report_invalid_json,
         errors,
         "mvp-wrapper-cmd-report-invalid-json",
-        2,
+        "report",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-cmd-report-invalid-json missing unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+        remembered_session_label="mvp-wrapper-cmd-report-invalid-json missing invalid-json-base",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-cmd-report-invalid-json",
-            "report",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-report-invalid-json",
-            expected_error_message_substring="unknown argument",
-            error_message_label="mvp-wrapper-cmd-report-invalid-json missing unknown argument",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
-            remembered_session_label="mvp-wrapper-cmd-report-invalid-json missing invalid-json-base",
-        )
 
     assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--bogus", "--json"],
@@ -1479,36 +1460,17 @@ def collect_errors() -> list[str]:
         remembered_session_label="mvp-wrapper-report-invalid-json remembered_session 缺少基座会话",
     )
 
-    wrapper_ps1_recover_invalid_json = subprocess.run(
+    assert_command_json_error(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "recover", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_ps1_recover_invalid_json,
         errors,
         "mvp-wrapper-ps1-recover-invalid-json",
-        2,
+        "recover",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-ps1-recover-invalid-json missing unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+        remembered_session_label="mvp-wrapper-ps1-recover-invalid-json missing invalid-json-base",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-ps1-recover-invalid-json",
-            "recover",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-ps1-recover-invalid-json",
-            expected_error_message_substring="unknown argument",
-            error_message_label="mvp-wrapper-ps1-recover-invalid-json missing unknown argument",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
-            remembered_session_label="mvp-wrapper-ps1-recover-invalid-json missing invalid-json-base",
-        )
 
     assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover", "--bogus", "--json"],
@@ -1522,36 +1484,17 @@ def collect_errors() -> list[str]:
         remembered_session_label="mvp-wrapper-recover-invalid-json remembered_session 缺少基座会话",
     )
 
-    wrapper_cmd_retry_invalid_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_cmd_retry_invalid_json,
         errors,
         "mvp-wrapper-cmd-retry-invalid-json",
-        2,
+        "retry",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-cmd-retry-invalid-json missing unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+        remembered_session_label="mvp-wrapper-cmd-retry-invalid-json missing invalid-json-base",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-cmd-retry-invalid-json",
-            "retry",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-retry-invalid-json",
-            expected_error_message_substring="unknown argument",
-            error_message_label="mvp-wrapper-cmd-retry-invalid-json missing unknown argument",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-invalid-json-base",
-            remembered_session_label="mvp-wrapper-cmd-retry-invalid-json missing invalid-json-base",
-        )
 
     assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--bogus", "--json"],
@@ -1565,86 +1508,29 @@ def collect_errors() -> list[str]:
         remembered_session_label="mvp-wrapper-retry-invalid-json remembered_session 缺少基座会话",
     )
 
-    wrapper_cmd_invalid_session_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_cmd_invalid_session_json,
         errors,
         "mvp-wrapper-cmd-invalid-session-json",
-        2,
+        "session",
+        expected_error_message_substring="unknown argument",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-cmd-invalid-session-json",
-            "session",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-invalid-session-json",
-            expected_error_message_substring="unknown argument",
-        )
 
-    wrapper_ps1_invalid_doctor_json = subprocess.run(
+    assert_command_json_error(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "doctor", "--db", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_ps1_invalid_doctor_json,
         errors,
         "mvp-wrapper-ps1-invalid-doctor-json",
-        2,
+        "doctor",
+        expected_error_message_substring="missing value after --db",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-ps1-invalid-doctor-json",
-            "doctor",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-ps1-invalid-doctor-json",
-            expected_error_message_substring="missing value after --db",
-        )
 
-    wrapper_cmd_invalid_sessions_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions", "--limit", "bad", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_cmd_invalid_sessions_json,
         errors,
         "mvp-wrapper-cmd-invalid-sessions-json",
-        2,
+        "sessions",
+        expected_error_message_substring="invalid --limit",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
-            errors,
-            "mvp-wrapper-cmd-invalid-sessions-json",
-            "sessions",
-        )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-invalid-sessions-json",
-            expected_error_message_substring="invalid --limit",
-        )
 
     assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--bogus", "--json"],
