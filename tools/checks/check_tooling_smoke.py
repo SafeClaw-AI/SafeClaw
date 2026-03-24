@@ -363,6 +363,52 @@ def assert_json_error_fields(
             errors.append(remembered_session_label or f"{name} remembered_session 缺少 {expected_remembered_session_task_id}")
 
 
+def run_wrapper_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
+
+
+def assert_command_failure_output(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    *,
+    expected_substring: str,
+    missing_output_label: str,
+    expected_exit: int | None = None,
+) -> None:
+    completed = run_wrapper_command(command)
+    output = (completed.stdout or "") + (completed.stderr or "")
+    if expected_exit is None:
+        if completed.returncode == 0:
+            errors.append(f"{name} missing non-zero exit")
+            return
+    elif completed.returncode != expected_exit:
+        errors.append(f"{name} failed: exit={completed.returncode}")
+        return
+    if expected_substring not in output:
+        errors.append(missing_output_label)
+
+
+def assert_command_json_error(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    action: str,
+    *,
+    expected_exit: int = 2,
+    reject_legacy_session: bool = False,
+    legacy_session_label: str | None = None,
+    **error_expectations: object,
+) -> None:
+    payload = load_json_payload(run_wrapper_command(command), errors, name, expected_exit)
+    if payload is None:
+        return
+    error, details = extract_json_error(payload, errors, name, action)
+    assert_json_error_fields(error, details, errors, name, **error_expectations)
+    if reject_legacy_session and details is not None and details.get("session") is not None:
+        errors.append(legacy_session_label or f"{name} should not keep legacy session")
+
+
 def assert_step_source_hints(
     steps: object,
     errors: list[str],
@@ -1738,17 +1784,13 @@ def collect_errors() -> list[str]:
             expected_error_message_substring="invalid --limit",
         )
 
-    wrapper_cmd_passthrough_fail = subprocess.run(
+    assert_command_failure_output(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "not-real-action"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-passthrough-fail",
+        expected_substring="[mvp-wrapper] cargo => failed action=not-real-action exit=1",
+        missing_output_label="mvp-wrapper-cmd-passthrough-fail missing failed action marker",
     )
-    wrapper_cmd_passthrough_fail_output = (wrapper_cmd_passthrough_fail.stdout or "") + (wrapper_cmd_passthrough_fail.stderr or "")
-    if wrapper_cmd_passthrough_fail.returncode == 0:
-        errors.append("mvp-wrapper-cmd-passthrough-fail missing non-zero exit")
-    elif "[mvp-wrapper] cargo => failed action=not-real-action exit=1" not in wrapper_cmd_passthrough_fail_output:
-        errors.append("mvp-wrapper-cmd-passthrough-fail missing failed action marker")
 
     wrapper_passthrough_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "not-real-action"],
@@ -1762,17 +1804,14 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] cargo => failed action=not-real-action exit=1" not in wrapper_passthrough_fail_output:
         errors.append("mvp-wrapper-passthrough-fail 输出缺少透传失败承接提示")
 
-    wrapper_ps1_demo_fail = subprocess.run(
+    assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "demo", "--bogus"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-demo-fail",
+        expected_exit=2,
+        expected_substring="[mvp-wrapper] demo => failed step=run exit=2",
+        missing_output_label="mvp-wrapper-ps1-demo-fail missing failed step marker",
     )
-    wrapper_ps1_demo_fail_output = (wrapper_ps1_demo_fail.stdout or "") + (wrapper_ps1_demo_fail.stderr or "")
-    if wrapper_ps1_demo_fail.returncode != 2:
-        errors.append(f"mvp-wrapper-ps1-demo-fail failed: exit={wrapper_ps1_demo_fail.returncode}")
-    elif "[mvp-wrapper] demo => failed step=run exit=2" not in wrapper_ps1_demo_fail_output:
-        errors.append("mvp-wrapper-ps1-demo-fail missing failed step marker")
 
     wrapper_demo_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus"],
@@ -1975,29 +2014,20 @@ def collect_errors() -> list[str]:
                     ],
                 )
 
-    wrapper_cmd_demo_fail_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-demo-fail-json",
+        "demo",
+        expected_failed_step="run",
+        expected_code="invalid-argument",
+        expected_details_message_substring="unknown argument",
+        details_message_label="mvp-wrapper-cmd-demo-fail-json missing unknown argument",
+        expected_remembered_session_task_id="task-wrapper-demo-json",
+        remembered_session_label="mvp-wrapper-cmd-demo-fail-json missing task-wrapper-demo-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-cmd-demo-fail-json should not keep legacy session",
     )
-    payload = load_json_payload(wrapper_cmd_demo_fail_json, errors, "mvp-wrapper-cmd-demo-fail-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-cmd-demo-fail-json", "demo")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-demo-fail-json",
-            expected_failed_step="run",
-            expected_code="invalid-argument",
-            expected_details_message_substring="unknown argument",
-            details_message_label="mvp-wrapper-cmd-demo-fail-json missing unknown argument",
-            expected_remembered_session_task_id="task-wrapper-demo-json",
-            remembered_session_label="mvp-wrapper-cmd-demo-fail-json missing task-wrapper-demo-json",
-        )
-        if details is not None and details.get("session") is not None:
-            errors.append("mvp-wrapper-cmd-demo-fail-json should not keep legacy session")
 
     wrapper_demo_fail_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus", "--json"],
@@ -2122,17 +2152,14 @@ def collect_errors() -> list[str]:
                     ],
                 )
 
-    wrapper_ps1_recover_demo_fail = subprocess.run(
+    assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "recover-demo", "--bogus"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-recover-demo-fail",
+        expected_exit=2,
+        expected_substring="[mvp-wrapper] recover-demo => failed step=seed-crash exit=2",
+        missing_output_label="mvp-wrapper-ps1-recover-demo-fail missing failed step marker",
     )
-    wrapper_ps1_recover_demo_fail_output = (wrapper_ps1_recover_demo_fail.stdout or "") + (wrapper_ps1_recover_demo_fail.stderr or "")
-    if wrapper_ps1_recover_demo_fail.returncode != 2:
-        errors.append(f"mvp-wrapper-ps1-recover-demo-fail failed: exit={wrapper_ps1_recover_demo_fail.returncode}")
-    elif "[mvp-wrapper] recover-demo => failed step=seed-crash exit=2" not in wrapper_ps1_recover_demo_fail_output:
-        errors.append("mvp-wrapper-ps1-recover-demo-fail missing failed step marker")
 
     wrapper_recover_demo_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus"],
@@ -2146,29 +2173,20 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] recover-demo => failed step=seed-crash exit=2" not in wrapper_recover_demo_fail_output:
         errors.append("mvp-wrapper-recover-demo-fail 输出缺少组合动作失败承接提示")
 
-    wrapper_cmd_recover_demo_fail_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "recover-demo", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-recover-demo-fail-json",
+        "recover-demo",
+        expected_failed_step="seed-crash",
+        expected_code="invalid-argument",
+        expected_details_message_substring="unknown argument",
+        details_message_label="mvp-wrapper-cmd-recover-demo-fail-json missing unknown argument",
+        expected_remembered_session_task_id="task-wrapper-recover-demo-json",
+        remembered_session_label="mvp-wrapper-cmd-recover-demo-fail-json missing task-wrapper-recover-demo-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-cmd-recover-demo-fail-json should not keep legacy session",
     )
-    payload = load_json_payload(wrapper_cmd_recover_demo_fail_json, errors, "mvp-wrapper-cmd-recover-demo-fail-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-cmd-recover-demo-fail-json", "recover-demo")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-recover-demo-fail-json",
-            expected_failed_step="seed-crash",
-            expected_code="invalid-argument",
-            expected_details_message_substring="unknown argument",
-            details_message_label="mvp-wrapper-cmd-recover-demo-fail-json missing unknown argument",
-            expected_remembered_session_task_id="task-wrapper-recover-demo-json",
-            remembered_session_label="mvp-wrapper-cmd-recover-demo-fail-json missing task-wrapper-recover-demo-json",
-        )
-        if details is not None and details.get("session") is not None:
-            errors.append("mvp-wrapper-cmd-recover-demo-fail-json should not keep legacy session")
 
     wrapper_recover_demo_fail_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus", "--json"],
@@ -2244,17 +2262,14 @@ def collect_errors() -> list[str]:
                     ],
                 )
 
-    wrapper_ps1_retry_demo_fail = subprocess.run(
+    assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "retry-demo", "--bogus"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-retry-demo-fail",
+        expected_exit=2,
+        expected_substring="[mvp-wrapper] retry-demo => failed step=seed-failed exit=2",
+        missing_output_label="mvp-wrapper-ps1-retry-demo-fail missing failed step marker",
     )
-    wrapper_ps1_retry_demo_fail_output = (wrapper_ps1_retry_demo_fail.stdout or "") + (wrapper_ps1_retry_demo_fail.stderr or "")
-    if wrapper_ps1_retry_demo_fail.returncode != 2:
-        errors.append(f"mvp-wrapper-ps1-retry-demo-fail failed: exit={wrapper_ps1_retry_demo_fail.returncode}")
-    elif "[mvp-wrapper] retry-demo => failed step=seed-failed exit=2" not in wrapper_ps1_retry_demo_fail_output:
-        errors.append("mvp-wrapper-ps1-retry-demo-fail missing failed step marker")
 
     wrapper_retry_demo_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--bogus"],
@@ -2268,29 +2283,20 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] retry-demo => failed step=seed-failed exit=2" not in wrapper_retry_demo_fail_output:
         errors.append("mvp-wrapper-retry-demo-fail 输出缺少组合动作失败承接提示")
 
-    wrapper_cmd_retry_demo_fail_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry-demo", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-retry-demo-fail-json",
+        "retry-demo",
+        expected_failed_step="seed-failed",
+        expected_code="invalid-argument",
+        expected_details_message_substring="unknown argument",
+        details_message_label="mvp-wrapper-cmd-retry-demo-fail-json missing unknown argument",
+        expected_remembered_session_task_id="task-wrapper-retry-demo-json",
+        remembered_session_label="mvp-wrapper-cmd-retry-demo-fail-json missing task-wrapper-retry-demo-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-cmd-retry-demo-fail-json should not keep legacy session",
     )
-    payload = load_json_payload(wrapper_cmd_retry_demo_fail_json, errors, "mvp-wrapper-cmd-retry-demo-fail-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-cmd-retry-demo-fail-json", "retry-demo")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-retry-demo-fail-json",
-            expected_failed_step="seed-failed",
-            expected_code="invalid-argument",
-            expected_details_message_substring="unknown argument",
-            details_message_label="mvp-wrapper-cmd-retry-demo-fail-json missing unknown argument",
-            expected_remembered_session_task_id="task-wrapper-retry-demo-json",
-            remembered_session_label="mvp-wrapper-cmd-retry-demo-fail-json missing task-wrapper-retry-demo-json",
-        )
-        if details is not None and details.get("session") is not None:
-            errors.append("mvp-wrapper-cmd-retry-demo-fail-json should not keep legacy session")
 
     wrapper_retry_demo_fail_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--bogus", "--json"],
