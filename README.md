@@ -143,9 +143,9 @@ SafeClaw 还在很早期。
 目前还没有正式 GUI，也还不是“开箱即用的产品”。  
 但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动使用最小闭环。
 
-- 固定入口：`tools/mvp/safeclaw_mvp.cmd`
-- PowerShell 包装：`tools/mvp/safeclaw_mvp.ps1`
-- 详细命令：见 `tools/mvp/README.md`
+- Preferred entry: `safeclaw.cmd`
+- PowerShell entry: `safeclaw.ps1`
+- Underlying wrapper: `tools/mvp/safeclaw_mvp.cmd`; detailed commands: `tools/mvp/README.md`
 
 当前已支持的最小动作：
 
@@ -155,10 +155,11 @@ SafeClaw 还在很早期。
 - `retry-demo`：一条命令串起 `seed-failed -> retry -> report`
 - `report`：查看指定任务 / effect 当前治理视图
 - `status`：在只给 `--db` 时自动查看最新任务状态
-- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径，并显式标出当前 `db` / `output` 来源（`flag` / `session` / `default`）；`--json` 结果还会给出聚合 `status` 与 `failing_checks`
+- `doctor`: checks launcher, Rust toolchain, linker, current session / workspace paths, and reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`); `--json` also returns aggregated `status` and `failing_checks`
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
+- `workspace`: pins default `db` / `output` for a named workspace; `--clear` returns to global defaults
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` 支持 `--json`，并统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本与后续自动化接入
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` support `--json`, returning a unified `{ok, action, schema_version, result|error}` envelope for scripts and future automation
 - `sessions` 默认优先复用 remembered session 的 `db`，并在文本/JSON 输出里标出来源，方便脚本与人工排障快速确认上下文
 - `use` 在激活历史会话时会同时标出选择来源以及 `db` / `output` / `owner_id` 来源，减少切换上下文时的猜测成本
 - `seed-crash` + `recover`：模拟崩溃后恢复并补 probe

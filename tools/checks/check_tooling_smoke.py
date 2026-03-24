@@ -993,6 +993,30 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-ps1-help 执行失败: exit={wrapper_ps1_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_ps1_help_output:
         errors.append("mvp-wrapper-ps1-help 输出缺少 usage")
+    root_cmd_help = subprocess.run(
+        ["cmd", "/c", "safeclaw.cmd", "help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    root_cmd_help_output = (root_cmd_help.stdout or "") + (root_cmd_help.stderr or "")
+    if root_cmd_help.returncode != 0:
+        errors.append(f"safeclaw-root-cmd-help failed: exit={root_cmd_help.returncode}")
+    elif "[mvp-wrapper] usage => tools\mvp\safeclaw_mvp.cmd <action> [flags]" not in root_cmd_help_output:
+        errors.append("safeclaw-root-cmd-help missing usage")
+
+    root_ps1_help = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    root_ps1_help_output = (root_ps1_help.stdout or "") + (root_ps1_help.stderr or "")
+    if root_ps1_help.returncode != 0:
+        errors.append(f"safeclaw-root-ps1-help failed: exit={root_ps1_help.returncode}")
+    elif "[mvp-wrapper] usage => tools\mvp\safeclaw_mvp.cmd <action> [flags]" not in root_ps1_help_output:
+        errors.append("safeclaw-root-ps1-help missing usage")
+
 
     result = assert_command_json_result(
         [
