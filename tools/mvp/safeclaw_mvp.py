@@ -955,7 +955,7 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                 "failed_step": step[0],
                 "steps": step_results,
                 "error_message": str(error),
-                "session": load_session(),
+                "remembered_session": load_session(),
             }
             if str(error).startswith("missing task context"):
                 details["code"] = "missing-task-context"
@@ -979,7 +979,7 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                     "failed_step": result["action"],
                     "steps": step_results,
                     "captured_output": str(result["output"]).strip(),
-                    "session": load_session(),
+                    "remembered_session": load_session(),
                 },
             )
     return emit_json_result(name, {"steps": step_results, "session": load_session()})

@@ -1045,7 +1045,11 @@ def collect_errors() -> list[str]:
             expected_code="invalid-argument",
             expected_details_message_substring="unknown argument",
             details_message_label="mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument",
+            expected_remembered_session_task_id="task-wrapper-demo-json",
+            remembered_session_label="mvp-wrapper-demo-fail-json remembered_session 缺少 task-wrapper-demo-json",
         )
+        if details is not None and details.get("session") is not None:
+            errors.append("mvp-wrapper-demo-fail-json 不应继续返回旧 session 字段")
 
     wrapper_demo_underlying_fail_json = subprocess.run(
         [
@@ -1083,8 +1087,12 @@ def collect_errors() -> list[str]:
             expected_error_message_substring="failed step=run",
             error_message_label="mvp-wrapper-demo-underlying-fail-json 缺少组合动作失败消息",
             expected_failed_step="run",
+            expected_remembered_session_task_id="task-wrapper-demo-json",
+            remembered_session_label="mvp-wrapper-demo-underlying-fail-json remembered_session 缺少 task-wrapper-demo-json",
         )
         if details is not None:
+            if details.get("session") is not None:
+                errors.append("mvp-wrapper-demo-underlying-fail-json 不应继续返回旧 session 字段")
             assert_step_source_hints(
                 details.get("steps"),
                 errors,
@@ -1168,7 +1176,11 @@ def collect_errors() -> list[str]:
             expected_code="invalid-argument",
             expected_details_message_substring="unknown argument",
             details_message_label="mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument",
+            expected_remembered_session_task_id="task-wrapper-recover-demo-json",
+            remembered_session_label="mvp-wrapper-recover-demo-fail-json remembered_session 缺少 task-wrapper-recover-demo-json",
         )
+        if details is not None and details.get("session") is not None:
+            errors.append("mvp-wrapper-recover-demo-fail-json 不应继续返回旧 session 字段")
 
     wrapper_retry_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--task-id", "task-wrapper-retry-demo"],
@@ -1246,7 +1258,11 @@ def collect_errors() -> list[str]:
             expected_code="invalid-argument",
             expected_details_message_substring="unknown argument",
             details_message_label="mvp-wrapper-retry-demo-fail-json 缺少 wrapper 级 unknown argument",
+            expected_remembered_session_task_id="task-wrapper-retry-demo-json",
+            remembered_session_label="mvp-wrapper-retry-demo-fail-json remembered_session 缺少 task-wrapper-retry-demo-json",
         )
+        if details is not None and details.get("session") is not None:
+            errors.append("mvp-wrapper-retry-demo-fail-json 不应继续返回旧 session 字段")
 
     root_index = REPO_ROOT / "generated" / "index.json"
     if not root_index.exists():
