@@ -218,6 +218,13 @@ def assert_preflight_json_result(
     expected_action_class: str,
     expected_tier: str,
     expected_writes_state: bool,
+    expected_target_scope: str,
+    expected_requires_write: bool,
+    expected_doctor_bypass: bool,
+    expected_permission_context_applied: bool,
+    expected_permission_tier: str,
+    expected_permission_policy: str,
+    expected_permission_reason: str,
     expected_allowed: bool,
     expected_decision: str,
     expected_offline_ready: bool,
@@ -239,6 +246,20 @@ def assert_preflight_json_result(
         errors.append(f"{name} missing tier={expected_tier}")
     elif result.get("writes_state") is not expected_writes_state:
         errors.append(f"{name} missing writes_state={expected_writes_state}")
+    elif result.get("target_scope") != expected_target_scope:
+        errors.append(f"{name} missing target_scope={expected_target_scope}")
+    elif result.get("requires_write") is not expected_requires_write:
+        errors.append(f"{name} missing requires_write={expected_requires_write}")
+    elif result.get("doctor_bypass") is not expected_doctor_bypass:
+        errors.append(f"{name} missing doctor_bypass={expected_doctor_bypass}")
+    elif result.get("permission_context_applied") is not expected_permission_context_applied:
+        errors.append(f"{name} missing permission_context_applied={expected_permission_context_applied}")
+    elif result.get("permission_tier") != expected_permission_tier:
+        errors.append(f"{name} missing permission_tier={expected_permission_tier}")
+    elif result.get("permission_policy") != expected_permission_policy:
+        errors.append(f"{name} missing permission_policy={expected_permission_policy}")
+    elif result.get("permission_reason") != expected_permission_reason:
+        errors.append(f"{name} missing permission_reason={expected_permission_reason}")
     elif result.get("allowed") is not expected_allowed:
         errors.append(f"{name} missing allowed={expected_allowed}")
     elif result.get("decision") != expected_decision:
@@ -1064,7 +1085,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
     elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, workspace, doctor, preflight, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --scope demo.workspace | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
@@ -1094,7 +1115,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 status/report 语义提示")
     elif "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
-    elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; unknown actions default deny; supports --action <name> / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; optional --scope / --write / --doctor-bypass also surface permission decisions before execution; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing preflight help hint")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -1505,7 +1526,7 @@ def collect_errors() -> list[str]:
     wrapper_preflight_output = (wrapper_preflight.stdout or "") + (wrapper_preflight.stderr or "")
     if wrapper_preflight.returncode != 0:
         errors.append(f"mvp-wrapper-preflight failed: exit={wrapper_preflight.returncode}")
-    elif "[mvp-wrapper] preflight => action=service-run known=true class=local-action tier=TIER_1 writes_state=true decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_preflight_output:
+    elif "[mvp-wrapper] preflight => action=service-run known=true class=local-action tier=TIER_1 writes_state=true target_scope=none requires_write=true doctor_bypass=false perm_ctx=false perm=not_evaluated perm_tier=TIER_1 perm_reason=permission_context_not_provided decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_preflight_output:
         errors.append("mvp-wrapper-preflight missing allow summary")
 
     result = assert_command_json_result(
@@ -1523,6 +1544,13 @@ def collect_errors() -> list[str]:
         expected_action_class="local-action",
         expected_tier="TIER_1",
         expected_writes_state=True,
+        expected_target_scope="",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=False,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="not_evaluated",
+        expected_permission_reason="permission_context_not_provided",
         expected_allowed=True,
         expected_decision="allow",
         expected_offline_ready=True,
@@ -1539,7 +1567,7 @@ def collect_errors() -> list[str]:
     wrapper_preflight_unknown_output = (wrapper_preflight_unknown.stdout or "") + (wrapper_preflight_unknown.stderr or "")
     if wrapper_preflight_unknown.returncode != 1:
         errors.append(f"mvp-wrapper-preflight-unknown failed: exit={wrapper_preflight_unknown.returncode}")
-    elif "[mvp-wrapper] preflight => action=external-send known=false class=unknown tier=TIER_2 writes_state=false decision=deny allowed=false offline_ready=false requires_model=false requires_sidecar=false degradation=deny_unknown reason=unknown_action_defaults_to_strict_deny" not in wrapper_preflight_unknown_output:
+    elif "[mvp-wrapper] preflight => action=external-send known=false class=unknown tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=false requires_sidecar=false degradation=deny_unknown reason=unknown_action_defaults_to_strict_deny" not in wrapper_preflight_unknown_output:
         errors.append("mvp-wrapper-preflight-unknown missing deny summary")
 
     payload = load_json_payload(
@@ -1567,11 +1595,88 @@ def collect_errors() -> list[str]:
         expected_action_class="unknown",
         expected_tier="TIER_2",
         expected_writes_state=False,
+        expected_target_scope="",
+        expected_requires_write=False,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=False,
+        expected_permission_tier="TIER_0",
+        expected_permission_policy="not_evaluated",
+        expected_permission_reason="permission_context_not_provided",
         expected_allowed=False,
         expected_decision="deny",
         expected_offline_ready=False,
         expected_degradation_mode="deny_unknown",
         expected_reason="unknown_action_defaults_to_strict_deny",
+    )
+
+    wrapper_preflight_scope = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-status", "--scope", "demo.workspace", "--write"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_preflight_scope_output = (wrapper_preflight_scope.stdout or "") + (wrapper_preflight_scope.stderr or "")
+    if wrapper_preflight_scope.returncode != 0:
+        errors.append(f"mvp-wrapper-preflight-scope failed: exit={wrapper_preflight_scope.returncode}")
+    elif "[mvp-wrapper] preflight => action=service-status known=true class=local-action tier=TIER_0 writes_state=false target_scope=demo.workspace requires_write=true doctor_bypass=false perm_ctx=true perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_preflight_scope_output:
+        errors.append("mvp-wrapper-preflight-scope missing permission summary")
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-status", "--scope", "demo.workspace", "--write", "--json"],
+        errors,
+        "mvp-wrapper-preflight-scope-json",
+        "preflight",
+    )
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-preflight-scope-json",
+        expected_requested_action="service-status",
+        expected_known=True,
+        expected_action_class="local-action",
+        expected_tier="TIER_0",
+        expected_writes_state=False,
+        expected_target_scope="demo.workspace",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=True,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="confirm",
+        expected_permission_reason="write_scope_requires_confirmation",
+        expected_allowed=True,
+        expected_decision="allow",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-run", "--scope", "demo.workspace", "--doctor-bypass", "--json"],
+        errors,
+        "mvp-wrapper-preflight-bypass-json",
+        "preflight",
+    )
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-preflight-bypass-json",
+        expected_requested_action="service-run",
+        expected_known=True,
+        expected_action_class="local-action",
+        expected_tier="TIER_1",
+        expected_writes_state=True,
+        expected_target_scope="demo.workspace",
+        expected_requires_write=True,
+        expected_doctor_bypass=True,
+        expected_permission_context_applied=True,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="allow",
+        expected_permission_reason="doctor_bypass_privileged_context",
+        expected_allowed=True,
+        expected_decision="allow",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
     )
 
     wrapper_env = os.environ.copy()

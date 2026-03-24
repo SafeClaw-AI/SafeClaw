@@ -82,7 +82,7 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
-    "preflight": {"value": {"--action"}, "boolean": {"--json"}},
+    "preflight": {"value": {"--action", "--scope"}, "boolean": {"--json", "--write", "--doctor-bypass"}},
     "verify": {"value": set(), "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
@@ -669,7 +669,12 @@ def run_preflight(args: list[str]) -> int:
             exit_code=2,
             text_message="[mvp-wrapper] preflight requires --action <name>",
         )
-    payload = build_preflight_payload(requested_action)
+    payload = build_preflight_payload(
+        requested_action,
+        target_scope=get_flag(args, "--scope") or "",
+        requires_write=has_flag(args, "--write"),
+        doctor_bypass=has_flag(args, "--doctor-bypass"),
+    )
     exit_code = 0 if bool(payload.get("allowed")) else 1
     if has_flag(args, "--json"):
         return emit_json_result("preflight", payload, exit_code=exit_code)
@@ -678,6 +683,12 @@ def run_preflight(args: list[str]) -> int:
         f"action={payload['requested_action']} known={str(bool(payload['known'])).lower()} "
         f"class={payload['action_class']} tier={payload['tier']} "
         f"writes_state={str(bool(payload['writes_state'])).lower()} "
+        f"target_scope={payload['target_scope'] or 'none'} "
+        f"requires_write={str(bool(payload['requires_write'])).lower()} "
+        f"doctor_bypass={str(bool(payload['doctor_bypass'])).lower()} "
+        f"perm_ctx={str(bool(payload['permission_context_applied'])).lower()} "
+        f"perm={payload['permission_policy']} perm_tier={payload['permission_tier']} "
+        f"perm_reason={payload['permission_reason']} "
         f"decision={payload['decision']} allowed={str(bool(payload['allowed'])).lower()} "
         f"offline_ready={str(bool(payload['offline_ready'])).lower()} "
         f"requires_model={str(bool(payload['requires_model'])).lower()} "
@@ -935,11 +946,53 @@ def build_sidecar_payload() -> dict[str, object]:
     }
 
 
-def build_preflight_payload(requested_action: str) -> dict[str, object]:
+def build_permission_decision_payload(
+    target_scope: str,
+    requires_write: bool,
+    doctor_bypass: bool,
+    *,
+    context_available: bool = True,
+) -> dict[str, object]:
+    normalized_scope = target_scope.strip()
+    if not context_available:
+        return {
+            "target_scope": normalized_scope,
+            "requires_write": requires_write,
+            "doctor_bypass": doctor_bypass,
+            "permission_tier": suggest_recent_task_permission_tier(requires_write),
+            "permission_policy": "not_evaluated",
+            "permission_reason": "permission_context_not_provided",
+        }
+    return {
+        "target_scope": normalized_scope,
+        "requires_write": requires_write,
+        "doctor_bypass": doctor_bypass,
+        "permission_tier": suggest_recent_task_permission_tier(requires_write),
+        "permission_policy": suggest_recent_task_permission_policy(normalized_scope, requires_write, doctor_bypass),
+        "permission_reason": suggest_recent_task_permission_reason(normalized_scope, requires_write, doctor_bypass),
+    }
+
+
+def build_preflight_payload(
+    requested_action: str,
+    *,
+    target_scope: str = "",
+    requires_write: bool = False,
+    doctor_bypass: bool = False,
+) -> dict[str, object]:
     action = requested_action.strip()
     runtime_profile = build_runtime_profile_payload()
     model_provider = build_model_provider_payload()
     sidecar = build_sidecar_payload()
+    writes_state = action in PREFLIGHT_WRITE_ACTIONS
+    resolved_requires_write = writes_state or requires_write
+    permission_context_applied = bool(target_scope.strip()) or requires_write or doctor_bypass
+    permission_payload = build_permission_decision_payload(
+        target_scope,
+        resolved_requires_write,
+        doctor_bypass,
+        context_available=permission_context_applied,
+    )
     if action not in KNOWN_PREFLIGHT_ACTIONS:
         return {
             "requested_action": action,
@@ -947,6 +1000,8 @@ def build_preflight_payload(requested_action: str) -> dict[str, object]:
             "action_class": "unknown",
             "tier": "TIER_2",
             "writes_state": False,
+            "permission_context_applied": permission_context_applied,
+            **permission_payload,
             "allowed": False,
             "decision": "deny",
             "offline_ready": False,
@@ -960,13 +1015,14 @@ def build_preflight_payload(requested_action: str) -> dict[str, object]:
             "sidecar": sidecar,
         }
 
-    writes_state = action in PREFLIGHT_WRITE_ACTIONS
     return {
         "requested_action": action,
         "known": True,
         "action_class": "local-action" if action in LOCAL_ACTIONS else "session-action",
         "tier": "TIER_1" if writes_state else "TIER_0",
         "writes_state": writes_state,
+        "permission_context_applied": permission_context_applied,
+        **permission_payload,
         "allowed": True,
         "decision": "allow",
         "offline_ready": True,
@@ -1073,7 +1129,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run | verify"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --scope demo.workspace | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
@@ -1138,7 +1194,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; "
-        "unknown actions default deny; supports --action <name> / --json"
+        "optional --scope / --write / --doctor-bypass also surface permission decisions before execution; supports --action <name> / --scope <value> / --json"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
@@ -1872,12 +1928,7 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
                 "effect_status": row[2],
                 "updated_at": row[3],
                 "effect_id": row[4] or f"effect-{row[0]}",
-                "target_scope": target_scope,
-                "requires_write": requires_write,
-                "doctor_bypass": doctor_bypass,
-                "permission_tier": suggest_recent_task_permission_tier(requires_write),
-                "permission_policy": suggest_recent_task_permission_policy(target_scope, requires_write, doctor_bypass),
-                "permission_reason": suggest_recent_task_permission_reason(target_scope, requires_write, doctor_bypass),
+                **build_permission_decision_payload(target_scope, requires_write, doctor_bypass),
                 "lease_owner_id": row[8] or '',
                 "lease_fencing_token": None if row[9] is None else int(row[9]),
                 "lease_expires_at_ms": lease_expires_at_ms,

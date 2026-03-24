@@ -121,3 +121,9 @@
 - 完成内容：为 `service-status` 的 recent task 增加 `permission_tier` / `permission_policy` / `permission_reason`；把 scope 可见化推进到显式 allow / confirm / deny 判定；同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: add permission decisions to service status`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 T
+- 完成时间：2026-03-25 06:13:25 +0800
+- 完成内容：为 `preflight` 增加可选 `--scope` / `--write` / `--doctor-bypass`；在保持动作级 allow / deny 不变的前提下，执行前显式返回 `permission_tier` / `permission_policy` / `permission_reason`；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add scope-aware preflight permission hints`；最终 hash 以当前 `HEAD` 为准。
