@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 04:01:27 +0800
+最后更新时间：2026-03-25 04:17:30 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -72,4 +72,10 @@
 - 完成时间：2026-03-25 04:01:27 +0800
 - 完成内容：让 `service-status` 的 recent task 显式展示最新 lease 新鲜度，补 `lease_state` / `lease_owner_id` / `lease_fencing_token` 等字段；同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: surface lease freshness in service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`a1f8bf6 feat: surface lease freshness in service status`
+
+### 轮次 L
+- 完成时间：2026-03-25 04:17:30 +0800
+- 完成内容：为 `service-status` 的 recent task 增加 `next_action` 决策提示；在 success / failed / uncertain 现场分别给出 `ok` / `retry` / `recover`；同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add next action hints to service status`；最终 hash 以当前 `HEAD` 为准。

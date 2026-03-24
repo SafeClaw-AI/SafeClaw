@@ -293,6 +293,7 @@ def assert_service_status_json_result(
     expected_lease_state: str | None = None,
     expected_lease_owner_id: str | None = None,
     expected_lease_fencing_token: int | None = None,
+    expected_next_action: str | None = None,
 ) -> None:
     if result is None:
         return
@@ -346,6 +347,8 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent lease_owner_id={expected_lease_owner_id}")
     elif expected_lease_fencing_token is not None and recent_tasks[0].get("lease_fencing_token") != expected_lease_fencing_token:
         errors.append(f"{name} missing recent lease_fencing_token={expected_lease_fencing_token}")
+    elif expected_next_action is not None and recent_tasks[0].get("next_action") != expected_next_action:
+        errors.append(f"{name} missing recent next_action={expected_next_action}")
 
 
 def assert_service_run_json_result(
@@ -999,7 +1002,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope and latest lease freshness; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, and next action hints; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -1613,7 +1616,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? recent task")
     elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing scope visibility")
-    elif "lease=released lease_owner=safeclaw-mvp lease_fence=1" not in wrapper_service_status_output:
+    elif "lease=released lease_owner=safeclaw-mvp lease_fence=1 next=ok" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease visibility")
 
     result = assert_command_json_result(
@@ -1635,6 +1638,7 @@ def collect_errors() -> list[str]:
         expected_lease_state="released",
         expected_lease_owner_id="safeclaw-mvp",
         expected_lease_fencing_token=1,
+        expected_next_action="ok",
     )
 
     assert_command_json_error(
@@ -1746,6 +1750,42 @@ def collect_errors() -> list[str]:
         expected_db_source="flag",
         expected_output_source="flag",
     )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-retry.db",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-retry-status-before-json",
+        "service-status",
+    )
+    if result is not None:
+        queue = result.get("queue") or {}
+        workers = result.get("workers") or {}
+        effects = result.get("effects") or {}
+        probes = result.get("probes") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        if queue.get("expired") != 1:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing queue.expired=1")
+        elif queue.get("completed") != 0:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing queue.completed=0")
+        elif workers.get("failed") != 1:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing workers.failed=1")
+        elif effects.get("prepared") != 1:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing effects.prepared=1")
+        elif probes.get("none") != 1:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing probes.none=1")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-retry-status-before-json missing recent task")
+        elif recent_tasks[0].get("next_action") != "retry":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing next_action=retry")
 
     wrapper_service_retry = subprocess.run(
         [
@@ -1885,6 +1925,42 @@ def collect_errors() -> list[str]:
         expected_db_source="flag",
         expected_output_source="flag",
     )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-recover.db",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-status-before-json",
+        "service-status",
+    )
+    if result is not None:
+        queue = result.get("queue") or {}
+        workers = result.get("workers") or {}
+        effects = result.get("effects") or {}
+        probes = result.get("probes") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        if queue.get("expired") != 1:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing queue.expired=1")
+        elif queue.get("completed") != 0:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing queue.completed=0")
+        elif workers.get("uncertain") != 1:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing workers.uncertain=1")
+        elif effects.get("uncertain") != 1:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing effects.uncertain=1")
+        elif probes.get("probe_pending") != 1:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing probes.probe_pending=1")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-recover-status-before-json missing recent task")
+        elif recent_tasks[0].get("next_action") != "recover":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing next_action=recover")
 
     wrapper_service_recover = subprocess.run(
         [

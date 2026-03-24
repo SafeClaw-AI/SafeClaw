@@ -678,7 +678,7 @@ def run_service_status(args: list[str]) -> int:
             f"doctor_bypass={str(bool(row['doctor_bypass'])).lower()} "
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
-            f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
+            f"next={row['next_action']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
 def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
@@ -994,7 +994,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope and latest lease freshness; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, and next action hints; "
         "supports --db / --limit / --json"
     )
     print(
@@ -1572,6 +1572,23 @@ def classify_orchestrator_lease_state(
 
 
 
+def suggest_recent_task_next_action(
+    worker_state: str,
+    effect_status: str,
+    lease_state: str,
+) -> str:
+    if worker_state == "succeeded" and effect_status == "executed":
+        return "ok"
+    if lease_state == "active":
+        return "inspect"
+    if worker_state == "failed":
+        return "retry"
+    if worker_state == "uncertain" or effect_status == "uncertain":
+        return "recover"
+    return "inspect"
+
+
+
 def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
@@ -1619,28 +1636,32 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
             (limit,),
         ).fetchall()
 
-    return [
-        {
-            "task_id": row[0],
-            "worker_state": row[1],
-            "effect_status": row[2],
-            "updated_at": row[3],
-            "effect_id": row[4] or f"effect-{row[0]}",
-            "target_scope": row[5] or '',
-            "requires_write": bool(row[6]),
-            "doctor_bypass": bool(row[7]),
-            "lease_owner_id": row[8] or '',
-            "lease_fencing_token": None if row[9] is None else int(row[9]),
-            "lease_expires_at_ms": None if row[10] is None else int(row[10]),
-            "lease_released_at_ms": None if row[11] is None else int(row[11]),
-            "lease_state": classify_orchestrator_lease_state(
-                None if row[10] is None else int(row[10]),
-                None if row[11] is None else int(row[11]),
-                now_ms,
-            ),
-        }
-        for row in rows
-    ]
+    items: list[dict[str, object]] = []
+    for row in rows:
+        lease_state = classify_orchestrator_lease_state(
+            None if row[10] is None else int(row[10]),
+            None if row[11] is None else int(row[11]),
+            now_ms,
+        )
+        items.append(
+            {
+                "task_id": row[0],
+                "worker_state": row[1],
+                "effect_status": row[2],
+                "updated_at": row[3],
+                "effect_id": row[4] or f"effect-{row[0]}",
+                "target_scope": row[5] or '',
+                "requires_write": bool(row[6]),
+                "doctor_bypass": bool(row[7]),
+                "lease_owner_id": row[8] or '',
+                "lease_fencing_token": None if row[9] is None else int(row[9]),
+                "lease_expires_at_ms": None if row[10] is None else int(row[10]),
+                "lease_released_at_ms": None if row[11] is None else int(row[11]),
+                "lease_state": lease_state,
+                "next_action": suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state),
+            }
+        )
+    return items
 
 
 def load_service_queue_counts(db_path: Path) -> dict[str, int]:
