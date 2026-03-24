@@ -157,6 +157,35 @@ def assert_json_error_fields(
             errors.append(remembered_session_label or f"{name} remembered_session 缺少 {expected_remembered_session_task_id}")
 
 
+def assert_step_source_hints(
+    steps: object,
+    errors: list[str],
+    name: str,
+    expected: list[tuple[str, dict[str, str]]],
+) -> None:
+    if not isinstance(steps, list):
+        errors.append(f"{name} steps 不是列表")
+        return
+    for index, (expected_action, expected_hints) in enumerate(expected):
+        if index >= len(steps) or not isinstance(steps[index], dict):
+            errors.append(f"{name} 缺少步骤 {expected_action}")
+            return
+        step = steps[index]
+        if step.get("action") != expected_action:
+            errors.append(f"{name} 步骤 {index} 不是 {expected_action}")
+            return
+        source_hints = step.get("source_hints") or {}
+        if not isinstance(source_hints, dict):
+            errors.append(f"{name} 步骤 {expected_action} 缺少 source_hints")
+            return
+        for field, expected_value in expected_hints.items():
+            if source_hints.get(field) != expected_value:
+                errors.append(
+                    f"{name} 步骤 {expected_action} source_hints.{field} != {expected_value}"
+                )
+                return
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
 
@@ -195,6 +224,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 聚合状态提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
+    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] 也会带 source_hints" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
 
     wrapper_doctor = subprocess.run(
         [
@@ -984,6 +1015,17 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-demo-json 步骤序列不正确")
             elif session.get("task_id") != "task-wrapper-demo-json":
                 errors.append("mvp-wrapper-demo-json 缺少当前会话 task-wrapper-demo-json")
+            else:
+                assert_step_source_hints(
+                    steps,
+                    errors,
+                    "mvp-wrapper-demo-json",
+                    [
+                        ("run", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                        ("status", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ],
+                )
 
     wrapper_demo_fail_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus", "--json"],
@@ -1039,6 +1081,17 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
             elif session.get("task_id") != "task-wrapper-recover-demo-json":
                 errors.append("mvp-wrapper-recover-demo-json 缺少当前会话 task-wrapper-recover-demo-json")
+            else:
+                assert_step_source_hints(
+                    steps,
+                    errors,
+                    "mvp-wrapper-recover-demo-json",
+                    [
+                        ("seed-crash", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                        ("recover", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ],
+                )
 
     wrapper_recover_demo_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus"],
@@ -1106,6 +1159,17 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
             elif session.get("task_id") != "task-wrapper-retry-demo-json":
                 errors.append("mvp-wrapper-retry-demo-json 缺少当前会话 task-wrapper-retry-demo-json")
+            else:
+                assert_step_source_hints(
+                    steps,
+                    errors,
+                    "mvp-wrapper-retry-demo-json",
+                    [
+                        ("seed-failed", {"db": "default", "output": "default", "owner_id": "default", "task_context": "flag"}),
+                        ("retry", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                        ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
+                    ],
+                )
 
     wrapper_retry_demo_fail = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry-demo", "--bogus"],

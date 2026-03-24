@@ -169,6 +169,7 @@ SafeClaw 还在很早期。
 - `invalid-argument`：wrapper 已识别出未知参数或缺少 flag 值，例如 `--bogus`、`--db` 后缺值。
 - `missing-task-context`：`report` / `recover` / `retry` 缺少 `--task-id` 且没有 remembered session；此时可显式传入 `--task-id`，或先建立 / 激活会话。
 - `status` / `report` / `recover` / `retry` 的成功 `--json` 结果会额外给出 `result.source_hints`，标出 `db` / `output` / `owner_id` / `task_context` 的来源，便于脚本确认是否复用了 remembered session。
+- `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果也会在 `result.steps[*].source_hints` 标出每一步的来源，便于脚本判断组合动作何时切换到 remembered session。
 - 组合动作 `demo` / `recover-demo` / `retry-demo` 在 wrapper 预处理阶段失败时，`error.details` 会附带 `failed_step`、`code`、`error_message`，可直接定位失败步骤。
 
 当前边界也需要说清楚：

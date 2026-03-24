@@ -374,6 +374,9 @@ def print_help() -> int:
         "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；"
         "可直接看到 db/output/owner_id/task_context 来源"
     )
+    print(
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] 也会带 source_hints"
+    )
     return 0
 
 
@@ -964,6 +967,7 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                 "action": result["action"],
                 "ok": result["exit_code"] == 0,
                 "exit_code": result["exit_code"],
+                "source_hints": result["source_hints"],
             }
         )
         if result["exit_code"] != 0:
