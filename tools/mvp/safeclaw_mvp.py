@@ -429,7 +429,7 @@ def print_help() -> int:
         "会在 error.details.remembered_session 附带它"
     )
     print(
-        "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；"
+        "[mvp-wrapper] session => session 显示当前记忆的最近成功会话；sessions/use/forget 管理 remembered session；"
         "status/report/recover/retry/doctor 会尽量复用它"
     )
     print(
