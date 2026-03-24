@@ -375,7 +375,7 @@ def print_help() -> int:
         "可直接看到 db/output/owner_id/task_context 来源"
     )
     print(
-        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] 也会带 source_hints"
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints"
     )
     return 0
 

@@ -224,7 +224,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 聚合状态提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
-    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] 也会带 source_hints" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
 
     wrapper_doctor = subprocess.run(
@@ -1046,6 +1046,51 @@ def collect_errors() -> list[str]:
             expected_details_message_substring="unknown argument",
             details_message_label="mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument",
         )
+
+    wrapper_demo_underlying_fail_json = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "demo",
+            "--task-id",
+            "task-wrapper-demo-underlying-fail",
+            "--output",
+            "target/mvp",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(
+        wrapper_demo_underlying_fail_json,
+        errors,
+        "mvp-wrapper-demo-underlying-fail-json",
+        expected_exit=1,
+    )
+    if payload is not None:
+        error, details = extract_json_error(
+            payload,
+            errors,
+            "mvp-wrapper-demo-underlying-fail-json",
+            "demo",
+        )
+        assert_json_error_fields(
+            error,
+            details,
+            errors,
+            "mvp-wrapper-demo-underlying-fail-json",
+            expected_error_message_substring="failed step=run",
+            error_message_label="mvp-wrapper-demo-underlying-fail-json 缺少组合动作失败消息",
+            expected_failed_step="run",
+        )
+        if details is not None:
+            assert_step_source_hints(
+                details.get("steps"),
+                errors,
+                "mvp-wrapper-demo-underlying-fail-json",
+                [("run", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"})],
+            )
 
     wrapper_recover_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],
