@@ -138,6 +138,51 @@ def assert_doctor_json_result(
         errors.append(f"{name} missing output source=flag")
 
 
+def assert_run_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+    expected_db_path: str | None = None,
+    expected_output_path: str | None = None,
+    expected_db_source: str,
+    expected_output_source: str,
+    expected_owner_source: str = "default",
+    expected_task_context_source: str = "flag",
+) -> None:
+    if result is None:
+        return
+    saved_session = result.get("saved_session") or {}
+    remembered_session = result.get("remembered_session") or {}
+    source_hints = result.get("source_hints") or {}
+    captured_output = str(result.get("captured_output") or "").replace("/", chr(92))
+    normalized_saved_db = str(saved_session.get("db") or "").replace("/", chr(92))
+    normalized_saved_output = str(saved_session.get("output") or "").replace("/", chr(92))
+    normalized_expected_db = None if expected_db_path is None else expected_db_path.replace("/", chr(92))
+    normalized_expected_output = None if expected_output_path is None else expected_output_path.replace("/", chr(92))
+    if not isinstance(saved_session, dict) or saved_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing saved_session task_id={expected_task_id}")
+    elif normalized_expected_db is not None and normalized_saved_db != normalized_expected_db:
+        errors.append(f"{name} missing saved_session db={expected_db_path}")
+    elif normalized_expected_output is not None and normalized_saved_output != normalized_expected_output:
+        errors.append(f"{name} missing saved_session output={expected_output_path}")
+    elif not isinstance(remembered_session, dict) or remembered_session != saved_session:
+        errors.append(f"{name} missing remembered_session mirror")
+    elif not isinstance(source_hints, dict) or source_hints.get("db") != expected_db_source:
+        errors.append(f"{name} missing source_hints.db={expected_db_source}")
+    elif source_hints.get("output") != expected_output_source:
+        errors.append(f"{name} missing source_hints.output={expected_output_source}")
+    elif source_hints.get("owner_id") != expected_owner_source:
+        errors.append(f"{name} missing source_hints.owner_id={expected_owner_source}")
+    elif source_hints.get("task_context") != expected_task_context_source:
+        errors.append(f"{name} missing source_hints.task_context={expected_task_context_source}")
+    elif normalized_expected_db is not None and normalized_expected_db not in captured_output:
+        errors.append(f"{name} missing captured db path")
+    elif normalized_expected_output is not None and normalized_expected_output not in captured_output:
+        errors.append(f"{name} missing captured output path")
+
+
 def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -455,6 +500,77 @@ def collect_errors() -> list[str]:
             expected_output_path="target\mvp\doctor-check.txt",
         )
 
+    space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
+    space_wrapper_dir.mkdir(parents=True, exist_ok=True)
+
+    wrapper_cmd_run_json = subprocess.run(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-cmd-space",
+            "--db",
+            "target/mvp/space wrapper/run wrapper cmd.db",
+            "--output",
+            "target/mvp/space wrapper/run wrapper cmd.txt",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_cmd_run_json, errors, "mvp-wrapper-cmd-run-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-run-json", "run")
+        assert_run_json_result(
+            result,
+            errors,
+            "mvp-wrapper-cmd-run-json",
+            expected_task_id="task-wrapper-cmd-space",
+            expected_db_path="target/mvp/space wrapper/run wrapper cmd.db",
+            expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt",
+            expected_db_source="flag",
+            expected_output_source="flag",
+        )
+
+    wrapper_ps1_run_json = subprocess.run(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "tools\mvp\safeclaw_mvp.ps1",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-ps1-space",
+            "--db",
+            "target/mvp/space wrapper/run wrapper ps1.db",
+            "--output",
+            "target/mvp/space wrapper/run wrapper ps1.txt",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_run_json, errors, "mvp-wrapper-ps1-run-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-run-json", "run")
+        assert_run_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-run-json",
+            expected_task_id="task-wrapper-ps1-space",
+            expected_db_path="target/mvp/space wrapper/run wrapper ps1.db",
+            expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt",
+            expected_db_source="flag",
+            expected_output_source="flag",
+        )
+
     wrapper_run_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-json", "--json"],
         cwd=REPO_ROOT,
@@ -464,10 +580,14 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_run_json, errors, "mvp-wrapper-run-json", expected_exit=0)
     if payload is not None:
         result = extract_json_result(payload, errors, "mvp-wrapper-run-json", "run")
-        if result is not None:
-            session = result.get("saved_session") or {}
-            if session.get("task_id") != "task-wrapper-json":
-                errors.append("mvp-wrapper-run-json 缺少保存后的 task-wrapper-json 会话")
+        assert_run_json_result(
+            result,
+            errors,
+            "mvp-wrapper-run-json",
+            expected_task_id="task-wrapper-json",
+            expected_db_source="default",
+            expected_output_source="default",
+        )
 
     wrapper_run_a = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
