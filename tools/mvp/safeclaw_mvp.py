@@ -238,7 +238,7 @@ def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -
     db = get_flag(prepared, "--db") or (session["db"] if session is not None else render_repo_path(DEFAULT_DB))
     ensure_flag(prepared, "--db", db)
 
-    session_matches_db = session is not None and session.get("db") == db
+    session_matches_db = matches_session_db(session, db)
     default_output = session["output"] if session_matches_db else default_output_for_db(db)
     ensure_flag(prepared, "--output", get_flag(prepared, "--output") or default_output)
     ensure_flag(
@@ -273,7 +273,7 @@ def describe_prepared_sources(
     prepared: list[str],
 ) -> dict[str, str]:
     prepared_db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
-    session_matches_db = session is not None and session.get("db") == prepared_db
+    session_matches_db = matches_session_db(session, prepared_db)
 
     if get_flag(original_args, "--db") is not None:
         db_source = "flag"
@@ -369,9 +369,13 @@ def resolve_output_selection(
     output_flag = get_flag(args, "--output")
     if output_flag is not None:
         return output_flag, "flag"
-    if session is not None and session.get("db") == db:
+    if matches_session_db(session, db):
         return session["output"], "session"
     return default_output_for_db(db), "default"
+
+
+def matches_session_db(session: dict[str, str] | None, db: str) -> bool:
+    return session is not None and session.get("db") == db
 
 
 def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, object]:
@@ -1041,3 +1045,5 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
+
+
