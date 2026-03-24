@@ -241,11 +241,8 @@ def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -
     session_matches_db = matches_session_db(session, db)
     default_output = session["output"] if session_matches_db else default_output_for_db(db)
     ensure_flag(prepared, "--output", get_flag(prepared, "--output") or default_output)
-    ensure_flag(
-        prepared,
-        "--owner-id",
-        get_flag(prepared, "--owner-id") or (session["owner_id"] if session_matches_db else DEFAULT_OWNER_ID),
-    )
+    owner_id, _ = resolve_owner_id_selection(prepared, session, db)
+    ensure_flag(prepared, "--owner-id", owner_id)
 
     task_id = get_flag(prepared, "--task-id")
     if task_id is None and session_matches_db:
@@ -372,6 +369,19 @@ def resolve_output_selection(
     if matches_session_db(session, db):
         return session["output"], "session"
     return default_output_for_db(db), "default"
+
+
+def resolve_owner_id_selection(
+    args: list[str],
+    session: dict[str, str] | None,
+    db: str,
+) -> tuple[str, str]:
+    owner_id_flag = get_flag(args, "--owner-id")
+    if owner_id_flag is not None:
+        return owner_id_flag, "flag"
+    if matches_session_db(session, db):
+        return session["owner_id"], "session"
+    return DEFAULT_OWNER_ID, "default"
 
 
 def matches_session_db(session: dict[str, str] | None, db: str) -> bool:
@@ -652,16 +662,7 @@ def activate_session(args: list[str]) -> int:
 
     output, output_source = resolve_output_selection(args, session, db)
 
-    owner_id_flag = get_flag(args, "--owner-id")
-    if owner_id_flag is not None:
-        owner_id = owner_id_flag
-        owner_id_source = "flag"
-    elif session is not None and session.get("db") == db:
-        owner_id = session["owner_id"]
-        owner_id_source = "session"
-    else:
-        owner_id = DEFAULT_OWNER_ID
-        owner_id_source = "default"
+    owner_id, owner_id_source = resolve_owner_id_selection(args, session, db)
 
     selected_session = {
         "task_id": target["task_id"],
@@ -1041,6 +1042,8 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
+
+
 
 
 
