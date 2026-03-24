@@ -186,6 +186,25 @@ def assert_step_source_hints(
                 return
 
 
+def assert_matching_session_alias(
+    payload: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+) -> None:
+    if payload is None:
+        return
+    remembered_session = payload.get("remembered_session") or {}
+    session = payload.get("session") or {}
+    if not isinstance(remembered_session, dict):
+        errors.append(f"{name} remembered_session 不是对象")
+        return
+    if not isinstance(session, dict):
+        errors.append(f"{name} session 兼容别名不是对象")
+        return
+    if session != remembered_session:
+        errors.append(f"{name} session 兼容别名与 remembered_session 不一致")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
 
@@ -226,7 +245,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
     elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
-    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；当前仍保留 result.session 兼容字段" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；result.session 仅作兼容别名，脚本应优先读取 remembered_session" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 remembered_session 提示")
 
     wrapper_doctor = subprocess.run(
@@ -1021,6 +1040,7 @@ def collect_errors() -> list[str]:
             elif session.get("task_id") != "task-wrapper-demo-json":
                 errors.append("mvp-wrapper-demo-json 缺少兼容 session task-wrapper-demo-json")
             else:
+                assert_matching_session_alias(result, errors, "mvp-wrapper-demo-json")
                 assert_step_source_hints(
                     steps,
                     errors,
@@ -1143,6 +1163,7 @@ def collect_errors() -> list[str]:
             elif session.get("task_id") != "task-wrapper-recover-demo-json":
                 errors.append("mvp-wrapper-recover-demo-json 缺少兼容 session task-wrapper-recover-demo-json")
             else:
+                assert_matching_session_alias(result, errors, "mvp-wrapper-recover-demo-json")
                 assert_step_source_hints(
                     steps,
                     errors,
@@ -1228,6 +1249,7 @@ def collect_errors() -> list[str]:
             elif session.get("task_id") != "task-wrapper-retry-demo-json":
                 errors.append("mvp-wrapper-retry-demo-json 缺少兼容 session task-wrapper-retry-demo-json")
             else:
+                assert_matching_session_alias(result, errors, "mvp-wrapper-retry-demo-json")
                 assert_step_source_hints(
                     steps,
                     errors,

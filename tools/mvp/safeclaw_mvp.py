@@ -378,7 +378,8 @@ def print_help() -> int:
         "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints"
     )
     print(
-        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；当前仍保留 result.session 兼容字段"
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；"
+        "result.session 仅作兼容别名，脚本应优先读取 remembered_session"
     )
     return 0
 
