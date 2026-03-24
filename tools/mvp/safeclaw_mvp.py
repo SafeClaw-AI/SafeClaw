@@ -352,6 +352,15 @@ def build_session_action_result_payload(result: dict[str, object]) -> dict[str, 
     }
 
 
+def resolve_db_selection(args: list[str], session: dict[str, str] | None) -> tuple[str, str]:
+    db_flag = get_flag(args, "--db")
+    if db_flag is not None:
+        return db_flag, "flag"
+    if session is not None:
+        return session["db"], "session"
+    return render_repo_path(DEFAULT_DB), "default"
+
+
 def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, object]:
     remembered_session = load_session()
     return {
@@ -444,16 +453,7 @@ def forget_session(args: list[str]) -> int:
 
 def run_doctor(args: list[str]) -> int:
     session = load_session()
-    db_flag = get_flag(args, "--db")
-    if db_flag is not None:
-        db = db_flag
-        db_source = "flag"
-    elif session is not None:
-        db = session["db"]
-        db_source = "session"
-    else:
-        db = render_repo_path(DEFAULT_DB)
-        db_source = "default"
+    db, db_source = resolve_db_selection(args, session)
 
     output_flag = get_flag(args, "--output")
     if output_flag is not None:
@@ -529,16 +529,7 @@ def run_doctor(args: list[str]) -> int:
 
 def print_sessions(args: list[str]) -> int:
     session = load_session()
-    db_flag = get_flag(args, "--db")
-    if db_flag is not None:
-        db = db_flag
-        db_source = "flag"
-    elif session is not None:
-        db = session["db"]
-        db_source = "session"
-    else:
-        db = render_repo_path(DEFAULT_DB)
-        db_source = "default"
+    db, db_source = resolve_db_selection(args, session)
     limit_raw = get_flag(args, "--limit") or str(DEFAULT_LIST_LIMIT)
     try:
         limit = max(1, int(limit_raw))
@@ -599,16 +590,7 @@ def print_sessions(args: list[str]) -> int:
 
 def activate_session(args: list[str]) -> int:
     session = load_session()
-    db_flag = get_flag(args, "--db")
-    if db_flag is not None:
-        db = db_flag
-        db_source = "flag"
-    elif session is not None:
-        db = session["db"]
-        db_source = "session"
-    else:
-        db = render_repo_path(DEFAULT_DB)
-        db_source = "default"
+    db, db_source = resolve_db_selection(args, session)
     db_path = resolve_repo_path(db)
 
     task_id = get_flag(args, "--task-id")
