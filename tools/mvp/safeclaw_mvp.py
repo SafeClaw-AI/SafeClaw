@@ -430,7 +430,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] errors => invalid-argument / missing-task-context；"
-        "组合动作 JSON 失败会额外附带 failed_step 与 error_message"
+        "组合动作 JSON 失败会额外附带 failed_step / code / error_message"
     )
     print(
         "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；"

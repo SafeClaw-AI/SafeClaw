@@ -243,7 +243,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
     elif "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，统一返回 {ok, action, schema_version, result|error} 信封" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 信封提示")
-    elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step 与 error_message" not in wrapper_help_output:
+    elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
     elif "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误码解释提示")
