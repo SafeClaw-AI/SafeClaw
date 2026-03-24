@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "session", "sessions", "use", "forget", "doctor")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -40,6 +40,7 @@ LOCAL_ACTION_FLAG_SPECS = {
         "boolean": {"--json"},
     },
     "forget": {"value": set(), "boolean": {"--json"}},
+    "service-demo": {"value": set(), "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
@@ -128,6 +129,22 @@ def resolve_executable(binary: str, *env_keys: str) -> str | None:
     return None
 
 
+def prepend_env_path(env: dict[str, str], *entries: str | None) -> None:
+    path_entries = [item for item in env.get("PATH", "").split(os.pathsep) if item]
+    seen = {os.path.normcase(os.path.normpath(item)) for item in path_entries}
+    prepend: list[str] = []
+    for entry in entries:
+        if not entry:
+            continue
+        normalized = os.path.normcase(os.path.normpath(entry))
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        prepend.append(entry)
+    if prepend:
+        env["PATH"] = os.pathsep.join([*prepend, *path_entries])
+
+
 def build_rust_env() -> tuple[dict[str, str], str | None, str | None]:
     env = os.environ.copy()
     cargo_exe = resolve_executable("cargo", "SAFECLAW_CARGO", "CARGO_EXE")
@@ -139,10 +156,12 @@ def build_rust_env() -> tuple[dict[str, str], str | None, str | None]:
     elif rustc_exe is not None:
         tool_dir = str(Path(rustc_exe).resolve().parent)
 
-    if tool_dir is not None:
-        path_entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
-        if tool_dir not in path_entries:
-            env["PATH"] = os.pathsep.join([tool_dir, *path_entries])
+    linker_path = Path(LINKER)
+    prepend_env_path(
+        env,
+        tool_dir,
+        str(linker_path.parent) if linker_path.exists() else None,
+    )
 
     env["RUSTUP_TOOLCHAIN"] = TOOLCHAIN
     env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
@@ -174,6 +193,8 @@ def main(argv: list[str]) -> int:
         return run_recover_demo(raw_args[1:])
     if action == "retry-demo":
         return run_retry_demo(raw_args[1:])
+    if action == "service-demo":
+        return dispatch_local_action("service-demo", raw_args[1:], run_service_demo)
     if action not in SESSION_ACTIONS:
         return run_cargo(raw_args, action=action)
 
@@ -288,6 +309,41 @@ def run_retry_demo(args: list[str]) -> int:
         ],
         json_mode=json_mode,
     )
+
+
+def run_service_demo(args: list[str]) -> int:
+    json_mode = has_flag(args, "--json")
+    exit_code, output = run_sqlite_example_capture(
+        "worker_service_governance_demo",
+        action="service-demo",
+        replay_output=not json_mode,
+    )
+    if exit_code != 0:
+        if json_mode:
+            return emit_json_error(
+                "service-demo",
+                "underlying action failed",
+                exit_code=exit_code,
+                details={"captured_output": output.strip()},
+            )
+        return exit_code
+
+    try:
+        payload = build_service_demo_result_payload(output)
+    except ValueError as error:
+        if json_mode:
+            return emit_json_error(
+                "service-demo",
+                str(error),
+                exit_code=1,
+                details={"captured_output": output.strip()},
+            )
+        print(f"[mvp-wrapper] service-demo => error {error}", file=sys.stderr)
+        return 1
+
+    if json_mode:
+        return emit_json_result("service-demo", payload)
+    return 0
 
 
 def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
@@ -495,11 +551,11 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；"
-        "retry-demo=seed-failed->retry->report"
+        "retry-demo=seed-failed->retry->report；service-demo=worker-service-governance"
     )
     print(
         "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
@@ -533,6 +589,10 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] status/report => status 默认查看当前 remembered session，也可显式传 --task-id；"
         "report 查看指定 task/effect 的治理视图"
+    )
+    print(
+        "[mvp-wrapper] service demo => service-demo 演示 worker service 对 resolved / confirmation 两类队列的治理汇总；"
+        "--json 会返回结构化摘要与原始输出"
     )
     print(
         "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
@@ -978,37 +1038,96 @@ def lookup_latest_effect_id(db_path: Path, task_id: str) -> str | None:
     return None if row is None else str(row[0])
 
 
-def run_cargo(args: list[str], action: str | None = None) -> int:
-    exit_code, _ = run_cargo_capture(args, action=action, replay_output=True)
-    return exit_code
+def find_output_line(output: str, prefix: str) -> str:
+    for line in output.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix):].strip()
+    raise ValueError(f"missing expected output line: {prefix}")
 
 
-def run_cargo_capture(
-    args: list[str],
+
+def parse_counter_fields(raw: str) -> dict[str, int]:
+    parsed: dict[str, int] = {}
+    for token in raw.split():
+        if "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        parsed[key] = int(value.rstrip(","))
+    if not parsed:
+        raise ValueError(f"missing counter fields: {raw}")
+    return parsed
+
+
+
+def parse_task_csv(raw: str) -> list[str]:
+    return [item for item in raw.split(",") if item]
+
+
+
+def build_service_demo_result_payload(output: str) -> dict[str, object]:
+    captured_output = output.strip()
+    return {
+        "example": "worker_service_governance_demo",
+        "resolved_run": parse_counter_fields(
+            find_output_line(output, "[demo] service run resolved => ")
+        ),
+        "resolved_governance": parse_counter_fields(
+            find_output_line(output, "[demo] service governance resolved => ")
+        ),
+        "resolved_tasks": parse_task_csv(
+            find_output_line(output, "[demo] service governance resolved tasks => ")
+        ),
+        "resolved_snapshot": parse_counter_fields(
+            find_output_line(output, "[demo] snapshot after-resolved => ")
+        ),
+        "confirmation_run": parse_counter_fields(
+            find_output_line(output, "[demo] service run confirmation => ")
+        ),
+        "confirmation_governance": parse_counter_fields(
+            find_output_line(output, "[demo] service governance confirmation => ")
+        ),
+        "confirmation_tasks": parse_task_csv(
+            find_output_line(output, "[demo] service governance confirmation tasks => ")
+        ),
+        "confirmation_snapshot": parse_counter_fields(
+            find_output_line(output, "[demo] snapshot after-confirmation => ")
+        ),
+        "db_path": find_output_line(output, "[demo] db: "),
+        "captured_output": captured_output,
+    }
+
+
+
+def run_sqlite_example_capture(
+    example: str,
+    example_args: list[str] | None = None,
     action: str | None = None,
     replay_output: bool = False,
 ) -> tuple[int, str]:
     env, cargo_exe, _ = build_rust_env()
-    action_name = action or (args[0] if args else "unknown")
+    action_name = action or example
     if cargo_exe is None:
         message = "cargo executable not found; checked PATH and ~/.cargo/bin"
         if replay_output:
             print(f"[mvp-wrapper] cargo => error action={action_name} error={message}", file=sys.stderr)
         return 1, message
+
+    command = [
+        cargo_exe,
+        f"+{TOOLCHAIN}",
+        "run",
+        "-p",
+        "safeclaw-sqlite",
+        "--example",
+        example,
+        "--quiet",
+    ]
+    if example_args:
+        command.extend(["--", *example_args])
+
     try:
         completed = subprocess.run(
-            [
-                cargo_exe,
-                f"+{TOOLCHAIN}",
-                "run",
-                "-p",
-                "safeclaw-sqlite",
-                "--example",
-                "safeclaw_mvp_entry",
-                "--quiet",
-                "--",
-                *args,
-            ],
+            command,
             cwd=REPO_ROOT,
             env=env,
             capture_output=True,
@@ -1031,6 +1150,24 @@ def run_cargo_capture(
         if completed.returncode != 0:
             print(f"[mvp-wrapper] cargo => failed action={action_name} exit={completed.returncode}", file=sys.stderr)
     return completed.returncode, combined_output
+
+
+def run_cargo(args: list[str], action: str | None = None) -> int:
+    exit_code, _ = run_cargo_capture(args, action=action, replay_output=True)
+    return exit_code
+
+
+def run_cargo_capture(
+    args: list[str],
+    action: str | None = None,
+    replay_output: bool = False,
+) -> tuple[int, str]:
+    return run_sqlite_example_capture(
+        "safeclaw_mvp_entry",
+        example_args=args,
+        action=action or (args[0] if args else "unknown"),
+        replay_output=replay_output,
+    )
 
 
 def probe_command(

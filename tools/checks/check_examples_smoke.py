@@ -809,12 +809,24 @@ def collect_errors() -> list[str]:
 
 def build_example_env() -> dict[str, str]:
     env = os.environ.copy()
+    prepend: list[str] = []
     cargo_exe = resolve_executable("cargo", "SAFECLAW_CARGO", "CARGO_EXE")
     if cargo_exe is not None:
-        cargo_dir = str(Path(cargo_exe).resolve().parent)
+        prepend.append(str(Path(cargo_exe).resolve().parent))
+    if WINDOWS_GNU_LINKER.exists():
+        prepend.append(str(WINDOWS_GNU_LINKER.parent))
+    if prepend:
         path_entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
-        if cargo_dir not in path_entries:
-            env["PATH"] = os.pathsep.join([cargo_dir, *path_entries])
+        seen = {os.path.normcase(os.path.normpath(entry)) for entry in path_entries}
+        additions: list[str] = []
+        for entry in prepend:
+            normalized = os.path.normcase(os.path.normpath(entry))
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            additions.append(entry)
+        if additions:
+            env["PATH"] = os.pathsep.join([*additions, *path_entries])
     if sys.platform == "win32":
         env.setdefault("RUSTUP_TOOLCHAIN", WINDOWS_GNU_TOOLCHAIN)
         env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", str(WINDOWS_GNU_LINKER))

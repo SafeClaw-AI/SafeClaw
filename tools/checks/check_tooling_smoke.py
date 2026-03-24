@@ -139,6 +139,47 @@ def assert_doctor_json_result(
         errors.append(f"{name} missing output source=flag")
 
 
+def assert_service_demo_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+) -> None:
+    if result is None:
+        return
+    resolved_run = result.get("resolved_run") or {}
+    resolved_governance = result.get("resolved_governance") or {}
+    confirmation_governance = result.get("confirmation_governance") or {}
+    resolved_tasks = result.get("resolved_tasks") or []
+    confirmation_tasks = result.get("confirmation_tasks") or []
+    captured_output = str(result.get("captured_output") or "")
+    if result.get("example") != "worker_service_governance_demo":
+        errors.append(f"{name} missing example name")
+    elif not isinstance(resolved_run, dict) or resolved_run.get("executed") != 2:
+        errors.append(f"{name} missing resolved_run.executed=2")
+    elif resolved_run.get("parked") != 0:
+        errors.append(f"{name} missing resolved_run.parked=0")
+    elif not isinstance(resolved_governance, dict) or resolved_governance.get("resolved") != 2:
+        errors.append(f"{name} missing resolved_governance.resolved=2")
+    elif resolved_governance.get("confirmation") != 0:
+        errors.append(f"{name} missing resolved_governance.confirmation=0")
+    elif not isinstance(confirmation_governance, dict) or confirmation_governance.get("confirmation") != 1:
+        errors.append(f"{name} missing confirmation_governance.confirmation=1")
+    elif confirmation_governance.get("manual_review") != 0:
+        errors.append(f"{name} missing confirmation_governance.manual_review=0")
+    elif not isinstance(resolved_tasks, list) or "task-worker-service-governance-a" not in resolved_tasks:
+        errors.append(f"{name} missing resolved task a")
+    elif "task-worker-service-governance-b" not in resolved_tasks:
+        errors.append(f"{name} missing resolved task b")
+    elif not isinstance(confirmation_tasks, list) or "task-worker-service-governance-confirmation" not in confirmation_tasks:
+        errors.append(f"{name} missing confirmation task")
+    elif not str(result.get("db_path") or "").lower().endswith(".db"):
+        errors.append(f"{name} missing db_path")
+    elif "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0" not in captured_output:
+        errors.append(f"{name} missing resolved governance output")
+    elif "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0" not in captured_output:
+        errors.append(f"{name} missing confirmation governance output")
+
+
 def assert_run_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -501,9 +542,9 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, session, sessions, use, forget, doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；retry-demo=seed-failed->retry->report" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
@@ -712,6 +753,65 @@ def collect_errors() -> list[str]:
         expected_db_path="target\mvp\doctor-no-path.db",
         expected_output_path="target\mvp\doctor-no-path.txt",
     )
+
+    wrapper_service_demo = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_demo_output = (wrapper_service_demo.stdout or "") + (wrapper_service_demo.stderr or "")
+    if wrapper_service_demo.returncode != 0:
+        errors.append(f"mvp-wrapper-service-demo ????: exit={wrapper_service_demo.returncode}")
+    elif "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0" not in wrapper_service_demo_output:
+        errors.append("mvp-wrapper-service-demo ???? resolved governance")
+    elif "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0" not in wrapper_service_demo_output:
+        errors.append("mvp-wrapper-service-demo ???? confirmation governance")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
+        errors,
+        "mvp-wrapper-cmd-service-demo-json",
+        "service-demo",
+    )
+    assert_service_demo_json_result(result, errors, "mvp-wrapper-cmd-service-demo-json")
+
+    wrapper_service_env = os.environ.copy()
+    wrapper_service_env["PATH"] = os.pathsep.join(
+        entry
+        for entry in wrapper_service_env.get("PATH", "").split(os.pathsep)
+        if ".cargo" not in entry.lower() and "mingw64" not in entry.lower()
+    )
+    service_demo_without_tool_path = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=wrapper_service_env,
+    )
+    payload = load_json_payload(
+        service_demo_without_tool_path,
+        errors,
+        "mvp-wrapper-service-demo-no-tool-path-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "mvp-wrapper-service-demo-no-tool-path-json",
+        "service-demo",
+    )
+    assert_service_demo_json_result(result, errors, "mvp-wrapper-service-demo-no-tool-path-json")
+
+    details = assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-service-demo-invalid-json",
+        "service-demo",
+        expected_error_message_substring="unknown argument: --bogus", expect_no_remembered_session=True,
+    )
+    if details is not None and details.get("remembered_session") is not None:
+        errors.append("mvp-wrapper-service-demo-invalid-json ???? remembered_session")
 
     space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
     space_wrapper_dir.mkdir(parents=True, exist_ok=True)
