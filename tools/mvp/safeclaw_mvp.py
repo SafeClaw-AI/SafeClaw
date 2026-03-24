@@ -425,6 +425,10 @@ def print_help() -> int:
         "组合动作 JSON 失败会额外附带 failed_step 与 error_message"
     )
     print(
+        "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；"
+        "missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文"
+    )
+    print(
         "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；"
         "会在 error.details.remembered_session 附带它"
     )
