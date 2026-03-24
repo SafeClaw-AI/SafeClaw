@@ -239,6 +239,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；retry-demo=seed-failed->retry->report" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
+    elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少异常链提示")
     elif "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，统一返回 {ok, action, schema_version, result|error} 信封" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 信封提示")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step 与 error_message" not in wrapper_help_output:

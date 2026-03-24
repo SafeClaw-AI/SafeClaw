@@ -420,6 +420,10 @@ def print_help() -> int:
         "retry-demo=seed-failed->retry->report"
     )
     print(
+        "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
+        "seed-failed/retry 演示失败态重试"
+    )
+    print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
