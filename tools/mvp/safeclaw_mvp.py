@@ -25,6 +25,11 @@ WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
 LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "session", "sessions", "use", "forget", "doctor")
+ENTRYPOINT_FILES = (
+    ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
+    ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
+    ("py", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.py"),
+)
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
 LOCAL_ACTION_FLAG_SPECS = {
     "session": {"value": set(), "boolean": {"--json"}},
@@ -453,7 +458,7 @@ def print_help() -> int:
         "report 查看指定 task/effect 的治理视图"
     )
     print(
-        "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
+        "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
     )
     print(
@@ -537,11 +542,16 @@ def run_doctor(args: list[str]) -> int:
     toolchain_ok, toolchain_detail = probe_command(["rustc", f"+{TOOLCHAIN}", "--version"])
     linker_path = Path(LINKER)
     linker_ok = linker_path.exists()
+    entrypoints = {
+        name: {"path": render_repo_path(path), "exists": path.exists()}
+        for name, path in ENTRYPOINT_FILES
+    }
+    entry_ok = all(item["exists"] for item in entrypoints.values())
     db_path = resolve_repo_path(db)
     output_path = resolve_repo_path(output)
     failing_checks = [
         name
-        for name, ok in (("cargo", cargo_ok), ("toolchain", toolchain_ok), ("linker", linker_ok))
+        for name, ok in (("entry", entry_ok), ("cargo", cargo_ok), ("toolchain", toolchain_ok), ("linker", linker_ok))
         if not ok
     ]
     doctor_status = "ready" if not failing_checks else "degraded"
@@ -551,6 +561,7 @@ def run_doctor(args: list[str]) -> int:
         "status": doctor_status,
         "failing_checks": failing_checks,
         "python": {"ok": True, "detail": sys.executable},
+        "entrypoints": entrypoints,
         "cargo": {"ok": cargo_ok, "detail": cargo_detail},
         "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
         "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
@@ -568,6 +579,11 @@ def run_doctor(args: list[str]) -> int:
 
     print(f"[mvp-wrapper] doctor repo => {REPO_ROOT}")
     print(f"[mvp-wrapper] doctor python => ok {sys.executable}")
+    entry_names = " ".join(f"{name}={entrypoints[name]['path']}" for name, _ in ENTRYPOINT_FILES)
+    if not entry_ok:
+        missing_entries = ",".join(name for name, _ in ENTRYPOINT_FILES if not entrypoints[name]["exists"])
+        entry_names = f"{entry_names} missing={missing_entries}"
+    print(f"[mvp-wrapper] doctor entry => {'ok' if entry_ok else 'error'} {entry_names}")
     print(f"[mvp-wrapper] doctor cargo => {'ok' if cargo_ok else 'error'} {cargo_detail}")
     print(f"[mvp-wrapper] doctor toolchain => {'ok' if toolchain_ok else 'error'} {toolchain_detail}")
     print(

@@ -255,7 +255,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 session 最近成功会话提示")
     elif "[mvp-wrapper] status/report => status 默认查看当前 remembered session，也可显式传 --task-id；report 查看指定 task/effect 的治理视图" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 status/report 语义提示")
-    elif "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
+    elif "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -291,6 +291,8 @@ def collect_errors() -> list[str]:
     wrapper_doctor_output = (wrapper_doctor.stdout or "") + (wrapper_doctor.stderr or "")
     if wrapper_doctor.returncode != 0:
         errors.append(f"mvp-wrapper-doctor 执行失败: exit={wrapper_doctor.returncode}")
+    elif "[mvp-wrapper] doctor entry => ok cmd=tools\\mvp\\safeclaw_mvp.cmd ps1=tools\\mvp\\safeclaw_mvp.ps1 py=tools\\mvp\\safeclaw_mvp.py" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少入口检查")
     elif "[mvp-wrapper] doctor cargo => ok" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少 cargo 检查")
     elif "[mvp-wrapper] doctor toolchain => ok" not in wrapper_doctor_output:
@@ -327,6 +329,12 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 status=ready")
             elif result.get("failing_checks") != []:
                 errors.append("mvp-wrapper-doctor-json 输出缺少空 failing_checks")
+            elif result.get("entrypoints", {}).get("cmd", {}).get("exists") is not True:
+                errors.append("mvp-wrapper-doctor-json 输出缺少 cmd entry ok")
+            elif result.get("entrypoints", {}).get("ps1", {}).get("exists") is not True:
+                errors.append("mvp-wrapper-doctor-json 输出缺少 ps1 entry ok")
+            elif result.get("entrypoints", {}).get("py", {}).get("exists") is not True:
+                errors.append("mvp-wrapper-doctor-json 输出缺少 py entry ok")
             elif result.get("cargo", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 cargo ok")
             elif result.get("toolchain", {}).get("ok") is not True:
