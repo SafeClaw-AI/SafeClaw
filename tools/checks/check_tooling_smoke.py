@@ -96,6 +96,23 @@ def extract_json_result(
     return result
 
 
+def assert_verify_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+) -> None:
+    if result is None:
+        return
+    if result.get("exit_code") != 0:
+        errors.append(f"{name} missing exit_code=0")
+    elif result.get("script") != "tools/checks/check_mvp_operator_flow.py":
+        errors.append(f"{name} missing verify script path")
+    elif not result.get("python"):
+        errors.append(f"{name} missing python path")
+    elif "MVP operator flow check passed." not in str(result.get("captured_output", "")):
+        errors.append(f"{name} missing verify success output")
+
+
 def assert_doctor_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -783,15 +800,15 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, doctor, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
@@ -2200,6 +2217,36 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-invalid-doctor-json",
         "doctor",
         expected_error_message_substring="missing value after --db",
+    )
+
+    wrapper_cmd_verify = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "verify"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_verify_output = (wrapper_cmd_verify.stdout or "") + (wrapper_cmd_verify.stderr or "")
+    if wrapper_cmd_verify.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-verify failed: exit={wrapper_cmd_verify.returncode}")
+    elif "MVP operator flow check passed." not in wrapper_cmd_verify_output:
+        errors.append("mvp-wrapper-cmd-verify missing operator flow success output")
+    elif "[mvp-wrapper] verify => passed" not in wrapper_cmd_verify_output:
+        errors.append("mvp-wrapper-cmd-verify missing wrapper passed marker")
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "verify", "--json"],
+        errors,
+        "mvp-wrapper-verify-json",
+        "verify",
+    )
+    assert_verify_json_result(result, errors, "mvp-wrapper-verify-json")
+
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "verify", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-verify-invalid-json",
+        "verify",
+        expected_error_message_substring="unknown argument: --bogus",
     )
 
     assert_command_json_error(

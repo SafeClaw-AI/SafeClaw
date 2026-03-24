@@ -56,18 +56,17 @@ tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-recover.db --
 
 ## Verification
 
-Use these two commands to verify the practical MVP path:
+Use the wrapper first for the practical MVP gate:
+
+```bat
+tools\mvp\safeclaw_mvp.cmd verify
+tools\mvp\safeclaw_mvp.cmd verify --json
+```
+
+Run the full protocol gate with any Python that can execute the wrapper:
 
 ```bat
 set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
-tools\mvp\safeclaw_mvp.cmd doctor --json
-tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --db target\mvp\operator-demo.db --output target\mvp\operator-demo.txt --limit 1 --json
-```
-
-Or run the gate scripts with any Python that can execute the wrapper:
-
-```bat
-%SAFECLAW_MVP_PYTHON% tools\checks\check_mvp_operator_flow.py
 %SAFECLAW_MVP_PYTHON% tools\checks\selfcheck.py
 ```
 

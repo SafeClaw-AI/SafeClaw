@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "doctor", "verify")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -55,6 +55,7 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
+    "verify": {"value": set(), "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
     "run": {
@@ -200,6 +201,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("forget", raw_args[1:], forget_session)
     if action == "doctor":
         return dispatch_local_action("doctor", raw_args[1:], run_doctor)
+    if action == "verify":
+        return dispatch_local_action("verify", raw_args[1:], run_verify)
     if action == "demo":
         return run_demo(raw_args[1:])
     if action == "recover-demo":
@@ -538,6 +541,30 @@ def run_service_recover(args: list[str]) -> int:
     return run_service_session_combo("service-recover", "recover", args)
 
 
+def run_verify(args: list[str]) -> int:
+    command = [sys.executable, "tools/checks/check_mvp_operator_flow.py"]
+    completed = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
+    output = ((completed.stdout or "") + (completed.stderr or "")).strip()
+    payload = {
+        "python": sys.executable,
+        "script": "tools/checks/check_mvp_operator_flow.py",
+        "exit_code": completed.returncode,
+        "captured_output": output,
+    }
+    if has_flag(args, "--json"):
+        if completed.returncode != 0:
+            return emit_json_error("verify", "operator flow check failed", exit_code=completed.returncode, details=payload)
+        return emit_json_result("verify", payload)
+
+    if output:
+        print(output)
+    if completed.returncode != 0:
+        print(f"[mvp-wrapper] verify => failed exit={completed.returncode}", file=sys.stderr)
+        return completed.returncode
+    print("[mvp-wrapper] verify => passed")
+    return 0
+
+
 def run_service_status(args: list[str]) -> int:
     try:
         limit = parse_list_limit(args)
@@ -792,7 +819,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
@@ -804,7 +831,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/"
-        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
+        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor/verify 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
@@ -854,6 +881,10 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
+    )
+    print(
+        "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
+        "supports --json and reuses the current Python interpreter"
     )
     print(
         "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；"
