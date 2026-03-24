@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
+import time
 import subprocess
 import sys
 import tempfile
@@ -1008,7 +1010,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, next action hints, suggested commands, and short reasons; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, and short reasons; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -1622,7 +1624,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? recent task")
     elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing scope visibility")
-    elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 next=ok next_reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
+    elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 wait_ms=none next=ok next_reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease visibility")
 
     result = assert_command_json_result(
@@ -1656,6 +1658,127 @@ def collect_errors() -> list[str]:
         "service-status",
         expected_error_message_substring="invalid --limit: bogus",
     )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-status-active",
+            "--db",
+            "target/mvp/service-status-active.db",
+            "--output",
+            "target/mvp/service-status-active.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-active-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-active-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-active",
+        expected_db_path="target/mvp/service-status-active.db",
+        expected_output_path="target/mvp/service-status-active.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    active_db_path = REPO_ROOT / "target" / "mvp" / "service-status-active.db"
+    future_expires_at_ms = int(time.time() * 1000) + 45_000
+    with sqlite3.connect(active_db_path) as connection:
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (future_expires_at_ms, "task-wrapper-service-status-active"),
+        )
+        connection.commit()
+
+    wrapper_service_status_active = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-active.db",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_active_output = (wrapper_service_status_active.stdout or "") + (wrapper_service_status_active.stderr or "")
+    if wrapper_service_status_active.returncode != 0:
+        errors.append(f"mvp-wrapper-service-status-active failed: exit={wrapper_service_status_active.returncode}")
+    elif "[mvp-wrapper] service queue => queued=0 active=1 expired=0 completed=0" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing active queue summary")
+    elif "task=task-wrapper-service-status-active" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing recent task")
+    elif "lease=active lease_owner=safeclaw-mvp lease_fence=1" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing active lease visibility")
+    elif 'next=inspect next_reason=lease_still_active next_cmd=safeclaw.cmd report --db "target/mvp/service-status-active.db" --task-id "task-wrapper-service-status-active"' not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing active next hint")
+    elif "wait_ms=" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing wait_ms visibility")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-active.db",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-active-json",
+        "service-status",
+    )
+    if result is not None:
+        queue = result.get("queue") or {}
+        workers = result.get("workers") or {}
+        effects = result.get("effects") or {}
+        probes = result.get("probes") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        if queue.get("queued") != 0:
+            errors.append("mvp-wrapper-service-status-active-json missing queue.queued=0")
+        elif queue.get("active") != 1:
+            errors.append("mvp-wrapper-service-status-active-json missing queue.active=1")
+        elif queue.get("expired") != 0:
+            errors.append("mvp-wrapper-service-status-active-json missing queue.expired=0")
+        elif queue.get("completed") != 0:
+            errors.append("mvp-wrapper-service-status-active-json missing queue.completed=0")
+        elif workers.get("failed") != 1:
+            errors.append("mvp-wrapper-service-status-active-json missing workers.failed=1")
+        elif effects.get("prepared") != 1:
+            errors.append("mvp-wrapper-service-status-active-json missing effects.prepared=1")
+        elif probes.get("none") != 1:
+            errors.append("mvp-wrapper-service-status-active-json missing probes.none=1")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-status-active-json missing recent task")
+        elif recent_tasks[0].get("lease_state") != "active":
+            errors.append("mvp-wrapper-service-status-active-json missing lease_state=active")
+        elif recent_tasks[0].get("next_action") != "inspect":
+            errors.append("mvp-wrapper-service-status-active-json missing next_action=inspect")
+        elif recent_tasks[0].get("next_reason") != "lease_still_active":
+            errors.append("mvp-wrapper-service-status-active-json missing next_reason=lease_still_active")
+        elif recent_tasks[0].get("next_command") != 'safeclaw.cmd report --db "target/mvp/service-status-active.db" --task-id "task-wrapper-service-status-active"':
+            errors.append("mvp-wrapper-service-status-active-json missing next_command=report")
+        else:
+            lease_remaining_ms = recent_tasks[0].get("lease_remaining_ms")
+            if not isinstance(lease_remaining_ms, int) or lease_remaining_ms <= 0:
+                errors.append("mvp-wrapper-service-status-active-json missing positive lease_remaining_ms")
 
 
     wrapper_service_run = subprocess.run(

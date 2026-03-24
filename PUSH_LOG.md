@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 04:38:25 +0800
+最后更新时间：2026-03-25 04:48:42 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -90,4 +90,10 @@
 - 完成时间：2026-03-25 04:38:25 +0800
 - 完成内容：为 `service-status` 的 recent task 增加简短的 `next_reason`；在 success / failed / uncertain 现场分别补齐推荐原因；同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: add next reasons to service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`e1ce33b feat: add next reasons to service status`
+
+### 轮次 O
+- 完成时间：2026-03-25 04:48:42 +0800
+- 完成内容：为 `service-status` 的 recent task 增加 `lease_remaining_ms`；在 active lease 现场直接给出剩余等待时间，并同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add active lease wait hints to service status`；最终 hash 以当前 `HEAD` 为准。
