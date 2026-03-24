@@ -377,6 +377,9 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints"
     )
+    print(
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；当前仍保留 result.session 兼容字段"
+    )
     return 0
 
 
@@ -982,7 +985,15 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                     "remembered_session": load_session(),
                 },
             )
-    return emit_json_result(name, {"steps": step_results, "session": load_session()})
+    remembered_session = load_session()
+    return emit_json_result(
+        name,
+        {
+            "steps": step_results,
+            "remembered_session": remembered_session,
+            "session": remembered_session,
+        },
+    )
 
 
 def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:

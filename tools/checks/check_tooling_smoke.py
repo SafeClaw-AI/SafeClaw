@@ -226,6 +226,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
     elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
+    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；当前仍保留 result.session 兼容字段" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少组合动作 remembered_session 提示")
 
     wrapper_doctor = subprocess.run(
         [
@@ -1011,10 +1013,13 @@ def collect_errors() -> list[str]:
         if result is not None:
             steps = result.get("steps") or []
             session = result.get("session") or {}
+            remembered_session = result.get("remembered_session") or {}
             if [step.get("action") for step in steps] != ["run", "status", "report"]:
                 errors.append("mvp-wrapper-demo-json 步骤序列不正确")
+            elif remembered_session.get("task_id") != "task-wrapper-demo-json":
+                errors.append("mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json")
             elif session.get("task_id") != "task-wrapper-demo-json":
-                errors.append("mvp-wrapper-demo-json 缺少当前会话 task-wrapper-demo-json")
+                errors.append("mvp-wrapper-demo-json 缺少兼容 session task-wrapper-demo-json")
             else:
                 assert_step_source_hints(
                     steps,
@@ -1130,10 +1135,13 @@ def collect_errors() -> list[str]:
         if result is not None:
             steps = result.get("steps") or []
             session = result.get("session") or {}
+            remembered_session = result.get("remembered_session") or {}
             if [step.get("action") for step in steps] != ["seed-crash", "recover", "report"]:
                 errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
+            elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
+                errors.append("mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json")
             elif session.get("task_id") != "task-wrapper-recover-demo-json":
-                errors.append("mvp-wrapper-recover-demo-json 缺少当前会话 task-wrapper-recover-demo-json")
+                errors.append("mvp-wrapper-recover-demo-json 缺少兼容 session task-wrapper-recover-demo-json")
             else:
                 assert_step_source_hints(
                     steps,
@@ -1212,10 +1220,13 @@ def collect_errors() -> list[str]:
         if result is not None:
             steps = result.get("steps") or []
             session = result.get("session") or {}
+            remembered_session = result.get("remembered_session") or {}
             if [step.get("action") for step in steps] != ["seed-failed", "retry", "report"]:
                 errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
+            elif remembered_session.get("task_id") != "task-wrapper-retry-demo-json":
+                errors.append("mvp-wrapper-retry-demo-json 缺少 remembered_session task-wrapper-retry-demo-json")
             elif session.get("task_id") != "task-wrapper-retry-demo-json":
-                errors.append("mvp-wrapper-retry-demo-json 缺少当前会话 task-wrapper-retry-demo-json")
+                errors.append("mvp-wrapper-retry-demo-json 缺少兼容 session task-wrapper-retry-demo-json")
             else:
                 assert_step_source_hints(
                     steps,
