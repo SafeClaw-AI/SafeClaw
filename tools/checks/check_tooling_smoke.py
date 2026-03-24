@@ -399,14 +399,15 @@ def assert_command_json_error(
     reject_legacy_session: bool = False,
     legacy_session_label: str | None = None,
     **error_expectations: object,
-) -> None:
+) -> dict[str, object] | None:
     payload = load_json_payload(run_wrapper_command(command), errors, name, expected_exit)
     if payload is None:
-        return
+        return None
     error, details = extract_json_error(payload, errors, name, action)
     assert_json_error_fields(error, details, errors, name, **error_expectations)
     if reject_legacy_session and details is not None and details.get("session") is not None:
         errors.append(legacy_session_label or f"{name} should not keep legacy session")
+    return details
 
 
 def assert_step_source_hints(
@@ -1666,7 +1667,7 @@ def collect_errors() -> list[str]:
         legacy_session_label="mvp-wrapper-demo-fail-json 不应继续返回旧 session 字段",
     )
 
-    wrapper_demo_underlying_fail_json = subprocess.run(
+    details = assert_command_json_error(
         [
             PYTHON,
             "tools/mvp/safeclaw_mvp.py",
@@ -1677,43 +1678,25 @@ def collect_errors() -> list[str]:
             "target/mvp",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    payload = load_json_payload(
-        wrapper_demo_underlying_fail_json,
         errors,
         "mvp-wrapper-demo-underlying-fail-json",
+        "demo",
         expected_exit=1,
+        expected_error_message_substring="failed step=run",
+        error_message_label="mvp-wrapper-demo-underlying-fail-json 缺少组合动作失败消息",
+        expected_failed_step="run",
+        expected_remembered_session_task_id="task-wrapper-demo-json",
+        remembered_session_label="mvp-wrapper-demo-underlying-fail-json remembered_session 缺少 task-wrapper-demo-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-demo-underlying-fail-json 不应继续返回旧 session 字段",
     )
-    if payload is not None:
-        error, details = extract_json_error(
-            payload,
+    if details is not None:
+        assert_step_source_hints(
+            details.get("steps"),
             errors,
             "mvp-wrapper-demo-underlying-fail-json",
-            "demo",
+            [("run", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"})],
         )
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-demo-underlying-fail-json",
-            expected_error_message_substring="failed step=run",
-            error_message_label="mvp-wrapper-demo-underlying-fail-json 缺少组合动作失败消息",
-            expected_failed_step="run",
-            expected_remembered_session_task_id="task-wrapper-demo-json",
-            remembered_session_label="mvp-wrapper-demo-underlying-fail-json remembered_session 缺少 task-wrapper-demo-json",
-        )
-        if details is not None:
-            if details.get("session") is not None:
-                errors.append("mvp-wrapper-demo-underlying-fail-json 不应继续返回旧 session 字段")
-            assert_step_source_hints(
-                details.get("steps"),
-                errors,
-                "mvp-wrapper-demo-underlying-fail-json",
-                [("run", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"})],
-            )
 
     wrapper_recover_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--task-id", "task-wrapper-recover-demo"],
