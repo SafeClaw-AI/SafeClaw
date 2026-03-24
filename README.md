@@ -183,9 +183,9 @@ safeclaw.cmd verify --json
 - `doctor`：检查 launcher、Rust 工具链、linker、当前 session / workspace 路径，并显式标出当前 `db` / `output` 来源；当前 local MVP 即使未配置 model provider / sidecar 也可正常离线使用
 - `preflight`：显式预检某个目标动作在当前本地离线 MVP 中是否仍被允许；已知 wrapper / session 动作可离线运行，未知动作默认从严拒绝；常见动作会自动从 remembered session / workspace / 默认 output 推断 `scope/write` 上下文，如传入 `--scope` / `--write` / `--doctor-bypass` 则显式覆盖；同时返回 `permission_tier` / `permission_policy` / `permission_reason` 供执行前判断；加上 `--enforce-permission` 后，脚本会在 `confirm` / `deny` 场景直接非零退出
 - `service-status`：查看当前 service 队列 / worker / effect / probe 摘要，并显式展示 recent task 的 `scope` / `write` / `doctor_bypass`、当前 `permission_tier` / `permission_policy` / `permission_reason`、最新 lease 新鲜度、active lease 的等待时间、`next_action` 决策提示、可直接复制的 `next_command`、简短的 `next_reason`、当前阻断项 `next_blocker`，以及一行可抄录的 `next_summary`
-- `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图
-- `service-retry --report`：用于 failed 任务的首选恢复路径
-- `service-recover --report`：用于 uncertain 任务的首选恢复路径
+- `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图；加 `--preflight` 会在执行前显示同一次实际参数对应的门禁摘要，加 `--enforce-permission` 则会在 `confirm` / `deny` 时直接拦下
+- `service-retry --report`：用于 failed 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
+- `service-recover --report`：用于 uncertain 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
 - `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本接入
 

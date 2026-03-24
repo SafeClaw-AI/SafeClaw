@@ -139,3 +139,9 @@
 - 完成内容：为 `preflight` 增加常见动作权限模板；常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断 `scope/write` 上下文，并显式返回 `permission_context_source`；显式 `--scope` / `--write` / `--doctor-bypass` 仍可覆盖；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: infer preflight permission templates`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 W
+- 完成时间：2026-03-25 07:04:21 +0800
+- 完成内容：为 `service-run` / `service-retry` / `service-recover` 增加 `--preflight` / `--enforce-permission`；把前置门禁接入实际执行链，可基于同一次准备后的参数在执行前显示或严格阻断；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add service preflight gates`；最终 hash 以当前 `HEAD` 为准。

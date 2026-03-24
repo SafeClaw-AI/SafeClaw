@@ -32,9 +32,9 @@
 - `recover-demo`：一键演示 `seed-crash -> recover -> report`
 - `retry-demo`：一键演示 `seed-failed -> retry -> report`
 - `service-demo`: one-command worker service governance summary for `resolved / confirmation` queues
-- `service-run`: run a task and immediately print the matching service summary
-- `service-retry`: retry a failed task and immediately print the matching service summary
-- `service-recover`: recover an uncertain task and immediately print the matching service summary
+- `service-run`: run a task and immediately print the matching service summary; optional `--preflight` shows the gate for the exact prepared action, and `--enforce-permission` turns that gate into a fail-closed blocker
+- `service-retry`: retry a failed task and immediately print the matching service summary; optional `--preflight` / `--enforce-permission` work the same way as `service-run`
+- `service-recover`: recover an uncertain task and immediately print the matching service summary; optional `--preflight` / `--enforce-permission` work the same way as `service-run`
 - `--report`: append `report` after `service-status`, so the practical path can end with a governance view in one command
 - `service-status`: queue / lease / task snapshot summary for the selected db, including recent task `scope` / `write` / `doctor_bypass` visibility, current `permission_tier` / `permission_policy` / `permission_reason`, latest lease freshness, active-lease wait timing, a `next_action` hint, a copyable `next_command`, a short `next_reason`, the current `next_blocker`, and a one-line `next_summary`
 - `preflight`: explicit gate for whether a target action stays allowed in the current local-only MVP entry; known local actions allow, unknown actions default deny, common wrapper / session actions auto-infer permission context from remembered session / workspace / default output, optional `--scope` / `--write` / `--doctor-bypass` override that inferred context and surface `permission_tier` / `permission_policy` / `permission_reason`, and `--enforce-permission` turns that surfaced permission decision into a fail-closed gate
@@ -86,6 +86,7 @@ tools\mvp\safeclaw_mvp.cmd recover-demo --json
 tools\mvp\safeclaw_mvp.cmd retry-demo
 tools\mvp\safeclaw_mvp.cmd service-demo
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1
+tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report
@@ -93,6 +94,7 @@ tools\mvp\safeclaw_mvp.cmd service-status
 tools\mvp\safeclaw_mvp.cmd retry-demo --json
 tools\mvp\safeclaw_mvp.cmd service-demo --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --json
+tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report --json
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --json
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report --json

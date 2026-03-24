@@ -483,6 +483,7 @@ def assert_service_run_json_result(
     expect_report_payload: bool = False,
     expected_run_db_source: str = "flag",
     expected_run_task_context_source: str = "flag",
+    expected_preflight_context_source: str | None = None,
 ) -> None:
     if result is None:
         return
@@ -512,14 +513,19 @@ def assert_service_run_json_result(
     if not isinstance(nested_remembered_session, dict) or nested_remembered_session.get("task_id") != expected_task_id:
         errors.append(f"{name} nested run missing remembered_session {expected_task_id}")
         return
+    expected_step_hints: list[tuple[str, dict[str, str]]] = []
+    if expected_steps and expected_steps[0] == "preflight":
+        expected_step_hints.append(("preflight", {"permission_context": expected_preflight_context_source or "none"}))
+        expected_step_hints.append(("run", {"db": expected_run_db_source, "task_context": expected_run_task_context_source}))
+        expected_step_hints.append(("service-status", {"db": expected_db_source, "task_context": "session"}))
+    else:
+        expected_step_hints.append(("run", {"db": expected_run_db_source, "task_context": expected_run_task_context_source}))
+        expected_step_hints.append(("service-status", {"db": expected_db_source, "task_context": "session"}))
     assert_step_source_hints(
-        steps[:2],
+        steps[: len(expected_step_hints)],
         errors,
         name,
-        [
-            ("run", {"db": expected_run_db_source, "task_context": expected_run_task_context_source}),
-            ("service-status", {"db": expected_db_source, "task_context": "session"}),
-        ],
+        expected_step_hints,
     )
     if expect_report_payload:
         report_payload = result.get("report") or {}
@@ -1115,11 +1121,11 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少错误码解释提示")
     elif "[mvp-wrapper] error message => error.message 是稳定的 wrapper 级消息；脚本无需解析底层 cargo 文案" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少稳定 error.message 提示")
-    elif "[mvp-wrapper] service run => service-run executes run then service-status with one command; supports write flags plus --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service run => service-run executes run then service-status with one command; supports write flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-run help hint")
-    elif "[mvp-wrapper] service retry => service-retry executes retry then service-status for a failed task; supports retry flags plus --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service retry => service-retry executes retry then service-status for a failed task; supports retry flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-retry help hint")
-    elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
     elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, permission decisions, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
@@ -2304,6 +2310,161 @@ def collect_errors() -> list[str]:
         expected_task_id="task-wrapper-service-run-json",
         expected_limit=1,
     )
+
+    wrapper_service_run_preflight = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-run-preflight",
+            "--db",
+            "target/mvp/service-run-preflight.db",
+            "--output",
+            "target/mvp/service-run-preflight.txt",
+            "--limit",
+            "1",
+            "--preflight",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_run_preflight_output = (wrapper_service_run_preflight.stdout or "") + (wrapper_service_run_preflight.stderr or "")
+    if wrapper_service_run_preflight.returncode != 0:
+        errors.append(f"mvp-wrapper-service-run-preflight failed: exit={wrapper_service_run_preflight.returncode}")
+    elif "[mvp-wrapper] service-run => preflight" not in wrapper_service_run_preflight_output:
+        errors.append("mvp-wrapper-service-run-preflight missing preflight step marker")
+    elif "[mvp-wrapper] preflight => action=service-run known=true class=local-action tier=TIER_1 writes_state=true target_scope=scope:target/mvp/service-run-preflight.txt requires_write=true doctor_bypass=false perm_ctx=true perm_ctx_src=prepared-action enforce_perm=false perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_service_run_preflight_output:
+        errors.append("mvp-wrapper-service-run-preflight missing preflight summary")
+    elif "[mvp-wrapper] service-run => run" not in wrapper_service_run_preflight_output:
+        errors.append("mvp-wrapper-service-run-preflight missing run step marker")
+    elif "[mvp-wrapper] service-run => service-status" not in wrapper_service_run_preflight_output:
+        errors.append("mvp-wrapper-service-run-preflight missing service-status step marker")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-run-preflight-json",
+            "--db",
+            "target/mvp/service-run-preflight-json.db",
+            "--output",
+            "target/mvp/service-run-preflight-json.txt",
+            "--limit",
+            "1",
+            "--preflight",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-run-preflight-json",
+        "service-run",
+    )
+    assert_service_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-run-preflight-json",
+        expected_db="target\mvp\service-run-preflight-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-run-preflight-json",
+        expected_limit=1,
+        expected_steps=["preflight", "run", "service-status"],
+        expected_preflight_context_source="prepared-action",
+    )
+    assert_preflight_json_result(
+        None if result is None else result.get("preflight"),
+        errors,
+        "mvp-wrapper-service-run-preflight-json preflight",
+        expected_requested_action="service-run",
+        expected_known=True,
+        expected_action_class="local-action",
+        expected_tier="TIER_1",
+        expected_writes_state=True,
+        expected_permission_context_source="prepared-action",
+        expected_target_scope="scope:target/mvp/service-run-preflight-json.txt",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=True,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="confirm",
+        expected_permission_reason="write_scope_requires_confirmation",
+        expected_permission_enforced=False,
+        expected_action_allowed=True,
+        expected_action_decision="allow",
+        expected_action_reason="current_mvp_action_is_local_only",
+        expected_allowed=True,
+        expected_decision="allow",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
+
+    details = assert_command_json_error(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-run-enforced",
+            "--db",
+            "target/mvp/service-run-enforced.db",
+            "--output",
+            "target/mvp/service-run-enforced.txt",
+            "--limit",
+            "1",
+            "--enforce-permission",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-run-enforced-json",
+        "service-run",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_code="preflight-blocked",
+        expected_failed_step="preflight",
+    )
+    if isinstance(details, dict):
+        preflight_payload = details.get("preflight")
+        if not isinstance(preflight_payload, dict):
+            errors.append("mvp-wrapper-service-run-enforced-json missing preflight payload")
+        else:
+            assert_preflight_json_result(
+                preflight_payload,
+                errors,
+                "mvp-wrapper-service-run-enforced-json preflight",
+                expected_requested_action="service-run",
+                expected_known=True,
+                expected_action_class="local-action",
+                expected_tier="TIER_1",
+                expected_writes_state=True,
+                expected_permission_context_source="prepared-action",
+                expected_target_scope="scope:target/mvp/service-run-enforced.txt",
+                expected_requires_write=True,
+                expected_doctor_bypass=False,
+                expected_permission_context_applied=True,
+                expected_permission_tier="TIER_1",
+                expected_permission_policy="confirm",
+                expected_permission_reason="write_scope_requires_confirmation",
+                expected_permission_enforced=True,
+                expected_action_allowed=True,
+                expected_action_decision="allow",
+                expected_action_reason="current_mvp_action_is_local_only",
+                expected_allowed=False,
+                expected_decision="confirm",
+                expected_offline_ready=True,
+                expected_degradation_mode="local_only_ok",
+                expected_reason="write_scope_requires_confirmation",
+            )
+        steps = details.get("steps") or []
+        if not isinstance(steps, list) or len(steps) != 1 or not isinstance(steps[0], dict):
+            errors.append("mvp-wrapper-service-run-enforced-json missing isolated preflight step")
+        elif steps[0].get("action") != "preflight":
+            errors.append("mvp-wrapper-service-run-enforced-json missing preflight step action")
 
     assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-run", "--limit", "bogus", "--json"],

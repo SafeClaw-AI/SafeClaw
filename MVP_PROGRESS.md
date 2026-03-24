@@ -1,11 +1,11 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 06:51:15 +0800
+最后更新时间：2026-03-25 07:04:21 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前十四刀为 doctor 离线边界诊断 / scope 可见化 / lease 可见化 / next_action 决策提示 / next_command 命令提示 / next_reason 原因提示 / active lease 等待提示 / next_blocker 阻断提示 / next_summary 一行摘要提示 / preflight 离线门禁 / permission 决策可见化 / preflight scope 权限预检 / preflight 严格权限阻断 / preflight 常见动作权限模板
+当前阶段：已进入 M1b，前十五刀为 doctor 离线边界诊断 / scope 可见化 / lease 可见化 / next_action 决策提示 / next_command 命令提示 / next_reason 原因提示 / active lease 等待提示 / next_blocker 阻断提示 / next_summary 一行摘要提示 / preflight 离线门禁 / permission 决策可见化 / preflight scope 权限预检 / preflight 严格权限阻断 / preflight 常见动作权限模板 / service 前置门禁
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
-- 当前主线（M1b 生存层补完）：约 0.15 天
+- 当前主线（M1b 生存层补完）：约 0.1 天
 - 下一阶段（M2 首轮价值层）：约 1 ~ 2 周
 
 ## 进展
@@ -31,6 +31,7 @@
 | [x] | M1b 第十二刀：preflight scope 权限预检 | `01_文档/03_开发蓝图.md` M1b | `preflight` 现已支持可选 `--scope` / `--write` / `--doctor-bypass`，在执行前返回 `permission_tier` / `permission_policy` / `permission_reason`；默认动作级 allow / deny 语义保持不变 | 已落地，降低执行前权限判断成本 |
 | [x] | M1b 第十三刀：preflight 严格权限阻断 | `01_文档/03_开发蓝图.md` M1b | `preflight` 新增 `--enforce-permission`；当显式提供权限上下文后，`confirm` / `deny` 会直接非零退出，`allow` 才放行；同时返回 `action_allowed` / `action_decision` / `action_reason` 供脚本区分动作门禁与权限门禁 | 已落地，降低脚本接入误放行风险 |
 | [x] | M1b 第十四刀：preflight 常见动作权限模板 | `01_文档/03_开发蓝图.md` M1b | `preflight` 现可为常见 wrapper / session 动作自动从 remembered session / workspace / 默认 output 推断 `scope/write` 上下文，并显式返回 `permission_context_source`；显式 `--scope` / `--write` / `--doctor-bypass` 仍可覆盖 | 已落地，降低预检传参摩擦 |
+| [x] | M1b 第十五刀：service 前置门禁 | `01_文档/03_开发蓝图.md` M1b | `service-run` / `service-retry` / `service-recover` 新增 `--preflight` / `--enforce-permission`；可在执行前用同一次实际参数跑门禁，必要时直接在 `preflight` 步阻断，并在 JSON 错误细节中返回 `preflight` 载荷 | 已落地，降低实际执行误放行风险 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

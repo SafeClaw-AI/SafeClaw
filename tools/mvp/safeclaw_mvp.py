@@ -86,15 +86,15 @@ LOCAL_ACTION_FLAG_SPECS = {
     "service-demo": {"value": set(), "boolean": {"--json"}},
     "service-run": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
-        "boolean": {"--json", "--reset", "--report"},
+        "boolean": {"--json", "--reset", "--report", "--preflight", "--enforce-permission"},
     },
     "service-retry": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
-        "boolean": {"--json", "--report"},
+        "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
     "service-recover": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
-        "boolean": {"--json", "--report"},
+        "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
@@ -545,6 +545,55 @@ def build_service_status_step_result(payload: dict[str, object]) -> dict[str, ob
     }
 
 
+def render_preflight_summary(payload: dict[str, object]) -> str:
+    return (
+        f"action={payload['requested_action']} known={str(bool(payload['known'])).lower()} "
+        f"class={payload['action_class']} tier={payload['tier']} "
+        f"writes_state={str(bool(payload['writes_state'])).lower()} "
+        f"target_scope={payload['target_scope'] or 'none'} "
+        f"requires_write={str(bool(payload['requires_write'])).lower()} "
+        f"doctor_bypass={str(bool(payload['doctor_bypass'])).lower()} "
+        f"perm_ctx={str(bool(payload['permission_context_applied'])).lower()} "
+        f"perm_ctx_src={payload['permission_context_source']} "
+        f"enforce_perm={str(bool(payload['permission_enforced'])).lower()} "
+        f"perm={payload['permission_policy']} perm_tier={payload['permission_tier']} "
+        f"perm_reason={payload['permission_reason']} "
+        f"decision={payload['decision']} allowed={str(bool(payload['allowed'])).lower()} "
+        f"offline_ready={str(bool(payload['offline_ready'])).lower()} "
+        f"requires_model={str(bool(payload['requires_model'])).lower()} "
+        f"requires_sidecar={str(bool(payload['requires_sidecar'])).lower()} "
+        f"degradation={payload['degradation_mode']} reason={payload['reason']}"
+    )
+
+
+def build_preflight_step_result(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "action": "preflight",
+        "ok": bool(payload.get("allowed")),
+        "exit_code": 0 if bool(payload.get("allowed")) else 1,
+        "source_hints": {
+            "permission_context": str(payload.get("permission_context_source") or "none"),
+        },
+    }
+
+
+def build_service_preflight_payload(
+    local_action: str,
+    session_args: list[str],
+    *,
+    permission_enforced: bool,
+) -> dict[str, object]:
+    output = get_flag(session_args, "--output") or ""
+    return build_preflight_payload(
+        local_action,
+        target_scope=build_scope_value(output) if output else "",
+        requires_write=local_action in PREFLIGHT_WRITE_ACTIONS,
+        doctor_bypass=False,
+        permission_enforced=permission_enforced,
+        permission_context_source_hint="prepared-action",
+    )
+
+
 def run_service_session_combo(local_action: str, session_action: str, args: list[str]) -> int:
     try:
         limit = parse_list_limit(args)
@@ -558,13 +607,30 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
         )
 
     include_report = has_flag(args, "--report")
+    preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
+    permission_enforced = has_flag(args, "--enforce-permission")
     session_args = build_service_session_action_args(session_action, args)
     status_args = build_service_status_args(args, limit)
     report_args = build_service_report_args(args)
     nested_result_key = session_action.replace("-", "_")
+    preflight_payload = (
+        build_service_preflight_payload(local_action, session_args, permission_enforced=permission_enforced)
+        if preflight_requested
+        else None
+    )
 
     if has_flag(args, "--json"):
         step_results: list[dict[str, object]] = []
+        if preflight_payload is not None:
+            step_results.append(build_preflight_step_result(preflight_payload))
+            if not bool(preflight_payload.get("allowed")):
+                details = build_remembered_session_details(
+                    failed_step="preflight",
+                    steps=step_results,
+                    preflight=preflight_payload,
+                    code="preflight-blocked",
+                )
+                return emit_json_error(local_action, "failed step=preflight", exit_code=1, details=details)
         try:
             action_result = execute_session_action_capture(session_args)
         except ValueError as error:
@@ -600,6 +666,8 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
         status_payload = build_service_status_payload(status_args, load_session(), limit=limit)
         step_results.append(build_service_status_step_result(status_payload))
         payload = build_combo_result_payload(step_results)
+        if preflight_payload is not None:
+            payload["preflight"] = preflight_payload
         payload[nested_result_key] = build_session_action_result_payload(action_result)
         payload["service_status"] = status_payload
 
@@ -636,11 +704,20 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
                     ),
                 )
             payload = build_combo_result_payload(step_results)
+            if preflight_payload is not None:
+                payload["preflight"] = preflight_payload
             payload[nested_result_key] = build_session_action_result_payload(action_result)
             payload["service_status"] = status_payload
             payload["report"] = build_session_action_result_payload(report_result)
 
         return emit_json_result(local_action, payload)
+
+    if preflight_payload is not None:
+        print(f"[mvp-wrapper] {local_action} => preflight")
+        print(f"[mvp-wrapper] preflight => {render_preflight_summary(preflight_payload)}")
+        if not bool(preflight_payload.get("allowed")):
+            print(f"[mvp-wrapper] {local_action} => failed step=preflight exit=1", file=sys.stderr)
+            return 1
 
     print(f"[mvp-wrapper] {local_action} => {session_action}")
     exit_code = execute_session_action(session_args)
@@ -661,6 +738,7 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
             print(f"[mvp-wrapper] {local_action} => failed step=report exit={exit_code}", file=sys.stderr)
             return exit_code
     return 0
+
 
 
 def run_service_run(args: list[str]) -> int:
@@ -695,25 +773,7 @@ def run_preflight(args: list[str]) -> int:
     exit_code = 0 if bool(payload.get("allowed")) else 1
     if has_flag(args, "--json"):
         return emit_json_result("preflight", payload, exit_code=exit_code)
-    print(
-        "[mvp-wrapper] preflight => "
-        f"action={payload['requested_action']} known={str(bool(payload['known'])).lower()} "
-        f"class={payload['action_class']} tier={payload['tier']} "
-        f"writes_state={str(bool(payload['writes_state'])).lower()} "
-        f"target_scope={payload['target_scope'] or 'none'} "
-        f"requires_write={str(bool(payload['requires_write'])).lower()} "
-        f"doctor_bypass={str(bool(payload['doctor_bypass'])).lower()} "
-        f"perm_ctx={str(bool(payload['permission_context_applied'])).lower()} "
-        f"perm_ctx_src={payload['permission_context_source']} "
-        f"enforce_perm={str(bool(payload['permission_enforced'])).lower()} "
-        f"perm={payload['permission_policy']} perm_tier={payload['permission_tier']} "
-        f"perm_reason={payload['permission_reason']} "
-        f"decision={payload['decision']} allowed={str(bool(payload['allowed'])).lower()} "
-        f"offline_ready={str(bool(payload['offline_ready'])).lower()} "
-        f"requires_model={str(bool(payload['requires_model'])).lower()} "
-        f"requires_sidecar={str(bool(payload['requires_sidecar'])).lower()} "
-        f"degradation={payload['degradation_mode']} reason={payload['reason']}"
-    )
+    print(f"[mvp-wrapper] preflight => {render_preflight_summary(payload)}")
     return exit_code
 
 
@@ -1025,6 +1085,8 @@ def resolve_preflight_permission_context(
     target_scope: str,
     requires_write: bool,
     doctor_bypass: bool,
+    *,
+    permission_context_source_hint: str | None = None,
 ) -> dict[str, object]:
     normalized_scope = target_scope.strip()
     if normalized_scope or requires_write or doctor_bypass:
@@ -1032,7 +1094,7 @@ def resolve_preflight_permission_context(
             "target_scope": normalized_scope,
             "requires_write": requires_write,
             "doctor_bypass": doctor_bypass,
-            "permission_context_source": "explicit",
+            "permission_context_source": permission_context_source_hint or "explicit",
         }
     inferred = infer_preflight_permission_context(requested_action)
     if inferred is not None:
@@ -1123,13 +1185,20 @@ def build_preflight_payload(
     requires_write: bool = False,
     doctor_bypass: bool = False,
     permission_enforced: bool = False,
+    permission_context_source_hint: str | None = None,
 ) -> dict[str, object]:
     action = requested_action.strip()
     runtime_profile = build_runtime_profile_payload()
     model_provider = build_model_provider_payload()
     sidecar = build_sidecar_payload()
     writes_state = action in PREFLIGHT_WRITE_ACTIONS
-    resolved_context = resolve_preflight_permission_context(action, target_scope, requires_write, doctor_bypass)
+    resolved_context = resolve_preflight_permission_context(
+        action,
+        target_scope,
+        requires_write,
+        doctor_bypass,
+        permission_context_source_hint=permission_context_source_hint,
+    )
     resolved_target_scope = str(resolved_context["target_scope"])
     resolved_requires_write = writes_state or bool(resolved_context["requires_write"])
     resolved_doctor_bypass = bool(resolved_context["doctor_bypass"])
@@ -1337,15 +1406,15 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] service run => service-run executes run then service-status with one command; "
-        "supports write flags plus --limit / --json"
+        "supports write flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
         "[mvp-wrapper] service retry => service-retry executes retry then service-status for a failed task; "
-        "supports retry flags plus --limit / --json"
+        "supports retry flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
         "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; "
-        "supports recover flags plus --limit / --json"
+        "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
         "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, permission decisions, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
