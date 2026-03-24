@@ -1,12 +1,12 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 02:38 +0800
+最后更新时间：2026-03-25 03:05:46 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：主线仍在 Win11 本地 MVP / M1a 收口
+当前阶段：Win11 本地 MVP / M1a 可手用验收已完成，准备转入 M1b
 当前预估：
-- 当前主线（Win11 本地 MVP + M1a 最后验收）：约 0.5 天 ~ 1 天
-- 下一阶段（M1b 生存层补完）：约 3 ~ 5 天
-- 再下一阶段（M2 首轮价值层）：约 1 ~ 2 周
+- Win11 本地 MVP / M1a 可手用收口：已完成
+- 当前主线（M1b 生存层补完）：约 3 ~ 5 天
+- 下一阶段（M2 首轮价值层）：约 1 ~ 2 周
 
 ## 进展
 | 状态 | 计划区块 | 文档来源 | 当前实现进展 | 备注 |
@@ -14,9 +14,9 @@
 | [x] | 宪法 / 决策 / 蓝图 / API 真源 | `01_文档/01_宪法.md` `01_文档/02_决策清单.md` `01_文档/03_开发蓝图.md` `01_文档/05_API规范草案.md` | 文档基线、架构冻结、协议真源已形成 | 已进入实现驱动阶段 |
 | [x] | specs / contracts / generated / selfcheck 闭环 | `01_文档/03_开发蓝图.md` `01_文档/09_迭代升级与自动化.md` | `specs`、`tests/contracts`、`tools/checks` 已形成门禁 | Phase 0 主干已落地 |
 | [x] | Rust core / sqlite / recovery / probe 主线 | `01_文档/03_开发蓝图.md` 生存层 M1 | 仓库已有 `safeclaw-core`、`safeclaw-sqlite`、恢复/探针/worker demos | M1a 关键路径已部分落地 |
-| [x] | Win11 本地 MVP wrapper / operator flow | `01_文档/08_用户旅程.md` | `safeclaw.cmd`、`safeclaw.ps1`、`tools/mvp` 已可手动使用 | 当前最接近可交付的一层 |
+| [x] | Win11 本地 MVP wrapper / operator flow | `01_文档/08_用户旅程.md` | `safeclaw.cmd`、`safeclaw.ps1`、`tools/mvp` 已可手动使用 | README 根入口最短路径已纳入自动门禁 |
 | [x] | 追踪文档完整性防线 | `01_文档/09_迭代升级与自动化.md` | `MVP_PROGRESS.md`、`PUSH_LOG.md` 已接入公开文档检查 | 可拦截问号或乱码占位符 |
-| [ ] | M1a 最后一轮可手用验收 | `01_文档/03_开发蓝图.md` M1 验收 | 待做集中验收与少量收口 | 当前最后一步 |
+| [x] | M1a 最后一轮可手用验收 | `01_文档/03_开发蓝图.md` M1 验收 | 根入口 `workspace -> doctor -> service-run/retry/recover -> verify` 已进 smoke；`selfcheck` 全绿 | 当前主线已收口 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 权限 scope / 心跳 / sidecar / 预算 / 并发 / 离线降级仍需集中实现或收口 | 下一阶段 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

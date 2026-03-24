@@ -305,6 +305,8 @@ def assert_service_run_json_result(
     expected_limit: int,
     expected_steps: list[str] | None = None,
     expect_report_payload: bool = False,
+    expected_run_db_source: str = "flag",
+    expected_run_task_context_source: str = "flag",
 ) -> None:
     if result is None:
         return
@@ -339,7 +341,7 @@ def assert_service_run_json_result(
         errors,
         name,
         [
-            ("run", {"db": "flag", "task_context": "flag"}),
+            ("run", {"db": expected_run_db_source, "task_context": expected_run_task_context_source}),
             ("service-status", {"db": expected_db_source, "task_context": "session"}),
         ],
     )
@@ -1016,6 +1018,226 @@ def collect_errors() -> list[str]:
         errors.append(f"safeclaw-root-ps1-help failed: exit={root_ps1_help.returncode}")
     elif "[mvp-wrapper] usage => safeclaw.cmd <action> [flags]" not in root_ps1_help_output:
         errors.append("safeclaw-root-ps1-help missing usage")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "workspace", "--name", "readme-root", "--json"],
+        errors,
+        "safeclaw-root-cmd-workspace-json",
+        "workspace",
+    )
+    if result is not None:
+        actual_db = str(result.get("db") or "").replace("\\", "/")
+        actual_output = str(result.get("output") or "").replace("\\", "/")
+        if result.get("active") is not True:
+            errors.append("safeclaw-root-cmd-workspace-json missing active=true")
+        elif result.get("name") != "readme-root":
+            errors.append("safeclaw-root-cmd-workspace-json missing name=readme-root")
+        elif actual_db != "target/mvp/workspaces/readme-root/session.db":
+            errors.append("safeclaw-root-cmd-workspace-json missing normalized db path")
+        elif actual_output != "target/mvp/workspaces/readme-root/output.txt":
+            errors.append("safeclaw-root-cmd-workspace-json missing normalized output path")
+        elif result.get("path") != "target\mvp\workspace.json":
+            errors.append("safeclaw-root-cmd-workspace-json missing workspace path")
+        elif result.get("changed") is not True:
+            errors.append("safeclaw-root-cmd-workspace-json missing changed=true")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "doctor", "--json"],
+        errors,
+        "safeclaw-root-cmd-doctor-json",
+        "doctor",
+    )
+    if result is not None:
+        workspace_info = result.get("workspace") or {}
+        db_info = result.get("db") or {}
+        output_info = result.get("output") or {}
+        actual_db = str(db_info.get("path") or "").replace("\\", "/")
+        actual_output = str(output_info.get("path") or "").replace("\\", "/")
+        if result.get("status") != "ready":
+            errors.append("safeclaw-root-cmd-doctor-json missing status=ready")
+        elif result.get("failing_checks") != []:
+            errors.append("safeclaw-root-cmd-doctor-json missing empty failing_checks")
+        elif not isinstance(workspace_info, dict) or workspace_info.get("active") is not True:
+            errors.append("safeclaw-root-cmd-doctor-json missing active workspace")
+        elif workspace_info.get("name") != "readme-root":
+            errors.append("safeclaw-root-cmd-doctor-json missing workspace name")
+        elif actual_db != "target/mvp/workspaces/readme-root/session.db":
+            errors.append("safeclaw-root-cmd-doctor-json missing normalized db path")
+        elif db_info.get("source") != "workspace":
+            errors.append("safeclaw-root-cmd-doctor-json missing db source=workspace")
+        elif actual_output != "target/mvp/workspaces/readme-root/output.txt":
+            errors.append("safeclaw-root-cmd-doctor-json missing normalized output path")
+        elif output_info.get("source") != "workspace":
+            errors.append("safeclaw-root-cmd-doctor-json missing output source=workspace")
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "safeclaw.cmd",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-readme-root",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-cmd-service-run-json",
+        "service-run",
+    )
+    assert_service_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-run-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root",
+        expected_limit=1,
+        expected_steps=["run", "service-status", "report"],
+        expect_report_payload=True,
+        expected_run_db_source="workspace",
+    )
+
+    payload = load_json_payload(
+        run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "seed-failed", "--reset", "--task-id", "task-readme-root-failed", "--json"]),
+        errors,
+        "safeclaw-root-cmd-seed-failed-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "safeclaw-root-cmd-seed-failed-json",
+        "seed-failed",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        session = result.get("saved_session") or {}
+        source_hints = result.get("source_hints") or {}
+        if not prepared or prepared[0] != "seed-failed":
+            errors.append("safeclaw-root-cmd-seed-failed-json missing prepared seed-failed")
+        elif session.get("task_id") != "task-readme-root-failed":
+            errors.append("safeclaw-root-cmd-seed-failed-json missing saved session task")
+        elif source_hints.get("db") != "workspace":
+            errors.append("safeclaw-root-cmd-seed-failed-json missing workspace db source")
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "safeclaw.cmd",
+            "service-retry",
+            "--task-id",
+            "task-readme-root-failed",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-cmd-service-retry-json",
+        "service-retry",
+    )
+    assert_service_retry_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-retry-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-failed",
+        expected_limit=1,
+        expected_steps=["retry", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+    payload = load_json_payload(
+        run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "seed-crash", "--reset", "--task-id", "task-readme-root-uncertain", "--json"]),
+        errors,
+        "safeclaw-root-cmd-seed-crash-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "safeclaw-root-cmd-seed-crash-json",
+        "seed-crash",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        session = result.get("saved_session") or {}
+        source_hints = result.get("source_hints") or {}
+        if not prepared or prepared[0] != "seed-crash":
+            errors.append("safeclaw-root-cmd-seed-crash-json missing prepared seed-crash")
+        elif session.get("task_id") != "task-readme-root-uncertain":
+            errors.append("safeclaw-root-cmd-seed-crash-json missing saved session task")
+        elif source_hints.get("db") != "workspace":
+            errors.append("safeclaw-root-cmd-seed-crash-json missing workspace db source")
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "safeclaw.cmd",
+            "service-recover",
+            "--task-id",
+            "task-readme-root-uncertain",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-cmd-service-recover-json",
+        "service-recover",
+    )
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-recover-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-uncertain",
+        expected_limit=1,
+        expected_steps=["recover", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "verify", "--json"],
+        errors,
+        "safeclaw-root-cmd-verify-json",
+        "verify",
+    )
+    assert_verify_json_result(result, errors, "safeclaw-root-cmd-verify-json")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "workspace", "--clear", "--json"],
+        errors,
+        "safeclaw-root-cmd-workspace-clear-json",
+        "workspace",
+    )
+    if result is not None:
+        clear_state = (result.get("cleared"), result.get("reason"))
+        if result.get("path") != "target\mvp\workspace.json":
+            errors.append("safeclaw-root-cmd-workspace-clear-json missing workspace path")
+        elif clear_state not in {(True, "removed"), (False, "none")}:
+            errors.append("safeclaw-root-cmd-workspace-clear-json unexpected clear state")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "forget", "--json"],
+        errors,
+        "safeclaw-root-cmd-forget-json",
+        "forget",
+    )
+    if result is not None:
+        forget_state = (result.get("forgot"), result.get("reason"))
+        if result.get("path") != "target\mvp\last_session.json":
+            errors.append("safeclaw-root-cmd-forget-json missing session path")
+        elif forget_state not in {(True, "removed"), (False, "none")}:
+            errors.append("safeclaw-root-cmd-forget-json unexpected forget state")
 
 
     result = assert_command_json_result(
