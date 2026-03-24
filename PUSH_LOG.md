@@ -133,3 +133,9 @@
 - 完成内容：为 `preflight` 增加 `--enforce-permission` 严格权限阻断；在显式提供 `--scope` / `--write` / `--doctor-bypass` 后，`confirm` / `deny` 会直接非零退出，`allow` 才放行；同时补 `action_allowed` / `action_decision` / `action_reason` 以区分动作门禁与权限门禁；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: enforce preflight permission gates`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 V
+- 完成时间：2026-03-25 06:51:15 +0800
+- 完成内容：为 `preflight` 增加常见动作权限模板；常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断 `scope/write` 上下文，并显式返回 `permission_context_source`；显式 `--scope` / `--write` / `--doctor-bypass` 仍可覆盖；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: infer preflight permission templates`；最终 hash 以当前 `HEAD` 为准。
