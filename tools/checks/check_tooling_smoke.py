@@ -1002,7 +1002,7 @@ def collect_errors() -> list[str]:
     root_cmd_help_output = (root_cmd_help.stdout or "") + (root_cmd_help.stderr or "")
     if root_cmd_help.returncode != 0:
         errors.append(f"safeclaw-root-cmd-help failed: exit={root_cmd_help.returncode}")
-    elif "[mvp-wrapper] usage => tools\mvp\safeclaw_mvp.cmd <action> [flags]" not in root_cmd_help_output:
+    elif "[mvp-wrapper] usage => safeclaw.cmd <action> [flags]" not in root_cmd_help_output:
         errors.append("safeclaw-root-cmd-help missing usage")
 
     root_ps1_help = subprocess.run(
@@ -1014,7 +1014,7 @@ def collect_errors() -> list[str]:
     root_ps1_help_output = (root_ps1_help.stdout or "") + (root_ps1_help.stderr or "")
     if root_ps1_help.returncode != 0:
         errors.append(f"safeclaw-root-ps1-help failed: exit={root_ps1_help.returncode}")
-    elif "[mvp-wrapper] usage => tools\mvp\safeclaw_mvp.cmd <action> [flags]" not in root_ps1_help_output:
+    elif "[mvp-wrapper] usage => safeclaw.cmd <action> [flags]" not in root_ps1_help_output:
         errors.append("safeclaw-root-ps1-help missing usage")
 
 

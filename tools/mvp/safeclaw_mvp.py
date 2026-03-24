@@ -36,6 +36,10 @@ ENTRYPOINT_FILES = (
 )
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
 WORKSPACE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def display_entry_command() -> str:
+    return os.environ.get("SAFECLAW_MVP_DISPLAY_ENTRY") or "tools\\mvp\\safeclaw_mvp.cmd"
 LOCAL_ACTION_FLAG_SPECS = {
     "session": {"value": set(), "boolean": {"--json"}},
     "sessions": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
@@ -891,7 +895,7 @@ def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, obje
 
 
 def print_help() -> int:
-    print("[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]")
+    print(f"[mvp-wrapper] usage => {display_entry_command()} <action> [flags]")
     print(f"[mvp-wrapper] local actions => {', '.join(LOCAL_ACTIONS)}")
     print(f"[mvp-wrapper] passthrough actions => {', '.join(sorted(SESSION_ACTIONS))}")
     print(
