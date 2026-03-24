@@ -413,7 +413,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
