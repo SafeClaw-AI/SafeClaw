@@ -673,7 +673,10 @@ def run_service_status(args: list[str]) -> int:
         print(
             f"[mvp-wrapper] service recent[{index}] => "
             f"task={row['task_id']} effect={row['effect_id']} worker={row['worker_state']} "
-            f"effect_status={row['effect_status']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
+            f"effect_status={row['effect_status']} scope={row['target_scope']} "
+            f"write={str(bool(row['requires_write'])).lower()} "
+            f"doctor_bypass={str(bool(row['doctor_bypass'])).lower()} "
+            f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
 def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
@@ -1552,7 +1555,7 @@ def repair_invalid_session(reason: str) -> None:
     )
 
 
-def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
+def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
 
@@ -1560,10 +1563,10 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
         rows = connection.execute(
             """
             SELECT
-                task_id,
-                worker_state,
-                effect_status,
-                updated_at,
+                task_snapshots.task_id,
+                task_snapshots.worker_state,
+                task_snapshots.effect_status,
+                task_snapshots.updated_at,
                 COALESCE(
                     (
                         SELECT effect_id
@@ -1573,9 +1576,14 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
                         LIMIT 1
                     ),
                     ''
-                ) AS effect_id
+                ) AS effect_id,
+                COALESCE(orchestrator_tasks.target_scope, '') AS target_scope,
+                COALESCE(orchestrator_tasks.requires_write, 0) AS requires_write,
+                COALESCE(orchestrator_tasks.doctor_bypass, 0) AS doctor_bypass
             FROM task_snapshots
-            ORDER BY updated_at DESC, task_id DESC
+            LEFT JOIN orchestrator_tasks
+              ON orchestrator_tasks.task_id = task_snapshots.task_id
+            ORDER BY task_snapshots.updated_at DESC, task_snapshots.task_id DESC
             LIMIT ?1
             """,
             (limit,),
@@ -1588,6 +1596,9 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, str]]:
             "effect_status": row[2],
             "updated_at": row[3],
             "effect_id": row[4] or f"effect-{row[0]}",
+            "target_scope": row[5] or '',
+            "requires_write": bool(row[6]),
+            "doctor_bypass": bool(row[7]),
         }
         for row in rows
     ]

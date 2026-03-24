@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 03:28:48 +0800
+最后更新时间：2026-03-25 03:47:04 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -60,4 +60,10 @@
 - 完成时间：2026-03-25 03:28:48 +0800
 - 完成内容：为 `doctor` 增加 `runtime_profile` / `model_provider` / `sidecar` 诊断字段与文本提示；明确当前 local MVP 离线可跑、无 model provider / sidecar 也属正常；同步 `README.md` 与 `tools/mvp/README.md` 说明。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: clarify local-only doctor diagnostics`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`fc0be70 feat: clarify local-only doctor diagnostics`
+
+### 轮次 J
+- 完成时间：2026-03-25 03:47:04 +0800
+- 完成内容：让 `service-status` 的 recent task 显式展示 `target_scope` / `requires_write` / `doctor_bypass`；同步根 README、`tools/mvp/README.md` 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: surface scope diagnostics in service status`；最终 hash 以当前 `HEAD` 为准。

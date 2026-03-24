@@ -287,6 +287,9 @@ def assert_service_status_json_result(
     expected_db_source: str,
     expected_task_id: str,
     expected_limit: int = 5,
+    expected_target_scope: str | None = None,
+    expected_requires_write: bool | None = None,
+    expected_doctor_bypass: bool | None = None,
 ) -> None:
     if result is None:
         return
@@ -328,6 +331,12 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent task {expected_task_id}")
     elif recent_tasks[0].get("current") is not True:
         errors.append(f"{name} missing recent current=true")
+    elif expected_target_scope is not None and recent_tasks[0].get("target_scope") != expected_target_scope:
+        errors.append(f"{name} missing recent target_scope={expected_target_scope}")
+    elif expected_requires_write is not None and recent_tasks[0].get("requires_write") != expected_requires_write:
+        errors.append(f"{name} missing recent requires_write={expected_requires_write}")
+    elif expected_doctor_bypass is not None and recent_tasks[0].get("doctor_bypass") != expected_doctor_bypass:
+        errors.append(f"{name} missing recent doctor_bypass={expected_doctor_bypass}")
 
 
 def assert_service_run_json_result(
@@ -1593,6 +1602,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? probe ??")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status ???? recent task")
+    elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing scope visibility")
 
     result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
@@ -1607,6 +1618,9 @@ def collect_errors() -> list[str]:
         expected_db="target\mvp\service-status.db",
         expected_db_source="session",
         expected_task_id="task-wrapper-service-status",
+        expected_target_scope="scope:target/mvp/service-status.txt",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
     )
 
     assert_command_json_error(
