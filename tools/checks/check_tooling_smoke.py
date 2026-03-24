@@ -808,89 +808,53 @@ def collect_errors() -> list[str]:
             elif source_hints.get("task_context") != "session":
                 errors.append("mvp-wrapper-status-json 缺少 task_context=session")
 
-    wrapper_cmd_status_fail_json = subprocess.run(
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-status-fail-json",
+        "status",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-cmd-status-fail-json missing unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-b",
+        remembered_session_label="mvp-wrapper-cmd-status-fail-json missing task-wrapper-b",
     )
-    payload = load_json_payload(wrapper_cmd_status_fail_json, errors, "mvp-wrapper-cmd-status-fail-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-cmd-status-fail-json", "status")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-cmd-status-fail-json",
-            expected_error_message_substring="unknown argument",
-            error_message_label="mvp-wrapper-cmd-status-fail-json missing unknown argument",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-b",
-            remembered_session_label="mvp-wrapper-cmd-status-fail-json missing task-wrapper-b",
-        )
 
-    wrapper_ps1_status_missing_db_json = subprocess.run(
+    assert_command_json_error(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "status", "--db", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-status-missing-db-json",
+        "status",
+        expected_error_message_substring="missing value after --db",
+        error_message_label="mvp-wrapper-ps1-status-missing-db-json missing value after --db",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-b",
+        remembered_session_label="mvp-wrapper-ps1-status-missing-db-json missing task-wrapper-b",
     )
-    payload = load_json_payload(wrapper_ps1_status_missing_db_json, errors, "mvp-wrapper-ps1-status-missing-db-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-ps1-status-missing-db-json", "status")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-ps1-status-missing-db-json",
-            expected_error_message_substring="missing value after --db",
-            error_message_label="mvp-wrapper-ps1-status-missing-db-json missing value after --db",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-b",
-            remembered_session_label="mvp-wrapper-ps1-status-missing-db-json missing task-wrapper-b",
-        )
 
-    wrapper_status_fail_json = subprocess.run(
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--bogus", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-status-fail-json",
+        "status",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-b",
+        remembered_session_label="mvp-wrapper-status-fail-json remembered_session 缺少 task-wrapper-b",
     )
-    payload = load_json_payload(wrapper_status_fail_json, errors, "mvp-wrapper-status-fail-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-status-fail-json", "status")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-status-fail-json",
-            expected_error_message_substring="unknown argument",
-            error_message_label="mvp-wrapper-status-fail-json 缺少 wrapper 级 unknown argument",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-b",
-            remembered_session_label="mvp-wrapper-status-fail-json remembered_session 缺少 task-wrapper-b",
-        )
 
-    wrapper_status_missing_db_json = subprocess.run(
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "status", "--db", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-status-missing-db-json",
+        "status",
+        expected_error_message_substring="missing value after --db",
+        error_message_label="mvp-wrapper-status-missing-db-json 缺少 missing value after --db",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-b",
+        remembered_session_label="mvp-wrapper-status-missing-db-json remembered_session 缺少 task-wrapper-b",
     )
-    payload = load_json_payload(wrapper_status_missing_db_json, errors, "mvp-wrapper-status-missing-db-json", expected_exit=2)
-    if payload is not None:
-        error, details = extract_json_error(payload, errors, "mvp-wrapper-status-missing-db-json", "status")
-        assert_json_error_fields(
-            error,
-            details,
-            errors,
-            "mvp-wrapper-status-missing-db-json",
-            expected_error_message_substring="missing value after --db",
-            error_message_label="mvp-wrapper-status-missing-db-json 缺少 missing value after --db",
-            expected_code="invalid-argument",
-            expected_remembered_session_task_id="task-wrapper-b",
-            remembered_session_label="mvp-wrapper-status-missing-db-json remembered_session 缺少 task-wrapper-b",
-        )
 
     wrapper_session = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
