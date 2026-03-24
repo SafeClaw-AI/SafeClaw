@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-status", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "doctor")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -46,6 +46,10 @@ LOCAL_ACTION_FLAG_SPECS = {
         "boolean": {"--json", "--reset"},
     },
     "service-retry": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "boolean": {"--json"},
+    },
+    "service-recover": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
         "boolean": {"--json"},
     },
@@ -208,6 +212,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("service-run", raw_args[1:], run_service_run)
     if action == "service-retry":
         return dispatch_local_action("service-retry", raw_args[1:], run_service_retry)
+    if action == "service-recover":
+        return dispatch_local_action("service-recover", raw_args[1:], run_service_recover)
     if action == "service-status":
         return dispatch_local_action("service-status", raw_args[1:], run_service_status)
     if action not in SESSION_ACTIONS:
@@ -528,6 +534,10 @@ def run_service_retry(args: list[str]) -> int:
     return run_service_session_combo("service-retry", "retry", args)
 
 
+def run_service_recover(args: list[str]) -> int:
+    return run_service_session_combo("service-recover", "recover", args)
+
+
 def run_service_status(args: list[str]) -> int:
     try:
         limit = parse_list_limit(args)
@@ -782,18 +792,18 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
-        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status"
+        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status"
     )
     print(
         "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
         "seed-failed/retry 演示失败态重试"
     )
     print(
-        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-status/run/report/status/"
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
@@ -834,6 +844,10 @@ def print_help() -> int:
         "supports retry flags plus --limit / --json"
     )
     print(
+        "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; "
+        "supports recover flags plus --limit / --json"
+    )
+    print(
         "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; "
         "supports --db / --limit / --json"
     )
@@ -846,10 +860,10 @@ def print_help() -> int:
         "可直接看到 db/output/owner_id/task_context 来源"
     )
     print(
-        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry --json result.steps[*] and error.details.steps[*] include source_hints"
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json result.steps[*] and error.details.steps[*] include source_hints"
     )
     print(
-        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry --json returns result.remembered_session; "
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json returns result.remembered_session; "
         "result.session stays as a compatibility alias; scripts should prefer remembered_session"
     )
     print(

@@ -357,6 +357,70 @@ def assert_service_retry_json_result(
     )
 
 
+def assert_service_recover_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_db: str,
+    expected_db_source: str,
+    expected_task_id: str,
+    expected_limit: int,
+) -> None:
+    if result is None:
+        return
+    steps = result.get("steps") or []
+    remembered_session = result.get("remembered_session") or {}
+    session = result.get("session") or {}
+    recover_payload = result.get("recover") or {}
+    if not isinstance(steps, list) or [step.get("action") for step in steps] != ["recover", "service-status"]:
+        errors.append(f"{name} step sequence is incorrect")
+        return
+    if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing remembered_session {expected_task_id}")
+        return
+    if not isinstance(session, dict) or session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing session alias {expected_task_id}")
+        return
+    assert_matching_session_alias(result, errors, name)
+    if not isinstance(recover_payload, dict):
+        errors.append(f"{name} missing nested recover payload")
+        return
+    prepared = recover_payload.get("prepared") or []
+    nested_remembered_session = recover_payload.get("remembered_session") or {}
+    if not isinstance(prepared, list) or not prepared or prepared[0] != "recover":
+        errors.append(f"{name} nested recover missing prepared recover")
+        return
+    if recover_payload.get("saved_session") is not None:
+        errors.append(f"{name} nested recover should not save session")
+        return
+    if not isinstance(nested_remembered_session, dict) or nested_remembered_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} nested recover missing remembered_session {expected_task_id}")
+        return
+    assert_step_source_hints(
+        steps,
+        errors,
+        name,
+        [
+            ("recover", {"db": expected_db_source, "task_context": "flag"}),
+            ("service-status", {"db": expected_db_source, "task_context": "session"}),
+        ],
+    )
+    service_status = result.get("service_status")
+    if not isinstance(service_status, dict):
+        errors.append(f"{name} missing service_status payload")
+        return
+    assert_service_status_json_result(
+        service_status,
+        errors,
+        f"{name} service_status",
+        expected_db=expected_db,
+        expected_db_source=expected_db_source,
+        expected_task_id=expected_task_id,
+        expected_limit=expected_limit,
+    )
+
+
 def assert_run_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -719,15 +783,15 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-status, session, sessions, use, forget, doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
-    elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status" not in wrapper_help_output:
+    elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-status/run/report/status/" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
@@ -739,6 +803,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-run help hint")
     elif "[mvp-wrapper] service retry => service-retry executes retry then service-status for a failed task; supports retry flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-retry help hint")
+    elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help missing service-recover help hint")
     elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
@@ -751,9 +817,9 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
-    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry --json result.steps[*] and error.details.steps[*] include source_hints" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json result.steps[*] and error.details.steps[*] include source_hints" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo source_hints hint")
-    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry --json returns result.remembered_session; result.session stays as a compatibility alias; scripts should prefer remembered_session" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json returns result.remembered_session; result.session stays as a compatibility alias; scripts should prefer remembered_session" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo remembered_session hint")
     elif "[mvp-wrapper] session list => sessions 会列出当前 db 的最近任务快照；use 可按 --index / --task-id 激活其中一条" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 sessions 快照提示")
@@ -1229,6 +1295,145 @@ def collect_errors() -> list[str]:
         remembered_session_label="mvp-wrapper-service-retry-missing-task-json missing task-wrapper-service-retry-json",
         reject_legacy_session=True,
         legacy_session_label="mvp-wrapper-service-retry-missing-task-json should not keep legacy session",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-recover",
+            "--db",
+            "target/mvp/service-recover.db",
+            "--output",
+            "target/mvp/service-recover.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-seed-crash-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-recover-seed-crash-json",
+        expected_task_id="task-wrapper-service-recover",
+        expected_db_path="target/mvp/service-recover.db",
+        expected_output_path="target/mvp/service-recover.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    wrapper_service_recover = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover.db",
+            "--task-id",
+            "task-wrapper-service-recover",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_recover_output = (wrapper_service_recover.stdout or "") + (wrapper_service_recover.stderr or "")
+    if wrapper_service_recover.returncode != 0:
+        errors.append(f"mvp-wrapper-service-recover failed: exit={wrapper_service_recover.returncode}")
+    elif "[mvp-wrapper] service-recover => recover" not in wrapper_service_recover_output:
+        errors.append("mvp-wrapper-service-recover missing recover step marker")
+    elif "[mvp-wrapper] service-recover => service-status" not in wrapper_service_recover_output:
+        errors.append("mvp-wrapper-service-recover missing service-status step marker")
+    elif "[mvp] recover result => from=Uncertain, worker=Succeeded, effect=Executed, completed=true" not in wrapper_service_recover_output:
+        errors.append("mvp-wrapper-service-recover missing recover success output")
+    elif "[mvp-wrapper] service-status => db=target/mvp/service-recover.db limit=1 source=flag" not in wrapper_service_recover_output:
+        errors.append("mvp-wrapper-service-recover missing service-status output")
+    elif "[mvp-wrapper] service workers => succeeded=1" not in wrapper_service_recover_output:
+        errors.append("mvp-wrapper-service-recover missing worker summary")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-recover-json",
+            "--db",
+            "target/mvp/service-recover-json.db",
+            "--output",
+            "target/mvp/service-recover-json.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-json-seed-crash-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-recover-json-seed-crash-json",
+        expected_task_id="task-wrapper-service-recover-json",
+        expected_db_path="target/mvp/service-recover-json.db",
+        expected_output_path="target/mvp/service-recover-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover-json.db",
+            "--task-id",
+            "task-wrapper-service-recover-json",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-recover-json",
+        "service-recover",
+    )
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-recover-json",
+        expected_db="target\mvp\service-recover-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-recover-json",
+        expected_limit=1,
+    )
+
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-recover", "--limit", "bogus", "--json"],
+        errors,
+        "mvp-wrapper-service-recover-invalid-limit-json",
+        "service-recover",
+        expected_error_message_substring="invalid --limit: bogus",
+    )
+
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-recover", "--db", "target/mvp/service-recover-missing.db", "--json"],
+        errors,
+        "mvp-wrapper-service-recover-missing-task-json",
+        "service-recover",
+        expected_error_message_substring="failed step=recover",
+        expected_failed_step="recover",
+        expected_code="missing-task-context",
+        expected_details_message_substring="missing task context",
+        expected_remembered_session_task_id="task-wrapper-service-recover-json",
+        remembered_session_label="mvp-wrapper-service-recover-missing-task-json missing task-wrapper-service-recover-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-service-recover-missing-task-json should not keep legacy session",
     )
 
     wrapper_service_demo = subprocess.run(
