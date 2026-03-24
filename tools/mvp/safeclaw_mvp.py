@@ -127,7 +127,7 @@ def execute_session_action_json(args: list[str]) -> int:
     try:
         result = execute_session_action_capture(clean_args)
     except ValueError as error:
-        details = {"remembered_session": load_session()}
+        details = build_remembered_session_details()
         if str(error).startswith("missing task context"):
             details["code"] = "missing-task-context"
         else:
@@ -339,6 +339,21 @@ def build_session(args: list[str]) -> dict[str, str]:
         "db": require_flag(args, "--db"),
         "output": require_flag(args, "--output"),
         "owner_id": get_flag(args, "--owner-id") or DEFAULT_OWNER_ID,
+    }
+
+
+def build_remembered_session_details(**extra: object) -> dict[str, object]:
+    details: dict[str, object] = dict(extra)
+    details["remembered_session"] = load_session()
+    return details
+
+
+def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, object]:
+    remembered_session = load_session()
+    return {
+        "steps": steps,
+        "remembered_session": remembered_session,
+        "session": remembered_session,
     }
 
 
@@ -955,12 +970,11 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
             result = execute_session_action_capture(step)
         except ValueError as error:
             step_results.append({"action": step[0], "ok": False, "exit_code": 2})
-            details = {
-                "failed_step": step[0],
-                "steps": step_results,
-                "error_message": str(error),
-                "remembered_session": load_session(),
-            }
+            details = build_remembered_session_details(
+                failed_step=step[0],
+                steps=step_results,
+                error_message=str(error),
+            )
             if str(error).startswith("missing task context"):
                 details["code"] = "missing-task-context"
             else:
@@ -979,22 +993,13 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                 name,
                 f"failed step={result['action']}",
                 exit_code=int(result["exit_code"]),
-                details={
-                    "failed_step": result["action"],
-                    "steps": step_results,
-                    "captured_output": str(result["output"]).strip(),
-                    "remembered_session": load_session(),
-                },
+                details=build_remembered_session_details(
+                    failed_step=result["action"],
+                    steps=step_results,
+                    captured_output=str(result["output"]).strip(),
+                ),
             )
-    remembered_session = load_session()
-    return emit_json_result(
-        name,
-        {
-            "steps": step_results,
-            "remembered_session": remembered_session,
-            "session": remembered_session,
-        },
-    )
+    return emit_json_result(name, build_combo_result_payload(step_results))
 
 
 def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:
