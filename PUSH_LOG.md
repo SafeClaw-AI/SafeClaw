@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 04:48:42 +0800
+最后更新时间：2026-03-25 04:59:41 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -96,4 +96,10 @@
 - 完成时间：2026-03-25 04:48:42 +0800
 - 完成内容：为 `service-status` 的 recent task 增加 `lease_remaining_ms`；在 active lease 现场直接给出剩余等待时间，并同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: add active lease wait hints to service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`976dcd2 feat: add active lease wait hints to service status`
+
+### 轮次 P
+- 完成时间：2026-03-25 04:59:41 +0800
+- 完成内容：为 `service-status` 的 recent task 增加 `next_blocker`；在 success / active lease / failed / uncertain 现场分别区分 `none` / `active_lease` 等阻断项；同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add blockers to service status`；最终 hash 以当前 `HEAD` 为准。

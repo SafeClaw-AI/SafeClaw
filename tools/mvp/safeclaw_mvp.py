@@ -699,7 +699,7 @@ def run_service_status(args: list[str]) -> int:
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
             f"wait_ms={row['lease_remaining_ms'] if row['lease_remaining_ms'] is not None else 'none'} "
-            f"next={row['next_action']} next_reason={row['next_reason']} next_cmd={row['next_command']} "
+            f"next={row['next_action']} next_reason={row['next_reason']} blocker={row['next_blocker']} next_cmd={row['next_command']} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
@@ -1016,7 +1016,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, and short reasons; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, and blockers; "
         "supports --db / --limit / --json"
     )
     print(
@@ -1640,6 +1640,18 @@ def suggest_recent_task_next_reason(
 
 
 
+def suggest_recent_task_next_blocker(
+    next_action: str,
+    next_reason: str,
+) -> str:
+    if next_reason == "lease_still_active":
+        return "active_lease"
+    if next_action == "inspect":
+        return "manual_review_needed"
+    return "none"
+
+
+
 def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
@@ -1697,6 +1709,7 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
         lease_expires_at_ms = None if row[10] is None else int(row[10])
         lease_released_at_ms = None if row[11] is None else int(row[11])
         next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
+        next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
         items.append(
             {
                 "task_id": row[0],
@@ -1718,7 +1731,8 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
                     now_ms,
                 ),
                 "next_action": next_action,
-                "next_reason": suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state),
+                "next_reason": next_reason,
+                "next_blocker": suggest_recent_task_next_blocker(next_action, next_reason),
             }
         )
     return items

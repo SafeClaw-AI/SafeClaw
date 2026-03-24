@@ -180,7 +180,7 @@ safeclaw.cmd verify --json
 
 - `workspace`：固定当前命名 workspace 的默认 `db` / `output`；`--clear` 回退到全局默认路径
 - `doctor`：检查 launcher、Rust 工具链、linker、当前 session / workspace 路径，并显式标出当前 `db` / `output` 来源；当前 local MVP 即使未配置 model provider / sidecar 也可正常离线使用
-- `service-status`：查看当前 service 队列 / worker / effect / probe 摘要，并显式展示 recent task 的 `scope` / `write` / `doctor_bypass`、最新 lease 新鲜度、active lease 的等待时间、`next_action` 决策提示、可直接复制的 `next_command`，以及简短的 `next_reason`
+- `service-status`：查看当前 service 队列 / worker / effect / probe 摘要，并显式展示 recent task 的 `scope` / `write` / `doctor_bypass`、最新 lease 新鲜度、active lease 的等待时间、`next_action` 决策提示、可直接复制的 `next_command`、简短的 `next_reason`，以及当前阻断项 `next_blocker`
 - `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图
 - `service-retry --report`：用于 failed 任务的首选恢复路径
 - `service-recover --report`：用于 uncertain 任务的首选恢复路径
