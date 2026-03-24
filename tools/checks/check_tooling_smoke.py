@@ -95,6 +95,49 @@ def extract_json_result(
     return result
 
 
+def assert_doctor_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_db_path: str,
+    expected_output_path: str,
+) -> None:
+    if result is None:
+        return
+    python_info = result.get("python") or {}
+    if result.get("status") != "ready":
+        errors.append(f"{name} missing status=ready")
+    elif result.get("failing_checks") != []:
+        errors.append(f"{name} missing empty failing_checks")
+    elif not isinstance(python_info, dict) or python_info.get("ok") is not True:
+        errors.append(f"{name} missing python ok")
+    elif not python_info.get("detail"):
+        errors.append(f"{name} missing python detail")
+    elif result.get("entrypoints", {}).get("cmd", {}).get("exists") is not True:
+        errors.append(f"{name} missing cmd entry ok")
+    elif result.get("entrypoints", {}).get("ps1", {}).get("exists") is not True:
+        errors.append(f"{name} missing ps1 entry ok")
+    elif result.get("entrypoints", {}).get("py", {}).get("exists") is not True:
+        errors.append(f"{name} missing py entry ok")
+    elif result.get("cargo", {}).get("ok") is not True:
+        errors.append(f"{name} missing cargo ok")
+    elif result.get("toolchain", {}).get("ok") is not True:
+        errors.append(f"{name} missing toolchain ok")
+    elif result.get("linker", {}).get("ok") is not True:
+        errors.append(f"{name} missing linker ok")
+    elif result.get("session_path") != "target\mvp\last_session.json":
+        errors.append(f"{name} missing session_path")
+    elif result.get("db", {}).get("path") != expected_db_path:
+        errors.append(f"{name} missing db path={expected_db_path}")
+    elif result.get("db", {}).get("source") != "flag":
+        errors.append(f"{name} missing db source=flag")
+    elif result.get("output", {}).get("path") != expected_output_path:
+        errors.append(f"{name} missing output path={expected_output_path}")
+    elif result.get("output", {}).get("source") != "flag":
+        errors.append(f"{name} missing output source=flag")
+
+
 def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -298,6 +341,62 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_ps1_help_output:
         errors.append("mvp-wrapper-ps1-help 输出缺少 usage")
 
+    wrapper_cmd_doctor_json = subprocess.run(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "doctor",
+            "--db",
+            "target\mvp\doctor-wrapper-cmd.db",
+            "--output",
+            "target\mvp\doctor-wrapper-cmd.txt",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_cmd_doctor_json, errors, "mvp-wrapper-cmd-doctor-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-doctor-json", "doctor")
+        assert_doctor_json_result(
+            result,
+            errors,
+            "mvp-wrapper-cmd-doctor-json",
+            expected_db_path="target\mvp\doctor-wrapper-cmd.db",
+            expected_output_path="target\mvp\doctor-wrapper-cmd.txt",
+        )
+
+    wrapper_ps1_doctor_json = subprocess.run(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "tools\mvp\safeclaw_mvp.ps1",
+            "doctor",
+            "--db",
+            "target\mvp\doctor-wrapper-ps1.db",
+            "--output",
+            "target\mvp\doctor-wrapper-ps1.txt",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_doctor_json, errors, "mvp-wrapper-ps1-doctor-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-doctor-json", "doctor")
+        assert_doctor_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-doctor-json",
+            expected_db_path="target\mvp\doctor-wrapper-ps1.db",
+            expected_output_path="target\mvp\doctor-wrapper-ps1.txt",
+        )
+
     wrapper_doctor = subprocess.run(
         [
             PYTHON,
@@ -348,29 +447,13 @@ def collect_errors() -> list[str]:
     payload = load_json_payload(wrapper_doctor_json, errors, "mvp-wrapper-doctor-json", expected_exit=0)
     if payload is not None:
         result = extract_json_result(payload, errors, "mvp-wrapper-doctor-json", "doctor")
-        if result is not None:
-            if result.get("status") != "ready":
-                errors.append("mvp-wrapper-doctor-json 输出缺少 status=ready")
-            elif result.get("failing_checks") != []:
-                errors.append("mvp-wrapper-doctor-json 输出缺少空 failing_checks")
-            elif result.get("entrypoints", {}).get("cmd", {}).get("exists") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 cmd entry ok")
-            elif result.get("entrypoints", {}).get("ps1", {}).get("exists") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 ps1 entry ok")
-            elif result.get("entrypoints", {}).get("py", {}).get("exists") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 py entry ok")
-            elif result.get("cargo", {}).get("ok") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 cargo ok")
-            elif result.get("toolchain", {}).get("ok") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 toolchain ok")
-            elif result.get("linker", {}).get("ok") is not True:
-                errors.append("mvp-wrapper-doctor-json 输出缺少 linker ok")
-            elif result.get("session_path") != "target\\mvp\\last_session.json":
-                errors.append("mvp-wrapper-doctor-json 输出缺少 session_path")
-            elif result.get("db", {}).get("source") != "flag":
-                errors.append("mvp-wrapper-doctor-json 输出缺少 db source=flag")
-            elif result.get("output", {}).get("source") != "flag":
-                errors.append("mvp-wrapper-doctor-json 输出缺少 output source=flag")
+        assert_doctor_json_result(
+            result,
+            errors,
+            "mvp-wrapper-doctor-json",
+            expected_db_path="target\mvp\doctor-check.db",
+            expected_output_path="target\mvp\doctor-check.txt",
+        )
 
     wrapper_run_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-json", "--json"],
