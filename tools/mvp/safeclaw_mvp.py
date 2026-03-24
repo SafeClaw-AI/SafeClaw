@@ -370,6 +370,10 @@ def print_help() -> int:
         "[mvp-wrapper] doctor => 文本模式给出 summary 与 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
     )
+    print(
+        "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；"
+        "可直接看到 db/output/owner_id/task_context 来源"
+    )
     return 0
 
 
