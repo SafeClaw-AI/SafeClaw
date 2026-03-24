@@ -456,6 +456,10 @@ def print_help() -> int:
         "result.session 仅作兼容别名，脚本应优先读取 remembered_session"
     )
     print(
+        "[mvp-wrapper] session list => sessions 会列出当前 db 的最近任务快照；"
+        "use 可按 --index / --task-id 激活其中一条"
+    )
+    print(
         "[mvp-wrapper] session selectors => status 可显式传 --task-id；"
         "use 支持 --index / --task-id 选择历史会话"
     )

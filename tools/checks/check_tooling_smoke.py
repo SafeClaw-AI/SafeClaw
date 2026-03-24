@@ -257,6 +257,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
     elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；result.session 仅作兼容别名，脚本应优先读取 remembered_session" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 remembered_session 提示")
+    elif "[mvp-wrapper] session list => sessions 会列出当前 db 的最近任务快照；use 可按 --index / --task-id 激活其中一条" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 sessions 快照提示")
     elif "[mvp-wrapper] session selectors => status 可显式传 --task-id；use 支持 --index / --task-id 选择历史会话" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 session 选择方式提示")
     elif "[mvp-wrapper] session sources => sessions 默认优先复用 remembered session 的 db，文本/JSON 都会标 source；use --json 会返回 source/db_source/output_source/owner_id_source" not in wrapper_help_output:
