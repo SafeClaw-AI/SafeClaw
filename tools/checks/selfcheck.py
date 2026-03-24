@@ -40,6 +40,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         [PYTHON, "-u", "tools/checks/check_tooling_smoke.py"],
     ),
     (
+        "MVP operator flow",
+        [PYTHON, "-u", "tools/checks/check_mvp_operator_flow.py"],
+    ),
+    (
         "Example smoke",
         [PYTHON, "-u", "tools/checks/check_examples_smoke.py"],
     ),

@@ -11,6 +11,7 @@
 - `check_public_docs.py`：公开文档对齐检查
 - `check_scaffold.py`：仓库骨架检查
 - `check_tooling_smoke.py`：工具烟测
+- `check_mvp_operator_flow.py`: practical MVP operator flow check covering `doctor / service-run / report / service-retry / service-recover`
 - `check_examples_smoke.py`：高层示例烟测，并要求覆盖 `safeclaw-sqlite/examples/*.rs` 全量示例
 - `check_generated_sync.py`：生成产物同步检查
 - `selfcheck.py`：串起全部门禁的统一入口

@@ -14,6 +14,16 @@
 - `tools/mvp/safeclaw_mvp.ps1`：PowerShell 包装，内部转调 `.cmd`
 - `tools/mvp/safeclaw_mvp.py`：会话薄层实现，负责默认路径与最近会话复用
 
+
+## Recommended Operator Path
+
+- See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
+- Normal path first: `doctor -> service-run -> report`.
+- `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
+- Failed recovery path: `service-retry -> report -> service-status`.
+- Uncertain recovery path: `service-recover -> report -> service-status`.
+
+
 ## 当前支持的动作
 
 - `run`：创建任务并执行到完成
