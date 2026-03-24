@@ -136,13 +136,7 @@ def execute_session_action_json(args: list[str]) -> int:
     except Exception as error:
         return emit_json_error(action, f"failed to prepare action: {error}", exit_code=1)
 
-    payload = {
-        "prepared": result["prepared"],
-        "captured_output": str(result["output"]),
-        "saved_session": result["saved_session"],
-        "remembered_session": load_session(),
-        "source_hints": result["source_hints"],
-    }
+    payload = build_session_action_result_payload(result)
     if result["exit_code"] != 0:
         return emit_json_error(
             action,
@@ -346,6 +340,16 @@ def build_remembered_session_details(**extra: object) -> dict[str, object]:
     details: dict[str, object] = dict(extra)
     details["remembered_session"] = load_session()
     return details
+
+
+def build_session_action_result_payload(result: dict[str, object]) -> dict[str, object]:
+    return {
+        "prepared": result["prepared"],
+        "captured_output": str(result["output"]),
+        "saved_session": result["saved_session"],
+        "remembered_session": load_session(),
+        "source_hints": result["source_hints"],
+    }
 
 
 def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, object]:
