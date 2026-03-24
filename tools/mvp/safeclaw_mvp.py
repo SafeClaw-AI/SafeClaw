@@ -442,6 +442,10 @@ def print_help() -> int:
         "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；"
         "result.session 仅作兼容别名，脚本应优先读取 remembered_session"
     )
+    print(
+        "[mvp-wrapper] session sources => sessions --json 会返回 current_session/db_source；"
+        "use --json 会返回 source/db_source/output_source/owner_id_source"
+    )
     return 0
 
 
@@ -1048,6 +1052,7 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
+
 
 
 

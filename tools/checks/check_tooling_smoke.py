@@ -247,6 +247,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少组合动作 source_hints 提示")
     elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；result.session 仅作兼容别名，脚本应优先读取 remembered_session" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少组合动作 remembered_session 提示")
+    elif "[mvp-wrapper] session sources => sessions --json 会返回 current_session/db_source；use --json 会返回 source/db_source/output_source/owner_id_source" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 session 来源提示")
 
     wrapper_doctor = subprocess.run(
         [
@@ -1361,3 +1363,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
