@@ -554,11 +554,7 @@ def print_sessions(args: list[str]) -> int:
     rows_with_current = [
         {
             **row,
-            "current": (
-                session is not None
-                and session.get("db") == db
-                and session.get("task_id") == row["task_id"]
-            ),
+            "current": matches_session_db(session, db) and session.get("task_id") == row["task_id"],
         }
         for row in rows
     ]
@@ -576,7 +572,7 @@ def print_sessions(args: list[str]) -> int:
 
     print(f"[mvp-wrapper] sessions => db={db} limit={limit} source={db_source}")
     if session is not None:
-        current = "true" if session.get("db") == db else "false"
+        current = "true" if matches_session_db(session, db) else "false"
         print(
             "[mvp-wrapper] current => "
             f"task={session['task_id']} effect={session['effect_id']} current_db={current}"
@@ -1045,5 +1041,6 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
+
 
 
