@@ -251,6 +251,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 session 来源提示")
     elif "[mvp-wrapper] session paths => session 文本输出会带 remembered session 文件路径；forget 文本/JSON 会显式给出 reason/path" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 session 路径提示")
+    elif "[mvp-wrapper] session repair => remembered session 文件损坏时会自动丢弃并回退为 session => none" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 session repair 提示")
 
     wrapper_doctor = subprocess.run(
         [
