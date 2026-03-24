@@ -1,11 +1,11 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 04:28:16 +0800
+最后更新时间：2026-03-25 04:38:25 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前五刀为 doctor 离线边界诊断 / scope 可见化 / lease 可见化 / next_action 决策提示 / next_command 命令提示
+当前阶段：已进入 M1b，前六刀为 doctor 离线边界诊断 / scope 可见化 / lease 可见化 / next_action 决策提示 / next_command 命令提示 / next_reason 原因提示
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
-- 当前主线（M1b 生存层补完）：约 0.5 ~ 2.5 天
+- 当前主线（M1b 生存层补完）：约 0.5 ~ 2 天
 - 下一阶段（M2 首轮价值层）：约 1 ~ 2 周
 
 ## 进展
@@ -22,6 +22,7 @@
 | [x] | M1b 第三刀：service-status lease 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回并输出 `lease_state` / `lease_owner_id` / `lease_fencing_token`，让最新租约是否 active / expired / released 直接可见 | 已落地，降低恢复判断成本 |
 | [x] | M1b 第四刀：service-status next_action 决策提示 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回 `next_action`，在 success / failed / uncertain 场景下分别给出 `ok` / `retry` / `recover` 提示 | 已落地，降低人工判断成本 |
 | [x] | M1b 第五刀：service-status next_command 命令提示 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回可复制的 `next_command`，让 operator 直接知道下一条推荐命令怎么敲 | 已落地，降低操作摩擦 |
+| [x] | M1b 第六刀：service-status next_reason 原因提示 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回 `next_reason`，补足“为什么推荐这条命令”的稳定原因字符串 | 已落地，降低判断歧义 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 权限 scope / 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
