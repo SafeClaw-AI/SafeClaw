@@ -241,6 +241,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 JSON 信封提示")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step 与 error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
+    elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
     elif "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；status/report/recover/retry/doctor 会尽量复用它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 remembered session 提示")
     elif "[mvp-wrapper] doctor => 文本模式给出 summary 与 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:

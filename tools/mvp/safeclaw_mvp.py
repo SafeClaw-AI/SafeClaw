@@ -425,6 +425,10 @@ def print_help() -> int:
         "组合动作 JSON 失败会额外附带 failed_step 与 error_message"
     )
     print(
+        "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；"
+        "会在 error.details.remembered_session 附带它"
+    )
+    print(
         "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；"
         "status/report/recover/retry/doctor 会尽量复用它"
     )
