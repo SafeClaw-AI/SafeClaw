@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-status", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-status", "session", "sessions", "use", "forget", "doctor")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -44,6 +44,10 @@ LOCAL_ACTION_FLAG_SPECS = {
     "service-run": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
         "boolean": {"--json", "--reset"},
+    },
+    "service-retry": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "boolean": {"--json"},
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
@@ -202,6 +206,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("service-demo", raw_args[1:], run_service_demo)
     if action == "service-run":
         return dispatch_local_action("service-run", raw_args[1:], run_service_run)
+    if action == "service-retry":
+        return dispatch_local_action("service-retry", raw_args[1:], run_service_retry)
     if action == "service-status":
         return dispatch_local_action("service-status", raw_args[1:], run_service_status)
     if action not in SESSION_ACTIONS:
@@ -398,15 +404,28 @@ def build_service_status_payload(
     }
 
 
-def build_service_run_args(args: list[str]) -> list[str]:
-    run_args = ["run"]
-    if has_flag(args, "--reset"):
-        run_args.append("--reset")
-    for flag in ("--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"):
-        value = get_flag(args, flag)
-        if value is not None:
-            run_args.extend([flag, value])
-    return run_args
+def build_service_session_action_args(session_action: str, args: list[str]) -> list[str]:
+    spec = SESSION_ACTION_FLAG_SPECS[session_action]
+    prepared = [session_action]
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token == "--json":
+            index += 1
+            continue
+        if token == "--limit":
+            index += 2
+            continue
+        if token in spec["boolean"]:
+            prepared.append(token)
+            index += 1
+            continue
+        if token in spec["value"]:
+            prepared.extend([token, args[index + 1]])
+            index += 2
+            continue
+        index += 1
+    return prepared
 
 
 def build_service_status_args(args: list[str], limit: int) -> list[str]:
@@ -430,75 +449,83 @@ def build_service_status_step_result(payload: dict[str, object]) -> dict[str, ob
     }
 
 
-def run_service_run(args: list[str]) -> int:
+def run_service_session_combo(local_action: str, session_action: str, args: list[str]) -> int:
     try:
         limit = parse_list_limit(args)
     except ValueError as error:
         return emit_local_action_error(
-            "service-run",
+            local_action,
             args,
             str(error),
             exit_code=2,
             text_message=f"[mvp-wrapper] {error}",
         )
 
-    run_args = build_service_run_args(args)
+    session_args = build_service_session_action_args(session_action, args)
     status_args = build_service_status_args(args, limit)
-    json_mode = has_flag(args, "--json")
+    nested_result_key = session_action.replace("-", "_")
 
-    if json_mode:
+    if has_flag(args, "--json"):
         step_results: list[dict[str, object]] = []
         try:
-            run_result = execute_session_action_capture(run_args)
+            action_result = execute_session_action_capture(session_args)
         except ValueError as error:
-            step_results.append({"action": "run", "ok": False, "exit_code": 2})
+            step_results.append({"action": session_action, "ok": False, "exit_code": 2})
             details = build_remembered_session_details(
-                failed_step="run",
+                failed_step=session_action,
                 steps=step_results,
                 error_message=str(error),
             )
             details["code"] = "missing-task-context" if str(error).startswith("missing task context") else "invalid-argument"
-            return emit_json_error("service-run", "failed step=run", exit_code=2, details=details)
+            return emit_json_error(local_action, f"failed step={session_action}", exit_code=2, details=details)
 
         step_results.append(
             {
-                "action": str(run_result["action"]),
-                "ok": run_result["exit_code"] == 0,
-                "exit_code": int(run_result["exit_code"]),
-                "source_hints": run_result["source_hints"],
+                "action": str(action_result["action"]),
+                "ok": action_result["exit_code"] == 0,
+                "exit_code": int(action_result["exit_code"]),
+                "source_hints": action_result["source_hints"],
             }
         )
-        if run_result["exit_code"] != 0:
+        if action_result["exit_code"] != 0:
             return emit_json_error(
-                "service-run",
-                "failed step=run",
-                exit_code=int(run_result["exit_code"]),
+                local_action,
+                f"failed step={session_action}",
+                exit_code=int(action_result["exit_code"]),
                 details=build_remembered_session_details(
-                    failed_step="run",
+                    failed_step=session_action,
                     steps=step_results,
-                    captured_output=str(run_result["output"]).strip(),
+                    captured_output=str(action_result["output"]).strip(),
                 ),
             )
 
         status_payload = build_service_status_payload(status_args, load_session(), limit=limit)
         step_results.append(build_service_status_step_result(status_payload))
         payload = build_combo_result_payload(step_results)
-        payload["run"] = build_session_action_result_payload(run_result)
+        payload[nested_result_key] = build_session_action_result_payload(action_result)
         payload["service_status"] = status_payload
-        return emit_json_result("service-run", payload)
+        return emit_json_result(local_action, payload)
 
-    print("[mvp-wrapper] service-run => run")
-    exit_code = execute_session_action(run_args)
+    print(f"[mvp-wrapper] {local_action} => {session_action}")
+    exit_code = execute_session_action(session_args)
     if exit_code != 0:
-        print(f"[mvp-wrapper] service-run => failed step=run exit={exit_code}", file=sys.stderr)
+        print(f"[mvp-wrapper] {local_action} => failed step={session_action} exit={exit_code}", file=sys.stderr)
         return exit_code
 
-    print("[mvp-wrapper] service-run => service-status")
+    print(f"[mvp-wrapper] {local_action} => service-status")
     exit_code = run_service_status(status_args)
     if exit_code != 0:
-        print(f"[mvp-wrapper] service-run => failed step=service-status exit={exit_code}", file=sys.stderr)
+        print(f"[mvp-wrapper] {local_action} => failed step=service-status exit={exit_code}", file=sys.stderr)
         return exit_code
     return 0
+
+
+def run_service_run(args: list[str]) -> int:
+    return run_service_session_combo("service-run", "run", args)
+
+
+def run_service_retry(args: list[str]) -> int:
+    return run_service_session_combo("service-retry", "retry", args)
 
 
 def run_service_status(args: list[str]) -> int:
@@ -755,18 +782,18 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
-        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status"
+        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status"
     )
     print(
         "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
         "seed-failed/retry 演示失败态重试"
     )
     print(
-        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-status/run/report/status/"
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-status/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
@@ -803,6 +830,10 @@ def print_help() -> int:
         "supports write flags plus --limit / --json"
     )
     print(
+        "[mvp-wrapper] service retry => service-retry executes retry then service-status for a failed task; "
+        "supports retry flags plus --limit / --json"
+    )
+    print(
         "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; "
         "supports --db / --limit / --json"
     )
@@ -815,10 +846,10 @@ def print_help() -> int:
         "可直接看到 db/output/owner_id/task_context 来源"
     )
     print(
-        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run --json result.steps[*] and error.details.steps[*] include source_hints"
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry --json result.steps[*] and error.details.steps[*] include source_hints"
     )
     print(
-        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run --json returns result.remembered_session; "
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry --json returns result.remembered_session; "
         "result.session stays as a compatibility alias; scripts should prefer remembered_session"
     )
     print(

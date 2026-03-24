@@ -22,6 +22,7 @@
 - `retry-demo`：一键演示 `seed-failed -> retry -> report`
 - `service-demo`: one-command worker service governance summary for `resolved / confirmation` queues
 - `service-run`: run a task and immediately print the matching service summary
+- `service-retry`: retry a failed task and immediately print the matching service summary
 - `service-status`: queue / lease / task snapshot summary for the selected db
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
@@ -51,6 +52,7 @@
 - `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果现在会显式返回 `result.remembered_session`；`result.session` 仅作兼容别名，脚本应优先读取 `remembered_session`。
 - `service-demo` successful `--json` returns structured fields like `resolved_run`, `resolved_governance`, `confirmation_governance`, and `db_path`.
 - `service-run` successful `--json` returns combo `steps`, a nested `run` result, and `service_status` summary fields.
+- `service-retry` successful `--json` returns combo `steps`, a nested `retry` result, and `service_status` summary fields.
 - `service-status` successful `--json` returns structured fields like `queue`, `workers`, `effects`, `probes`, and `recent_tasks`.
 - 若组合动作在底层执行阶段失败，错误 JSON 的 `error.details.steps[*].source_hints` 也会保留已进入失败步骤的来源，便于脚本区分“预处理失败”与“底层动作失败”。
 
@@ -85,7 +87,9 @@ tools\mvp\safeclaw_mvp.cmd status --json
 tools\mvp\safeclaw_mvp.cmd report
 tools\mvp\safeclaw_mvp.cmd report --json
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset
+tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --json
+tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo --limit 1 --json
 tools\mvp\safeclaw_mvp.cmd retry
 tools\mvp\safeclaw_mvp.cmd retry --json
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset
@@ -103,6 +107,7 @@ tools\mvp\safeclaw_mvp.cmd status --db target\demo\session.db --output target\de
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
+tools\mvp\safeclaw_mvp.cmd service-retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd doctor --db target\demo\session.db --output target\demo\output.txt
 tools\mvp\safeclaw_mvp.cmd service-run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
