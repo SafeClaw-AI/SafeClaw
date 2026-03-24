@@ -234,6 +234,59 @@ def assert_session_passthrough_json_result(
         errors.append(f"{name} missing source_hints.task_context=session")
 
 
+def assert_session_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+) -> None:
+    if result is None:
+        return
+    expected_effect_id = f"effect-{expected_task_id}"
+    if result.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing task_id={expected_task_id}")
+    elif result.get("effect_id") != expected_effect_id:
+        errors.append(f"{name} missing effect_id={expected_effect_id}")
+    elif result.get("db") != "target\mvp\session.db":
+        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("output") != "target\mvp\output.txt":
+        errors.append(f"{name} missing output=target\mvp\output.txt")
+    elif result.get("owner_id") != "safeclaw-mvp":
+        errors.append(f"{name} missing owner_id=safeclaw-mvp")
+
+
+
+def assert_sessions_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_current_task_id: str,
+    expected_previous_task_id: str,
+) -> None:
+    if result is None:
+        return
+    rows = result.get("rows") or []
+    current_session = result.get("current_session") or {}
+    if result.get("db") != "target\mvp\session.db":
+        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("db_source") != "session":
+        errors.append(f"{name} missing db_source=session")
+    elif result.get("limit") != 5:
+        errors.append(f"{name} missing limit=5")
+    elif not isinstance(current_session, dict) or current_session.get("task_id") != expected_current_task_id:
+        errors.append(f"{name} missing current_session {expected_current_task_id}")
+    elif not rows or rows[0].get("task_id") != expected_current_task_id:
+        errors.append(f"{name} missing recent[0] task={expected_current_task_id}")
+    elif rows[0].get("current") is not True:
+        errors.append(f"{name} missing recent[0] current=true")
+    elif len(rows) < 2 or rows[1].get("task_id") != expected_previous_task_id:
+        errors.append(f"{name} missing recent[1] task={expected_previous_task_id}")
+    elif rows[1].get("current") is not False:
+        errors.append(f"{name} missing recent[1] current=false")
+
+
 def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -798,6 +851,71 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-sessions-json 输出缺少最近任务 task-wrapper-b")
             elif len(rows) < 2 or rows[1].get("task_id") != "task-wrapper-a":
                 errors.append("mvp-wrapper-sessions-json 输出缺少旧任务 task-wrapper-a")
+
+    wrapper_cmd_session = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_session_output = (wrapper_cmd_session.stdout or "") + (wrapper_cmd_session.stderr or "")
+    if wrapper_cmd_session.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-session failed: exit={wrapper_cmd_session.returncode}")
+    elif "[mvp-wrapper] session => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_cmd_session_output:
+        errors.append("mvp-wrapper-cmd-session missing current session task-wrapper-b")
+    elif "path=target\mvp\last_session.json" not in wrapper_cmd_session_output:
+        errors.append("mvp-wrapper-cmd-session missing remembered session path")
+
+    wrapper_ps1_session_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "session", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_session_json, errors, "mvp-wrapper-ps1-session-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-session-json", "session")
+        assert_session_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-session-json",
+            expected_task_id="task-wrapper-b",
+        )
+
+    wrapper_cmd_sessions = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_sessions_output = (wrapper_cmd_sessions.stdout or "") + (wrapper_cmd_sessions.stderr or "")
+    if wrapper_cmd_sessions.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-sessions failed: exit={wrapper_cmd_sessions.returncode}")
+    elif "[mvp-wrapper] sessions => db=target\mvp\session.db limit=5 source=session" not in wrapper_cmd_sessions_output:
+        errors.append("mvp-wrapper-cmd-sessions missing db source=session")
+    elif "[mvp-wrapper] current => task=task-wrapper-b effect=effect-task-wrapper-b current_db=true" not in wrapper_cmd_sessions_output:
+        errors.append("mvp-wrapper-cmd-sessions missing task-wrapper-b row")
+    elif "[mvp-wrapper] recent[0] => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_cmd_sessions_output:
+        errors.append("mvp-wrapper-cmd-sessions missing task-wrapper-b row")
+    elif "[mvp-wrapper] recent[1] => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_cmd_sessions_output:
+        errors.append("mvp-wrapper-cmd-sessions missing task-wrapper-a row")
+
+    wrapper_ps1_sessions_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "sessions", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_sessions_json, errors, "mvp-wrapper-ps1-sessions-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-sessions-json", "sessions")
+        assert_sessions_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-sessions-json",
+            expected_current_task_id="task-wrapper-b",
+            expected_previous_task_id="task-wrapper-a",
+        )
 
     wrapper_cmd_use_json = subprocess.run(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "use", "--index", "1", "--json"],
