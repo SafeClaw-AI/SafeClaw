@@ -760,6 +760,8 @@ def run_service_status(args: list[str]) -> int:
             f"effect_status={row['effect_status']} scope={row['target_scope']} "
             f"write={str(bool(row['requires_write'])).lower()} "
             f"doctor_bypass={str(bool(row['doctor_bypass'])).lower()} "
+            f"perm={row['permission_policy']} perm_tier={row['permission_tier']} "
+            f"perm_reason={row['permission_reason']} "
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
             f"wait_ms={row['lease_remaining_ms'] if row['lease_remaining_ms'] is not None else 'none'} "
@@ -1127,7 +1129,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, permission decisions, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
@@ -1767,6 +1769,41 @@ def suggest_recent_task_next_blocker(
 
 
 
+def suggest_recent_task_permission_tier(requires_write: bool) -> str:
+    return "TIER_1" if requires_write else "TIER_0"
+
+
+
+def suggest_recent_task_permission_policy(
+    target_scope: str,
+    requires_write: bool,
+    doctor_bypass: bool,
+) -> str:
+    if doctor_bypass:
+        return "allow"
+    if not target_scope:
+        return "deny"
+    if requires_write:
+        return "confirm"
+    return "allow"
+
+
+
+def suggest_recent_task_permission_reason(
+    target_scope: str,
+    requires_write: bool,
+    doctor_bypass: bool,
+) -> str:
+    if doctor_bypass:
+        return "doctor_bypass_privileged_context"
+    if not target_scope:
+        return "missing_scope_defaults_deny"
+    if requires_write:
+        return "write_scope_requires_confirmation"
+    return "read_scope_allowed"
+
+
+
 def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
@@ -1823,6 +1860,9 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
         )
         lease_expires_at_ms = None if row[10] is None else int(row[10])
         lease_released_at_ms = None if row[11] is None else int(row[11])
+        target_scope = str(row[5] or '')
+        requires_write = bool(row[6])
+        doctor_bypass = bool(row[7])
         next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
         next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
         items.append(
@@ -1832,9 +1872,12 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
                 "effect_status": row[2],
                 "updated_at": row[3],
                 "effect_id": row[4] or f"effect-{row[0]}",
-                "target_scope": row[5] or '',
-                "requires_write": bool(row[6]),
-                "doctor_bypass": bool(row[7]),
+                "target_scope": target_scope,
+                "requires_write": requires_write,
+                "doctor_bypass": doctor_bypass,
+                "permission_tier": suggest_recent_task_permission_tier(requires_write),
+                "permission_policy": suggest_recent_task_permission_policy(target_scope, requires_write, doctor_bypass),
+                "permission_reason": suggest_recent_task_permission_reason(target_scope, requires_write, doctor_bypass),
                 "lease_owner_id": row[8] or '',
                 "lease_fencing_token": None if row[9] is None else int(row[9]),
                 "lease_expires_at_ms": lease_expires_at_ms,

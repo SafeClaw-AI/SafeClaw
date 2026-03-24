@@ -351,6 +351,9 @@ def assert_service_status_json_result(
     expected_target_scope: str | None = None,
     expected_requires_write: bool | None = None,
     expected_doctor_bypass: bool | None = None,
+    expected_permission_tier: str | None = None,
+    expected_permission_policy: str | None = None,
+    expected_permission_reason: str | None = None,
     expected_lease_state: str | None = None,
     expected_lease_owner_id: str | None = None,
     expected_lease_fencing_token: int | None = None,
@@ -406,6 +409,12 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent requires_write={expected_requires_write}")
     elif expected_doctor_bypass is not None and recent_tasks[0].get("doctor_bypass") != expected_doctor_bypass:
         errors.append(f"{name} missing recent doctor_bypass={expected_doctor_bypass}")
+    elif expected_permission_tier is not None and recent_tasks[0].get("permission_tier") != expected_permission_tier:
+        errors.append(f"{name} missing recent permission_tier={expected_permission_tier}")
+    elif expected_permission_policy is not None and recent_tasks[0].get("permission_policy") != expected_permission_policy:
+        errors.append(f"{name} missing recent permission_policy={expected_permission_policy}")
+    elif expected_permission_reason is not None and recent_tasks[0].get("permission_reason") != expected_permission_reason:
+        errors.append(f"{name} missing recent permission_reason={expected_permission_reason}")
     elif expected_lease_state is not None and recent_tasks[0].get("lease_state") != expected_lease_state:
         errors.append(f"{name} missing recent lease_state={expected_lease_state}")
     elif expected_lease_owner_id is not None and recent_tasks[0].get("lease_owner_id") != expected_lease_owner_id:
@@ -1075,7 +1084,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, permission decisions, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -1767,8 +1776,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? probe ??")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status ???? recent task")
-    elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
-        errors.append("mvp-wrapper-service-status missing scope visibility")
+    elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing permission visibility")
     elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 wait_ms=none next=ok next_reason=execution_already_confirmed blocker=none next_summary=ready_now:action=ok,reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease visibility")
 
@@ -1788,6 +1797,9 @@ def collect_errors() -> list[str]:
         expected_target_scope="scope:target/mvp/service-status.txt",
         expected_requires_write=True,
         expected_doctor_bypass=False,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="confirm",
+        expected_permission_reason="write_scope_requires_confirmation",
         expected_lease_state="released",
         expected_lease_owner_id="safeclaw-mvp",
         expected_lease_fencing_token=1,
@@ -1870,6 +1882,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status-active missing active queue summary")
     elif "task=task-wrapper-service-status-active" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing recent task")
+    elif "perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing permission visibility")
     elif "lease=active lease_owner=safeclaw-mvp lease_fence=1" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active lease visibility")
     elif 'next=inspect next_reason=lease_still_active blocker=active_lease next_summary=wait:' not in wrapper_service_status_active_output:
@@ -1914,6 +1928,12 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-active-json missing probes.none=1")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-status-active-json missing recent task")
+        elif recent_tasks[0].get("permission_tier") != "TIER_1":
+            errors.append("mvp-wrapper-service-status-active-json missing permission_tier=TIER_1")
+        elif recent_tasks[0].get("permission_policy") != "confirm":
+            errors.append("mvp-wrapper-service-status-active-json missing permission_policy=confirm")
+        elif recent_tasks[0].get("permission_reason") != "write_scope_requires_confirmation":
+            errors.append("mvp-wrapper-service-status-active-json missing permission_reason=write_scope_requires_confirmation")
         elif recent_tasks[0].get("lease_state") != "active":
             errors.append("mvp-wrapper-service-status-active-json missing lease_state=active")
         elif recent_tasks[0].get("next_action") != "inspect":
@@ -2069,6 +2089,12 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-retry-status-before-json missing probes.none=1")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-retry-status-before-json missing recent task")
+        elif recent_tasks[0].get("permission_tier") != "TIER_1":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing permission_tier=TIER_1")
+        elif recent_tasks[0].get("permission_policy") != "confirm":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing permission_policy=confirm")
+        elif recent_tasks[0].get("permission_reason") != "write_scope_requires_confirmation":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing permission_reason=write_scope_requires_confirmation")
         elif recent_tasks[0].get("next_action") != "retry":
             errors.append("mvp-wrapper-service-retry-status-before-json missing next_action=retry")
         elif recent_tasks[0].get("next_command") != 'safeclaw.cmd service-retry --db "target/mvp/service-retry.db" --task-id "task-wrapper-service-retry" --limit 1 --report':
@@ -2252,6 +2278,12 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-recover-status-before-json missing probes.probe_pending=1")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-recover-status-before-json missing recent task")
+        elif recent_tasks[0].get("permission_tier") != "TIER_1":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing permission_tier=TIER_1")
+        elif recent_tasks[0].get("permission_policy") != "confirm":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing permission_policy=confirm")
+        elif recent_tasks[0].get("permission_reason") != "write_scope_requires_confirmation":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing permission_reason=write_scope_requires_confirmation")
         elif recent_tasks[0].get("next_action") != "recover":
             errors.append("mvp-wrapper-service-recover-status-before-json missing next_action=recover")
         elif recent_tasks[0].get("next_command") != 'safeclaw.cmd service-recover --db "target/mvp/service-recover.db" --task-id "task-wrapper-service-recover" --limit 1 --report':
