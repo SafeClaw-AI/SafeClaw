@@ -449,6 +449,10 @@ def print_help() -> int:
         "status/report/recover/retry/doctor 会尽量复用它"
     )
     print(
+        "[mvp-wrapper] status/report => status 默认查看当前 remembered session，也可显式传 --task-id；"
+        "report 查看指定 task/effect 的治理视图"
+    )
+    print(
         "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker，并给出 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
     )
