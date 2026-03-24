@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -668,6 +669,48 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-doctor-json",
         expected_db_path="target\mvp\doctor-check.db",
         expected_output_path="target\mvp\doctor-check.txt",
+    )
+
+    wrapper_env = os.environ.copy()
+    wrapper_env["PATH"] = os.pathsep.join(
+        entry
+        for entry in wrapper_env.get("PATH", "").split(os.pathsep)
+        if ".cargo" not in entry.lower()
+    )
+    wrapper_doctor_without_cargo_path = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "doctor",
+            "--db",
+            "target/mvp/doctor-no-path.db",
+            "--output",
+            "target/mvp/doctor-no-path.txt",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=wrapper_env,
+    )
+    payload = load_json_payload(
+        wrapper_doctor_without_cargo_path,
+        errors,
+        "mvp-wrapper-doctor-no-cargo-path-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "mvp-wrapper-doctor-no-cargo-path-json",
+        "doctor",
+    )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "mvp-wrapper-doctor-no-cargo-path-json",
+        expected_db_path="target\mvp\doctor-no-path.db",
+        expected_output_path="target\mvp\doctor-no-path.txt",
     )
 
     space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"

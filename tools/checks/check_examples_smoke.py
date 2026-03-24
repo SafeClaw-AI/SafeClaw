@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -690,6 +691,61 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
 ]
 
 
+def resolve_executable_candidate(candidate: str) -> str | None:
+    binary = Path(candidate).expanduser()
+    if binary.exists():
+        return str(binary)
+    resolved = shutil.which(candidate)
+    if resolved is not None:
+        return resolved
+    return None
+
+
+def cargo_home_candidates(binary: str) -> list[Path]:
+    filenames = [binary]
+    if os.name == "nt":
+        filenames = [f"{binary}.exe", f"{binary}.bat", binary]
+
+    roots: list[Path] = []
+    cargo_home = os.environ.get("CARGO_HOME")
+    if cargo_home:
+        roots.append(Path(cargo_home).expanduser())
+    user_profile = os.environ.get("USERPROFILE")
+    if user_profile:
+        roots.append(Path(user_profile) / ".cargo")
+    roots.append(Path.home() / ".cargo")
+
+    candidates: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        for filename in filenames:
+            candidates.append(root / "bin" / filename)
+    return candidates
+
+
+def resolve_executable(binary: str, *env_keys: str) -> str | None:
+    for env_key in env_keys:
+        candidate = os.environ.get(env_key)
+        if candidate:
+            resolved = resolve_executable_candidate(candidate)
+            if resolved is not None:
+                return resolved
+
+    resolved = shutil.which(binary)
+    if resolved is not None:
+        return resolved
+
+    for candidate in cargo_home_candidates(binary):
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+
 def collect_coverage_errors() -> list[str]:
     errors: list[str] = []
     configured_examples: dict[str, list[str]] = {}
@@ -722,11 +778,15 @@ def collect_errors() -> list[str]:
         return errors
 
     env = build_example_env()
+    cargo_exe = resolve_executable("cargo", "SAFECLAW_CARGO", "CARGO_EXE")
+    if cargo_exe is None:
+        return errors + ["example smoke cannot locate cargo; checked PATH and ~/.cargo/bin"]
 
     for name, command, expected_markers in CHECKS:
+        resolved_command = [cargo_exe if part == "cargo" else part for part in command]
         try:
             completed = subprocess.run(
-                command,
+                resolved_command,
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -749,6 +809,12 @@ def collect_errors() -> list[str]:
 
 def build_example_env() -> dict[str, str]:
     env = os.environ.copy()
+    cargo_exe = resolve_executable("cargo", "SAFECLAW_CARGO", "CARGO_EXE")
+    if cargo_exe is not None:
+        cargo_dir = str(Path(cargo_exe).resolve().parent)
+        path_entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
+        if cargo_dir not in path_entries:
+            env["PATH"] = os.pathsep.join([cargo_dir, *path_entries])
     if sys.platform == "win32":
         env.setdefault("RUSTUP_TOOLCHAIN", WINDOWS_GNU_TOOLCHAIN)
         env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", str(WINDOWS_GNU_LINKER))

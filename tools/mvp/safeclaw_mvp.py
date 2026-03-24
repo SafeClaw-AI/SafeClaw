@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -71,6 +72,82 @@ SESSION_ACTION_FLAG_SPECS = {
         "boolean": set(),
     },
 }
+
+
+def resolve_executable_candidate(candidate: str) -> str | None:
+    path = Path(candidate).expanduser()
+    if path.exists():
+        return str(path)
+    resolved = shutil.which(candidate)
+    if resolved is not None:
+        return resolved
+    return None
+
+
+def cargo_home_candidates(binary: str) -> list[Path]:
+    filenames = [binary]
+    if os.name == "nt":
+        filenames = [f"{binary}.exe", f"{binary}.bat", binary]
+
+    roots: list[Path] = []
+    cargo_home = os.environ.get("CARGO_HOME")
+    if cargo_home:
+        roots.append(Path(cargo_home).expanduser())
+    user_profile = os.environ.get("USERPROFILE")
+    if user_profile:
+        roots.append(Path(user_profile) / ".cargo")
+    roots.append(Path.home() / ".cargo")
+
+    candidates: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        for filename in filenames:
+            candidates.append(root / "bin" / filename)
+    return candidates
+
+
+def resolve_executable(binary: str, *env_keys: str) -> str | None:
+    for env_key in env_keys:
+        candidate = os.environ.get(env_key)
+        if candidate:
+            resolved = resolve_executable_candidate(candidate)
+            if resolved is not None:
+                return resolved
+
+    resolved = shutil.which(binary)
+    if resolved is not None:
+        return resolved
+
+    for candidate in cargo_home_candidates(binary):
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def build_rust_env() -> tuple[dict[str, str], str | None, str | None]:
+    env = os.environ.copy()
+    cargo_exe = resolve_executable("cargo", "SAFECLAW_CARGO", "CARGO_EXE")
+    rustc_exe = resolve_executable("rustc", "SAFECLAW_RUSTC", "RUSTC")
+
+    tool_dir = None
+    if cargo_exe is not None:
+        tool_dir = str(Path(cargo_exe).resolve().parent)
+    elif rustc_exe is not None:
+        tool_dir = str(Path(rustc_exe).resolve().parent)
+
+    if tool_dir is not None:
+        path_entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
+        if tool_dir not in path_entries:
+            env["PATH"] = os.pathsep.join([tool_dir, *path_entries])
+
+    env["RUSTUP_TOOLCHAIN"] = TOOLCHAIN
+    env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
+    return env, cargo_exe, rustc_exe
+
 
 
 def main(argv: list[str]) -> int:
@@ -538,8 +615,22 @@ def run_doctor(args: list[str]) -> int:
     db, db_source = resolve_db_selection(args, session)
     output, output_source = resolve_output_selection(args, session, db)
 
-    cargo_ok, cargo_detail = probe_command(["cargo", "--version"])
-    toolchain_ok, toolchain_detail = probe_command(["rustc", f"+{TOOLCHAIN}", "--version"])
+    rust_env, cargo_exe, rustc_exe = build_rust_env()
+    cargo_ok, cargo_detail = probe_command(
+        None if cargo_exe is None else [cargo_exe, "--version"],
+        env=rust_env,
+        missing_detail="cargo executable not found; checked PATH and ~/.cargo/bin",
+    )
+    toolchain_command = None
+    if rustc_exe is not None:
+        toolchain_command = [rustc_exe, f"+{TOOLCHAIN}", "--version"]
+    elif cargo_exe is not None:
+        toolchain_command = [cargo_exe, f"+{TOOLCHAIN}", "rustc", "--version"]
+    toolchain_ok, toolchain_detail = probe_command(
+        toolchain_command,
+        env=rust_env,
+        missing_detail="rust toolchain executable not found; checked PATH and ~/.cargo/bin",
+    )
     linker_path = Path(LINKER)
     linker_ok = linker_path.exists()
     entrypoints = {
@@ -897,14 +988,17 @@ def run_cargo_capture(
     action: str | None = None,
     replay_output: bool = False,
 ) -> tuple[int, str]:
-    env = os.environ.copy()
-    env["RUSTUP_TOOLCHAIN"] = TOOLCHAIN
-    env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
+    env, cargo_exe, _ = build_rust_env()
     action_name = action or (args[0] if args else "unknown")
+    if cargo_exe is None:
+        message = "cargo executable not found; checked PATH and ~/.cargo/bin"
+        if replay_output:
+            print(f"[mvp-wrapper] cargo => error action={action_name} error={message}", file=sys.stderr)
+        return 1, message
     try:
         completed = subprocess.run(
             [
-                "cargo",
+                cargo_exe,
                 f"+{TOOLCHAIN}",
                 "run",
                 "-p",
@@ -939,11 +1033,18 @@ def run_cargo_capture(
     return completed.returncode, combined_output
 
 
-def probe_command(command: list[str]) -> tuple[bool, str]:
+def probe_command(
+    command: list[str] | None,
+    env: dict[str, str] | None = None,
+    missing_detail: str | None = None,
+) -> tuple[bool, str]:
+    if not command:
+        return False, missing_detail or "missing command"
     try:
         completed = subprocess.run(
             command,
             cwd=REPO_ROOT,
+            env=env,
             capture_output=True,
             text=True,
             timeout=20,
