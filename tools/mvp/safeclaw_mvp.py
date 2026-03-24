@@ -389,6 +389,25 @@ def parse_list_limit(args: list[str]) -> int:
         raise ValueError(f"invalid --limit: {limit_raw}") from error
 
 
+def render_cmd_arg(value: str) -> str:
+    escaped = value.replace('"', '""')
+    return f'"{escaped}"'
+
+
+
+def build_service_status_next_command(db: str, row: dict[str, object]) -> str:
+    task_id = str(row.get("task_id") or "")
+    next_action = str(row.get("next_action") or "inspect")
+    db_arg = render_cmd_arg(db)
+    task_arg = render_cmd_arg(task_id)
+    if next_action == "retry":
+        return f"safeclaw.cmd service-retry --db {db_arg} --task-id {task_arg} --limit 1 --report"
+    if next_action == "recover":
+        return f"safeclaw.cmd service-recover --db {db_arg} --task-id {task_arg} --limit 1 --report"
+    return f"safeclaw.cmd report --db {db_arg} --task-id {task_arg}"
+
+
+
 def build_service_status_payload(
     args: list[str],
     session: dict[str, str] | None,
@@ -407,6 +426,7 @@ def build_service_status_payload(
         {
             **row,
             "current": current_db and session is not None and session.get("task_id") == row["task_id"],
+            "next_command": build_service_status_next_command(db, row),
         }
         for row in rows
     ]
@@ -678,7 +698,8 @@ def run_service_status(args: list[str]) -> int:
             f"doctor_bypass={str(bool(row['doctor_bypass'])).lower()} "
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
-            f"next={row['next_action']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
+            f"next={row['next_action']} next_cmd={row['next_command']} "
+            f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
 def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
@@ -994,7 +1015,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, and next action hints; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, next action hints, and suggested commands; "
         "supports --db / --limit / --json"
     )
     print(

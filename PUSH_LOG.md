@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 04:17:30 +0800
+最后更新时间：2026-03-25 04:28:16 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -78,4 +78,10 @@
 - 完成时间：2026-03-25 04:17:30 +0800
 - 完成内容：为 `service-status` 的 recent task 增加 `next_action` 决策提示；在 success / failed / uncertain 现场分别给出 `ok` / `retry` / `recover`；同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: add next action hints to service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`a3c24e5 feat: add next action hints to service status`
+
+### 轮次 M
+- 完成时间：2026-03-25 04:28:16 +0800
+- 完成内容：为 `service-status` 的 recent task 增加可复制的 `next_command`；在 success / failed / uncertain 现场分别给出 `report` / `service-retry --report` / `service-recover --report` 推荐命令；同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add next command hints to service status`；最终 hash 以当前 `HEAD` 为准。
