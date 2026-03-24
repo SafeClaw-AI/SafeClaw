@@ -429,10 +429,13 @@ def forget_session(args: list[str]) -> int:
     try:
         SESSION_FILE.unlink()
     except OSError as error:
-        if has_flag(args, "--json"):
-            return emit_json_error("forget", f"failed to delete remembered session: {error}", exit_code=1)
-        print(f"[mvp-wrapper] forgot => error {error}", file=sys.stderr)
-        return 1
+        return emit_local_action_error(
+            "forget",
+            args,
+            f"failed to delete remembered session: {error}",
+            exit_code=1,
+            text_message=f"[mvp-wrapper] forgot => error {error}",
+        )
     if has_flag(args, "--json"):
         return emit_json_result("forget", {"forgot": True, "path": session_path, "reason": "removed"})
     print(f"[mvp-wrapper] forgot => reason=removed path={session_path}")
@@ -540,10 +543,13 @@ def print_sessions(args: list[str]) -> int:
     try:
         limit = max(1, int(limit_raw))
     except ValueError:
-        if has_flag(args, "--json"):
-            return emit_json_error("sessions", f"invalid --limit: {limit_raw}", exit_code=2)
-        print(f"[mvp-wrapper] invalid --limit: {limit_raw}", file=sys.stderr)
-        return 2
+        return emit_local_action_error(
+            "sessions",
+            args,
+            f"invalid --limit: {limit_raw}",
+            exit_code=2,
+            text_message=f"[mvp-wrapper] invalid --limit: {limit_raw}",
+        )
 
     db_path = resolve_repo_path(db)
     rows = load_recent_tasks(db_path, limit)
@@ -608,40 +614,55 @@ def activate_session(args: list[str]) -> int:
     task_id = get_flag(args, "--task-id")
     index_raw = get_flag(args, "--index")
     if task_id is not None and index_raw is not None:
-        if has_flag(args, "--json"):
-            return emit_json_error("use", "use requires either --task-id or --index, not both", exit_code=2)
-        print("[mvp-wrapper] use requires either --task-id or --index, not both", file=sys.stderr)
-        return 2
+        return emit_local_action_error(
+            "use",
+            args,
+            "use requires either --task-id or --index, not both",
+            exit_code=2,
+            text_message="[mvp-wrapper] use requires either --task-id or --index, not both",
+        )
 
     if task_id is None:
         index_raw = index_raw or "0"
         try:
             index = int(index_raw)
         except ValueError:
-            if has_flag(args, "--json"):
-                return emit_json_error("use", f"invalid --index: {index_raw}", exit_code=2)
-            print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
-            return 2
+            return emit_local_action_error(
+                "use",
+                args,
+                f"invalid --index: {index_raw}",
+                exit_code=2,
+                text_message=f"[mvp-wrapper] invalid --index: {index_raw}",
+            )
         if index < 0:
-            if has_flag(args, "--json"):
-                return emit_json_error("use", f"invalid --index: {index_raw}", exit_code=2)
-            print(f"[mvp-wrapper] invalid --index: {index_raw}", file=sys.stderr)
-            return 2
+            return emit_local_action_error(
+                "use",
+                args,
+                f"invalid --index: {index_raw}",
+                exit_code=2,
+                text_message=f"[mvp-wrapper] invalid --index: {index_raw}",
+            )
         rows = load_recent_tasks(db_path, max(index + 1, DEFAULT_LIST_LIMIT))
         if index >= len(rows):
-            if has_flag(args, "--json"):
-                return emit_json_error("use", f"no recent task at index {index} for db={db}", exit_code=2)
-            print(f"[mvp-wrapper] no recent task at index {index} for db={db}", file=sys.stderr)
-            return 2
+            return emit_local_action_error(
+                "use",
+                args,
+                f"no recent task at index {index} for db={db}",
+                exit_code=2,
+                text_message=f"[mvp-wrapper] no recent task at index {index} for db={db}",
+            )
         target = rows[index]
         source = f"index:{index}"
     else:
         target = lookup_task_entry(db_path, task_id)
         if target is None:
-            if has_flag(args, "--json"):
-                return emit_json_error("use", f"missing task snapshot for task={task_id} db={db}", exit_code=2)
-            print(f"[mvp-wrapper] missing task snapshot for task={task_id} db={db}", file=sys.stderr)
-            return 2
+            return emit_local_action_error(
+                "use",
+                args,
+                f"missing task snapshot for task={task_id} db={db}",
+                exit_code=2,
+                text_message=f"[mvp-wrapper] missing task snapshot for task={task_id} db={db}",
+            )
         source = f"task:{task_id}"
 
     output_flag = get_flag(args, "--output")
@@ -960,10 +981,16 @@ def looks_like_flag(token: str) -> bool:
     return token.startswith("--")
 
 
-def emit_local_action_error(action: str, args: list[str], message: str, exit_code: int = 1) -> int:
+def emit_local_action_error(
+    action: str,
+    args: list[str],
+    message: str,
+    exit_code: int = 1,
+    text_message: str | None = None,
+) -> int:
     if has_flag(args, "--json"):
         return emit_json_error(action, message, exit_code=exit_code)
-    print(f"[mvp-wrapper] {action} => error {message}", file=sys.stderr)
+    print(text_message or f"[mvp-wrapper] {action} => error {message}", file=sys.stderr)
     return exit_code
 
 
