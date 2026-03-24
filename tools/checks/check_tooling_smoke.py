@@ -245,8 +245,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
     elif "[mvp-wrapper] session => session/sessions/use/forget 管理 remembered session；status/report/recover/retry/doctor 会尽量复用它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 remembered session 提示")
-    elif "[mvp-wrapper] doctor => 文本模式给出 summary 与 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
-        errors.append("mvp-wrapper-help 输出缺少 doctor 聚合状态提示")
+    elif "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
     elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints" not in wrapper_help_output:
