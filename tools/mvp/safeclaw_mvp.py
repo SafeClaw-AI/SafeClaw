@@ -361,6 +361,19 @@ def resolve_db_selection(args: list[str], session: dict[str, str] | None) -> tup
     return render_repo_path(DEFAULT_DB), "default"
 
 
+def resolve_output_selection(
+    args: list[str],
+    session: dict[str, str] | None,
+    db: str,
+) -> tuple[str, str]:
+    output_flag = get_flag(args, "--output")
+    if output_flag is not None:
+        return output_flag, "flag"
+    if session is not None and session.get("db") == db:
+        return session["output"], "session"
+    return default_output_for_db(db), "default"
+
+
 def build_combo_result_payload(steps: list[dict[str, object]]) -> dict[str, object]:
     remembered_session = load_session()
     return {
@@ -454,17 +467,7 @@ def forget_session(args: list[str]) -> int:
 def run_doctor(args: list[str]) -> int:
     session = load_session()
     db, db_source = resolve_db_selection(args, session)
-
-    output_flag = get_flag(args, "--output")
-    if output_flag is not None:
-        output = output_flag
-        output_source = "flag"
-    elif session is not None and session.get("db") == db:
-        output = session["output"]
-        output_source = "session"
-    else:
-        output = default_output_for_db(db)
-        output_source = "default"
+    output, output_source = resolve_output_selection(args, session, db)
 
     cargo_ok, cargo_detail = probe_command(["cargo", "--version"])
     toolchain_ok, toolchain_detail = probe_command(["rustc", f"+{TOOLCHAIN}", "--version"])
@@ -647,16 +650,7 @@ def activate_session(args: list[str]) -> int:
             )
         source = f"task:{task_id}"
 
-    output_flag = get_flag(args, "--output")
-    if output_flag is not None:
-        output = output_flag
-        output_source = "flag"
-    elif session is not None and session.get("db") == db:
-        output = session["output"]
-        output_source = "session"
-    else:
-        output = default_output_for_db(db)
-        output_source = "default"
+    output, output_source = resolve_output_selection(args, session, db)
 
     owner_id_flag = get_flag(args, "--owner-id")
     if owner_id_flag is not None:
