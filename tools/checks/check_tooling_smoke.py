@@ -249,6 +249,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少组合动作 remembered_session 提示")
     elif "[mvp-wrapper] session sources => sessions --json 会返回 current_session/db_source；use --json 会返回 source/db_source/output_source/owner_id_source" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 session 来源提示")
+    elif "[mvp-wrapper] session paths => session 文本输出会带 remembered session 文件路径；forget 文本/JSON 会显式给出 reason/path" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help 输出缺少 session 路径提示")
 
     wrapper_doctor = subprocess.run(
         [
@@ -1363,4 +1365,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
