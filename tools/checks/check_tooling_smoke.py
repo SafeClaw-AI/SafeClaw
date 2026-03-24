@@ -183,6 +183,57 @@ def assert_run_json_result(
         errors.append(f"{name} missing captured output path")
 
 
+def assert_use_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+    expected_source: str,
+) -> None:
+    if result is None:
+        return
+    if result.get("task_id") != expected_task_id or result.get("source") != expected_source:
+        errors.append(f"{name} missing task_id/source")
+    elif result.get("db_source") != "session":
+        errors.append(f"{name} missing db_source=session")
+    elif result.get("output_source") != "session":
+        errors.append(f"{name} missing output_source=session")
+    elif result.get("owner_id_source") != "session":
+        errors.append(f"{name} missing owner_id_source=session")
+
+
+
+def assert_session_passthrough_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    action: str,
+    expected_task_id: str,
+) -> None:
+    if result is None:
+        return
+    prepared = result.get("prepared") or []
+    remembered_session = result.get("remembered_session") or {}
+    source_hints = result.get("source_hints") or {}
+    captured_output = str(result.get("captured_output") or "")
+    if not prepared or prepared[0] != action:
+        errors.append(f"{name} missing prepared {action}")
+    elif expected_task_id not in captured_output:
+        errors.append(f"{name} missing captured task {expected_task_id}")
+    elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing remembered session {expected_task_id}")
+    elif not isinstance(source_hints, dict) or source_hints.get("db") != "session":
+        errors.append(f"{name} missing source_hints.db=session")
+    elif source_hints.get("output") != "session":
+        errors.append(f"{name} missing source_hints.output=session")
+    elif source_hints.get("owner_id") != "session":
+        errors.append(f"{name} missing source_hints.owner_id=session")
+    elif source_hints.get("task_context") != "session":
+        errors.append(f"{name} missing source_hints.task_context=session")
+
+
 def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -747,6 +798,74 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-sessions-json 输出缺少最近任务 task-wrapper-b")
             elif len(rows) < 2 or rows[1].get("task_id") != "task-wrapper-a":
                 errors.append("mvp-wrapper-sessions-json 输出缺少旧任务 task-wrapper-a")
+
+    wrapper_cmd_use_json = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "use", "--index", "1", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_cmd_use_json, errors, "mvp-wrapper-cmd-use-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-use-json", "use")
+        assert_use_json_result(
+            result,
+            errors,
+            "mvp-wrapper-cmd-use-json",
+            expected_task_id="task-wrapper-a",
+            expected_source="index:1",
+        )
+
+    wrapper_ps1_status_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "status", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_status_json, errors, "mvp-wrapper-ps1-status-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-status-json", "status")
+        assert_session_passthrough_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-status-json",
+            action="status",
+            expected_task_id="task-wrapper-a",
+        )
+
+    wrapper_ps1_use_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "use", "--index", "0", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_ps1_use_json, errors, "mvp-wrapper-ps1-use-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-use-json", "use")
+        assert_use_json_result(
+            result,
+            errors,
+            "mvp-wrapper-ps1-use-json",
+            expected_task_id="task-wrapper-b",
+            expected_source="index:0",
+        )
+
+    wrapper_cmd_report_json = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(wrapper_cmd_report_json, errors, "mvp-wrapper-cmd-report-json", expected_exit=0)
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-report-json", "report")
+        assert_session_passthrough_json_result(
+            result,
+            errors,
+            "mvp-wrapper-cmd-report-json",
+            action="report",
+            expected_task_id="task-wrapper-b",
+        )
 
     wrapper_use = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "1"],
