@@ -192,6 +192,18 @@ def assert_service_combo(
 def main() -> int:
     errors: list[str] = []
 
+
+
+    workspace_clear_before = run_json(["workspace", "--clear"], "operator-flow/workspace-clear-before", errors)
+    if workspace_clear_before is not None:
+        expect_equal(errors, "operator-flow/workspace-clear-before", "action", workspace_clear_before.get("action"), "workspace")
+        clear_result = workspace_clear_before.get("result") or {}
+        clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
+        if clear_result.get("path") != "target\mvp\workspace.json":
+            append_error(errors, "operator-flow/workspace-clear-before", "missing workspace path")
+        elif clear_state not in {(True, "removed"), (False, "none")}:
+            append_error(errors, "operator-flow/workspace-clear-before", f"unexpected clear state {clear_state!r}")
+
     forget_before = run_json(["forget"], "operator-flow/forget-before", errors)
     if forget_before is not None:
         expect_equal(errors, "operator-flow/forget-before", "action", forget_before.get("action"), "forget")
@@ -347,6 +359,18 @@ def main() -> int:
     if forget_after is not None:
         expect_equal(errors, "operator-flow/forget-after", "action", forget_after.get("action"), "forget")
         expect_true(errors, "operator-flow/forget-after", "result.forgot", (forget_after.get("result") or {}).get("forgot"))
+
+
+
+    workspace_clear_after = run_json(["workspace", "--clear"], "operator-flow/workspace-clear-after", errors)
+    if workspace_clear_after is not None:
+        expect_equal(errors, "operator-flow/workspace-clear-after", "action", workspace_clear_after.get("action"), "workspace")
+        clear_result = workspace_clear_after.get("result") or {}
+        clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
+        if clear_result.get("path") != "target\mvp\workspace.json":
+            append_error(errors, "operator-flow/workspace-clear-after", "missing workspace path")
+        elif clear_state not in {(True, "removed"), (False, "none")}:
+            append_error(errors, "operator-flow/workspace-clear-after", f"unexpected clear state {clear_state!r}")
 
     if errors:
         print("MVP operator flow check failed.", flush=True)

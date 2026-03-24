@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -12,6 +13,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATE_ROOT = REPO_ROOT / "target" / "mvp"
 SESSION_FILE = STATE_ROOT / "last_session.json"
+WORKSPACE_FILE = STATE_ROOT / "workspace.json"
+WORKSPACE_ROOT = STATE_ROOT / "workspaces"
 DEFAULT_DB = STATE_ROOT / "session.db"
 DEFAULT_OUTPUT = STATE_ROOT / "output.txt"
 DEFAULT_OWNER_ID = "safeclaw-mvp"
@@ -25,13 +28,14 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "doctor", "verify")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "workspace", "doctor", "verify")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
     ("py", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.py"),
 )
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
+WORKSPACE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 LOCAL_ACTION_FLAG_SPECS = {
     "session": {"value": set(), "boolean": {"--json"}},
     "sessions": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
@@ -40,6 +44,7 @@ LOCAL_ACTION_FLAG_SPECS = {
         "boolean": {"--json"},
     },
     "forget": {"value": set(), "boolean": {"--json"}},
+    "workspace": {"value": {"--name"}, "boolean": {"--json", "--clear"}},
     "service-demo": {"value": set(), "boolean": {"--json"}},
     "service-run": {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
@@ -199,6 +204,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("use", raw_args[1:], activate_session)
     if action == "forget":
         return dispatch_local_action("forget", raw_args[1:], forget_session)
+    if action == "workspace":
+        return dispatch_local_action("workspace", raw_args[1:], run_workspace)
     if action == "doctor":
         return dispatch_local_action("doctor", raw_args[1:], run_doctor)
     if action == "verify":
@@ -679,24 +686,33 @@ def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> 
 
 def prepare_args(action: str, args: list[str], session: dict[str, str] | None) -> list[str]:
     prepared = list(args)
+    workspace = load_workspace()
     validation_error = validate_session_action_args(action, prepared[1:])
     if validation_error is not None:
         raise ValueError(validation_error)
     if action in WRITES_SESSION:
-        db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
+        db = get_flag(prepared, "--db") or (workspace["db"] if workspace is not None else render_repo_path(DEFAULT_DB))
         ensure_flag(prepared, "--db", db)
-        ensure_flag(prepared, "--output", get_flag(prepared, "--output") or default_output_for_db(db))
+        default_output = get_flag(prepared, "--output") or (
+            workspace["output"] if matches_workspace_db(workspace, db) else default_output_for_db(db)
+        )
+        ensure_flag(prepared, "--output", default_output)
         task_id = get_flag(prepared, "--task-id") or f"task-safeclaw-mvp-{int(time.time() * 1000)}"
         ensure_flag(prepared, "--task-id", task_id)
         ensure_flag(prepared, "--effect-id", get_flag(prepared, "--effect-id") or f"effect-{task_id}")
         ensure_flag(prepared, "--owner-id", get_flag(prepared, "--owner-id") or DEFAULT_OWNER_ID)
         return prepared
 
-    db = get_flag(prepared, "--db") or (session["db"] if session is not None else render_repo_path(DEFAULT_DB))
+    db = get_flag(prepared, "--db") or (
+        session["db"] if session is not None else (workspace["db"] if workspace is not None else render_repo_path(DEFAULT_DB))
+    )
     ensure_flag(prepared, "--db", db)
 
     session_matches_db = matches_session_db(session, db)
-    default_output = session["output"] if session_matches_db else default_output_for_db(db)
+    workspace_matches_db = matches_workspace_db(workspace, db)
+    default_output = (
+        session["output"] if session_matches_db else (workspace["output"] if workspace_matches_db else default_output_for_db(db))
+    )
     ensure_flag(prepared, "--output", get_flag(prepared, "--output") or default_output)
     owner_id, _ = resolve_owner_id_selection(prepared, session, db)
     ensure_flag(prepared, "--owner-id", owner_id)
@@ -726,25 +742,30 @@ def describe_prepared_sources(
     session: dict[str, str] | None,
     prepared: list[str],
 ) -> dict[str, str]:
+    workspace = load_workspace()
     prepared_db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
     session_matches_db = matches_session_db(session, prepared_db)
+    workspace_matches_db = matches_workspace_db(workspace, prepared_db)
 
     db_source = resolve_source_hint(
         get_flag(original_args, "--db") is not None,
         is_write_action=action in WRITES_SESSION,
         session_available=session is not None,
+        workspace_available=workspace is not None,
     )
 
     output_source = resolve_source_hint(
         get_flag(original_args, "--output") is not None,
         is_write_action=action in WRITES_SESSION,
         session_available=session_matches_db,
+        workspace_available=workspace_matches_db,
     )
 
     owner_id_source = resolve_source_hint(
         get_flag(original_args, "--owner-id") is not None,
         is_write_action=action in WRITES_SESSION,
         session_available=session_matches_db,
+        workspace_available=False,
     )
 
     if get_flag(original_args, "--task-id") is not None:
@@ -798,11 +819,14 @@ def build_session_action_result_payload(result: dict[str, object]) -> dict[str, 
 
 
 def resolve_db_selection(args: list[str], session: dict[str, str] | None) -> tuple[str, str]:
+    workspace = load_workspace()
     db_flag = get_flag(args, "--db")
     if db_flag is not None:
         return db_flag, "flag"
     if session is not None:
         return session["db"], "session"
+    if workspace is not None:
+        return workspace["db"], "workspace"
     return render_repo_path(DEFAULT_DB), "default"
 
 
@@ -811,11 +835,14 @@ def resolve_output_selection(
     session: dict[str, str] | None,
     db: str,
 ) -> tuple[str, str]:
+    workspace = load_workspace()
     output_flag = get_flag(args, "--output")
     if output_flag is not None:
         return output_flag, "flag"
     if matches_session_db(session, db):
         return session["output"], "session"
+    if matches_workspace_db(workspace, db):
+        return workspace["output"], "workspace"
     return default_output_for_db(db), "default"
 
 
@@ -837,13 +864,16 @@ def resolve_source_hint(
     *,
     is_write_action: bool,
     session_available: bool,
+    workspace_available: bool,
 ) -> str:
     if flag_present:
         return "flag"
     if is_write_action:
-        return "default"
+        return "workspace" if workspace_available else "default"
     if session_available:
         return "session"
+    if workspace_available:
+        return "workspace"
     return "default"
 
 
@@ -870,7 +900,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
@@ -882,7 +912,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/"
-        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor/verify 支持 --json，"
+        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/verify 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
@@ -936,6 +966,14 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
         "supports --json and reuses the current Python interpreter"
+    )
+    print(
+        "[mvp-wrapper] workspace => workspace shows or activates the current named workspace; "
+        "--name selects it, --clear resets to default db/output"
+    )
+    print(
+        "[mvp-wrapper] workspace defaults => when active, write actions default to workspace db/output; "
+        "read actions fall back to workspace when no remembered session applies"
     )
     print(
         "[mvp-wrapper] service report => add --report to service-run / service-retry / service-recover to append report after service-status"
@@ -1012,8 +1050,167 @@ def forget_session(args: list[str]) -> int:
     return 0
 
 
+
+
+def workspace_db_for_name(name: str) -> str:
+    return render_repo_path(WORKSPACE_ROOT / name / "session.db")
+
+
+def workspace_output_for_name(name: str) -> str:
+    return render_repo_path(WORKSPACE_ROOT / name / "output.txt")
+
+
+def validate_workspace_name(name: str) -> str | None:
+    if not name:
+        return "workspace name must not be empty"
+    if WORKSPACE_NAME_PATTERN.fullmatch(name) is None:
+        return "invalid workspace name: use letters, digits, dot, underscore, or dash"
+    return None
+
+
+def matches_workspace_db(workspace: dict[str, str] | None, db: str) -> bool:
+    return workspace is not None and workspace.get("db") == db
+
+
+def load_workspace() -> dict[str, str] | None:
+    if not WORKSPACE_FILE.exists():
+        return None
+    try:
+        payload = json.loads(WORKSPACE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        repair_invalid_workspace(str(error))
+        return None
+    if not isinstance(payload, dict):
+        repair_invalid_workspace("expected object payload")
+        return None
+    name = payload.get("name")
+    if not isinstance(name, str):
+        repair_invalid_workspace("missing workspace name")
+        return None
+    validation_error = validate_workspace_name(name)
+    if validation_error is not None:
+        repair_invalid_workspace(validation_error)
+        return None
+    return {
+        "name": name,
+        "db": workspace_db_for_name(name),
+        "output": workspace_output_for_name(name),
+    }
+
+
+def save_workspace(name: str) -> None:
+    STATE_ROOT.mkdir(parents=True, exist_ok=True)
+    WORKSPACE_FILE.write_text(json.dumps({"name": name}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def repair_invalid_workspace(reason: str) -> None:
+    try:
+        WORKSPACE_FILE.unlink(missing_ok=True)
+    except OSError as error:
+        print(
+            "[mvp-wrapper] workspace repair => "
+            f"failed to drop invalid {render_repo_path(WORKSPACE_FILE)} reason={reason} error={error}",
+            file=sys.stderr,
+        )
+        return
+    print(
+        "[mvp-wrapper] workspace repair => "
+        f"dropped invalid {render_repo_path(WORKSPACE_FILE)} reason={reason}",
+        file=sys.stderr,
+    )
+
+
+def build_workspace_status_payload(workspace: dict[str, str] | None) -> dict[str, object]:
+    if workspace is None:
+        return {
+            "active": False,
+            "name": None,
+            "db": render_repo_path(DEFAULT_DB),
+            "output": render_repo_path(DEFAULT_OUTPUT),
+            "path": render_repo_path(WORKSPACE_FILE),
+        }
+    return {
+        "active": True,
+        "name": workspace["name"],
+        "db": workspace["db"],
+        "output": workspace["output"],
+        "path": render_repo_path(WORKSPACE_FILE),
+    }
+
+
+def run_workspace(args: list[str]) -> int:
+    workspace_path = render_repo_path(WORKSPACE_FILE)
+    name = get_flag(args, "--name")
+    clear = has_flag(args, "--clear")
+    if name is not None and clear:
+        return emit_local_action_error(
+            "workspace",
+            args,
+            "workspace accepts either --name or --clear, not both",
+            exit_code=2,
+            text_message="[mvp-wrapper] workspace accepts either --name or --clear, not both",
+        )
+    if name is not None:
+        validation_error = validate_workspace_name(name)
+        if validation_error is not None:
+            return emit_local_action_error(
+                "workspace",
+                args,
+                validation_error,
+                exit_code=2,
+                text_message=f"[mvp-wrapper] {validation_error}",
+            )
+        save_workspace(name)
+        payload = build_workspace_status_payload(load_workspace())
+        payload["changed"] = True
+        if has_flag(args, "--json"):
+            return emit_json_result("workspace", payload)
+        print(
+            "[mvp-wrapper] workspace => "
+            f"activated name={payload['name']} db={payload['db']} output={payload['output']} path={workspace_path}"
+        )
+        return 0
+    if clear:
+        if not WORKSPACE_FILE.exists():
+            payload = {"cleared": False, "path": workspace_path, "reason": "none"}
+            if has_flag(args, "--json"):
+                return emit_json_result("workspace", payload)
+            print(f"[mvp-wrapper] workspace => reason=none path={workspace_path}")
+            return 0
+        try:
+            WORKSPACE_FILE.unlink()
+        except OSError as error:
+            return emit_local_action_error(
+                "workspace",
+                args,
+                f"failed to delete workspace file: {error}",
+                exit_code=1,
+                text_message=f"[mvp-wrapper] workspace => error {error}",
+            )
+        payload = {"cleared": True, "path": workspace_path, "reason": "removed"}
+        if has_flag(args, "--json"):
+            return emit_json_result("workspace", payload)
+        print(f"[mvp-wrapper] workspace => reason=removed path={workspace_path}")
+        return 0
+
+    payload = build_workspace_status_payload(load_workspace())
+    if has_flag(args, "--json"):
+        return emit_json_result("workspace", payload)
+    if payload["active"] is not True:
+        print(
+            "[mvp-wrapper] workspace => "
+            f"none path={workspace_path} db={payload['db']} output={payload['output']}"
+        )
+        return 0
+    print(
+        "[mvp-wrapper] workspace => "
+        f"name={payload['name']} db={payload['db']} output={payload['output']} path={workspace_path}"
+    )
+    return 0
+
 def run_doctor(args: list[str]) -> int:
     session = load_session()
+    workspace = load_workspace()
     db, db_source = resolve_db_selection(args, session)
     output, output_source = resolve_output_selection(args, session, db)
 
@@ -1060,6 +1257,7 @@ def run_doctor(args: list[str]) -> int:
         "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
         "session": session,
         "session_path": render_repo_path(SESSION_FILE),
+        "workspace": build_workspace_status_payload(workspace),
         "db": {"path": render_repo_path(db_path), "exists": db_path.exists(), "source": db_source},
         "output": {"path": render_repo_path(output_path), "exists": output_path.exists(), "source": output_source},
     }
@@ -1083,6 +1281,16 @@ def run_doctor(args: list[str]) -> int:
         f"[mvp-wrapper] doctor linker => {'ok' if linker_ok else 'error'} {render_repo_path(linker_path)}"
     )
     print(f"[mvp-wrapper] doctor session_path => {render_repo_path(SESSION_FILE)}")
+    if workspace is None:
+        print(
+            "[mvp-wrapper] doctor workspace => "
+            f"none path={render_repo_path(WORKSPACE_FILE)} db={render_repo_path(DEFAULT_DB)} output={render_repo_path(DEFAULT_OUTPUT)}"
+        )
+    else:
+        print(
+            "[mvp-wrapper] doctor workspace => "
+            f"name={workspace['name']} path={render_repo_path(WORKSPACE_FILE)} db={workspace['db']} output={workspace['output']}"
+        )
     if session is None:
         print("[mvp-wrapper] doctor session => none")
     else:

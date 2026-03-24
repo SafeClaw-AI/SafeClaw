@@ -18,7 +18,7 @@
 ## Recommended Operator Path
 
 - See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
-- Normal path first: `doctor -> service-run --report`.
+- Normal path first: `workspace --name demo -> doctor -> service-run --report`.
 - `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
 - Failed recovery path: `service-retry --report -> service-status`.
 - Uncertain recovery path: `service-recover --report -> service-status`.
@@ -42,9 +42,10 @@
 - `sessions`：列出当前数据库里的最近任务快照；默认优先使用 remembered session 的 `db`，并在文本/JSON 输出里标出来源
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话，并在文本/JSON 输出里标出选择来源及 `db` / `output` / `owner_id` 来源
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
+- `workspace`: show or activate a named workspace; it fixes default `db` / `output`; `--clear` returns to global defaults while remembered session stays independent
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `doctor` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
-- `doctor`：快速检查包装入口、Rust 工具链、linker 与当前默认会话路径，并显式标出当前 `db` / `output` 来源（`flag` / `session` / `default`）；`--json` 结果还会给出聚合 `status` 与 `failing_checks`
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
+- `doctor`: checks wrapper entrypoints, Rust toolchain, linker, remembered session / workspace paths, and reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`); `--json` also returns aggregated `status` and `failing_checks`
 - `verify`: run the practical operator flow gate via the current wrapper entry; `--json` returns script path, python path, exit code, and captured output
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
@@ -95,6 +96,10 @@ tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --repor
 tools\mvp\safeclaw_mvp.cmd service-status --json
 tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd run --reset --json
+tools\mvp\safeclaw_mvp.cmd workspace
+tools\mvp\safeclaw_mvp.cmd workspace --json
+tools\mvp\safeclaw_mvp.cmd workspace --name demo
+tools\mvp\safeclaw_mvp.cmd workspace --clear
 tools\mvp\safeclaw_mvp.cmd session
 tools\mvp\safeclaw_mvp.cmd session --json
 tools\mvp\safeclaw_mvp.cmd sessions

@@ -8,11 +8,21 @@ The goal is to lock one path that can run, inspect, recover, and be verified rep
 ## Recommended Entry
 
 - Primary operator entry: `tools/mvp/safeclaw_mvp.cmd`
-- Start with `doctor`
+- Start with `workspace --name demo`, then `doctor`
 - Prefer combo actions first: `service-run`, `service-retry`, `service-recover`
 - Use `report` when you need the detailed governance view
 
+
 ## Main Path
+
+### 0. Workspace selection
+
+Pick one named workspace first so the wrapper can reuse stable `db/output` paths without repeating flags.
+
+```bat
+tools\mvp\safeclaw_mvp.cmd workspace --name demo
+tools\mvp\safeclaw_mvp.cmd workspace --json
+```
 
 ### 1. Environment check
 
@@ -26,8 +36,8 @@ tools\mvp\safeclaw_mvp.cmd doctor --json
 `service-run --report` performs `run -> service-status -> report` in one command.
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --db target\mvp\operator-demo.db --output target\mvp\operator-demo.txt --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-demo.db --limit 5
+tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
 
 ### 3. Failed recovery path
@@ -35,9 +45,9 @@ tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-demo.db --lim
 When the task is failed, use `service-retry --report` first.
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd seed-failed --reset --task-id task-demo-failed --db target\mvp\operator-retry.db --output target\mvp\operator-retry.txt
-tools\mvp\safeclaw_mvp.cmd service-retry --db target\mvp\operator-retry.db --task-id task-demo-failed --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-retry.db --limit 5
+tools\mvp\safeclaw_mvp.cmd seed-failed --reset --task-id task-demo-failed
+tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo-failed --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
 
 ### 4. Uncertain recovery path
@@ -45,10 +55,12 @@ tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-retry.db --li
 When the task is uncertain, use `service-recover --report` first.
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain --db target\mvp\operator-recover.db --output target\mvp\operator-recover.txt
-tools\mvp\safeclaw_mvp.cmd service-recover --db target\mvp\operator-recover.db --task-id task-demo-uncertain --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-recover.db --limit 5
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain
+tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
+
+Remember: workspace only fixes default `db/output`; remembered session still controls task/effect reuse for read actions.
 
 ## Verification
 
@@ -68,7 +80,7 @@ set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
 
 ## Current Guidance
 
-- Treat `doctor -> service-run --report` as the normal operator path
+- Treat `workspace -> doctor -> service-run --report` as the normal operator path
 - Treat `service-retry --report` as the first recovery action for failed tasks
 - Treat `service-recover --report` as the first recovery action for uncertain tasks
 - Before adding more wrapper commands, keep this path stable and regression-safe

@@ -113,6 +113,7 @@ def assert_verify_json_result(
         errors.append(f"{name} missing verify success output")
 
 
+
 def assert_doctor_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -120,10 +121,15 @@ def assert_doctor_json_result(
     *,
     expected_db_path: str,
     expected_output_path: str,
+    expected_db_source: str = "flag",
+    expected_output_source: str = "flag",
+    expected_workspace_active: bool | None = None,
+    expected_workspace_name: str | None = None,
 ) -> None:
     if result is None:
         return
     python_info = result.get("python") or {}
+    workspace_info = result.get("workspace") or {}
     if result.get("status") != "ready":
         errors.append(f"{name} missing status=ready")
     elif result.get("failing_checks") != []:
@@ -146,14 +152,53 @@ def assert_doctor_json_result(
         errors.append(f"{name} missing linker ok")
     elif result.get("session_path") != "target\mvp\last_session.json":
         errors.append(f"{name} missing session_path")
+    elif not isinstance(workspace_info, dict) or workspace_info.get("path") != "target\mvp\workspace.json":
+        errors.append(f"{name} missing workspace_path")
+    elif expected_workspace_active is not None and workspace_info.get("active") is not expected_workspace_active:
+        errors.append(f"{name} missing workspace active={expected_workspace_active}")
+    elif expected_workspace_name is None and expected_workspace_active is False and workspace_info.get("name") is not None:
+        errors.append(f"{name} unexpected workspace name")
+    elif expected_workspace_name is not None and workspace_info.get("name") != expected_workspace_name:
+        errors.append(f"{name} missing workspace name={expected_workspace_name}")
     elif result.get("db", {}).get("path") != expected_db_path:
         errors.append(f"{name} missing db path={expected_db_path}")
-    elif result.get("db", {}).get("source") != "flag":
-        errors.append(f"{name} missing db source=flag")
+    elif result.get("db", {}).get("source") != expected_db_source:
+        errors.append(f"{name} missing db source={expected_db_source}")
     elif result.get("output", {}).get("path") != expected_output_path:
         errors.append(f"{name} missing output path={expected_output_path}")
-    elif result.get("output", {}).get("source") != "flag":
-        errors.append(f"{name} missing output source=flag")
+    elif result.get("output", {}).get("source") != expected_output_source:
+        errors.append(f"{name} missing output source={expected_output_source}")
+
+
+def assert_workspace_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_active: bool,
+    expected_name: str | None,
+    expected_db_path: str,
+    expected_output_path: str,
+    expected_changed: bool | None = None,
+) -> None:
+    if result is None:
+        return
+    normalized_db = str(result.get("db") or "").replace("/", chr(92))
+    normalized_output = str(result.get("output") or "").replace("/", chr(92))
+    expected_db = expected_db_path.replace("/", chr(92))
+    expected_output = expected_output_path.replace("/", chr(92))
+    if result.get("active") is not expected_active:
+        errors.append(f"{name} missing active={expected_active}")
+    elif result.get("name") != expected_name:
+        errors.append(f"{name} missing name={expected_name}")
+    elif normalized_db != expected_db:
+        errors.append(f"{name} missing db={expected_db_path}")
+    elif normalized_output != expected_output:
+        errors.append(f"{name} missing output={expected_output_path}")
+    elif result.get("path") != "target\mvp\workspace.json":
+        errors.append(f"{name} missing workspace path")
+    elif expected_changed is not None and result.get("changed") is not expected_changed:
+        errors.append(f"{name} missing changed={expected_changed}")
 
 
 def assert_service_demo_json_result(
@@ -823,6 +868,34 @@ def assert_matching_session_alias(
 def collect_errors() -> list[str]:
     errors: list[str] = []
 
+
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--clear", "--json"],
+        errors,
+        "mvp-wrapper-workspace-clear-before-json",
+        "workspace",
+    )
+    if result is not None:
+        clear_state = (result.get("cleared"), result.get("reason"))
+        if result.get("path") != "target\mvp\workspace.json":
+            errors.append("mvp-wrapper-workspace-clear-before-json missing workspace path")
+        elif clear_state not in {(True, "removed"), (False, "none")}:
+            errors.append("mvp-wrapper-workspace-clear-before-json unexpected clear state")
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget", "--json"],
+        errors,
+        "mvp-wrapper-forget-before-json",
+        "forget",
+    )
+    if result is not None:
+        forget_state = (result.get("forgot"), result.get("reason"))
+        if result.get("path") != "target\mvp\last_session.json":
+            errors.append("mvp-wrapper-forget-before-json missing session path")
+        elif forget_state not in {(True, "removed"), (False, "none")}:
+            errors.append("mvp-wrapper-forget-before-json unexpected forget state")
+
     for name, command, expected in CHECKS:
         completed = subprocess.run(
             command,
@@ -848,15 +921,15 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, doctor, verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, workspace, doctor, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
@@ -1067,6 +1140,108 @@ def collect_errors() -> list[str]:
         expected_db_path="target\mvp\doctor-no-path.db",
         expected_output_path="target\mvp\doctor-no-path.txt",
     )
+
+
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--json"],
+        errors,
+        "mvp-wrapper-workspace-default-json",
+        "workspace",
+    )
+    assert_workspace_json_result(
+        result,
+        errors,
+        "mvp-wrapper-workspace-default-json",
+        expected_active=False,
+        expected_name=None,
+        expected_db_path="target\mvp\session.db",
+        expected_output_path="target\mvp\output.txt",
+    )
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--name", "demo", "--json"],
+        errors,
+        "mvp-wrapper-workspace-activate-json",
+        "workspace",
+    )
+    assert_workspace_json_result(
+        result,
+        errors,
+        "mvp-wrapper-workspace-activate-json",
+        expected_active=True,
+        expected_name="demo",
+        expected_db_path="target\mvp\workspaces\demo\session.db",
+        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_changed=True,
+    )
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "doctor", "--json"],
+        errors,
+        "mvp-wrapper-workspace-doctor-json",
+        "doctor",
+    )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "mvp-wrapper-workspace-doctor-json",
+        expected_db_path="target\mvp\workspaces\demo\session.db",
+        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_source="workspace",
+        expected_output_source="workspace",
+        expected_workspace_active=True,
+        expected_workspace_name="demo",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-workspace",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-workspace-run-json",
+        "run",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-workspace-run-json",
+        expected_task_id="task-wrapper-workspace",
+        expected_db_path="target\mvp\workspaces\demo\session.db",
+        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_source="workspace",
+        expected_output_source="workspace",
+    )
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--clear", "--json"],
+        errors,
+        "mvp-wrapper-workspace-clear-after-json",
+        "workspace",
+    )
+    if result is not None:
+        if result.get("path") != "target\mvp\workspace.json":
+            errors.append("mvp-wrapper-workspace-clear-after-json missing workspace path")
+        elif (result.get("cleared"), result.get("reason")) != (True, "removed"):
+            errors.append("mvp-wrapper-workspace-clear-after-json unexpected clear state")
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget", "--json"],
+        errors,
+        "mvp-wrapper-forget-after-workspace-json",
+        "forget",
+    )
+    if result is not None:
+        if result.get("path") != "target\mvp\last_session.json":
+            errors.append("mvp-wrapper-forget-after-workspace-json missing session path")
+        elif (result.get("forgot"), result.get("reason")) != (True, "removed"):
+            errors.append("mvp-wrapper-forget-after-workspace-json unexpected forget state")
 
     result = assert_command_json_result(
         [
