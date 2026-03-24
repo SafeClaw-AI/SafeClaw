@@ -18,10 +18,10 @@
 ## Recommended Operator Path
 
 - See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
-- Normal path first: `doctor -> service-run -> report`.
+- Normal path first: `doctor -> service-run --report`.
 - `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
-- Failed recovery path: `service-retry -> report -> service-status`.
-- Uncertain recovery path: `service-recover -> report -> service-status`.
+- Failed recovery path: `service-retry --report -> service-status`.
+- Uncertain recovery path: `service-recover --report -> service-status`.
 
 
 ## 当前支持的动作
@@ -34,6 +34,7 @@
 - `service-run`: run a task and immediately print the matching service summary
 - `service-retry`: retry a failed task and immediately print the matching service summary
 - `service-recover`: recover an uncertain task and immediately print the matching service summary
+- `--report`: append `report` after `service-status`, so the practical path can end with a governance view in one command
 - `service-status`: queue / lease / task snapshot summary for the selected db
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
@@ -81,12 +82,16 @@ tools\mvp\safeclaw_mvp.cmd recover-demo --json
 tools\mvp\safeclaw_mvp.cmd retry-demo
 tools\mvp\safeclaw_mvp.cmd service-demo
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1
+tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1
+tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status
 tools\mvp\safeclaw_mvp.cmd retry-demo --json
 tools\mvp\safeclaw_mvp.cmd service-demo --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --json
+tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report --json
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --json
+tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report --json
 tools\mvp\safeclaw_mvp.cmd service-status --json
 tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd run --reset --json

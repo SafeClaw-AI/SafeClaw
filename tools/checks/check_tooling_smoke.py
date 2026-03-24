@@ -258,14 +258,17 @@ def assert_service_run_json_result(
     expected_db_source: str,
     expected_task_id: str,
     expected_limit: int,
+    expected_steps: list[str] | None = None,
+    expect_report_payload: bool = False,
 ) -> None:
     if result is None:
         return
+    expected_steps = expected_steps or ["run", "service-status"]
     steps = result.get("steps") or []
     remembered_session = result.get("remembered_session") or {}
     session = result.get("session") or {}
     run_payload = result.get("run") or {}
-    if not isinstance(steps, list) or [step.get("action") for step in steps] != ["run", "service-status"]:
+    if not isinstance(steps, list) or [step.get("action") for step in steps] != expected_steps:
         errors.append(f"{name} step sequence is incorrect")
         return
     if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
@@ -287,7 +290,7 @@ def assert_service_run_json_result(
         errors.append(f"{name} nested run missing remembered_session {expected_task_id}")
         return
     assert_step_source_hints(
-        steps,
+        steps[:2],
         errors,
         name,
         [
@@ -295,6 +298,19 @@ def assert_service_run_json_result(
             ("service-status", {"db": expected_db_source, "task_context": "session"}),
         ],
     )
+    if expect_report_payload:
+        report_payload = result.get("report") or {}
+        nested_report_session = report_payload.get("remembered_session") or {}
+        prepared_report = report_payload.get("prepared") or []
+        if not isinstance(report_payload, dict):
+            errors.append(f"{name} missing nested report payload")
+            return
+        if not isinstance(prepared_report, list) or not prepared_report or prepared_report[0] != "report":
+            errors.append(f"{name} nested report missing prepared report")
+            return
+        if not isinstance(nested_report_session, dict) or nested_report_session.get("task_id") != expected_task_id:
+            errors.append(f"{name} nested report missing remembered_session {expected_task_id}")
+            return
     service_status = result.get("service_status")
     if not isinstance(service_status, dict):
         errors.append(f"{name} missing service_status payload")
@@ -319,14 +335,17 @@ def assert_service_retry_json_result(
     expected_db_source: str,
     expected_task_id: str,
     expected_limit: int,
+    expected_steps: list[str] | None = None,
+    expect_report_payload: bool = False,
 ) -> None:
     if result is None:
         return
+    expected_steps = expected_steps or ["retry", "service-status"]
     steps = result.get("steps") or []
     remembered_session = result.get("remembered_session") or {}
     session = result.get("session") or {}
     retry_payload = result.get("retry") or {}
-    if not isinstance(steps, list) or [step.get("action") for step in steps] != ["retry", "service-status"]:
+    if not isinstance(steps, list) or [step.get("action") for step in steps] != expected_steps:
         errors.append(f"{name} step sequence is incorrect")
         return
     if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
@@ -351,7 +370,7 @@ def assert_service_retry_json_result(
         errors.append(f"{name} nested retry missing remembered_session {expected_task_id}")
         return
     assert_step_source_hints(
-        steps,
+        steps[:2],
         errors,
         name,
         [
@@ -359,6 +378,19 @@ def assert_service_retry_json_result(
             ("service-status", {"db": expected_db_source, "task_context": "session"}),
         ],
     )
+    if expect_report_payload:
+        report_payload = result.get("report") or {}
+        nested_report_session = report_payload.get("remembered_session") or {}
+        prepared_report = report_payload.get("prepared") or []
+        if not isinstance(report_payload, dict):
+            errors.append(f"{name} missing nested report payload")
+            return
+        if not isinstance(prepared_report, list) or not prepared_report or prepared_report[0] != "report":
+            errors.append(f"{name} nested report missing prepared report")
+            return
+        if not isinstance(nested_report_session, dict) or nested_report_session.get("task_id") != expected_task_id:
+            errors.append(f"{name} nested report missing remembered_session {expected_task_id}")
+            return
     service_status = result.get("service_status")
     if not isinstance(service_status, dict):
         errors.append(f"{name} missing service_status payload")
@@ -383,14 +415,17 @@ def assert_service_recover_json_result(
     expected_db_source: str,
     expected_task_id: str,
     expected_limit: int,
+    expected_steps: list[str] | None = None,
+    expect_report_payload: bool = False,
 ) -> None:
     if result is None:
         return
+    expected_steps = expected_steps or ["recover", "service-status"]
     steps = result.get("steps") or []
     remembered_session = result.get("remembered_session") or {}
     session = result.get("session") or {}
     recover_payload = result.get("recover") or {}
-    if not isinstance(steps, list) or [step.get("action") for step in steps] != ["recover", "service-status"]:
+    if not isinstance(steps, list) or [step.get("action") for step in steps] != expected_steps:
         errors.append(f"{name} step sequence is incorrect")
         return
     if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
@@ -415,7 +450,7 @@ def assert_service_recover_json_result(
         errors.append(f"{name} nested recover missing remembered_session {expected_task_id}")
         return
     assert_step_source_hints(
-        steps,
+        steps[:2],
         errors,
         name,
         [
@@ -423,6 +458,19 @@ def assert_service_recover_json_result(
             ("service-status", {"db": expected_db_source, "task_context": "session"}),
         ],
     )
+    if expect_report_payload:
+        report_payload = result.get("report") or {}
+        nested_report_session = report_payload.get("remembered_session") or {}
+        prepared_report = report_payload.get("prepared") or []
+        if not isinstance(report_payload, dict):
+            errors.append(f"{name} missing nested report payload")
+            return
+        if not isinstance(prepared_report, list) or not prepared_report or prepared_report[0] != "report":
+            errors.append(f"{name} nested report missing prepared report")
+            return
+        if not isinstance(nested_report_session, dict) or nested_report_session.get("task_id") != expected_task_id:
+            errors.append(f"{name} nested report missing remembered_session {expected_task_id}")
+            return
     service_status = result.get("service_status")
     if not isinstance(service_status, dict):
         errors.append(f"{name} missing service_status payload")
@@ -802,7 +850,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
     elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, doctor, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-retry --task-id task-demo --limit 1 | service-recover --task-id task-demo --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
@@ -2217,6 +2265,192 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-invalid-doctor-json",
         "doctor",
         expected_error_message_substring="missing value after --db",
+    )
+
+    wrapper_service_run_report = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-run-report",
+            "--db",
+            "target/mvp/service-run-report.db",
+            "--output",
+            "target/mvp/service-run-report.txt",
+            "--limit",
+            "1",
+            "--report",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_run_report_output = (wrapper_service_run_report.stdout or "") + (wrapper_service_run_report.stderr or "")
+    if wrapper_service_run_report.returncode != 0:
+        errors.append(f"mvp-wrapper-service-run-report failed: exit={wrapper_service_run_report.returncode}")
+    elif "[mvp-wrapper] service-run => run" not in wrapper_service_run_report_output:
+        errors.append("mvp-wrapper-service-run-report missing run step marker")
+    elif "[mvp-wrapper] service-run => service-status" not in wrapper_service_run_report_output:
+        errors.append("mvp-wrapper-service-run-report missing service-status step marker")
+    elif "[mvp-wrapper] service-run => report" not in wrapper_service_run_report_output:
+        errors.append("mvp-wrapper-service-run-report missing report step marker")
+    elif "[mvp] report target => task=task-wrapper-service-run-report effect=effect-task-wrapper-service-run-report" not in wrapper_service_run_report_output:
+        errors.append("mvp-wrapper-service-run-report missing report output")
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-run-report-json",
+            "--db",
+            "target/mvp/service-run-report-json.db",
+            "--output",
+            "target/mvp/service-run-report-json.txt",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-run-report-json",
+        "service-run",
+    )
+    assert_service_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-run-report-json",
+        expected_db="target\mvp\service-run-report-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-run-report-json",
+        expected_limit=1,
+        expected_steps=["run", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-retry-report-json",
+            "--db",
+            "target/mvp/service-retry-report-json.db",
+            "--output",
+            "target/mvp/service-retry-report-json.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-retry-report-json-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-retry-report-json-seed-failed-json",
+        expected_task_id="task-wrapper-service-retry-report-json",
+        expected_db_path="target/mvp/service-retry-report-json.db",
+        expected_output_path="target/mvp/service-retry-report-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-retry",
+            "--db",
+            "target/mvp/service-retry-report-json.db",
+            "--task-id",
+            "task-wrapper-service-retry-report-json",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-retry-report-json",
+        "service-retry",
+    )
+    assert_service_retry_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-retry-report-json",
+        expected_db="target\mvp\service-retry-report-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-retry-report-json",
+        expected_limit=1,
+        expected_steps=["retry", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-recover-report-json",
+            "--db",
+            "target/mvp/service-recover-report-json.db",
+            "--output",
+            "target/mvp/service-recover-report-json.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-report-json-seed-crash-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-recover-report-json-seed-crash-json",
+        expected_task_id="task-wrapper-service-recover-report-json",
+        expected_db_path="target/mvp/service-recover-report-json.db",
+        expected_output_path="target/mvp/service-recover-report-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover-report-json.db",
+            "--task-id",
+            "task-wrapper-service-recover-report-json",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-recover-report-json",
+        "service-recover",
+    )
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-recover-report-json",
+        expected_db="target\mvp\service-recover-report-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-recover-report-json",
+        expected_limit=1,
+        expected_steps=["recover", "service-status", "report"],
+        expect_report_payload=True,
     )
 
     wrapper_cmd_verify = subprocess.run(

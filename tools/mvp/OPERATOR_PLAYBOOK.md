@@ -23,34 +23,30 @@ tools\mvp\safeclaw_mvp.cmd doctor --json
 
 ### 2. Normal execution path
 
-`service-run` already performs `run -> service-status`.
-If you need the detailed governance view after that, run `report`.
+`service-run --report` performs `run -> service-status -> report` in one command.
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --db target\mvp\operator-demo.db --output target\mvp\operator-demo.txt --limit 1
-tools\mvp\safeclaw_mvp.cmd report
+tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --db target\mvp\operator-demo.db --output target\mvp\operator-demo.txt --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-demo.db --limit 5
 ```
 
 ### 3. Failed recovery path
 
-When the task is failed, use `service-retry` first.
+When the task is failed, use `service-retry --report` first.
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --task-id task-demo-failed --db target\mvp\operator-retry.db --output target\mvp\operator-retry.txt
-tools\mvp\safeclaw_mvp.cmd service-retry --db target\mvp\operator-retry.db --task-id task-demo-failed --limit 1
-tools\mvp\safeclaw_mvp.cmd report
+tools\mvp\safeclaw_mvp.cmd service-retry --db target\mvp\operator-retry.db --task-id task-demo-failed --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-retry.db --limit 5
 ```
 
 ### 4. Uncertain recovery path
 
-When the task is uncertain, use `service-recover` first.
+When the task is uncertain, use `service-recover --report` first.
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain --db target\mvp\operator-recover.db --output target\mvp\operator-recover.txt
-tools\mvp\safeclaw_mvp.cmd service-recover --db target\mvp\operator-recover.db --task-id task-demo-uncertain --limit 1
-tools\mvp\safeclaw_mvp.cmd report
+tools\mvp\safeclaw_mvp.cmd service-recover --db target\mvp\operator-recover.db --task-id task-demo-uncertain --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status --db target\mvp\operator-recover.db --limit 5
 ```
 
@@ -72,7 +68,7 @@ set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
 
 ## Current Guidance
 
-- Treat `doctor -> service-run -> report` as the normal operator path
-- Treat `service-retry` as the first recovery action for failed tasks
-- Treat `service-recover` as the first recovery action for uncertain tasks
+- Treat `doctor -> service-run --report` as the normal operator path
+- Treat `service-retry --report` as the first recovery action for failed tasks
+- Treat `service-recover --report` as the first recovery action for uncertain tasks
 - Before adding more wrapper commands, keep this path stable and regression-safe
