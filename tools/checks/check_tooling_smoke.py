@@ -565,7 +565,7 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_ps1_help_output:
         errors.append("mvp-wrapper-ps1-help 输出缺少 usage")
 
-    wrapper_cmd_doctor_json = subprocess.run(
+    result = assert_command_json_result(
         [
             "cmd",
             "/c",
@@ -577,22 +577,19 @@ def collect_errors() -> list[str]:
             "target\mvp\doctor-wrapper-cmd.txt",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-doctor-json",
+        "doctor",
     )
-    payload = load_json_payload(wrapper_cmd_doctor_json, errors, "mvp-wrapper-cmd-doctor-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-doctor-json", "doctor")
-        assert_doctor_json_result(
-            result,
-            errors,
-            "mvp-wrapper-cmd-doctor-json",
-            expected_db_path="target\mvp\doctor-wrapper-cmd.db",
-            expected_output_path="target\mvp\doctor-wrapper-cmd.txt",
-        )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-doctor-json",
+        expected_db_path="target\mvp\doctor-wrapper-cmd.db",
+        expected_output_path="target\mvp\doctor-wrapper-cmd.txt",
+    )
 
-    wrapper_ps1_doctor_json = subprocess.run(
+    result = assert_command_json_result(
         [
             "powershell.exe",
             "-ExecutionPolicy",
@@ -606,20 +603,17 @@ def collect_errors() -> list[str]:
             "target\mvp\doctor-wrapper-ps1.txt",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-doctor-json",
+        "doctor",
     )
-    payload = load_json_payload(wrapper_ps1_doctor_json, errors, "mvp-wrapper-ps1-doctor-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-doctor-json", "doctor")
-        assert_doctor_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-doctor-json",
-            expected_db_path="target\mvp\doctor-wrapper-ps1.db",
-            expected_output_path="target\mvp\doctor-wrapper-ps1.txt",
-        )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-doctor-json",
+        expected_db_path="target\mvp\doctor-wrapper-ps1.db",
+        expected_output_path="target\mvp\doctor-wrapper-ps1.txt",
+    )
 
     wrapper_doctor = subprocess.run(
         [
@@ -653,7 +647,7 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
 
-    wrapper_doctor_json = subprocess.run(
+    result = assert_command_json_result(
         [
             PYTHON,
             "tools/mvp/safeclaw_mvp.py",
@@ -664,25 +658,22 @@ def collect_errors() -> list[str]:
             "target/mvp/doctor-check.txt",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-doctor-json",
+        "doctor",
     )
-    payload = load_json_payload(wrapper_doctor_json, errors, "mvp-wrapper-doctor-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-doctor-json", "doctor")
-        assert_doctor_json_result(
-            result,
-            errors,
-            "mvp-wrapper-doctor-json",
-            expected_db_path="target\mvp\doctor-check.db",
-            expected_output_path="target\mvp\doctor-check.txt",
-        )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "mvp-wrapper-doctor-json",
+        expected_db_path="target\mvp\doctor-check.db",
+        expected_output_path="target\mvp\doctor-check.txt",
+    )
 
     space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
     space_wrapper_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper_cmd_run_json = subprocess.run(
+    result = assert_command_json_result(
         [
             "cmd",
             "/c",
@@ -697,25 +688,22 @@ def collect_errors() -> list[str]:
             "target/mvp/space wrapper/run wrapper cmd.txt",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-run-json",
+        "run",
     )
-    payload = load_json_payload(wrapper_cmd_run_json, errors, "mvp-wrapper-cmd-run-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-run-json", "run")
-        assert_run_json_result(
-            result,
-            errors,
-            "mvp-wrapper-cmd-run-json",
-            expected_task_id="task-wrapper-cmd-space",
-            expected_db_path="target/mvp/space wrapper/run wrapper cmd.db",
-            expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt",
-            expected_db_source="flag",
-            expected_output_source="flag",
-        )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-run-json",
+        expected_task_id="task-wrapper-cmd-space",
+        expected_db_path="target/mvp/space wrapper/run wrapper cmd.db",
+        expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
 
-    wrapper_ps1_run_json = subprocess.run(
+    result = assert_command_json_result(
         [
             "powershell.exe",
             "-ExecutionPolicy",
@@ -732,41 +720,35 @@ def collect_errors() -> list[str]:
             "target/mvp/space wrapper/run wrapper ps1.txt",
             "--json",
         ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-run-json",
+        "run",
     )
-    payload = load_json_payload(wrapper_ps1_run_json, errors, "mvp-wrapper-ps1-run-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-run-json", "run")
-        assert_run_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-run-json",
-            expected_task_id="task-wrapper-ps1-space",
-            expected_db_path="target/mvp/space wrapper/run wrapper ps1.db",
-            expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt",
-            expected_db_source="flag",
-            expected_output_source="flag",
-        )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-run-json",
+        expected_task_id="task-wrapper-ps1-space",
+        expected_db_path="target/mvp/space wrapper/run wrapper ps1.db",
+        expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
 
-    wrapper_run_json = subprocess.run(
+    result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-json", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-run-json",
+        "run",
     )
-    payload = load_json_payload(wrapper_run_json, errors, "mvp-wrapper-run-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-run-json", "run")
-        assert_run_json_result(
-            result,
-            errors,
-            "mvp-wrapper-run-json",
-            expected_task_id="task-wrapper-json",
-            expected_db_source="default",
-            expected_output_source="default",
-        )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-run-json",
+        expected_task_id="task-wrapper-json",
+        expected_db_source="default",
+        expected_output_source="default",
+    )
 
     wrapper_run_a = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
