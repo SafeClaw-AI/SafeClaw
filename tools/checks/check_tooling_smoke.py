@@ -929,21 +929,18 @@ def collect_errors() -> list[str]:
     elif "path=target\mvp\last_session.json" not in wrapper_cmd_session_output:
         errors.append("mvp-wrapper-cmd-session missing remembered session path")
 
-    wrapper_ps1_session_json = subprocess.run(
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "session", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-session-json",
+        "session",
     )
-    payload = load_json_payload(wrapper_ps1_session_json, errors, "mvp-wrapper-ps1-session-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-session-json", "session")
-        assert_session_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-session-json",
-            expected_task_id="task-wrapper-b",
-        )
+    assert_session_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-session-json",
+        expected_task_id="task-wrapper-b",
+    )
 
     wrapper_cmd_sessions = subprocess.run(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions"],
@@ -963,90 +960,75 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] recent[1] => task=task-wrapper-a effect=effect-task-wrapper-a" not in wrapper_cmd_sessions_output:
         errors.append("mvp-wrapper-cmd-sessions missing task-wrapper-a row")
 
-    wrapper_ps1_sessions_json = subprocess.run(
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "sessions", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-sessions-json",
+        "sessions",
     )
-    payload = load_json_payload(wrapper_ps1_sessions_json, errors, "mvp-wrapper-ps1-sessions-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-sessions-json", "sessions")
-        assert_sessions_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-sessions-json",
-            expected_current_task_id="task-wrapper-b",
-            expected_previous_task_id="task-wrapper-a",
-        )
+    assert_sessions_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-sessions-json",
+        expected_current_task_id="task-wrapper-b",
+        expected_previous_task_id="task-wrapper-a",
+    )
 
-    wrapper_cmd_use_json = subprocess.run(
+    result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "use", "--index", "1", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-use-json",
+        "use",
     )
-    payload = load_json_payload(wrapper_cmd_use_json, errors, "mvp-wrapper-cmd-use-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-use-json", "use")
-        assert_use_json_result(
-            result,
-            errors,
-            "mvp-wrapper-cmd-use-json",
-            expected_task_id="task-wrapper-a",
-            expected_source="index:1",
-        )
+    assert_use_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-use-json",
+        expected_task_id="task-wrapper-a",
+        expected_source="index:1",
+    )
 
-    wrapper_ps1_status_json = subprocess.run(
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "status", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-status-json",
+        "status",
     )
-    payload = load_json_payload(wrapper_ps1_status_json, errors, "mvp-wrapper-ps1-status-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-status-json", "status")
-        assert_session_passthrough_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-status-json",
-            action="status",
-            expected_task_id="task-wrapper-a",
-        )
+    assert_session_passthrough_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-status-json",
+        action="status",
+        expected_task_id="task-wrapper-a",
+    )
 
-    wrapper_ps1_use_json = subprocess.run(
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "use", "--index", "0", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-ps1-use-json",
+        "use",
     )
-    payload = load_json_payload(wrapper_ps1_use_json, errors, "mvp-wrapper-ps1-use-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-ps1-use-json", "use")
-        assert_use_json_result(
-            result,
-            errors,
-            "mvp-wrapper-ps1-use-json",
-            expected_task_id="task-wrapper-b",
-            expected_source="index:0",
-        )
+    assert_use_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-use-json",
+        expected_task_id="task-wrapper-b",
+        expected_source="index:0",
+    )
 
-    wrapper_cmd_report_json = subprocess.run(
+    result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+        errors,
+        "mvp-wrapper-cmd-report-json",
+        "report",
     )
-    payload = load_json_payload(wrapper_cmd_report_json, errors, "mvp-wrapper-cmd-report-json", expected_exit=0)
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-cmd-report-json", "report")
-        assert_session_passthrough_json_result(
-            result,
-            errors,
-            "mvp-wrapper-cmd-report-json",
-            action="report",
-            expected_task_id="task-wrapper-b",
-        )
+    assert_session_passthrough_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-report-json",
+        action="report",
+        expected_task_id="task-wrapper-b",
+    )
 
     wrapper_use = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "1"],
