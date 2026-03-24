@@ -416,6 +416,10 @@ def print_help() -> int:
         "demo | recover-demo | retry-demo | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
+        "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；"
+        "retry-demo=seed-failed->retry->report"
+    )
+    print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
