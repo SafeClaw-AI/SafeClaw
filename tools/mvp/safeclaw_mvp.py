@@ -443,6 +443,10 @@ def print_help() -> int:
         "result.session 仅作兼容别名，脚本应优先读取 remembered_session"
     )
     print(
+        "[mvp-wrapper] session selectors => status 可显式传 --task-id；"
+        "use 支持 --index / --task-id 选择历史会话"
+    )
+    print(
         "[mvp-wrapper] session sources => sessions --json 会返回 current_session/db_source；"
         "use --json 会返回 source/db_source/output_source/owner_id_source"
     )
