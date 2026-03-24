@@ -452,7 +452,7 @@ def print_help() -> int:
         "use 支持 --index / --task-id 选择历史会话"
     )
     print(
-        "[mvp-wrapper] session sources => sessions --json 会返回 current_session/db_source；"
+        "[mvp-wrapper] session sources => sessions 默认优先复用 remembered session 的 db，文本/JSON 都会标 source；"
         "use --json 会返回 source/db_source/output_source/owner_id_source"
     )
     print(
