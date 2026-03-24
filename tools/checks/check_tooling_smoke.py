@@ -4069,6 +4069,160 @@ def collect_errors() -> list[str]:
                 ],
             )
 
+    wrapper_demo_preflight = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "demo",
+            "--task-id",
+            "task-wrapper-demo-preflight",
+            "--output",
+            "target/mvp/demo-preflight.txt",
+            "--preflight",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_demo_preflight_output = (wrapper_demo_preflight.stdout or "") + (wrapper_demo_preflight.stderr or "")
+    if wrapper_demo_preflight.returncode != 0:
+        errors.append(f"mvp-wrapper-demo-preflight failed: exit={wrapper_demo_preflight.returncode}")
+    elif "[mvp-wrapper] demo => preflight" not in wrapper_demo_preflight_output:
+        errors.append("mvp-wrapper-demo-preflight missing preflight step marker")
+    elif "[mvp-wrapper] preflight => action=demo known=true class=local-action tier=TIER_1 writes_state=true target_scope=scope:target/mvp/demo-preflight.txt requires_write=true doctor_bypass=false perm_ctx=true perm_ctx_src=prepared-action enforce_perm=false perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_demo_preflight_output:
+        errors.append("mvp-wrapper-demo-preflight missing preflight summary")
+    elif "[mvp-wrapper] demo => run" not in wrapper_demo_preflight_output:
+        errors.append("mvp-wrapper-demo-preflight missing run step marker")
+    elif "[mvp-wrapper] demo => status" not in wrapper_demo_preflight_output:
+        errors.append("mvp-wrapper-demo-preflight missing status step marker")
+    elif "[mvp-wrapper] demo => report" not in wrapper_demo_preflight_output:
+        errors.append("mvp-wrapper-demo-preflight missing report step marker")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "demo",
+            "--task-id",
+            "task-wrapper-demo-json",
+            "--output",
+            "target/mvp/demo-preflight-json.txt",
+            "--preflight",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-demo-preflight-json",
+        "demo",
+    )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["preflight", "run", "status", "report"]:
+            errors.append("mvp-wrapper-demo-preflight-json step sequence is incorrect")
+        elif remembered_session.get("task_id") != "task-wrapper-demo-json":
+            errors.append("mvp-wrapper-demo-preflight-json missing remembered_session task-wrapper-demo-json")
+        elif session.get("task_id") != "task-wrapper-demo-json":
+            errors.append("mvp-wrapper-demo-preflight-json missing session alias task-wrapper-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-demo-preflight-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-demo-preflight-json",
+                [
+                    ("preflight", {"permission_context": "prepared-action"}),
+                    ("run", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"}),
+                    ("status", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
+        assert_preflight_json_result(
+            None if result is None else result.get("preflight"),
+            errors,
+            "mvp-wrapper-demo-preflight-json preflight",
+            expected_requested_action="demo",
+            expected_known=True,
+            expected_action_class="local-action",
+            expected_tier="TIER_1",
+            expected_writes_state=True,
+            expected_permission_context_source="prepared-action",
+            expected_target_scope="scope:target/mvp/demo-preflight-json.txt",
+            expected_requires_write=True,
+            expected_doctor_bypass=False,
+            expected_permission_context_applied=True,
+            expected_permission_tier="TIER_1",
+            expected_permission_policy="confirm",
+            expected_permission_reason="write_scope_requires_confirmation",
+            expected_permission_enforced=False,
+            expected_action_allowed=True,
+            expected_action_decision="allow",
+            expected_action_reason="current_mvp_action_is_local_only",
+            expected_allowed=True,
+            expected_decision="allow",
+            expected_offline_ready=True,
+            expected_degradation_mode="local_only_ok",
+            expected_reason="current_mvp_action_is_local_only",
+        )
+
+    details = assert_command_json_error(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "demo",
+            "--task-id",
+            "task-wrapper-demo-enforced",
+            "--output",
+            "target/mvp/demo-enforced.txt",
+            "--enforce-permission",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-demo-enforced-json",
+        "demo",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_code="preflight-blocked",
+        expected_failed_step="preflight",
+    )
+    if isinstance(details, dict):
+        preflight_payload = details.get("preflight")
+        if not isinstance(preflight_payload, dict):
+            errors.append("mvp-wrapper-demo-enforced-json missing preflight payload")
+        else:
+            assert_preflight_json_result(
+                preflight_payload,
+                errors,
+                "mvp-wrapper-demo-enforced-json preflight",
+                expected_requested_action="demo",
+                expected_known=True,
+                expected_action_class="local-action",
+                expected_tier="TIER_1",
+                expected_writes_state=True,
+                expected_permission_context_source="prepared-action",
+                expected_target_scope="scope:target/mvp/demo-enforced.txt",
+                expected_requires_write=True,
+                expected_doctor_bypass=False,
+                expected_permission_context_applied=True,
+                expected_permission_tier="TIER_1",
+                expected_permission_policy="confirm",
+                expected_permission_reason="write_scope_requires_confirmation",
+                expected_permission_enforced=True,
+                expected_action_allowed=True,
+                expected_action_decision="allow",
+                expected_action_reason="current_mvp_action_is_local_only",
+                expected_allowed=False,
+                expected_decision="confirm",
+                expected_offline_ready=True,
+                expected_degradation_mode="local_only_ok",
+                expected_reason="write_scope_requires_confirmation",
+            )
+        steps = details.get("steps") or []
+        if not isinstance(steps, list) or len(steps) != 1 or not isinstance(steps[0], dict):
+            errors.append("mvp-wrapper-demo-enforced-json missing isolated preflight step")
+        elif steps[0].get("action") != "preflight":
+            errors.append("mvp-wrapper-demo-enforced-json missing preflight step action")
+
     assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
         errors,
@@ -4177,6 +4331,73 @@ def collect_errors() -> list[str]:
                 ],
             )
 
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "recover-demo",
+            "--task-id",
+            "task-wrapper-recover-demo-json",
+            "--output",
+            "target/mvp/recover-demo-preflight-json.txt",
+            "--preflight",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-recover-demo-preflight-json",
+        "recover-demo",
+    )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["preflight", "seed-crash", "recover", "report"]:
+            errors.append("mvp-wrapper-recover-demo-preflight-json step sequence is incorrect")
+        elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
+            errors.append("mvp-wrapper-recover-demo-preflight-json missing remembered_session task-wrapper-recover-demo-json")
+        elif session.get("task_id") != "task-wrapper-recover-demo-json":
+            errors.append("mvp-wrapper-recover-demo-preflight-json missing session alias task-wrapper-recover-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-recover-demo-preflight-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-recover-demo-preflight-json",
+                [
+                    ("preflight", {"permission_context": "prepared-action"}),
+                    ("seed-crash", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"}),
+                    ("recover", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
+        assert_preflight_json_result(
+            None if result is None else result.get("preflight"),
+            errors,
+            "mvp-wrapper-recover-demo-preflight-json preflight",
+            expected_requested_action="recover-demo",
+            expected_known=True,
+            expected_action_class="local-action",
+            expected_tier="TIER_1",
+            expected_writes_state=True,
+            expected_permission_context_source="prepared-action",
+            expected_target_scope="scope:target/mvp/recover-demo-preflight-json.txt",
+            expected_requires_write=True,
+            expected_doctor_bypass=False,
+            expected_permission_context_applied=True,
+            expected_permission_tier="TIER_1",
+            expected_permission_policy="confirm",
+            expected_permission_reason="write_scope_requires_confirmation",
+            expected_permission_enforced=False,
+            expected_action_allowed=True,
+            expected_action_decision="allow",
+            expected_action_reason="current_mvp_action_is_local_only",
+            expected_allowed=True,
+            expected_decision="allow",
+            expected_offline_ready=True,
+            expected_degradation_mode="local_only_ok",
+            expected_reason="current_mvp_action_is_local_only",
+        )
+
     assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "recover-demo", "--bogus"],
         errors,
@@ -4274,6 +4495,73 @@ def collect_errors() -> list[str]:
                     ("report", {"db": "session", "output": "session", "owner_id": "session", "task_context": "flag"}),
                 ],
             )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "retry-demo",
+            "--task-id",
+            "task-wrapper-retry-demo-json",
+            "--output",
+            "target/mvp/retry-demo-preflight-json.txt",
+            "--preflight",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-retry-demo-preflight-json",
+        "retry-demo",
+    )
+    if result is not None:
+        steps = result.get("steps") or []
+        session = result.get("session") or {}
+        remembered_session = result.get("remembered_session") or {}
+        if [step.get("action") for step in steps] != ["preflight", "seed-failed", "retry", "report"]:
+            errors.append("mvp-wrapper-retry-demo-preflight-json step sequence is incorrect")
+        elif remembered_session.get("task_id") != "task-wrapper-retry-demo-json":
+            errors.append("mvp-wrapper-retry-demo-preflight-json missing remembered_session task-wrapper-retry-demo-json")
+        elif session.get("task_id") != "task-wrapper-retry-demo-json":
+            errors.append("mvp-wrapper-retry-demo-preflight-json missing session alias task-wrapper-retry-demo-json")
+        else:
+            assert_matching_session_alias(result, errors, "mvp-wrapper-retry-demo-preflight-json")
+            assert_step_source_hints(
+                steps,
+                errors,
+                "mvp-wrapper-retry-demo-preflight-json",
+                [
+                    ("preflight", {"permission_context": "prepared-action"}),
+                    ("seed-failed", {"db": "default", "output": "flag", "owner_id": "default", "task_context": "flag"}),
+                    ("retry", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                    ("report", {"db": "session", "output": "flag", "owner_id": "session", "task_context": "flag"}),
+                ],
+            )
+        assert_preflight_json_result(
+            None if result is None else result.get("preflight"),
+            errors,
+            "mvp-wrapper-retry-demo-preflight-json preflight",
+            expected_requested_action="retry-demo",
+            expected_known=True,
+            expected_action_class="local-action",
+            expected_tier="TIER_1",
+            expected_writes_state=True,
+            expected_permission_context_source="prepared-action",
+            expected_target_scope="scope:target/mvp/retry-demo-preflight-json.txt",
+            expected_requires_write=True,
+            expected_doctor_bypass=False,
+            expected_permission_context_applied=True,
+            expected_permission_tier="TIER_1",
+            expected_permission_policy="confirm",
+            expected_permission_reason="write_scope_requires_confirmation",
+            expected_permission_enforced=False,
+            expected_action_allowed=True,
+            expected_action_decision="allow",
+            expected_action_reason="current_mvp_action_is_local_only",
+            expected_allowed=True,
+            expected_decision="allow",
+            expected_offline_ready=True,
+            expected_degradation_mode="local_only_ok",
+            expected_reason="current_mvp_action_is_local_only",
+        )
 
     assert_command_failure_output(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "retry-demo", "--bogus"],

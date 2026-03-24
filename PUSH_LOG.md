@@ -145,3 +145,9 @@
 - 完成内容：为 `service-run` / `service-retry` / `service-recover` 增加 `--preflight` / `--enforce-permission`；把前置门禁接入实际执行链，可基于同一次准备后的参数在执行前显示或严格阻断；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: add service preflight gates`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 X
+- 完成时间：2026-03-25 07:39:35 +0800
+- 完成内容：为 `demo` / `recover-demo` / `retry-demo` 增加 `--preflight` / `--enforce-permission`；一键演示入口已接入前置门禁，文本会先打印 preflight，JSON 会返回 `result.preflight` 或 `details.preflight`。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add preflight gates to demo flows`；最终 hash 以当前 `HEAD` 为准。

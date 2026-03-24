@@ -186,6 +186,7 @@ safeclaw.cmd verify --json
 - `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图；加 `--preflight` 会在执行前显示同一次实际参数对应的门禁摘要，加 `--enforce-permission` 则会在 `confirm` / `deny` 时直接拦下
 - `service-retry --report`：用于 failed 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
 - `service-recover --report`：用于 uncertain 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
+- `demo` / `recover-demo` / `retry-demo`：一键演示正常执行、uncertain 恢复与 failed 重试；同样支持 `--preflight` / `--enforce-permission`，可先跑离线门禁再继续组合动作
 - `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本接入
 

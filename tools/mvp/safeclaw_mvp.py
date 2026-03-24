@@ -343,43 +343,67 @@ def execute_session_action_capture(args: list[str]) -> dict[str, object]:
 
 def run_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
-    shared_args = [item for item in args if item not in {"--reset", "--json"}]
+    preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
+    permission_enforced = has_flag(args, "--enforce-permission")
+    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    steps = [
+        ["run", "--reset", *shared_args],
+        ["status", *shared_args],
+        ["report", *shared_args],
+    ]
     return run_sequence(
         "demo",
-        [
-            ["run", "--reset", *shared_args],
-            ["status", *shared_args],
-            ["report", *shared_args],
-        ],
+        steps,
         json_mode=json_mode,
+        preflight_payload=(
+            build_sequence_preflight_payload("demo", steps[0], permission_enforced=permission_enforced)
+            if preflight_requested
+            else None
+        ),
     )
 
 
 def run_recover_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
-    shared_args = [item for item in args if item not in {"--reset", "--json"}]
+    preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
+    permission_enforced = has_flag(args, "--enforce-permission")
+    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    steps = [
+        ["seed-crash", "--reset", *shared_args],
+        ["recover", *shared_args],
+        ["report", *shared_args],
+    ]
     return run_sequence(
         "recover-demo",
-        [
-            ["seed-crash", "--reset", *shared_args],
-            ["recover", *shared_args],
-            ["report", *shared_args],
-        ],
+        steps,
         json_mode=json_mode,
+        preflight_payload=(
+            build_sequence_preflight_payload("recover-demo", steps[0], permission_enforced=permission_enforced)
+            if preflight_requested
+            else None
+        ),
     )
 
 
 def run_retry_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
-    shared_args = [item for item in args if item not in {"--reset", "--json"}]
+    preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
+    permission_enforced = has_flag(args, "--enforce-permission")
+    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    steps = [
+        ["seed-failed", "--reset", *shared_args],
+        ["retry", *shared_args],
+        ["report", *shared_args],
+    ]
     return run_sequence(
         "retry-demo",
-        [
-            ["seed-failed", "--reset", *shared_args],
-            ["retry", *shared_args],
-            ["report", *shared_args],
-        ],
+        steps,
         json_mode=json_mode,
+        preflight_payload=(
+            build_sequence_preflight_payload("retry-demo", steps[0], permission_enforced=permission_enforced)
+            if preflight_requested
+            else None
+        ),
     )
 
 
@@ -584,6 +608,23 @@ def build_service_preflight_payload(
     permission_enforced: bool,
 ) -> dict[str, object]:
     output = get_flag(session_args, "--output") or ""
+    return build_preflight_payload(
+        local_action,
+        target_scope=build_scope_value(output) if output else "",
+        requires_write=local_action in PREFLIGHT_WRITE_ACTIONS,
+        doctor_bypass=False,
+        permission_enforced=permission_enforced,
+        permission_context_source_hint="prepared-action",
+    )
+
+
+def build_sequence_preflight_payload(
+    local_action: str,
+    first_step: list[str],
+    *,
+    permission_enforced: bool,
+) -> dict[str, object]:
+    output = get_flag(first_step, "--output") or ""
     return build_preflight_payload(
         local_action,
         target_scope=build_scope_value(output) if output else "",
@@ -860,9 +901,20 @@ def run_service_status(args: list[str]) -> int:
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
-def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
+def run_sequence(
+    name: str,
+    steps: list[list[str]],
+    json_mode: bool = False,
+    preflight_payload: dict[str, object] | None = None,
+) -> int:
     if json_mode:
-        return run_sequence_json(name, steps)
+        return run_sequence_json(name, steps, preflight_payload=preflight_payload)
+    if preflight_payload is not None:
+        print(f"[mvp-wrapper] {name} => preflight")
+        print(f"[mvp-wrapper] preflight => {render_preflight_summary(preflight_payload)}")
+        if not bool(preflight_payload.get("allowed")):
+            print(f"[mvp-wrapper] {name} => failed step=preflight exit=1", file=sys.stderr)
+            return 1
     for step in steps:
         print(f"[mvp-wrapper] {name} => {step[0]}")
         exit_code = execute_session_action(step)
@@ -1442,6 +1494,10 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] service report => add --report to service-run / service-retry / service-recover to append report after service-status"
+    )
+    print(
+        "[mvp-wrapper] combo preflight => demo/recover-demo/retry-demo/service-run/service-retry/service-recover support --preflight / --enforce-permission; "
+        "JSON success returns result.preflight, blocked runs fail at step=preflight"
     )
     print(
         "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；"
@@ -2544,8 +2600,22 @@ def emit_local_action_error(
     return exit_code
 
 
-def run_sequence_json(name: str, steps: list[list[str]]) -> int:
+def run_sequence_json(
+    name: str,
+    steps: list[list[str]],
+    preflight_payload: dict[str, object] | None = None,
+) -> int:
     step_results: list[dict[str, object]] = []
+    if preflight_payload is not None:
+        step_results.append(build_preflight_step_result(preflight_payload))
+        if not bool(preflight_payload.get("allowed")):
+            details = build_remembered_session_details(
+                failed_step="preflight",
+                steps=step_results,
+                preflight=preflight_payload,
+                code="preflight-blocked",
+            )
+            return emit_json_error(name, "failed step=preflight", exit_code=1, details=details)
     for step in steps:
         try:
             result = execute_session_action_capture(step)
@@ -2580,7 +2650,10 @@ def run_sequence_json(name: str, steps: list[list[str]]) -> int:
                     captured_output=str(result["output"]).strip(),
                 ),
             )
-    return emit_json_result(name, build_combo_result_payload(step_results))
+    payload = build_combo_result_payload(step_results)
+    if preflight_payload is not None:
+        payload["preflight"] = preflight_payload
+    return emit_json_result(name, payload)
 
 
 def emit_json_result(action: str, result: object, exit_code: int = 0) -> int:

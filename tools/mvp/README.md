@@ -80,10 +80,17 @@
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd demo
+tools\mvp\safeclaw_mvp.cmd demo --preflight
 tools\mvp\safeclaw_mvp.cmd demo --json
+tools\mvp\safeclaw_mvp.cmd demo --preflight --json
 tools\mvp\safeclaw_mvp.cmd recover-demo
+tools\mvp\safeclaw_mvp.cmd recover-demo --preflight
 tools\mvp\safeclaw_mvp.cmd recover-demo --json
+tools\mvp\safeclaw_mvp.cmd recover-demo --preflight --json
 tools\mvp\safeclaw_mvp.cmd retry-demo
+tools\mvp\safeclaw_mvp.cmd retry-demo --preflight
+tools\mvp\safeclaw_mvp.cmd retry-demo --json
+tools\mvp\safeclaw_mvp.cmd retry-demo --preflight --json
 tools\mvp\safeclaw_mvp.cmd service-demo
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight
@@ -91,7 +98,6 @@ tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status
-tools\mvp\safeclaw_mvp.cmd retry-demo --json
 tools\mvp\safeclaw_mvp.cmd service-demo --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight --json
