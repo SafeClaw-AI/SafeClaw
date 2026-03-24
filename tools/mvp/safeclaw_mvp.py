@@ -25,7 +25,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-status", "session", "sessions", "use", "forget", "doctor")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-status", "session", "sessions", "use", "forget", "doctor")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -41,6 +41,10 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "forget": {"value": set(), "boolean": {"--json"}},
     "service-demo": {"value": set(), "boolean": {"--json"}},
+    "service-run": {
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "boolean": {"--json", "--reset"},
+    },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
 }
@@ -196,6 +200,8 @@ def main(argv: list[str]) -> int:
         return run_retry_demo(raw_args[1:])
     if action == "service-demo":
         return dispatch_local_action("service-demo", raw_args[1:], run_service_demo)
+    if action == "service-run":
+        return dispatch_local_action("service-run", raw_args[1:], run_service_run)
     if action == "service-status":
         return dispatch_local_action("service-status", raw_args[1:], run_service_status)
     if action not in SESSION_ACTIONS:
@@ -349,48 +355,176 @@ def run_service_demo(args: list[str]) -> int:
     return 0
 
 
-def run_service_status(args: list[str]) -> int:
-    session = load_session()
-    db, db_source = resolve_db_selection(args, session)
+def parse_list_limit(args: list[str]) -> int:
     limit_raw = get_flag(args, "--limit") or str(DEFAULT_LIST_LIMIT)
     try:
-        limit = max(1, int(limit_raw))
-    except ValueError:
-        return emit_local_action_error(
-            "service-status",
-            args,
-            f"invalid --limit: {limit_raw}",
-            exit_code=2,
-            text_message=f"[mvp-wrapper] invalid --limit: {limit_raw}",
-        )
+        return max(1, int(limit_raw))
+    except ValueError as error:
+        raise ValueError(f"invalid --limit: {limit_raw}") from error
 
+
+def build_service_status_payload(
+    args: list[str],
+    session: dict[str, str] | None,
+    *,
+    limit: int,
+) -> dict[str, object]:
+    db, db_source = resolve_db_selection(args, session)
     db_path = resolve_repo_path(db)
     queue = load_service_queue_counts(db_path)
     workers = load_task_snapshot_counts(db_path, "worker_state")
     effects = load_task_snapshot_counts(db_path, "effect_status")
     probes = load_task_snapshot_counts(db_path, "probe_state")
     rows = load_recent_tasks(db_path, limit)
+    current_db = matches_session_db(session, db)
     rows_with_current = [
         {
             **row,
-            "current": matches_session_db(session, db) and session.get("task_id") == row["task_id"],
+            "current": current_db and session is not None and session.get("task_id") == row["task_id"],
         }
         for row in rows
     ]
-    payload = {
+    return {
         "db": db,
         "db_source": db_source,
         "limit": limit,
         "current_session": session,
-        "current_db": matches_session_db(session, db),
+        "current_db": current_db,
         "queue": queue,
         "workers": workers,
         "effects": effects,
         "probes": probes,
         "recent_tasks": rows_with_current,
     }
+
+
+def build_service_run_args(args: list[str]) -> list[str]:
+    run_args = ["run"]
+    if has_flag(args, "--reset"):
+        run_args.append("--reset")
+    for flag in ("--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"):
+        value = get_flag(args, flag)
+        if value is not None:
+            run_args.extend([flag, value])
+    return run_args
+
+
+def build_service_status_args(args: list[str], limit: int) -> list[str]:
+    status_args: list[str] = []
+    db = get_flag(args, "--db")
+    if db is not None:
+        status_args.extend(["--db", db])
+    status_args.extend(["--limit", str(limit)])
+    return status_args
+
+
+def build_service_status_step_result(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "action": "service-status",
+        "ok": True,
+        "exit_code": 0,
+        "source_hints": {
+            "db": str(payload.get("db_source") or "default"),
+            "task_context": "session" if bool(payload.get("current_db")) else "none",
+        },
+    }
+
+
+def run_service_run(args: list[str]) -> int:
+    try:
+        limit = parse_list_limit(args)
+    except ValueError as error:
+        return emit_local_action_error(
+            "service-run",
+            args,
+            str(error),
+            exit_code=2,
+            text_message=f"[mvp-wrapper] {error}",
+        )
+
+    run_args = build_service_run_args(args)
+    status_args = build_service_status_args(args, limit)
+    json_mode = has_flag(args, "--json")
+
+    if json_mode:
+        step_results: list[dict[str, object]] = []
+        try:
+            run_result = execute_session_action_capture(run_args)
+        except ValueError as error:
+            step_results.append({"action": "run", "ok": False, "exit_code": 2})
+            details = build_remembered_session_details(
+                failed_step="run",
+                steps=step_results,
+                error_message=str(error),
+            )
+            details["code"] = "missing-task-context" if str(error).startswith("missing task context") else "invalid-argument"
+            return emit_json_error("service-run", "failed step=run", exit_code=2, details=details)
+
+        step_results.append(
+            {
+                "action": str(run_result["action"]),
+                "ok": run_result["exit_code"] == 0,
+                "exit_code": int(run_result["exit_code"]),
+                "source_hints": run_result["source_hints"],
+            }
+        )
+        if run_result["exit_code"] != 0:
+            return emit_json_error(
+                "service-run",
+                "failed step=run",
+                exit_code=int(run_result["exit_code"]),
+                details=build_remembered_session_details(
+                    failed_step="run",
+                    steps=step_results,
+                    captured_output=str(run_result["output"]).strip(),
+                ),
+            )
+
+        status_payload = build_service_status_payload(status_args, load_session(), limit=limit)
+        step_results.append(build_service_status_step_result(status_payload))
+        payload = build_combo_result_payload(step_results)
+        payload["run"] = build_session_action_result_payload(run_result)
+        payload["service_status"] = status_payload
+        return emit_json_result("service-run", payload)
+
+    print("[mvp-wrapper] service-run => run")
+    exit_code = execute_session_action(run_args)
+    if exit_code != 0:
+        print(f"[mvp-wrapper] service-run => failed step=run exit={exit_code}", file=sys.stderr)
+        return exit_code
+
+    print("[mvp-wrapper] service-run => service-status")
+    exit_code = run_service_status(status_args)
+    if exit_code != 0:
+        print(f"[mvp-wrapper] service-run => failed step=service-status exit={exit_code}", file=sys.stderr)
+        return exit_code
+    return 0
+
+
+def run_service_status(args: list[str]) -> int:
+    try:
+        limit = parse_list_limit(args)
+    except ValueError as error:
+        return emit_local_action_error(
+            "service-status",
+            args,
+            str(error),
+            exit_code=2,
+            text_message=f"[mvp-wrapper] {error}",
+        )
+
+    session = load_session()
+    payload = build_service_status_payload(args, session, limit=limit)
     if has_flag(args, "--json"):
         return emit_json_result("service-status", payload)
+
+    db = str(payload["db"])
+    db_source = str(payload["db_source"])
+    queue = payload["queue"]
+    workers = payload["workers"]
+    effects = payload["effects"]
+    probes = payload["probes"]
+    rows_with_current = payload["recent_tasks"]
 
     print(f"[mvp-wrapper] service-status => db={db} limit={limit} source={db_source}")
     print(
@@ -401,7 +535,7 @@ def run_service_status(args: list[str]) -> int:
     print(f"[mvp-wrapper] service effects => {render_count_summary(effects)}")
     print(f"[mvp-wrapper] service probes => {render_count_summary(probes)}")
     if session is not None:
-        current = "true" if matches_session_db(session, db) else "false"
+        current = "true" if bool(payload["current_db"]) else "false"
         print(
             "[mvp-wrapper] service current => "
             f"task={session['task_id']} effect={session['effect_id']} current_db={current}"
@@ -416,8 +550,6 @@ def run_service_status(args: list[str]) -> int:
             f"effect_status={row['effect_status']} updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
-
-
 def run_sequence(name: str, steps: list[list[str]], json_mode: bool = False) -> int:
     if json_mode:
         return run_sequence_json(name, steps)
@@ -623,18 +755,18 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | doctor"
     )
     print(
-        "[mvp-wrapper] demo flows => demo=run->status->report；recover-demo=seed-crash->recover->report；"
-        "retry-demo=seed-failed->retry->report；service-demo=worker-service-governance"
+        "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
+        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status"
     )
     print(
         "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
         "seed-failed/retry 演示失败态重试"
     )
     print(
-        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-status/run/report/status/"
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-status/run/report/status/"
         "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/doctor 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
@@ -663,8 +795,12 @@ def print_help() -> int:
         "report 查看指定 task/effect 的治理视图"
     )
     print(
-        "[mvp-wrapper] service demo => service-demo 演示 worker service 对 resolved / confirmation 两类队列的治理汇总；"
-        "--json 会返回结构化摘要与原始输出"
+        "[mvp-wrapper] service demo => service-demo shows worker service governance summary for resolved / confirmation queues; "
+        "--json returns structured summary and raw output"
+    )
+    print(
+        "[mvp-wrapper] service run => service-run executes run then service-status with one command; "
+        "supports write flags plus --limit / --json"
     )
     print(
         "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary; "
@@ -679,11 +815,11 @@ def print_help() -> int:
         "可直接看到 db/output/owner_id/task_context 来源"
     )
     print(
-        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo --json 的 result.steps[*] / error.details.steps[*] 也会带 source_hints"
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run --json result.steps[*] and error.details.steps[*] include source_hints"
     )
     print(
-        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo --json 会返回 result.remembered_session；"
-        "result.session 仅作兼容别名，脚本应优先读取 remembered_session"
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run --json returns result.remembered_session; "
+        "result.session stays as a compatibility alias; scripts should prefer remembered_session"
     )
     print(
         "[mvp-wrapper] session list => sessions 会列出当前 db 的最近任务快照；"
