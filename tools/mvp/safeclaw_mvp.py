@@ -28,7 +28,7 @@ SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-fai
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry"}
 TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "workspace", "doctor", "verify")
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "workspace", "doctor", "preflight", "verify")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -36,6 +36,24 @@ ENTRYPOINT_FILES = (
 )
 SESSION_FIELDS = ("task_id", "effect_id", "db", "output", "owner_id")
 WORKSPACE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+PREFLIGHT_WRITE_ACTIONS = {
+    "demo",
+    "recover-demo",
+    "retry-demo",
+    "service-demo",
+    "service-run",
+    "service-retry",
+    "service-recover",
+    "workspace",
+    "use",
+    "forget",
+    "run",
+    "seed-crash",
+    "recover",
+    "seed-failed",
+    "retry",
+}
+KNOWN_PREFLIGHT_ACTIONS = set(LOCAL_ACTIONS) | SESSION_ACTIONS
 
 
 def display_entry_command() -> str:
@@ -64,6 +82,7 @@ LOCAL_ACTION_FLAG_SPECS = {
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
+    "preflight": {"value": {"--action"}, "boolean": {"--json"}},
     "verify": {"value": set(), "boolean": {"--json"}},
 }
 SESSION_ACTION_FLAG_SPECS = {
@@ -212,6 +231,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("workspace", raw_args[1:], run_workspace)
     if action == "doctor":
         return dispatch_local_action("doctor", raw_args[1:], run_doctor)
+    if action == "preflight":
+        return dispatch_local_action("preflight", raw_args[1:], run_preflight)
     if action == "verify":
         return dispatch_local_action("verify", raw_args[1:], run_verify)
     if action == "demo":
@@ -638,6 +659,34 @@ def run_service_recover(args: list[str]) -> int:
     return run_service_session_combo("service-recover", "recover", args)
 
 
+def run_preflight(args: list[str]) -> int:
+    requested_action = get_flag(args, "--action")
+    if requested_action is None:
+        return emit_local_action_error(
+            "preflight",
+            args,
+            "preflight requires --action <name>",
+            exit_code=2,
+            text_message="[mvp-wrapper] preflight requires --action <name>",
+        )
+    payload = build_preflight_payload(requested_action)
+    exit_code = 0 if bool(payload.get("allowed")) else 1
+    if has_flag(args, "--json"):
+        return emit_json_result("preflight", payload, exit_code=exit_code)
+    print(
+        "[mvp-wrapper] preflight => "
+        f"action={payload['requested_action']} known={str(bool(payload['known'])).lower()} "
+        f"class={payload['action_class']} tier={payload['tier']} "
+        f"writes_state={str(bool(payload['writes_state'])).lower()} "
+        f"decision={payload['decision']} allowed={str(bool(payload['allowed'])).lower()} "
+        f"offline_ready={str(bool(payload['offline_ready'])).lower()} "
+        f"requires_model={str(bool(payload['requires_model'])).lower()} "
+        f"requires_sidecar={str(bool(payload['requires_sidecar'])).lower()} "
+        f"degradation={payload['degradation_mode']} reason={payload['reason']}"
+    )
+    return exit_code
+
+
 def run_verify(args: list[str]) -> int:
     command = [sys.executable, "tools/checks/check_mvp_operator_flow.py"]
     completed = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
@@ -884,6 +933,52 @@ def build_sidecar_payload() -> dict[str, object]:
     }
 
 
+def build_preflight_payload(requested_action: str) -> dict[str, object]:
+    action = requested_action.strip()
+    runtime_profile = build_runtime_profile_payload()
+    model_provider = build_model_provider_payload()
+    sidecar = build_sidecar_payload()
+    if action not in KNOWN_PREFLIGHT_ACTIONS:
+        return {
+            "requested_action": action,
+            "known": False,
+            "action_class": "unknown",
+            "tier": "TIER_2",
+            "writes_state": False,
+            "allowed": False,
+            "decision": "deny",
+            "offline_ready": False,
+            "requires_model": False,
+            "requires_sidecar": False,
+            "degradation_mode": "deny_unknown",
+            "reason": "unknown_action_defaults_to_strict_deny",
+            "detail": "preflight only allows known local MVP wrapper and session actions in the current offline entry",
+            "runtime_profile": runtime_profile,
+            "model_provider": model_provider,
+            "sidecar": sidecar,
+        }
+
+    writes_state = action in PREFLIGHT_WRITE_ACTIONS
+    return {
+        "requested_action": action,
+        "known": True,
+        "action_class": "local-action" if action in LOCAL_ACTIONS else "session-action",
+        "tier": "TIER_1" if writes_state else "TIER_0",
+        "writes_state": writes_state,
+        "allowed": True,
+        "decision": "allow",
+        "offline_ready": True,
+        "requires_model": False,
+        "requires_sidecar": False,
+        "degradation_mode": "local_only_ok",
+        "reason": "current_mvp_action_is_local_only",
+        "detail": "current MVP wrapper action stays available without an external model provider or sidecar",
+        "runtime_profile": runtime_profile,
+        "model_provider": model_provider,
+        "sidecar": sidecar,
+    }
+
+
 def build_session_action_result_payload(result: dict[str, object]) -> dict[str, object]:
     return {
         "prepared": result["prepared"],
@@ -976,7 +1071,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | verify"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
@@ -988,7 +1083,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/"
-        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/verify 支持 --json，"
+        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/preflight/verify 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
@@ -1038,6 +1133,10 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
+    )
+    print(
+        "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; "
+        "unknown actions default deny; supports --action <name> / --json"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "

@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 05:16:37 +0800
+最后更新时间：2026-03-25 05:39:57 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -108,4 +108,10 @@
 - 完成时间：2026-03-25 05:16:37 +0800
 - 完成内容：为 `service-status` 的 recent task 增加一行 `next_summary`；在 success / active lease / failed / uncertain 现场分别给出 ready_now / wait / retry / recover 摘要；同步 help、README 与整体计划进展表。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `feat: add next summaries to service status`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`cb51d01 feat: add next summaries to service status`
+
+### 轮次 R
+- 完成时间：2026-03-25 05:39:57 +0800
+- 完成内容：新增 `preflight --action <name>` 显式离线门禁；当前本地 wrapper 已知动作允许、未知动作默认从严拒绝；同步 help、README 与整体计划进展表。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add preflight gate to MVP wrapper`；最终 hash 以当前 `HEAD` 为准。

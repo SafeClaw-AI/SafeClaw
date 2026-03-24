@@ -20,6 +20,7 @@
 - See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
 - Normal path first: `workspace --name demo -> doctor -> service-run --report`.
 - `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
+- Optional explicit offline gate: `preflight --action service-run` before executing the local flow.
 - Failed recovery path: `service-retry --report -> service-status`.
 - Uncertain recovery path: `service-recover --report -> service-status`.
 
@@ -36,6 +37,7 @@
 - `service-recover`: recover an uncertain task and immediately print the matching service summary
 - `--report`: append `report` after `service-status`, so the practical path can end with a governance view in one command
 - `service-status`: queue / lease / task snapshot summary for the selected db, including recent task `scope` / `write` / `doctor_bypass` visibility, latest lease freshness, active-lease wait timing, a `next_action` hint, a copyable `next_command`, a short `next_reason`, the current `next_blocker`, and a one-line `next_summary`
+- `preflight`: explicit gate for whether a target action stays allowed in the current local-only MVP entry; known local actions allow, unknown actions default deny
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话，并在文本输出里带上 remembered session 文件路径
@@ -44,8 +46,9 @@
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
 - `workspace`: show or activate a named workspace; it fixes default `db` / `output`; `--clear` returns to global defaults while remembered session stays independent
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
 - `doctor`: checks wrapper entrypoints, Rust toolchain, linker, remembered session / workspace paths, reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`), and states that the current local MVP remains runnable without a model provider / sidecar; `--json` also returns `status`, `failing_checks`, `runtime_profile`, `model_provider`, and `sidecar`
+- `preflight`: checks whether a target action remains allowed in the current local-only MVP entry; `--json` also returns `tier`, `decision`, `offline_ready`, and current runtime/provider snapshots
 - `verify`: run the practical operator flow gate via the current wrapper entry; `--json` returns script path, python path, exit code, and captured output
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
@@ -106,8 +109,10 @@ tools\mvp\safeclaw_mvp.cmd sessions
 tools\mvp\safeclaw_mvp.cmd use --index 0
 tools\mvp\safeclaw_mvp.cmd forget
 tools\mvp\safeclaw_mvp.cmd doctor
+tools\mvp\safeclaw_mvp.cmd preflight --action service-run
 tools\mvp\safeclaw_mvp.cmd verify
 tools\mvp\safeclaw_mvp.cmd doctor --json
+tools\mvp\safeclaw_mvp.cmd preflight --action service-run --json
 tools\mvp\safeclaw_mvp.cmd verify --json
 tools\mvp\safeclaw_mvp.cmd status
 tools\mvp\safeclaw_mvp.cmd status --json

@@ -208,6 +208,65 @@ def assert_doctor_json_result(
             errors.append(f"{name} missing sidecar.detail")
 
 
+def assert_preflight_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_requested_action: str,
+    expected_known: bool,
+    expected_action_class: str,
+    expected_tier: str,
+    expected_writes_state: bool,
+    expected_allowed: bool,
+    expected_decision: str,
+    expected_offline_ready: bool,
+    expected_degradation_mode: str,
+    expected_reason: str,
+) -> None:
+    if result is None:
+        return
+    runtime_profile = result.get("runtime_profile") or {}
+    model_provider = result.get("model_provider") or {}
+    sidecar = result.get("sidecar") or {}
+    if result.get("requested_action") != expected_requested_action:
+        errors.append(f"{name} missing requested_action={expected_requested_action}")
+    elif result.get("known") is not expected_known:
+        errors.append(f"{name} missing known={expected_known}")
+    elif result.get("action_class") != expected_action_class:
+        errors.append(f"{name} missing action_class={expected_action_class}")
+    elif result.get("tier") != expected_tier:
+        errors.append(f"{name} missing tier={expected_tier}")
+    elif result.get("writes_state") is not expected_writes_state:
+        errors.append(f"{name} missing writes_state={expected_writes_state}")
+    elif result.get("allowed") is not expected_allowed:
+        errors.append(f"{name} missing allowed={expected_allowed}")
+    elif result.get("decision") != expected_decision:
+        errors.append(f"{name} missing decision={expected_decision}")
+    elif result.get("offline_ready") is not expected_offline_ready:
+        errors.append(f"{name} missing offline_ready={expected_offline_ready}")
+    elif result.get("requires_model") is not False:
+        errors.append(f"{name} missing requires_model=false")
+    elif result.get("requires_sidecar") is not False:
+        errors.append(f"{name} missing requires_sidecar=false")
+    elif result.get("degradation_mode") != expected_degradation_mode:
+        errors.append(f"{name} missing degradation_mode={expected_degradation_mode}")
+    elif result.get("reason") != expected_reason:
+        errors.append(f"{name} missing reason={expected_reason}")
+    elif not result.get("detail"):
+        errors.append(f"{name} missing detail")
+    elif not isinstance(runtime_profile, dict) or runtime_profile.get("mode") != "local_mvp":
+        errors.append(f"{name} missing runtime_profile.mode=local_mvp")
+    elif runtime_profile.get("offline_ready") is not True:
+        errors.append(f"{name} missing runtime_profile.offline_ready=true")
+    elif not isinstance(model_provider, dict) or model_provider.get("status") != "not-configured":
+        errors.append(f"{name} missing model_provider.status=not-configured")
+    elif model_provider.get("degradation_mode") != "local_only_ok":
+        errors.append(f"{name} missing model_provider.degradation_mode=local_only_ok")
+    elif not isinstance(sidecar, dict) or sidecar.get("status") != "not-configured":
+        errors.append(f"{name} missing sidecar.status=not-configured")
+
+
 def assert_workspace_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -994,15 +1053,15 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, workspace, doctor, verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, workspace, doctor, preflight, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
     elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
@@ -1026,6 +1085,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 status/report 语义提示")
     elif "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
+    elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; unknown actions default deny; supports --action <name> / --json" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help missing preflight help hint")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
     elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json result.steps[*] and error.details.steps[*] include source_hints" not in wrapper_help_output:
@@ -1424,6 +1485,84 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-doctor-json",
         expected_db_path="target\mvp\doctor-check.db",
         expected_output_path="target\mvp\doctor-check.txt",
+    )
+
+    wrapper_preflight = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-run"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_preflight_output = (wrapper_preflight.stdout or "") + (wrapper_preflight.stderr or "")
+    if wrapper_preflight.returncode != 0:
+        errors.append(f"mvp-wrapper-preflight failed: exit={wrapper_preflight.returncode}")
+    elif "[mvp-wrapper] preflight => action=service-run known=true class=local-action tier=TIER_1 writes_state=true decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only" not in wrapper_preflight_output:
+        errors.append("mvp-wrapper-preflight missing allow summary")
+
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-run", "--json"],
+        errors,
+        "mvp-wrapper-preflight-json",
+        "preflight",
+    )
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-preflight-json",
+        expected_requested_action="service-run",
+        expected_known=True,
+        expected_action_class="local-action",
+        expected_tier="TIER_1",
+        expected_writes_state=True,
+        expected_allowed=True,
+        expected_decision="allow",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
+
+    wrapper_preflight_unknown = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "external-send"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_preflight_unknown_output = (wrapper_preflight_unknown.stdout or "") + (wrapper_preflight_unknown.stderr or "")
+    if wrapper_preflight_unknown.returncode != 1:
+        errors.append(f"mvp-wrapper-preflight-unknown failed: exit={wrapper_preflight_unknown.returncode}")
+    elif "[mvp-wrapper] preflight => action=external-send known=false class=unknown tier=TIER_2 writes_state=false decision=deny allowed=false offline_ready=false requires_model=false requires_sidecar=false degradation=deny_unknown reason=unknown_action_defaults_to_strict_deny" not in wrapper_preflight_unknown_output:
+        errors.append("mvp-wrapper-preflight-unknown missing deny summary")
+
+    payload = load_json_payload(
+        run_wrapper_command([PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "external-send", "--json"]),
+        errors,
+        "mvp-wrapper-preflight-unknown-json",
+        1,
+    )
+    result = None
+    if payload is not None:
+        if payload.get("ok") is not False or payload.get("action") != "preflight":
+            errors.append("mvp-wrapper-preflight-unknown-json 输出缺少拒绝信封")
+        else:
+            candidate = payload.get("result")
+            if not isinstance(candidate, dict):
+                errors.append("mvp-wrapper-preflight-unknown-json missing result payload")
+            else:
+                result = candidate
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-preflight-unknown-json",
+        expected_requested_action="external-send",
+        expected_known=False,
+        expected_action_class="unknown",
+        expected_tier="TIER_2",
+        expected_writes_state=False,
+        expected_allowed=False,
+        expected_decision="deny",
+        expected_offline_ready=False,
+        expected_degradation_mode="deny_unknown",
+        expected_reason="unknown_action_defaults_to_strict_deny",
     )
 
     wrapper_env = os.environ.copy()
