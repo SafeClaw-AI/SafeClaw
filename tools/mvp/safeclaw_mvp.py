@@ -457,7 +457,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] session paths => session 文本输出会带 remembered session 文件路径；"
-        "forget 文本/JSON 会显式给出 reason/path"
+        "forget 文本/JSON 会显式给出 reason/path，且不删除 db/output 文件"
     )
     print(
         "[mvp-wrapper] session repair => remembered session 文件损坏时会自动丢弃并回退为 session => none"
