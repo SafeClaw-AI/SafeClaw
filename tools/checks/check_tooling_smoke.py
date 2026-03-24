@@ -274,6 +274,30 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] session repair => remembered session 文件损坏时会自动丢弃并回退为 session => none" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 session repair 提示")
 
+    wrapper_cmd_help = subprocess.run(
+        ["cmd", "/c", "tools\\mvp\\safeclaw_mvp.cmd", "help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_help_output = (wrapper_cmd_help.stdout or "") + (wrapper_cmd_help.stderr or "")
+    if wrapper_cmd_help.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-help 执行失败: exit={wrapper_cmd_help.returncode}")
+    elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_cmd_help_output:
+        errors.append("mvp-wrapper-cmd-help 输出缺少 usage")
+
+    wrapper_ps1_help = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_ps1_help_output = (wrapper_ps1_help.stdout or "") + (wrapper_ps1_help.stderr or "")
+    if wrapper_ps1_help.returncode != 0:
+        errors.append(f"mvp-wrapper-ps1-help 执行失败: exit={wrapper_ps1_help.returncode}")
+    elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_ps1_help_output:
+        errors.append("mvp-wrapper-ps1-help 输出缺少 usage")
+
     wrapper_doctor = subprocess.run(
         [
             PYTHON,
