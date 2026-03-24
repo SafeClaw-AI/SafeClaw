@@ -287,6 +287,20 @@ def assert_sessions_json_result(
         errors.append(f"{name} missing recent[1] current=false")
 
 
+def assert_json_null_result(
+    payload: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    action: str,
+) -> None:
+    if payload is None:
+        return
+    if payload.get("ok") is not True or payload.get("action") != action:
+        errors.append(f"{name} missing envelope")
+    elif "result" not in payload or payload.get("result") is not None:
+        errors.append(f"{name} missing result=null")
+
+
 def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str, object] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -1065,6 +1079,44 @@ def collect_errors() -> list[str]:
             elif source_hints.get("task_context") != "session":
                 errors.append("mvp-wrapper-report-json 缺少 task_context=session")
 
+    wrapper_cmd_forget = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "forget"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_forget_output = (wrapper_cmd_forget.stdout or "") + (wrapper_cmd_forget.stderr or "")
+    if wrapper_cmd_forget.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-forget failed: exit={wrapper_cmd_forget.returncode}")
+    elif "[mvp-wrapper] forgot => reason=removed path=target\mvp\last_session.json" not in wrapper_cmd_forget_output:
+        errors.append("mvp-wrapper-cmd-forget missing removed path")
+
+    wrapper_ps1_session_after_cmd_forget_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "session", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    payload = load_json_payload(
+        wrapper_ps1_session_after_cmd_forget_json,
+        errors,
+        "mvp-wrapper-ps1-session-after-cmd-forget-json",
+        expected_exit=0,
+    )
+    assert_json_null_result(payload, errors, "mvp-wrapper-ps1-session-after-cmd-forget-json", "session")
+
+    wrapper_restore_after_cmd_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--task-id", "task-wrapper-b"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_restore_after_cmd_forget_output = (wrapper_restore_after_cmd_forget.stdout or "") + (wrapper_restore_after_cmd_forget.stderr or "")
+    if wrapper_restore_after_cmd_forget.returncode != 0:
+        errors.append(f"mvp-wrapper-restore-after-cmd-forget failed: exit={wrapper_restore_after_cmd_forget.returncode}")
+    elif "[mvp-wrapper] activated => task=task-wrapper-b effect=effect-task-wrapper-b" not in wrapper_restore_after_cmd_forget_output:
+        errors.append("mvp-wrapper-restore-after-cmd-forget missing task-wrapper-b")
+
     wrapper_forget = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
         cwd=REPO_ROOT,
@@ -1423,6 +1475,45 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none/path")
     elif wrapper_session_file.exists():
         errors.append("mvp-wrapper-session-after-corrupt 未移除损坏会话文件")
+
+    wrapper_session_file.write_text("{broken", encoding="utf-8")
+
+    wrapper_ps1_session_after_corrupt_json = subprocess.run(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "session", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_ps1_session_after_corrupt_output = (
+        (wrapper_ps1_session_after_corrupt_json.stdout or "")
+        + (wrapper_ps1_session_after_corrupt_json.stderr or "")
+    )
+    payload = load_json_payload(
+        wrapper_ps1_session_after_corrupt_json,
+        errors,
+        "mvp-wrapper-ps1-session-after-corrupt-json",
+        expected_exit=0,
+    )
+    assert_json_null_result(payload, errors, "mvp-wrapper-ps1-session-after-corrupt-json", "session")
+    if "[mvp-wrapper] session repair => dropped invalid target\mvp\last_session.json" not in wrapper_ps1_session_after_corrupt_output:
+        errors.append("mvp-wrapper-ps1-session-after-corrupt-json missing repair notice")
+    elif wrapper_session_file.exists():
+        errors.append("mvp-wrapper-ps1-session-after-corrupt-json did not remove invalid file")
+
+    wrapper_cmd_session_after_ps1_repair = subprocess.run(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_cmd_session_after_ps1_repair_output = (
+        (wrapper_cmd_session_after_ps1_repair.stdout or "")
+        + (wrapper_cmd_session_after_ps1_repair.stderr or "")
+    )
+    if wrapper_cmd_session_after_ps1_repair.returncode != 0:
+        errors.append(f"mvp-wrapper-cmd-session-after-ps1-repair failed: exit={wrapper_cmd_session_after_ps1_repair.returncode}")
+    elif "[mvp-wrapper] session => none path=target\mvp\last_session.json" not in wrapper_cmd_session_after_ps1_repair_output:
+        errors.append("mvp-wrapper-cmd-session-after-ps1-repair missing none/path")
 
     wrapper_seed_crash_json = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--task-id", "task-wrapper-seed-crash-json", "--json"],
