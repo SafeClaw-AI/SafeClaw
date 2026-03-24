@@ -138,50 +138,60 @@ SafeClaw 还在很早期。
 
 我们慢慢来，但会认真做。
 
+
 ## 当前可手动体验的本地 MVP
 
 目前还没有正式 GUI，也还不是“开箱即用的产品”。  
-但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动使用最小闭环。
+但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动完成最小闭环。
 
-- Preferred entry: `safeclaw.cmd`
-- PowerShell entry: `safeclaw.ps1`
-- Underlying wrapper: `tools/mvp/safeclaw_mvp.cmd`; detailed commands: `tools/mvp/README.md`
+- 推荐入口：`safeclaw.cmd`
+- PowerShell 入口：`safeclaw.ps1`
+- 底层 wrapper：`tools/mvp/safeclaw_mvp.cmd`
+- 完整命令参考：`tools/mvp/README.md`
 
-当前已支持的最小动作：
+### 最短上手路径
 
-- `run`：创建任务并执行到落盘完成
-- `demo`：一条命令串起 `run -> status -> report`
-- `recover-demo`：一条命令串起 `seed-crash -> recover -> report`
-- `retry-demo`：一条命令串起 `seed-failed -> retry -> report`
-- `report`：查看指定任务 / effect 当前治理视图
-- `status`：在只给 `--db` 时自动查看最新任务状态
-- `doctor`: checks launcher, Rust toolchain, linker, current session / workspace paths, and reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`); `--json` also returns aggregated `status` and `failing_checks`
-- `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
-- `workspace`: pins default `db` / `output` for a named workspace; `--clear` returns to global defaults
-- 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
-- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` support `--json`, returning a unified `{ok, action, schema_version, result|error}` envelope for scripts and future automation
-- `sessions` 默认优先复用 remembered session 的 `db`，并在文本/JSON 输出里标出来源，方便脚本与人工排障快速确认上下文
-- `use` 在激活历史会话时会同时标出选择来源以及 `db` / `output` / `owner_id` 来源，减少切换上下文时的猜测成本
-- `seed-crash` + `recover`：模拟崩溃后恢复并补 probe
-- `seed-failed` + `retry`：模拟失败后重新领取并重试
+第一次体验时，建议先固定一个 workspace，再做环境检查与正常执行：
 
-当前 Win11 MVP 包装层还额外稳定了两类 JSON 错误代码，便于脚本直接消费：
+```bat
+safeclaw.cmd workspace --name demo
+safeclaw.cmd doctor
+safeclaw.cmd service-run --reset --task-id task-demo --limit 1 --report
+```
 
-- `invalid-argument`：wrapper 已识别出未知参数或缺少 flag 值，例如 `--bogus`、`--db` 后缺值。
-- `missing-task-context`：`report` / `recover` / `retry` 缺少 `--task-id` 且没有 remembered session；此时可显式传入 `--task-id`，或先建立 / 激活会话。
-- `status` / `report` / `recover` / `retry` 的成功 `--json` 结果会额外给出 `result.source_hints`，标出 `db` / `output` / `owner_id` / `task_context` 的来源，便于脚本确认是否复用了 remembered session。
-- `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果也会在 `result.steps[*].source_hints` 标出每一步的来源，便于脚本判断组合动作何时切换到 remembered session。
-- `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果现在会显式返回 `result.remembered_session`；`result.session` 仅作兼容别名，脚本应优先读取 `remembered_session`。
-- 若组合动作在底层执行阶段失败，错误 JSON 的 `error.details.steps[*].source_hints` 也会保留已进入失败步骤的来源，便于脚本区分“预处理失败”与“底层动作失败”。
-- 组合动作 `demo` / `recover-demo` / `retry-demo` 在 wrapper 预处理阶段失败时，`error.details` 会附带 `failed_step`、`code`、`error_message`，可直接定位失败步骤。
+如果要验证异常链，建议分别走 failed 与 uncertain 两条恢复路径：
 
-当前边界也需要说清楚：
+```bat
+safeclaw.cmd seed-failed --reset --task-id task-demo-failed
+safeclaw.cmd service-retry --task-id task-demo-failed --limit 1 --report
+
+safeclaw.cmd seed-crash --reset --task-id task-demo-uncertain
+safeclaw.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
+```
+
+如果要确认当前包装层仍处于可交付状态，可直接运行：
+
+```bat
+safeclaw.cmd verify
+safeclaw.cmd verify --json
+```
+
+### 当前最小能力
+
+- `workspace`：固定当前命名 workspace 的默认 `db` / `output`；`--clear` 回退到全局默认路径
+- `doctor`：检查 launcher、Rust 工具链、linker、当前 session / workspace 路径，并显式标出当前 `db` / `output` 来源
+- `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图
+- `service-retry --report`：用于 failed 任务的首选恢复路径
+- `service-recover --report`：用于 uncertain 任务的首选恢复路径
+- `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
+- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本接入
+
+### 当前边界
 
 - 这是 **MVP-first** 路线，不是最终产品形态
 - 当前更像单 worker 的本地治理操作台，不是完整多用户系统
 - 当前最适合开发者或愿意手动执行命令的早期体验者
-- Win11 包装入口现在会记住最近一次成功会话，并支持 `demo` / `recover-demo` / `retry-demo` 一键演示，以及 `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` 直连治理动作、`session` / `sessions` 浏览、`use` 激活、`forget` 清空与 `doctor` 自检，因此首轮体验、异常链验证与环境排障都可以缩短到更短命令
-
+- 当前已经能手动跑通正常执行、失败重试、不确定恢复与环境自检，但还没有正式 GUI、安装器与长期稳定分发入口
 ---
 
 ## 技术栈
