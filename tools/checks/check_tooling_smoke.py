@@ -299,6 +299,7 @@ def assert_service_status_json_result(
     expected_next_command: str | None = None,
     expected_next_reason: str | None = None,
     expected_next_blocker: str | None = None,
+    expected_next_summary: str | None = None,
 ) -> None:
     if result is None:
         return
@@ -360,6 +361,8 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent next_reason={expected_next_reason}")
     elif expected_next_blocker is not None and recent_tasks[0].get("next_blocker") != expected_next_blocker:
         errors.append(f"{name} missing recent next_blocker={expected_next_blocker}")
+    elif expected_next_summary is not None and recent_tasks[0].get("next_summary") != expected_next_summary:
+        errors.append(f"{name} missing recent next_summary={expected_next_summary}")
 
 
 def assert_service_run_json_result(
@@ -1013,7 +1016,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, and blockers; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -1627,7 +1630,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status ???? recent task")
     elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing scope visibility")
-    elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 wait_ms=none next=ok next_reason=execution_already_confirmed blocker=none next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
+    elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 wait_ms=none next=ok next_reason=execution_already_confirmed blocker=none next_summary=ready_now:action=ok,reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease visibility")
 
     result = assert_command_json_result(
@@ -1653,6 +1656,7 @@ def collect_errors() -> list[str]:
         expected_next_command='safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"',
         expected_next_reason="execution_already_confirmed",
         expected_next_blocker="none",
+        expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed",
     )
 
     assert_command_json_error(
@@ -1729,7 +1733,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status-active missing recent task")
     elif "lease=active lease_owner=safeclaw-mvp lease_fence=1" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active lease visibility")
-    elif 'next=inspect next_reason=lease_still_active blocker=active_lease next_cmd=safeclaw.cmd report --db "target/mvp/service-status-active.db" --task-id "task-wrapper-service-status-active"' not in wrapper_service_status_active_output:
+    elif 'next=inspect next_reason=lease_still_active blocker=active_lease next_summary=wait:' not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active next hint")
     elif "wait_ms=" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing wait_ms visibility")
@@ -1783,8 +1787,13 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-active-json missing next_command=report")
         else:
             lease_remaining_ms = recent_tasks[0].get("lease_remaining_ms")
+            next_summary = recent_tasks[0].get("next_summary")
             if not isinstance(lease_remaining_ms, int) or lease_remaining_ms <= 0:
                 errors.append("mvp-wrapper-service-status-active-json missing positive lease_remaining_ms")
+            elif not isinstance(next_summary, str) or not next_summary.startswith("wait:remaining_ms="):
+                errors.append("mvp-wrapper-service-status-active-json missing next_summary wait prefix")
+            elif ",blocker=active_lease,reason=lease_still_active" not in next_summary:
+                errors.append("mvp-wrapper-service-status-active-json missing next_summary active payload")
 
 
     wrapper_service_run = subprocess.run(
@@ -1929,6 +1938,8 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-retry-status-before-json missing next_reason=failed_state_ready_for_retry")
         elif recent_tasks[0].get("next_blocker") != "none":
             errors.append("mvp-wrapper-service-retry-status-before-json missing next_blocker=none")
+        elif recent_tasks[0].get("next_summary") != "ready_now:action=retry,reason=failed_state_ready_for_retry":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing next_summary=retry")
 
     wrapper_service_retry = subprocess.run(
         [
@@ -2110,6 +2121,8 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-recover-status-before-json missing next_reason=uncertain_state_ready_for_recover")
         elif recent_tasks[0].get("next_blocker") != "none":
             errors.append("mvp-wrapper-service-recover-status-before-json missing next_blocker=none")
+        elif recent_tasks[0].get("next_summary") != "ready_now:action=recover,reason=uncertain_state_ready_for_recover":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing next_summary=recover")
 
     wrapper_service_recover = subprocess.run(
         [

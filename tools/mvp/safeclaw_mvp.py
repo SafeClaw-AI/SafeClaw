@@ -408,6 +408,20 @@ def build_service_status_next_command(db: str, row: dict[str, object]) -> str:
 
 
 
+def build_service_status_next_summary(row: dict[str, object]) -> str:
+    next_action = str(row.get("next_action") or "inspect")
+    next_reason = str(row.get("next_reason") or "manual_inspection_required")
+    next_blocker = str(row.get("next_blocker") or "none")
+    if next_blocker == "active_lease":
+        remaining_ms = row.get("lease_remaining_ms")
+        remaining_text = str(remaining_ms) if remaining_ms is not None else "unknown"
+        return f"wait:remaining_ms={remaining_text},blocker=active_lease,reason={next_reason}"
+    if next_action in {"ok", "retry", "recover"} and next_blocker == "none":
+        return f"ready_now:action={next_action},reason={next_reason}"
+    return f"blocked:action={next_action},blocker={next_blocker},reason={next_reason}"
+
+
+
 def build_service_status_payload(
     args: list[str],
     session: dict[str, str] | None,
@@ -426,6 +440,7 @@ def build_service_status_payload(
         {
             **row,
             "current": current_db and session is not None and session.get("task_id") == row["task_id"],
+            "next_summary": build_service_status_next_summary(row),
             "next_command": build_service_status_next_command(db, row),
         }
         for row in rows
@@ -699,7 +714,8 @@ def run_service_status(args: list[str]) -> int:
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
             f"wait_ms={row['lease_remaining_ms'] if row['lease_remaining_ms'] is not None else 'none'} "
-            f"next={row['next_action']} next_reason={row['next_reason']} blocker={row['next_blocker']} next_cmd={row['next_command']} "
+            f"next={row['next_action']} next_reason={row['next_reason']} blocker={row['next_blocker']} "
+            f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
@@ -1016,7 +1032,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, and blockers; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
