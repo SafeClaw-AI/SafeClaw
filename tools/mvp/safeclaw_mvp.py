@@ -473,7 +473,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] session sources => sessions 默认优先复用 remembered session 的 db，文本/JSON 都会标 source；"
-        "use --json 会返回 source/db_source/output_source/owner_id_source"
+        "use 文本/JSON 都会标选择来源与 db/output/owner 来源，--json 会返回 source/db_source/output_source/owner_id_source"
     )
     print(
         "[mvp-wrapper] session paths => session 文本输出会带 remembered session 文件路径；"
