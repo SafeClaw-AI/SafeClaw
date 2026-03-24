@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 03:05:46 +0800
+最后更新时间：2026-03-25 03:28:48 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -54,4 +54,10 @@
 - 完成时间：2026-03-25 03:05:46 +0800
 - 完成内容：把 README 推荐的根入口最短路径 `safeclaw.cmd workspace -> doctor -> service-run/retry/recover -> verify` 正式接入 `tools/checks/check_tooling_smoke.py`；补 root 根入口的 workspace/doctor/service-run/service-retry/service-recover/verify 自动验收。
 - 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/selfcheck.py`
-- 提交推送：本轮提交信息为 `test: gate root README MVP flow`；最终 hash 以当前 `HEAD` 为准。
+- 提交推送：`8b0ac83 test: gate root README MVP flow`
+
+### 轮次 I
+- 完成时间：2026-03-25 03:28:48 +0800
+- 完成内容：为 `doctor` 增加 `runtime_profile` / `model_provider` / `sidecar` 诊断字段与文本提示；明确当前 local MVP 离线可跑、无 model provider / sidecar 也属正常；同步 `README.md` 与 `tools/mvp/README.md` 说明。
+- 验证内容：`tools/checks/check_tooling_smoke.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: clarify local-only doctor diagnostics`；最终 hash 以当前 `HEAD` 为准。

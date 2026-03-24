@@ -168,6 +168,42 @@ def assert_doctor_json_result(
         errors.append(f"{name} missing output path={expected_output_path}")
     elif result.get("output", {}).get("source") != expected_output_source:
         errors.append(f"{name} missing output source={expected_output_source}")
+    else:
+        runtime_profile = result.get("runtime_profile") or {}
+        model_provider = result.get("model_provider") or {}
+        sidecar = result.get("sidecar") or {}
+        if not isinstance(runtime_profile, dict):
+            errors.append(f"{name} missing runtime_profile")
+        elif runtime_profile.get("mode") != "local_mvp":
+            errors.append(f"{name} missing runtime_profile.mode=local_mvp")
+        elif runtime_profile.get("offline_ready") is not True:
+            errors.append(f"{name} missing runtime_profile.offline_ready=true")
+        elif runtime_profile.get("llm_required") is not False:
+            errors.append(f"{name} missing runtime_profile.llm_required=false")
+        elif runtime_profile.get("sidecar_required") is not False:
+            errors.append(f"{name} missing runtime_profile.sidecar_required=false")
+        elif not isinstance(model_provider, dict):
+            errors.append(f"{name} missing model_provider")
+        elif model_provider.get("configured") is not False:
+            errors.append(f"{name} missing model_provider.configured=false")
+        elif model_provider.get("required") is not False:
+            errors.append(f"{name} missing model_provider.required=false")
+        elif model_provider.get("status") != "not-configured":
+            errors.append(f"{name} missing model_provider.status=not-configured")
+        elif model_provider.get("degradation_mode") != "local_only_ok":
+            errors.append(f"{name} missing model_provider.degradation_mode=local_only_ok")
+        elif not model_provider.get("detail"):
+            errors.append(f"{name} missing model_provider.detail")
+        elif not isinstance(sidecar, dict):
+            errors.append(f"{name} missing sidecar")
+        elif sidecar.get("configured") is not False:
+            errors.append(f"{name} missing sidecar.configured=false")
+        elif sidecar.get("required") is not False:
+            errors.append(f"{name} missing sidecar.required=false")
+        elif sidecar.get("status") != "not-configured":
+            errors.append(f"{name} missing sidecar.status=not-configured")
+        elif not sidecar.get("detail"):
+            errors.append(f"{name} missing sidecar.detail")
 
 
 def assert_workspace_json_result(
@@ -1069,6 +1105,10 @@ def collect_errors() -> list[str]:
             errors.append("safeclaw-root-cmd-doctor-json missing normalized output path")
         elif output_info.get("source") != "workspace":
             errors.append("safeclaw-root-cmd-doctor-json missing output source=workspace")
+        elif (result.get("runtime_profile") or {}).get("mode") != "local_mvp":
+            errors.append("safeclaw-root-cmd-doctor-json missing runtime_profile.mode=local_mvp")
+        elif (result.get("model_provider") or {}).get("status") != "not-configured":
+            errors.append("safeclaw-root-cmd-doctor-json missing model_provider.status=not-configured")
 
     result = assert_command_json_result(
         [
@@ -1319,6 +1359,12 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor 输出缺少 session_path")
     elif "[mvp-wrapper] doctor source => db=flag output=flag" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少来源提示")
+    elif "[mvp-wrapper] doctor runtime => mode=local_mvp offline_ready=true llm_required=false sidecar_required=false" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor ???? runtime profile ??")
+    elif "[mvp-wrapper] doctor model => status=not-configured required=false configured=false degradation=local_only_ok" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor ???? model provider ??")
+    elif "[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor ???? sidecar ??")
     elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
 

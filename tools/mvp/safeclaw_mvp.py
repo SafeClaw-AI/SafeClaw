@@ -812,6 +812,35 @@ def build_remembered_session_details(**extra: object) -> dict[str, object]:
     return details
 
 
+def build_runtime_profile_payload() -> dict[str, object]:
+    return {
+        "mode": "local_mvp",
+        "offline_ready": True,
+        "llm_required": False,
+        "sidecar_required": False,
+        "detail": "current MVP path runs local SQLite demo flows and does not require an external model provider",
+    }
+
+
+def build_model_provider_payload() -> dict[str, object]:
+    return {
+        "configured": False,
+        "required": False,
+        "status": "not-configured",
+        "degradation_mode": "local_only_ok",
+        "detail": "current MVP wrapper is local-only; model-backed flows are not wired into this entry yet",
+    }
+
+
+def build_sidecar_payload() -> dict[str, object]:
+    return {
+        "configured": False,
+        "required": False,
+        "status": "not-configured",
+        "detail": "sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it",
+    }
+
+
 def build_session_action_result_payload(result: dict[str, object]) -> dict[str, object]:
     return {
         "prepared": result["prepared"],
@@ -1250,6 +1279,10 @@ def run_doctor(args: list[str]) -> int:
     ]
     doctor_status = "ready" if not failing_checks else "degraded"
 
+    runtime_profile = build_runtime_profile_payload()
+    model_provider = build_model_provider_payload()
+    sidecar = build_sidecar_payload()
+
     payload = {
         "repo": str(REPO_ROOT),
         "status": doctor_status,
@@ -1259,6 +1292,9 @@ def run_doctor(args: list[str]) -> int:
         "cargo": {"ok": cargo_ok, "detail": cargo_detail},
         "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
         "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
+        "runtime_profile": runtime_profile,
+        "model_provider": model_provider,
+        "sidecar": sidecar,
         "session": session,
         "session_path": render_repo_path(SESSION_FILE),
         "workspace": build_workspace_status_payload(workspace),
@@ -1310,6 +1346,22 @@ def run_doctor(args: list[str]) -> int:
         f"[mvp-wrapper] doctor output => {'present' if output_path.exists() else 'missing'} {render_repo_path(output_path)}"
     )
     print(f"[mvp-wrapper] doctor source => db={db_source} output={output_source}")
+    print(
+        "[mvp-wrapper] doctor runtime => "
+        f"mode={runtime_profile['mode']} offline_ready={str(runtime_profile['offline_ready']).lower()} "
+        f"llm_required={str(runtime_profile['llm_required']).lower()} "
+        f"sidecar_required={str(runtime_profile['sidecar_required']).lower()}"
+    )
+    print(
+        "[mvp-wrapper] doctor model => "
+        f"status={model_provider['status']} required={str(model_provider['required']).lower()} "
+        f"configured={str(model_provider['configured']).lower()} degradation={model_provider['degradation_mode']}"
+    )
+    print(
+        "[mvp-wrapper] doctor sidecar => "
+        f"status={sidecar['status']} required={str(sidecar['required']).lower()} "
+        f"configured={str(sidecar['configured']).lower()}"
+    )
     print(
         f"[mvp-wrapper] doctor summary => {doctor_status}"
         + ("" if not failing_checks else f" failing={','.join(failing_checks)}")

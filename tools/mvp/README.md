@@ -45,7 +45,7 @@
 - `workspace`: show or activate a named workspace; it fixes default `db` / `output`; `--clear` returns to global defaults while remembered session stays independent
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
-- `doctor`: checks wrapper entrypoints, Rust toolchain, linker, remembered session / workspace paths, and reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`); `--json` also returns aggregated `status` and `failing_checks`
+- `doctor`: checks wrapper entrypoints, Rust toolchain, linker, remembered session / workspace paths, reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`), and states that the current local MVP remains runnable without a model provider / sidecar; `--json` also returns `status`, `failing_checks`, `runtime_profile`, `model_provider`, and `sidecar`
 - `verify`: run the practical operator flow gate via the current wrapper entry; `--json` returns script path, python path, exit code, and captured output
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
