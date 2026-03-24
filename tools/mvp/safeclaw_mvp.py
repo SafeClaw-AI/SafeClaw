@@ -429,6 +429,10 @@ def print_help() -> int:
         "missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文"
     )
     print(
+        "[mvp-wrapper] error message => error.message 是稳定的 wrapper 级消息；"
+        "脚本无需解析底层 cargo 文案"
+    )
+    print(
         "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；"
         "会在 error.details.remembered_session 附带它"
     )
