@@ -453,7 +453,7 @@ def print_help() -> int:
         "report 查看指定 task/effect 的治理视图"
     )
     print(
-        "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker，并给出 db/output 来源；"
+        "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；"
         "--json 会额外返回 status 与 failing_checks"
     )
     print(
@@ -555,6 +555,7 @@ def run_doctor(args: list[str]) -> int:
         "toolchain": {"ok": toolchain_ok, "detail": toolchain_detail},
         "linker": {"ok": linker_ok, "detail": render_repo_path(linker_path)},
         "session": session,
+        "session_path": render_repo_path(SESSION_FILE),
         "db": {"path": render_repo_path(db_path), "exists": db_path.exists(), "source": db_source},
         "output": {"path": render_repo_path(output_path), "exists": output_path.exists(), "source": output_source},
     }
@@ -572,6 +573,7 @@ def run_doctor(args: list[str]) -> int:
     print(
         f"[mvp-wrapper] doctor linker => {'ok' if linker_ok else 'error'} {render_repo_path(linker_path)}"
     )
+    print(f"[mvp-wrapper] doctor session_path => {render_repo_path(SESSION_FILE)}")
     if session is None:
         print("[mvp-wrapper] doctor session => none")
     else:

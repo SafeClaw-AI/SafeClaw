@@ -255,7 +255,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 session 最近成功会话提示")
     elif "[mvp-wrapper] status/report => status 默认查看当前 remembered session，也可显式传 --task-id；report 查看指定 task/effect 的治理视图" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 status/report 语义提示")
-    elif "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
+    elif "[mvp-wrapper] doctor => 文本模式会检查 cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -297,6 +297,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor 输出缺少 toolchain 检查")
     elif "[mvp-wrapper] doctor linker => ok" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少 linker 检查")
+    elif "[mvp-wrapper] doctor session_path => target\\mvp\\last_session.json" not in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 输出缺少 session_path")
     elif "[mvp-wrapper] doctor source => db=flag output=flag" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少来源提示")
     elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
@@ -331,6 +333,8 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 toolchain ok")
             elif result.get("linker", {}).get("ok") is not True:
                 errors.append("mvp-wrapper-doctor-json 输出缺少 linker ok")
+            elif result.get("session_path") != "target\\mvp\\last_session.json":
+                errors.append("mvp-wrapper-doctor-json 输出缺少 session_path")
             elif result.get("db", {}).get("source") != "flag":
                 errors.append("mvp-wrapper-doctor-json 输出缺少 db source=flag")
             elif result.get("output", {}).get("source") != "flag":
