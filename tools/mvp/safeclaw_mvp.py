@@ -272,32 +272,23 @@ def describe_prepared_sources(
     prepared_db = get_flag(prepared, "--db") or render_repo_path(DEFAULT_DB)
     session_matches_db = matches_session_db(session, prepared_db)
 
-    if get_flag(original_args, "--db") is not None:
-        db_source = "flag"
-    elif action in WRITES_SESSION:
-        db_source = "default"
-    elif session is not None:
-        db_source = "session"
-    else:
-        db_source = "default"
+    db_source = resolve_source_hint(
+        get_flag(original_args, "--db") is not None,
+        is_write_action=action in WRITES_SESSION,
+        session_available=session is not None,
+    )
 
-    if get_flag(original_args, "--output") is not None:
-        output_source = "flag"
-    elif action in WRITES_SESSION:
-        output_source = "default"
-    elif session_matches_db:
-        output_source = "session"
-    else:
-        output_source = "default"
+    output_source = resolve_source_hint(
+        get_flag(original_args, "--output") is not None,
+        is_write_action=action in WRITES_SESSION,
+        session_available=session_matches_db,
+    )
 
-    if get_flag(original_args, "--owner-id") is not None:
-        owner_id_source = "flag"
-    elif action in WRITES_SESSION:
-        owner_id_source = "default"
-    elif session_matches_db:
-        owner_id_source = "session"
-    else:
-        owner_id_source = "default"
+    owner_id_source = resolve_source_hint(
+        get_flag(original_args, "--owner-id") is not None,
+        is_write_action=action in WRITES_SESSION,
+        session_available=session_matches_db,
+    )
 
     if get_flag(original_args, "--task-id") is not None:
         task_context_source = "flag"
@@ -382,6 +373,21 @@ def resolve_owner_id_selection(
     if matches_session_db(session, db):
         return session["owner_id"], "session"
     return DEFAULT_OWNER_ID, "default"
+
+
+def resolve_source_hint(
+    flag_present: bool,
+    *,
+    is_write_action: bool,
+    session_available: bool,
+) -> str:
+    if flag_present:
+        return "flag"
+    if is_write_action:
+        return "default"
+    if session_available:
+        return "session"
+    return "default"
 
 
 def matches_session_db(session: dict[str, str] | None, db: str) -> bool:
@@ -1042,6 +1048,8 @@ def emit_json_error(
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
+
+
 
 
 
