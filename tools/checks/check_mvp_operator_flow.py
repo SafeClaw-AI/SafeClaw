@@ -242,12 +242,42 @@ def assert_service_combo(
         append_error(errors, label, "service_status.model_provider.detail missing")
     if not (status.get("sidecar") or {}).get("detail"):
         append_error(errors, label, "service_status.sidecar.detail missing")
+    coordination = status.get("coordination") or {}
+    expect_equal(errors, label, "service_status.coordination.status", coordination.get("status"), "clear")
+    expect_equal(errors, label, "service_status.coordination.reason", coordination.get("reason"), "execution_already_confirmed")
+    expect_equal(errors, label, "service_status.coordination.summary", coordination.get("summary"), "no_followup_needed")
+    expect_equal(errors, label, "service_status.coordination.task_id", coordination.get("task_id"), task_id)
+    expect_equal(errors, label, "service_status.coordination.target_scope", coordination.get("target_scope"), f"scope:{output}")
+    expect_equal(errors, label, "service_status.coordination.next_action", coordination.get("next_action"), "ok")
+    expect_equal(errors, label, "service_status.coordination.next_task_id", coordination.get("next_task_id"), task_id)
+    expect_equal(errors, label, "service_status.coordination.next_blocker", coordination.get("next_blocker"), "none")
+    expect_equal(errors, label, "service_status.coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
+    expect_equal(errors, label, "service_status.coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+    expect_equal(errors, label, "service_status.coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+    expect_equal(errors, label, "service_status.coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
+    expect_equal(errors, label, "service_status.coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
+    expect_equal(errors, label, "service_status.coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
+    expect_equal(errors, label, "service_status.coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
     recent_tasks = status.get("recent_tasks") or []
     if not recent_tasks:
         append_error(errors, label, "service_status.recent_tasks missing")
     else:
         expect_equal(errors, label, "service_status.recent_tasks[0].task_id", recent_tasks[0].get("task_id"), task_id)
         expect_true(errors, label, "service_status.recent_tasks[0].current", recent_tasks[0].get("current"))
+        expect_equal(errors, label, "service_status.recent_tasks[0].next_action", recent_tasks[0].get("next_action"), "ok")
+        expect_equal(errors, label, "service_status.recent_tasks[0].next_reason", recent_tasks[0].get("next_reason"), "execution_already_confirmed")
+        expect_equal(errors, label, "service_status.recent_tasks[0].next_blocker", recent_tasks[0].get("next_blocker"), "none")
+        expect_equal(errors, label, "service_status.recent_tasks[0].coordination_status", recent_tasks[0].get("coordination_status"), "clear")
+        expect_equal(errors, label, "service_status.recent_tasks[0].coordination_reason", recent_tasks[0].get("coordination_reason"), "execution_already_confirmed")
+        expect_equal(errors, label, "service_status.recent_tasks[0].coordination_summary", recent_tasks[0].get("coordination_summary"), "no_followup_needed")
+        expect_equal(errors, label, "service_status.recent_tasks[0].next_task_id", recent_tasks[0].get("next_task_id"), task_id)
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_peer_count", recent_tasks[0].get("scope_peer_count"), 0)
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_active_peer_count", recent_tasks[0].get("scope_active_peer_count"), 0)
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_active_peer_task_id", recent_tasks[0].get("scope_active_peer_task_id"), "")
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_quarantine_active", recent_tasks[0].get("scope_quarantine_active"), False)
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_quarantine_source", recent_tasks[0].get("scope_quarantine_source"), "none")
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_quarantine_task_id", recent_tasks[0].get("scope_quarantine_task_id"), "")
+        expect_equal(errors, label, "service_status.recent_tasks[0].scope_quarantine_count", recent_tasks[0].get("scope_quarantine_count"), 0)
 
 
 
