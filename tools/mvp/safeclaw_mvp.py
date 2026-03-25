@@ -1080,7 +1080,7 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
             step_results.append(build_preflight_step_result(preflight_payload))
             if not bool(preflight_payload.get("allowed")):
                 details = build_preflight_blocked_details(preflight_payload, step_results)
-                return emit_json_error(local_action, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(preflight_payload.get("reason") or "").strip() or None, error_code=str(details.get("preflight_error_code") or preflight_payload.get("error_code") or "").strip() or None, degradation_mode=str(preflight_payload.get("degradation_mode") or "").strip() or None, summary=str(details.get("preflight_summary") or "").strip() or None, requested_action=str(details.get("preflight_requested_action") or preflight_payload.get("requested_action") or "").strip() or None, details=details)
+                return emit_json_error(local_action, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(preflight_payload.get("reason") or "").strip() or None, error_code=str(details.get("preflight_error_code") or preflight_payload.get("error_code") or "").strip() or None, degradation_mode=str(preflight_payload.get("degradation_mode") or "").strip() or None, requires_model=preflight_payload.get("requires_model") if isinstance(preflight_payload.get("requires_model"), bool) else None, summary=str(details.get("preflight_summary") or "").strip() or None, requested_action=str(details.get("preflight_requested_action") or preflight_payload.get("requested_action") or "").strip() or None, details=details)
         try:
             action_result = execute_session_action_capture(session_args)
         except ValueError as error:
@@ -2009,7 +2009,7 @@ def print_help() -> int:
         "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
     )
     print(
-        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight, mirrors preflight-blocked at top-level error.code, mirrors preflight_reason at top-level error.reason, mirrors optional preflight_error_code at top-level error.error_code, mirrors degradation_mode at top-level error.degradation_mode, mirrors preflight_summary at top-level error.summary, mirrors preflight_requested_action at top-level error.requested_action, and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level"
+        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight, mirrors preflight-blocked at top-level error.code, mirrors preflight_reason at top-level error.reason, mirrors optional preflight_error_code at top-level error.error_code, mirrors degradation_mode at top-level error.degradation_mode, mirrors requires_model at top-level error.requires_model, mirrors preflight_summary at top-level error.summary, mirrors preflight_requested_action at top-level error.requested_action, and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
@@ -3193,7 +3193,7 @@ def run_sequence_json(
         step_results.append(build_preflight_step_result(preflight_payload))
         if not bool(preflight_payload.get("allowed")):
             details = build_preflight_blocked_details(preflight_payload, step_results)
-            return emit_json_error(name, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(details.get("preflight_reason") or preflight_payload.get("reason") or "").strip() or None, error_code=str(details.get("preflight_error_code") or preflight_payload.get("error_code") or "").strip() or None, degradation_mode=str(preflight_payload.get("degradation_mode") or "").strip() or None, summary=str(details.get("preflight_summary") or "").strip() or None, requested_action=str(details.get("preflight_requested_action") or preflight_payload.get("requested_action") or "").strip() or None, details=details)
+            return emit_json_error(name, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(details.get("preflight_reason") or preflight_payload.get("reason") or "").strip() or None, error_code=str(details.get("preflight_error_code") or preflight_payload.get("error_code") or "").strip() or None, degradation_mode=str(preflight_payload.get("degradation_mode") or "").strip() or None, requires_model=preflight_payload.get("requires_model") if isinstance(preflight_payload.get("requires_model"), bool) else None, summary=str(details.get("preflight_summary") or "").strip() or None, requested_action=str(details.get("preflight_requested_action") or preflight_payload.get("requested_action") or "").strip() or None, details=details)
     for step in steps:
         try:
             result = execute_session_action_capture(step)
@@ -3254,6 +3254,7 @@ def emit_json_error(
     reason: str | None = None,
     error_code: str | None = None,
     degradation_mode: str | None = None,
+    requires_model: bool | None = None,
     summary: str | None = None,
     requested_action: str | None = None,
 ) -> int:
@@ -3270,6 +3271,8 @@ def emit_json_error(
     mirrored_degradation_mode = str(degradation_mode or "").strip()
     if mirrored_degradation_mode:
         error_payload["degradation_mode"] = mirrored_degradation_mode
+    if requires_model is not None:
+        error_payload["requires_model"] = requires_model
     error_summary = str(summary or "").strip()
     if error_summary:
         error_payload["summary"] = error_summary
