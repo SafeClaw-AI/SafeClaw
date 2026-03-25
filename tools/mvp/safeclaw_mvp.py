@@ -93,19 +93,19 @@ LOCAL_ACTION_FLAG_SPECS = {
     "workspace": {"value": {"--name"}, "boolean": {"--json", "--clear"}},
     "service-demo": {"value": set(), "boolean": {"--json"}},
     "service-run": {
-        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit", "--preflight-action"},
         "boolean": {"--json", "--reset", "--report", "--preflight", "--enforce-permission"},
     },
     "service-retry": {
-        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit", "--preflight-action"},
         "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
     "service-recover": {
-        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit", "--preflight-action"},
         "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
     "service-reconcile": {
-        "value": {"--db", "--output", "--task-id", "--owner-id", "--effect-id", "--decision", "--limit"},
+        "value": {"--db", "--output", "--task-id", "--owner-id", "--effect-id", "--decision", "--limit", "--preflight-action"},
         "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
@@ -359,11 +359,32 @@ def execute_session_action_capture(args: list[str]) -> dict[str, object]:
     }
 
 
+def strip_local_combo_only_args(args: list[str]) -> list[str]:
+    prepared: list[str] = []
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token in {"--reset", "--json", "--preflight", "--enforce-permission"}:
+            index += 1
+            continue
+        if token == "--preflight-action":
+            index += 2
+            continue
+        prepared.append(token)
+        index += 1
+    return prepared
+
+
+def resolve_combo_preflight_action(local_action: str, args: list[str]) -> str:
+    requested_action = str(get_flag(args, "--preflight-action") or local_action).strip()
+    return requested_action or local_action
+
+
 def run_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
     preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
     permission_enforced = has_flag(args, "--enforce-permission")
-    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    shared_args = strip_local_combo_only_args(args)
     steps = [
         ["run", "--reset", *shared_args],
         ["status", *shared_args],
@@ -374,7 +395,12 @@ def run_demo(args: list[str]) -> int:
         steps,
         json_mode=json_mode,
         preflight_payload=(
-            build_sequence_preflight_payload("demo", steps[0], permission_enforced=permission_enforced)
+            build_sequence_preflight_payload(
+                "demo",
+                steps[0],
+                permission_enforced=permission_enforced,
+                requested_action=resolve_combo_preflight_action("demo", args),
+            )
             if preflight_requested
             else None
         ),
@@ -385,7 +411,7 @@ def run_recover_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
     preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
     permission_enforced = has_flag(args, "--enforce-permission")
-    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    shared_args = strip_local_combo_only_args(args)
     steps = [
         ["seed-crash", "--reset", *shared_args],
         ["recover", *shared_args],
@@ -396,7 +422,12 @@ def run_recover_demo(args: list[str]) -> int:
         steps,
         json_mode=json_mode,
         preflight_payload=(
-            build_sequence_preflight_payload("recover-demo", steps[0], permission_enforced=permission_enforced)
+            build_sequence_preflight_payload(
+                "recover-demo",
+                steps[0],
+                permission_enforced=permission_enforced,
+                requested_action=resolve_combo_preflight_action("recover-demo", args),
+            )
             if preflight_requested
             else None
         ),
@@ -407,7 +438,7 @@ def run_retry_demo(args: list[str]) -> int:
     json_mode = has_flag(args, "--json")
     preflight_requested = has_flag(args, "--preflight") or has_flag(args, "--enforce-permission")
     permission_enforced = has_flag(args, "--enforce-permission")
-    shared_args = [item for item in args if item not in {"--reset", "--json", "--preflight", "--enforce-permission"}]
+    shared_args = strip_local_combo_only_args(args)
     steps = [
         ["seed-failed", "--reset", *shared_args],
         ["retry", *shared_args],
@@ -418,7 +449,12 @@ def run_retry_demo(args: list[str]) -> int:
         steps,
         json_mode=json_mode,
         preflight_payload=(
-            build_sequence_preflight_payload("retry-demo", steps[0], permission_enforced=permission_enforced)
+            build_sequence_preflight_payload(
+                "retry-demo",
+                steps[0],
+                permission_enforced=permission_enforced,
+                requested_action=resolve_combo_preflight_action("retry-demo", args),
+            )
             if preflight_requested
             else None
         ),
@@ -977,10 +1013,11 @@ def build_service_preflight_payload(
     session_args: list[str],
     *,
     permission_enforced: bool,
+    requested_action: str | None = None,
 ) -> dict[str, object]:
     output = get_flag(session_args, "--output") or ""
     return build_preflight_payload(
-        local_action,
+        requested_action or local_action,
         target_scope=build_scope_value(output) if output else "",
         requires_write=local_action in PREFLIGHT_WRITE_ACTIONS,
         doctor_bypass=local_action == "service-reconcile",
@@ -994,10 +1031,11 @@ def build_sequence_preflight_payload(
     first_step: list[str],
     *,
     permission_enforced: bool,
+    requested_action: str | None = None,
 ) -> dict[str, object]:
     output = get_flag(first_step, "--output") or ""
     return build_preflight_payload(
-        local_action,
+        requested_action or local_action,
         target_scope=build_scope_value(output) if output else "",
         requires_write=local_action in PREFLIGHT_WRITE_ACTIONS,
         doctor_bypass=False,
@@ -1026,7 +1064,12 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
     report_args = build_service_report_args(args)
     nested_result_key = session_action.replace("-", "_")
     preflight_payload = (
-        build_service_preflight_payload(local_action, session_args, permission_enforced=permission_enforced)
+        build_service_preflight_payload(
+            local_action,
+            session_args,
+            permission_enforced=permission_enforced,
+            requested_action=resolve_combo_preflight_action(local_action, args),
+        )
         if preflight_requested
         else None
     )
@@ -1950,6 +1993,9 @@ def print_help() -> int:
     print(
         "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; "
         "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
+    )
+    print(
+        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight including error_code"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
