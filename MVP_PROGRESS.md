@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-26 04:45:59 +0800
+最后更新时间：2026-03-26 05:02:00 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前三十刀已完成，组合动作 preflight 顶层 error.reason 已落地
+当前阶段：已进入 M1b，前三十一刀已完成，组合动作 preflight 顶层 error.summary 已落地
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -48,6 +48,7 @@
 | [x] | M1b Slice 28: combo preflight shallow shortcuts | M1b plan | blocked combo JSON now mirrors shallow preflight shortcut fields at `error.details` top level: `preflight_requested_action`, `preflight_reason`, `preflight_summary`, and optional `preflight_error_code`, while still preserving the full nested `error.details.preflight` payload | Reduces combo-error read depth |
 | [x] | M1b Slice 29: combo preflight top-level error code | M1b plan | blocked combo JSON now mirrors `preflight-blocked` at top-level `error.code` while still preserving `error.details.code` plus the full nested `error.details.preflight` payload | Reduces combo-error code read depth |
 | [x] | M1b Slice 30: combo preflight top-level error reason | M1b plan | blocked combo JSON now mirrors existing `preflight_reason` at top-level `error.reason` while still preserving `error.details.preflight_reason`, `error.details.code`, and the full nested `error.details.preflight` payload | Reduces combo-error reason read depth |
+| [x] | M1b Slice 31: combo preflight top-level error summary | M1b plan | blocked combo JSON now mirrors existing `preflight_summary` at top-level `error.summary` while still preserving `error.details.preflight_summary`, `error.details.code`, and the full nested `error.details.preflight` payload | Reduces combo-error summary read depth |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
