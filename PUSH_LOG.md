@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 07:25:33 +0800
+最后更新时间：2026-03-26 07:37:26 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -336,3 +336,15 @@
 - Completed: synced post-push progress artifacts after `Slice 38`, refreshed `开发计划.md` baseline to `c8d7348`, updated tracker timestamps, and shifted the next candidate to a sidecar/operator gap audit.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: sync slice 38 progress artifacts`; final hash follows current `HEAD`.
+
+### Round BD
+- Completed at: 2026-03-26 07:36:18 +0800
+- Completed: strengthened the existing sidecar operator contract without expanding runtime behavior. Smoke now also guards `preflight` JSON-side sidecar structure (`required` / `configured` / `detail`) and aligns doctor/service-status text expectations with the already-emitted `detail=` sidecar summary string.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`, targeted runtime checks for `doctor`, `service-status`, and `preflight --action service-status --json`; full `check_tooling_smoke.py` / `check_mvp_operator_flow.py` were attempted but interrupted by local subprocess `KeyboardInterrupt` noise during child process waits, so this round was closed with direct contract verification instead of claiming a false full-green.
+- Commit/push: `4822dad test: guard sidecar operator contract fields`.
+
+### Round BE
+- Completed at: 2026-03-26 07:37:26 +0800
+- Completed: synced post-push progress artifacts after `Slice 39`, refreshed `开发计划.md` baseline to `4822dad`, updated tracker timestamps, and shifted the next candidate to a budget/operator gap audit.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 39 progress artifacts`; final hash follows current `HEAD`.
