@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 02:05:47 +0800
+最后更新时间：2026-03-26 02:31:54 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -211,3 +211,9 @@
 - Completed: `service-status` now surfaces top-level `runtime_profile` / `model_provider` / `sidecar` in both JSON and text output, so operators can see the current local-only / offline-ready runtime posture without leaving the service governance view; smoke / operator-flow guards and README docs were synced together.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
 - Commit/push: planned message `feat: surface runtime snapshots in service status`; final hash follows current `HEAD`.
+
+### Round AI
+- Completed at: 2026-03-26 02:31:54 +0800
+- Completed: `preflight` now recognizes the preflight-only placeholder `ai-reason` and returns a stable offline deny contract with `ERR_AI_PROVIDER_UNAVAILABLE`, `requires_model=true`, `requires_sidecar=true`, and `error_code=ERR_AI_PROVIDER_UNAVAILABLE`; root docs, `tools/mvp/README.md`, and the new `开发计划.md` were synced together.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/mvp/safeclaw_mvp.py preflight --action ai-reason`, `C:\Users\tianduan999\anaconda3\python.exe tools/mvp/safeclaw_mvp.py preflight --action ai-reason --json`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- Commit/push: planned message `feat: add offline provider-unavailable preflight gate`; final hash follows current `HEAD`.

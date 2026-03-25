@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-26 02:05:47 +0800
+最后更新时间：2026-03-26 02:31:54 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前二十四刀已完成，补上 service-status 运行态快照
+当前阶段：已进入 M1b，前二十五刀已完成，补上离线降级错误码闭环
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -42,6 +42,7 @@
 | [x] | M1b Slice 22: reconcile flow | M1b plan | `seed-crash --probe-mode none -> reconcile -> service-status -> report` is now wired end-to-end; wrapper adds `service-reconcile` / `reconcile`, and Rust reconcile closes the stale orchestrator lease | Reduces executed_assumed closeout friction |
 | [x] | M1b Slice 23: reconcile command choices | M1b plan | `service-status` now surfaces `recent_tasks[*].reconcile_commands.executed` / `not_executed` and prints a matching text hint, so the operator can copy the exact closeout choice from the `executed_assumed` scene without guessing `--decision` | Reduces reconcile handoff friction |
 | [x] | M1b Slice 24: service-status runtime snapshot | M1b plan | `service-status` now echoes top-level `runtime_profile` / `model_provider` / `sidecar` in JSON and text output, so the operator can confirm the current local-only / offline-ready posture without leaving the governance view | Reduces runtime-boundary ambiguity |
+| [x] | M1b Slice 25: offline preflight provider error | M1b plan | `preflight --action ai-reason` is now recognized as a preflight-only AI placeholder and fails closed with `ERR_AI_PROVIDER_UNAVAILABLE`, `requires_model=true`, `requires_sidecar=true`, and `error_code=ERR_AI_PROVIDER_UNAVAILABLE` in the current local-only MVP | Reduces offline degradation ambiguity |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

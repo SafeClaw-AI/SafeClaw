@@ -237,6 +237,9 @@ def assert_preflight_json_result(
     expected_offline_ready: bool,
     expected_degradation_mode: str,
     expected_reason: str,
+    expected_requires_model: bool = False,
+    expected_requires_sidecar: bool = False,
+    expected_error_code: str | None = None,
 ) -> None:
     if result is None:
         return
@@ -283,14 +286,16 @@ def assert_preflight_json_result(
         errors.append(f"{name} missing decision={expected_decision}")
     elif result.get("offline_ready") is not expected_offline_ready:
         errors.append(f"{name} missing offline_ready={expected_offline_ready}")
-    elif result.get("requires_model") is not False:
-        errors.append(f"{name} missing requires_model=false")
-    elif result.get("requires_sidecar") is not False:
-        errors.append(f"{name} missing requires_sidecar=false")
+    elif result.get("requires_model") is not expected_requires_model:
+        errors.append(f"{name} missing requires_model={expected_requires_model}")
+    elif result.get("requires_sidecar") is not expected_requires_sidecar:
+        errors.append(f"{name} missing requires_sidecar={expected_requires_sidecar}")
     elif result.get("degradation_mode") != expected_degradation_mode:
         errors.append(f"{name} missing degradation_mode={expected_degradation_mode}")
     elif result.get("reason") != expected_reason:
         errors.append(f"{name} missing reason={expected_reason}")
+    elif expected_error_code is not None and result.get("error_code") != expected_error_code:
+        errors.append(f"{name} missing error_code={expected_error_code}")
     elif not result.get("detail"):
         errors.append(f"{name} missing detail")
     elif not isinstance(runtime_profile, dict) or runtime_profile.get("mode") != "local_mvp":
@@ -1289,7 +1294,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 status/report 语义提示")
     elif "[mvp-wrapper] doctor => 文本模式会检查包装入口、cargo/toolchain/linker、remembered session 路径，并给出 db/output 来源；--json 会额外返回 status 与 failing_checks" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
-    elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, explicit --scope / --write / --doctor-bypass override it, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing preflight help hint")
     elif "[mvp-wrapper] source hints => status/report/recover/retry/reconcile --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -1749,6 +1754,18 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] preflight => action=external-send known=false class=unknown tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=false requires_sidecar=false degradation=deny_unknown reason=unknown_action_defaults_to_strict_deny" not in wrapper_preflight_unknown_output:
         errors.append("mvp-wrapper-preflight-unknown missing deny summary")
 
+    wrapper_preflight_ai_reason = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_preflight_ai_reason_output = (wrapper_preflight_ai_reason.stdout or "") + (wrapper_preflight_ai_reason.stderr or "")
+    if wrapper_preflight_ai_reason.returncode != 1:
+        errors.append(f"mvp-wrapper-preflight-ai-reason failed: exit={wrapper_preflight_ai_reason.returncode}")
+    elif "[mvp-wrapper] preflight => action=ai-reason known=true class=ai-action tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=true requires_sidecar=true degradation=provider_unavailable reason=ERR_AI_PROVIDER_UNAVAILABLE error_code=ERR_AI_PROVIDER_UNAVAILABLE" not in wrapper_preflight_ai_reason_output:
+        errors.append("mvp-wrapper-preflight-ai-reason missing provider-unavailable summary")
+
     payload = load_json_payload(
         run_wrapper_command([PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "external-send", "--json"]),
         errors,
@@ -1791,6 +1808,53 @@ def collect_errors() -> list[str]:
         expected_offline_ready=False,
         expected_degradation_mode="deny_unknown",
         expected_reason="unknown_action_defaults_to_strict_deny",
+    )
+
+    payload = load_json_payload(
+        run_wrapper_command([PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason", "--json"]),
+        errors,
+        "mvp-wrapper-preflight-ai-reason-json",
+        1,
+    )
+    result = None
+    if payload is not None:
+        if payload.get("ok") is not False or payload.get("action") != "preflight":
+            errors.append("mvp-wrapper-preflight-ai-reason-json ????????")
+        else:
+            candidate = payload.get("result")
+            if not isinstance(candidate, dict):
+                errors.append("mvp-wrapper-preflight-ai-reason-json missing result payload")
+            else:
+                result = candidate
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-preflight-ai-reason-json",
+        expected_requested_action="ai-reason",
+        expected_known=True,
+        expected_action_class="ai-action",
+        expected_tier="TIER_2",
+        expected_writes_state=False,
+        expected_permission_context_source="none",
+        expected_target_scope="",
+        expected_requires_write=False,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=False,
+        expected_permission_tier="TIER_0",
+        expected_permission_policy="not_evaluated",
+        expected_permission_reason="permission_context_not_provided",
+        expected_permission_enforced=False,
+        expected_action_allowed=False,
+        expected_action_decision="deny",
+        expected_action_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_allowed=False,
+        expected_decision="deny",
+        expected_offline_ready=False,
+        expected_degradation_mode="provider_unavailable",
+        expected_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_requires_model=True,
+        expected_requires_sidecar=True,
+        expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
     )
 
     wrapper_preflight_status = subprocess.run(

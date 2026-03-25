@@ -58,7 +58,8 @@ PREFLIGHT_WRITE_ACTIONS = {
     "retry",
     "reconcile",
 }
-KNOWN_PREFLIGHT_ACTIONS = set(LOCAL_ACTIONS) | SESSION_ACTIONS
+AI_REQUIRED_PREFLIGHT_ACTIONS = {"ai-reason"}
+KNOWN_PREFLIGHT_ACTIONS = set(LOCAL_ACTIONS) | SESSION_ACTIONS | AI_REQUIRED_PREFLIGHT_ACTIONS
 PREFLIGHT_TEMPLATE_ACTION_MAP = {
     "demo": "run",
     "recover-demo": "recover",
@@ -901,7 +902,7 @@ def build_service_status_step_result(payload: dict[str, object]) -> dict[str, ob
 
 
 def render_preflight_summary(payload: dict[str, object]) -> str:
-    return (
+    summary = (
         f"action={payload['requested_action']} known={str(bool(payload['known'])).lower()} "
         f"class={payload['action_class']} tier={payload['tier']} "
         f"writes_state={str(bool(payload['writes_state'])).lower()} "
@@ -919,6 +920,10 @@ def render_preflight_summary(payload: dict[str, object]) -> str:
         f"requires_sidecar={str(bool(payload['requires_sidecar'])).lower()} "
         f"degradation={payload['degradation_mode']} reason={payload['reason']}"
     )
+    error_code = str(payload.get("error_code") or "").strip()
+    if error_code:
+        summary = f"{summary} error_code={error_code}"
+    return summary
 
 
 def build_preflight_step_result(payload: dict[str, object]) -> dict[str, object]:
@@ -1656,6 +1661,37 @@ def build_preflight_payload(
         resolved_doctor_bypass,
         context_available=permission_context_applied,
     )
+    if action in AI_REQUIRED_PREFLIGHT_ACTIONS:
+        gate_payload = build_preflight_gate_payload(
+            action_allowed=False,
+            action_decision="deny",
+            action_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+            permission_enforced=permission_enforced,
+            permission_context_applied=permission_context_applied,
+            permission_policy=str(permission_payload["permission_policy"]),
+            permission_reason=str(permission_payload["permission_reason"]),
+        )
+        return {
+            "requested_action": action,
+            "known": True,
+            "action_class": "ai-action",
+            "tier": "TIER_2",
+            "writes_state": False,
+            "permission_context_source": permission_context_source,
+            "permission_context_applied": permission_context_applied,
+            **permission_payload,
+            **gate_payload,
+            "offline_ready": False,
+            "requires_model": True,
+            "requires_sidecar": True,
+            "degradation_mode": "provider_unavailable",
+            "error_code": "ERR_AI_PROVIDER_UNAVAILABLE",
+            "detail": "ai reasoning actions stay blocked in the current local-only MVP because no model provider or sidecar is configured",
+            "runtime_profile": runtime_profile,
+            "model_provider": model_provider,
+            "sidecar": sidecar,
+        }
+
     action_allowed = action in KNOWN_PREFLIGHT_ACTIONS
     action_decision = "allow" if action_allowed else "deny"
     action_reason = (
@@ -1687,7 +1723,7 @@ def build_preflight_payload(
             "requires_model": False,
             "requires_sidecar": False,
             "degradation_mode": "deny_unknown",
-            "detail": "preflight only allows known local MVP wrapper and session actions in the current offline entry",
+            "detail": "preflight only allows known local MVP wrapper, session actions, or documented ai preflight placeholders in the current offline entry",
             "runtime_profile": runtime_profile,
             "model_provider": model_provider,
             "sidecar": sidecar,
@@ -1876,7 +1912,7 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; "
-        "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, explicit --scope / --write / --doctor-bypass override it, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
+        "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
