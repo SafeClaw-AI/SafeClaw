@@ -1080,7 +1080,7 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
             step_results.append(build_preflight_step_result(preflight_payload))
             if not bool(preflight_payload.get("allowed")):
                 details = build_preflight_blocked_details(preflight_payload, step_results)
-                return emit_json_error(local_action, "failed step=preflight", exit_code=1, code="preflight-blocked", details=details)
+                return emit_json_error(local_action, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(preflight_payload.get("reason") or "").strip() or None, details=details)
         try:
             action_result = execute_session_action_capture(session_args)
         except ValueError as error:
@@ -2009,7 +2009,7 @@ def print_help() -> int:
         "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
     )
     print(
-        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight, mirrors preflight-blocked at top-level error.code, and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level"
+        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight, mirrors preflight-blocked at top-level error.code, mirrors preflight_reason at top-level error.reason, and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
@@ -3193,7 +3193,7 @@ def run_sequence_json(
         step_results.append(build_preflight_step_result(preflight_payload))
         if not bool(preflight_payload.get("allowed")):
             details = build_preflight_blocked_details(preflight_payload, step_results)
-            return emit_json_error(name, "failed step=preflight", exit_code=1, code="preflight-blocked", details=details)
+            return emit_json_error(name, "failed step=preflight", exit_code=1, code="preflight-blocked", reason=str(preflight_payload.get("reason") or "").strip() or None, details=details)
     for step in steps:
         try:
             result = execute_session_action_capture(step)
@@ -3251,11 +3251,15 @@ def emit_json_error(
     exit_code: int = 1,
     details: object | None = None,
     code: str | None = None,
+    reason: str | None = None,
 ) -> int:
     error_payload: dict[str, object] = {"message": message, "exit_code": exit_code}
     error_code = str(code or "").strip()
     if error_code:
         error_payload["code"] = error_code
+    error_reason = str(reason or "").strip()
+    if error_reason:
+        error_payload["reason"] = error_reason
     if details is not None:
         error_payload["details"] = details
     payload = {
