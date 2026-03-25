@@ -493,6 +493,20 @@ def build_service_status_coordination_payload(row: dict[str, object]) -> dict[st
     requires_write = bool(row.get("requires_write"))
     doctor_bypass = bool(row.get("doctor_bypass"))
     scope_active_peer_count = int(row.get("scope_active_peer_count") or 0)
+    scope_quarantine_active = bool(row.get("scope_quarantine_active"))
+    scope_quarantine_source = str(row.get("scope_quarantine_source") or "none")
+    if scope_quarantine_active and requires_write and not doctor_bypass:
+        if scope_quarantine_source == "self":
+            return {
+                "coordination_status": "quarantined",
+                "coordination_reason": "self_executed_assumed_scope_quarantine",
+                "coordination_summary": "reconcile_self_before_scope_write",
+            }
+        return {
+            "coordination_status": "quarantined",
+            "coordination_reason": "peer_executed_assumed_scope_quarantine",
+            "coordination_summary": "wait_for_scope_reconcile",
+        }
     if next_blocker == "active_lease":
         if lease_freshness == "lost":
             return {
@@ -546,6 +560,10 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
             "target_scope": "",
             "next_action": "inspect",
             "next_blocker": "none",
+            "scope_quarantine_active": False,
+            "scope_quarantine_source": "none",
+            "scope_quarantine_task_id": "",
+            "scope_quarantine_count": 0,
         }
     row = rows[0]
     return {
@@ -559,6 +577,10 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
         "scope_peer_count": int(row.get("scope_peer_count") or 0),
         "scope_active_peer_count": int(row.get("scope_active_peer_count") or 0),
         "scope_active_peer_task_id": str(row.get("scope_active_peer_task_id") or ""),
+        "scope_quarantine_active": bool(row.get("scope_quarantine_active")),
+        "scope_quarantine_source": str(row.get("scope_quarantine_source") or "none"),
+        "scope_quarantine_task_id": str(row.get("scope_quarantine_task_id") or ""),
+        "scope_quarantine_count": int(row.get("scope_quarantine_count") or 0),
     }
 
 
@@ -566,6 +588,7 @@ def load_recent_task_scope_peer_facts(
     connection: sqlite3.Connection,
     target_scope: str,
     task_id: str,
+    effect_status: str,
     *,
     now_ms: int,
 ) -> dict[str, object]:
@@ -575,12 +598,17 @@ def load_recent_task_scope_peer_facts(
             "scope_peer_count": 0,
             "scope_active_peer_count": 0,
             "scope_active_peer_task_id": "",
+            "scope_quarantine_active": False,
+            "scope_quarantine_source": "none",
+            "scope_quarantine_task_id": "",
+            "scope_quarantine_count": 0,
         }
 
     rows = connection.execute(
         """
         SELECT
             task_snapshots.task_id,
+            task_snapshots.effect_status,
             latest_lease.expires_at_ms,
             latest_lease.released_at_ms
         FROM task_snapshots
@@ -603,21 +631,41 @@ def load_recent_task_scope_peer_facts(
 
     active_peer_task_id = ""
     active_peer_count = 0
+    quarantine_peer_task_id = ""
+    quarantine_peer_count = 0
     for row in rows:
         lease_state = classify_orchestrator_lease_state(
-            None if row[1] is None else int(row[1]),
             None if row[2] is None else int(row[2]),
+            None if row[3] is None else int(row[3]),
             now_ms,
         )
         if lease_state == "active":
             active_peer_count += 1
             if not active_peer_task_id:
                 active_peer_task_id = str(row[0] or "")
+        if str(row[1] or "") == "executed_assumed":
+            quarantine_peer_count += 1
+            if not quarantine_peer_task_id:
+                quarantine_peer_task_id = str(row[0] or "")
+
+    self_quarantine = effect_status == "executed_assumed"
+    scope_quarantine_source = "none"
+    scope_quarantine_task_id = ""
+    if self_quarantine:
+        scope_quarantine_source = "self"
+        scope_quarantine_task_id = task_id
+    elif quarantine_peer_count > 0:
+        scope_quarantine_source = "peer"
+        scope_quarantine_task_id = quarantine_peer_task_id
 
     return {
         "scope_peer_count": len(rows),
         "scope_active_peer_count": active_peer_count,
         "scope_active_peer_task_id": active_peer_task_id,
+        "scope_quarantine_active": bool(self_quarantine or quarantine_peer_count > 0),
+        "scope_quarantine_source": scope_quarantine_source,
+        "scope_quarantine_task_id": scope_quarantine_task_id,
+        "scope_quarantine_count": quarantine_peer_count + (1 if self_quarantine else 0),
     }
 
 
@@ -1123,7 +1171,11 @@ def run_service_status(args: list[str]) -> int:
         f"task={coordination['task_id'] or 'none'} scope={coordination['target_scope'] or 'none'} "
         f"next={coordination['next_action']} blocker={coordination['next_blocker']} "
         f"scope_peers={coordination['scope_peer_count']} scope_active_peers={coordination['scope_active_peer_count']} "
-        f"scope_active_task={coordination['scope_active_peer_task_id'] or 'none'}"
+        f"scope_active_task={coordination['scope_active_peer_task_id'] or 'none'} "
+        f"scope_quarantine={str(bool(coordination['scope_quarantine_active'])).lower()} "
+        f"quarantine_source={coordination['scope_quarantine_source']} "
+        f"quarantine_task={coordination['scope_quarantine_task_id'] or 'none'} "
+        f"quarantine_count={coordination['scope_quarantine_count']}"
     )
     if session is not None:
         current = "true" if bool(payload["current_db"]) else "false"
@@ -1154,6 +1206,10 @@ def run_service_status(args: list[str]) -> int:
             f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
             f"scope_peers={row['scope_peer_count']} scope_active_peers={row['scope_active_peer_count']} "
             f"scope_active_task={row['scope_active_peer_task_id'] or 'none'} "
+            f"scope_quarantine={str(bool(row['scope_quarantine_active'])).lower()} "
+            f"quarantine_source={row['scope_quarantine_source']} "
+            f"quarantine_task={row['scope_quarantine_task_id'] or 'none'} "
+            f"quarantine_count={row['scope_quarantine_count']} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
@@ -1725,7 +1781,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
@@ -2327,9 +2383,15 @@ def suggest_recent_task_next_action(
     worker_state: str,
     effect_status: str,
     lease_state: str,
+    *,
+    scope_quarantine_blocked: bool,
 ) -> str:
     if worker_state == "succeeded" and effect_status == "executed":
         return "ok"
+    if effect_status == "executed_assumed":
+        return "inspect"
+    if scope_quarantine_blocked:
+        return "inspect"
     if lease_state == "active":
         return "inspect"
     if worker_state == "failed":
@@ -2344,9 +2406,20 @@ def suggest_recent_task_next_reason(
     worker_state: str,
     effect_status: str,
     lease_state: str,
+    *,
+    scope_quarantine_blocked: bool,
+    scope_quarantine_source: str,
 ) -> str:
     if worker_state == "succeeded" and effect_status == "executed":
         return "execution_already_confirmed"
+    if effect_status == "executed_assumed":
+        return "executed_assumed_requires_reconcile"
+    if scope_quarantine_blocked:
+        return (
+            "scope_quarantined_by_peer"
+            if scope_quarantine_source == "peer"
+            else "scope_quarantined"
+        )
     if lease_state == "active":
         return "lease_still_active"
     if worker_state == "failed":
@@ -2363,6 +2436,8 @@ def suggest_recent_task_next_blocker(
 ) -> str:
     if next_reason == "lease_still_active":
         return "active_lease"
+    if next_reason in {"executed_assumed_requires_reconcile", "scope_quarantined_by_peer", "scope_quarantined"}:
+        return "scope_quarantine"
     if next_action == "inspect":
         return "manual_review_needed"
     return "none"
@@ -2463,8 +2538,6 @@ def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) 
             target_scope = str(row[5] or '')
             requires_write = bool(row[6])
             doctor_bypass = bool(row[7])
-            next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
-            next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
             lease_age_ms = compute_timestamp_age_ms(row[3], now_ms)
             lease_freshness = (
                 "none"
@@ -2490,16 +2563,37 @@ def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) 
                     lease_released_at_ms,
                     now_ms,
                 ),
-                "next_action": next_action,
-                "next_reason": next_reason,
-                "next_blocker": suggest_recent_task_next_blocker(next_action, next_reason),
                 **load_recent_task_scope_peer_facts(
                     connection,
                     target_scope,
                     str(row[0] or ''),
+                    str(row[2] or ''),
                     now_ms=now_ms,
                 ),
             }
+            scope_quarantine_blocked = bool(
+                item["scope_quarantine_active"] and requires_write and not doctor_bypass
+            )
+            next_action = suggest_recent_task_next_action(
+                str(row[1]),
+                str(row[2]),
+                lease_state,
+                scope_quarantine_blocked=scope_quarantine_blocked,
+            )
+            next_reason = suggest_recent_task_next_reason(
+                str(row[1]),
+                str(row[2]),
+                lease_state,
+                scope_quarantine_blocked=scope_quarantine_blocked,
+                scope_quarantine_source=str(item["scope_quarantine_source"]),
+            )
+            item.update(
+                {
+                    "next_action": next_action,
+                    "next_reason": next_reason,
+                    "next_blocker": suggest_recent_task_next_blocker(next_action, next_reason),
+                }
+            )
             item.update(build_service_status_coordination_payload(item))
             items.append(item)
     return items

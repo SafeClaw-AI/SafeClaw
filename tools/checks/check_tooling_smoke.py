@@ -1156,7 +1156,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -2521,6 +2521,198 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-scope-json missing scope_active_peer_task_id=task-wrapper-service-status-scope-b")
         elif recent_tasks[0].get("next_summary") != "ready_now:action=retry,reason=failed_state_ready_for_retry":
             errors.append("mvp-wrapper-service-status-scope-json missing next_summary retry")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-status-quarantine-a",
+            "--db",
+            "target/mvp/service-status-quarantine.db",
+            "--output",
+            "target/mvp/service-status-quarantine-a.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-quarantine-a-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-quarantine-a-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-quarantine-a",
+        expected_db_path="target/mvp/service-status-quarantine.db",
+        expected_output_path="target/mvp/service-status-quarantine-a.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--task-id",
+            "task-wrapper-service-status-quarantine-b",
+            "--db",
+            "target/mvp/service-status-quarantine.db",
+            "--output",
+            "target/mvp/service-status-quarantine-b.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-quarantine-b-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-quarantine-b-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-quarantine-b",
+        expected_db_path="target/mvp/service-status-quarantine.db",
+        expected_output_path="target/mvp/service-status-quarantine-b.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    quarantine_db_path = REPO_ROOT / "target" / "mvp" / "service-status-quarantine.db"
+    shared_scope = "scope:target/mvp/service-status-quarantine-shared.txt"
+    future_updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5))
+    with sqlite3.connect(quarantine_db_path) as connection:
+        connection.execute(
+            "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
+            (shared_scope, "task-wrapper-service-status-quarantine-a", "task-wrapper-service-status-quarantine-b"),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET effect_status = ?1 WHERE task_id = ?2",
+            ("executed_assumed", "task-wrapper-service-status-quarantine-a"),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET updated_at = ?1 WHERE task_id = ?2",
+            (future_updated_at, "task-wrapper-service-status-quarantine-b"),
+        )
+        expired_ms = int(time.time() * 1000) - 1_000
+        connection.execute(
+            "UPDATE orchestrator_leases SET expires_at_ms = ?1, released_at_ms = NULL WHERE task_id = ?2",
+            (expired_ms, "task-wrapper-service-status-quarantine-a"),
+        )
+        connection.execute(
+            "UPDATE orchestrator_leases SET expires_at_ms = ?1, released_at_ms = NULL WHERE task_id = ?2",
+            (expired_ms, "task-wrapper-service-status-quarantine-b"),
+        )
+        connection.commit()
+
+    use_quarantine_result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "use",
+            "--db",
+            "target/mvp/service-status-quarantine.db",
+            "--task-id",
+            "task-wrapper-service-status-quarantine-b",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-quarantine-use-json",
+        "use",
+    )
+    if use_quarantine_result is not None:
+        if use_quarantine_result.get("task_id") != "task-wrapper-service-status-quarantine-b":
+            errors.append("mvp-wrapper-service-status-quarantine-use-json missing task-wrapper-service-status-quarantine-b")
+        elif use_quarantine_result.get("db") != "target/mvp/service-status-quarantine.db":
+            errors.append("mvp-wrapper-service-status-quarantine-use-json missing quarantine db")
+
+    wrapper_service_status_quarantine = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-quarantine.db",
+            "--limit",
+            "2",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_quarantine_output = (wrapper_service_status_quarantine.stdout or "") + (wrapper_service_status_quarantine.stderr or "")
+    if wrapper_service_status_quarantine.returncode != 0:
+        errors.append(f"mvp-wrapper-service-status-quarantine failed: exit={wrapper_service_status_quarantine.returncode}")
+    elif "[mvp-wrapper] service coordination => status=quarantined reason=peer_executed_assumed_scope_quarantine summary=wait_for_scope_reconcile task=task-wrapper-service-status-quarantine-b" not in wrapper_service_status_quarantine_output:
+        errors.append("mvp-wrapper-service-status-quarantine missing quarantined coordination summary")
+    elif "scope_quarantine=true quarantine_source=peer quarantine_task=task-wrapper-service-status-quarantine-a quarantine_count=1" not in wrapper_service_status_quarantine_output:
+        errors.append("mvp-wrapper-service-status-quarantine missing quarantine visibility")
+    elif "next=inspect next_reason=scope_quarantined_by_peer blocker=scope_quarantine" not in wrapper_service_status_quarantine_output:
+        errors.append("mvp-wrapper-service-status-quarantine missing quarantine next hint")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-quarantine.db",
+            "--limit",
+            "2",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-quarantine-json",
+        "service-status",
+    )
+    if result is not None:
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        if not isinstance(current_session, dict) or current_session.get("task_id") != "task-wrapper-service-status-quarantine-b":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing current_session task-wrapper-service-status-quarantine-b")
+        elif coordination.get("status") != "quarantined":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.status=quarantined")
+        elif coordination.get("reason") != "peer_executed_assumed_scope_quarantine":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.reason=peer_executed_assumed_scope_quarantine")
+        elif coordination.get("summary") != "wait_for_scope_reconcile":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.summary=wait_for_scope_reconcile")
+        elif coordination.get("scope_quarantine_active") is not True:
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_active=true")
+        elif coordination.get("scope_quarantine_source") != "peer":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_source=peer")
+        elif coordination.get("scope_quarantine_task_id") != "task-wrapper-service-status-quarantine-a":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_task_id=task-wrapper-service-status-quarantine-a")
+        elif coordination.get("scope_quarantine_count") != 1:
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_count=1")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-status-quarantine-json missing recent task")
+        elif recent_tasks[0].get("task_id") != "task-wrapper-service-status-quarantine-b":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing recent task b")
+        elif recent_tasks[0].get("next_action") != "inspect":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing next_action=inspect")
+        elif recent_tasks[0].get("next_reason") != "scope_quarantined_by_peer":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing next_reason=scope_quarantined_by_peer")
+        elif recent_tasks[0].get("next_blocker") != "scope_quarantine":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing next_blocker=scope_quarantine")
+        elif recent_tasks[0].get("next_summary") != "blocked:action=inspect,blocker=scope_quarantine,reason=scope_quarantined_by_peer":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing quarantine next_summary")
+        elif recent_tasks[0].get("coordination_status") != "quarantined":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination_status=quarantined")
+        elif recent_tasks[0].get("coordination_reason") != "peer_executed_assumed_scope_quarantine":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination_reason=peer_executed_assumed_scope_quarantine")
+        elif recent_tasks[0].get("coordination_summary") != "wait_for_scope_reconcile":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination_summary=wait_for_scope_reconcile")
+        elif recent_tasks[0].get("scope_quarantine_active") is not True:
+            errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_active=true")
+        elif recent_tasks[0].get("scope_quarantine_source") != "peer":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_source=peer")
+        elif recent_tasks[0].get("scope_quarantine_task_id") != "task-wrapper-service-status-quarantine-a":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_task_id=task-wrapper-service-status-quarantine-a")
+        elif recent_tasks[0].get("scope_quarantine_count") != 1:
+            errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_count=1")
+
 
 
 

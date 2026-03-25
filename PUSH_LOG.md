@@ -169,3 +169,9 @@
 - 完成内容：为 `service-status` 新增 same-scope peer 事实（`scope_peer_count` / `scope_active_peer_count` / `scope_active_peer_task_id`），并在当前写任务被同 scope 活跃 peer 占用时给出 `contended` / `same_scope_peer_active` / `wait_for_scope_peer_release` 协调提示；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: surface same-scope peer contention`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 AB
+- 完成时间：2026-03-25 09:21:16 +0800
+- 完成内容：为 `service-status` 新增 scope quarantine 事实（`scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`），并在同 scope 存在 `executed_assumed` 时将协调态提升为 `quarantined`，同步把 `next_action` / `next_reason` / `next_blocker` 切换为 `inspect` / `scope_quarantined_by_peer` / `scope_quarantine`；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: surface scope quarantine in service status`；最终 hash 以当前 `HEAD` 为准。
