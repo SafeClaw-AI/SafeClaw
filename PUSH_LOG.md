@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 07:05:55 +0800
+最后更新时间：2026-03-26 07:12:18 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -318,3 +318,9 @@
 - Completed: synced post-push progress artifacts after `Slice 36`, refreshed `开发计划.md` baseline to `9c0f2cd`, updated tracker timestamps, and recorded the actual feature commit hash in `PUSH_LOG.md`.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: sync slice 36 progress artifacts`; final hash follows current `HEAD`.
+
+### Round BA
+- Completed at: 2026-03-26 07:12:18 +0800
+- Completed: completed `Slice 37` as a mirror-chain audit round; traced combo blocked JSON against `build_preflight_payload`, `build_preflight_blocked_details`, both combo blocked exits, and `emit_json_error`, then confirmed that the high-value existing fields are already surfaced at top-level `error.*` or shallow `error.details.*`. Updated `MVP_PROGRESS.md`, `开发计划.md`, and this log so the next round can stop revisiting the already-closed mirror chain.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: record slice 37 mirror chain audit`; final hash follows current `HEAD`.
