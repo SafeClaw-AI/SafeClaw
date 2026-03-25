@@ -308,6 +308,12 @@ def assert_preflight_json_result(
         errors.append(f"{name} missing model_provider.degradation_mode=local_only_ok")
     elif not isinstance(sidecar, dict) or sidecar.get("status") != "not-configured":
         errors.append(f"{name} missing sidecar.status=not-configured")
+    elif sidecar.get("required") is not False:
+        errors.append(f"{name} missing sidecar.required=false")
+    elif sidecar.get("configured") is not False:
+        errors.append(f"{name} missing sidecar.configured=false")
+    elif not sidecar.get("detail"):
+        errors.append(f"{name} missing sidecar.detail")
 
 
 
@@ -1772,7 +1778,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor ???? runtime profile ??")
     elif "[mvp-wrapper] doctor model => status=not-configured required=false configured=false degradation=local_only_ok" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor ???? model provider ??")
-    elif "[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false" not in wrapper_doctor_output:
+    elif "[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false detail=sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor ???? sidecar ??")
     elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
@@ -2396,7 +2402,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing runtime summary")
     elif "[mvp-wrapper] service model => status=not-configured required=false configured=false degradation=local_only_ok" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing model summary")
-    elif "[mvp-wrapper] service sidecar => status=not-configured required=false configured=false" not in wrapper_service_status_output:
+    elif "[mvp-wrapper] service sidecar => status=not-configured required=false configured=false detail=sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing sidecar summary")
     elif "[mvp-wrapper] service offline => status=blocked reason=ERR_AI_PROVIDER_UNAVAILABLE summary=ai_actions_require_provider action=ai-reason requires_model=true requires_sidecar=true next=safeclaw.cmd preflight --action ai-reason error_code=ERR_AI_PROVIDER_UNAVAILABLE" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing offline gate summary")
