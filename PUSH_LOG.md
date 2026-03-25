@@ -348,3 +348,8 @@
 - Completed: synced post-push progress artifacts after `Slice 39`, refreshed `开发计划.md` baseline to `4822dad`, updated tracker timestamps, and shifted the next candidate to a budget/operator gap audit.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: sync slice 39 progress artifacts`; final hash follows current `HEAD`.
+### Round BF
+- Completed at: 2026-03-26 07:44:00 +0800
+- Completed: completed `Slice 40` as a budget/operator gap audit round; traced blueprint financial-budget rules (`mmap` persistence, `reserved -> charged/refunded/disputed`, crash reconcile) against current MVP wrapper/operator surfaces in `tools/mvp/safeclaw_mvp.py`, `README.md`, and `tools/mvp/README.md`, then confirmed there is still no live budget payload / config stub / operator text summary to expose. Closed the round by documenting that budget output should wait for a real runtime source instead of inventing pseudo-data, and shifted the next candidate to a concurrency/operator gap audit.
+- Verification: `git diff --check`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: record slice 40 budget audit`; final hash follows current `HEAD`.
