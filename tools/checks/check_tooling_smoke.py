@@ -402,6 +402,12 @@ def assert_service_status_json_result(
     expected_next_reason: str | None = None,
     expected_next_blocker: str | None = None,
     expected_next_summary: str | None = None,
+    expected_coordination_status: str | None = None,
+    expected_coordination_reason: str | None = None,
+    expected_coordination_summary: str | None = None,
+    expected_service_coordination_status: str | None = None,
+    expected_service_coordination_reason: str | None = None,
+    expected_service_coordination_summary: str | None = None,
 ) -> None:
     if result is None:
         return
@@ -410,6 +416,7 @@ def assert_service_status_json_result(
     effects = result.get("effects") or {}
     probes = result.get("probes") or {}
     heartbeat = result.get("heartbeat") or {}
+    coordination = result.get("coordination") or {}
     recent_tasks = result.get("recent_tasks") or []
     current_session = result.get("current_session") or {}
     actual_db = str(result.get("db") or "").replace("\\", "/")
@@ -444,6 +451,12 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing heartbeat.latest_freshness={expected_heartbeat_freshness}")
     elif expected_heartbeat_status is not None and heartbeat.get("status") != expected_heartbeat_status:
         errors.append(f"{name} missing heartbeat.status={expected_heartbeat_status}")
+    elif expected_service_coordination_status is not None and coordination.get("status") != expected_service_coordination_status:
+        errors.append(f"{name} missing coordination.status={expected_service_coordination_status}")
+    elif expected_service_coordination_reason is not None and coordination.get("reason") != expected_service_coordination_reason:
+        errors.append(f"{name} missing coordination.reason={expected_service_coordination_reason}")
+    elif expected_service_coordination_summary is not None and coordination.get("summary") != expected_service_coordination_summary:
+        errors.append(f"{name} missing coordination.summary={expected_service_coordination_summary}")
     elif not isinstance(recent_tasks, list) or not recent_tasks or recent_tasks[0].get("task_id") != expected_task_id:
         errors.append(f"{name} missing recent task {expected_task_id}")
     elif recent_tasks[0].get("current") is not True:
@@ -478,6 +491,12 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing recent next_blocker={expected_next_blocker}")
     elif expected_next_summary is not None and recent_tasks[0].get("next_summary") != expected_next_summary:
         errors.append(f"{name} missing recent next_summary={expected_next_summary}")
+    elif expected_coordination_status is not None and recent_tasks[0].get("coordination_status") != expected_coordination_status:
+        errors.append(f"{name} missing recent coordination_status={expected_coordination_status}")
+    elif expected_coordination_reason is not None and recent_tasks[0].get("coordination_reason") != expected_coordination_reason:
+        errors.append(f"{name} missing recent coordination_reason={expected_coordination_reason}")
+    elif expected_coordination_summary is not None and recent_tasks[0].get("coordination_summary") != expected_coordination_summary:
+        errors.append(f"{name} missing recent coordination_summary={expected_coordination_summary}")
 
 
 def assert_service_run_json_result(
@@ -1137,7 +1156,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -2080,13 +2099,15 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing heartbeat summary")
     elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing heartbeat freshness")
+    elif "[mvp-wrapper] service coordination => status=clear reason=execution_already_confirmed summary=no_followup_needed task=task-wrapper-service-status" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing coordination summary")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status ???? recent task")
     elif "scope=scope:target/mvp/service-status.txt write=true doctor_bypass=false perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing permission visibility")
     elif 'lease=released lease_owner=safeclaw-mvp lease_fence=1 lease_age_ms=' not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease age visibility")
-    elif 'lease_freshness=lost wait_ms=none next=ok next_reason=execution_already_confirmed blocker=none next_summary=ready_now:action=ok,reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
+    elif 'lease_freshness=lost wait_ms=none next=ok next_reason=execution_already_confirmed blocker=none coordination=clear coordination_reason=execution_already_confirmed coordination_summary=no_followup_needed next_summary=ready_now:action=ok,reason=execution_already_confirmed next_cmd=safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"' not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing lease freshness visibility")
 
     result = assert_command_json_result(
@@ -2119,6 +2140,12 @@ def collect_errors() -> list[str]:
         expected_next_reason="execution_already_confirmed",
         expected_next_blocker="none",
         expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed",
+        expected_coordination_status="clear",
+        expected_coordination_reason="execution_already_confirmed",
+        expected_coordination_summary="no_followup_needed",
+        expected_service_coordination_status="clear",
+        expected_service_coordination_reason="execution_already_confirmed",
+        expected_service_coordination_summary="no_followup_needed",
     )
 
     assert_command_json_error(
@@ -2195,6 +2222,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status-active missing heartbeat summary")
     elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing heartbeat freshness")
+    elif "[mvp-wrapper] service coordination => status=stalled reason=active_lease_without_recent_heartbeat summary=inspect_owner_or_wait_for_lease_expiry task=task-wrapper-service-status-active" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing coordination summary")
     elif "task=task-wrapper-service-status-active" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing recent task")
     elif "perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation" not in wrapper_service_status_active_output:
@@ -2203,7 +2232,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status-active missing active lease age visibility")
     elif "lease_freshness=lost" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active lease freshness visibility")
-    elif 'next=inspect next_reason=lease_still_active blocker=active_lease next_summary=wait:' not in wrapper_service_status_active_output:
+    elif 'next=inspect next_reason=lease_still_active blocker=active_lease coordination=stalled coordination_reason=active_lease_without_recent_heartbeat coordination_summary=inspect_owner_or_wait_for_lease_expiry next_summary=wait:' not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active next hint")
     elif "wait_ms=" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing wait_ms visibility")
@@ -2268,6 +2297,14 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-active-json missing next_blocker=active_lease")
         elif recent_tasks[0].get("next_command") != 'safeclaw.cmd report --db "target/mvp/service-status-active.db" --task-id "task-wrapper-service-status-active"':
             errors.append("mvp-wrapper-service-status-active-json missing next_command=report")
+        elif recent_tasks[0].get("coordination_status") != "stalled":
+            errors.append("mvp-wrapper-service-status-active-json missing coordination_status=stalled")
+        elif recent_tasks[0].get("coordination_reason") != "active_lease_without_recent_heartbeat":
+            errors.append("mvp-wrapper-service-status-active-json missing coordination_reason=active_lease_without_recent_heartbeat")
+        elif recent_tasks[0].get("coordination_summary") != "inspect_owner_or_wait_for_lease_expiry":
+            errors.append("mvp-wrapper-service-status-active-json missing coordination_summary=inspect_owner_or_wait_for_lease_expiry")
+        elif (result.get("coordination") or {}).get("status") != "stalled":
+            errors.append("mvp-wrapper-service-status-active-json missing coordination.status=stalled")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-status-active-json missing recent task")
         elif recent_tasks[0].get("permission_tier") != "TIER_1":
@@ -2602,6 +2639,14 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-retry-status-before-json missing next_blocker=none")
         elif recent_tasks[0].get("next_summary") != "ready_now:action=retry,reason=failed_state_ready_for_retry":
             errors.append("mvp-wrapper-service-retry-status-before-json missing next_summary=retry")
+        elif recent_tasks[0].get("coordination_status") != "ready":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing coordination_status=ready")
+        elif recent_tasks[0].get("coordination_reason") != "failed_state_ready_for_retry":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing coordination_reason=failed_state_ready_for_retry")
+        elif recent_tasks[0].get("coordination_summary") != "retry_now":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing coordination_summary=retry_now")
+        elif (result.get("coordination") or {}).get("status") != "ready":
+            errors.append("mvp-wrapper-service-retry-status-before-json missing coordination.status=ready")
 
     wrapper_service_retry = subprocess.run(
         [
@@ -2791,6 +2836,14 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-recover-status-before-json missing next_blocker=none")
         elif recent_tasks[0].get("next_summary") != "ready_now:action=recover,reason=uncertain_state_ready_for_recover":
             errors.append("mvp-wrapper-service-recover-status-before-json missing next_summary=recover")
+        elif recent_tasks[0].get("coordination_status") != "ready":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing coordination_status=ready")
+        elif recent_tasks[0].get("coordination_reason") != "uncertain_state_ready_for_recover":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing coordination_reason=uncertain_state_ready_for_recover")
+        elif recent_tasks[0].get("coordination_summary") != "recover_now":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing coordination_summary=recover_now")
+        elif (result.get("coordination") or {}).get("status") != "ready":
+            errors.append("mvp-wrapper-service-recover-status-before-json missing coordination.status=ready")
 
     wrapper_service_recover = subprocess.run(
         [

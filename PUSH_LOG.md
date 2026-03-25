@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-25 05:54:00 +0800
+最后更新时间：2026-03-25 08:28:09 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -157,3 +157,9 @@
 - 完成内容：为 `service-status` 补上 `heartbeat` 摘要与 recent task 的 `lease_age_ms` / `lease_freshness` 可见化；文本会额外打印 service heartbeat 概览，JSON 会返回 `result.heartbeat`；同步 smoke / README / 整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: add heartbeat freshness to service status`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 Z
+- 完成时间：2026-03-25 08:28:09 +0800
+- 完成内容：为 `service-status` 新增 top-level `coordination` 摘要与 recent task 级别的 `coordination_status` / `coordination_reason` / `coordination_summary`；文本会额外打印 service coordination 概览，JSON 会返回 `result.coordination`；同步 smoke / README / 整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add service coordination hints`；最终 hash 以当前 `HEAD` 为准。

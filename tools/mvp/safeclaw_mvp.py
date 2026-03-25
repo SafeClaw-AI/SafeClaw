@@ -485,6 +485,70 @@ def build_service_status_next_summary(row: dict[str, object]) -> str:
     return f"blocked:action={next_action},blocker={next_blocker},reason={next_reason}"
 
 
+def build_service_status_coordination_payload(row: dict[str, object]) -> dict[str, str]:
+    next_action = str(row.get("next_action") or "inspect")
+    next_reason = str(row.get("next_reason") or "manual_inspection_required")
+    next_blocker = str(row.get("next_blocker") or "none")
+    lease_freshness = str(row.get("lease_freshness") or "unknown")
+    if next_blocker == "active_lease":
+        if lease_freshness == "lost":
+            return {
+                "coordination_status": "stalled",
+                "coordination_reason": "active_lease_without_recent_heartbeat",
+                "coordination_summary": "inspect_owner_or_wait_for_lease_expiry",
+            }
+        return {
+            "coordination_status": "busy",
+            "coordination_reason": "active_lease_in_progress",
+            "coordination_summary": "wait_for_current_owner",
+        }
+    if next_action == "retry" and next_blocker == "none":
+        return {
+            "coordination_status": "ready",
+            "coordination_reason": next_reason,
+            "coordination_summary": "retry_now",
+        }
+    if next_action == "recover" and next_blocker == "none":
+        return {
+            "coordination_status": "ready",
+            "coordination_reason": next_reason,
+            "coordination_summary": "recover_now",
+        }
+    if next_action == "ok" and next_blocker == "none":
+        return {
+            "coordination_status": "clear",
+            "coordination_reason": next_reason,
+            "coordination_summary": "no_followup_needed",
+        }
+    return {
+        "coordination_status": "inspect",
+        "coordination_reason": next_reason,
+        "coordination_summary": "inspect_before_followup",
+    }
+
+
+def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[str, object]:
+    if not rows:
+        return {
+            "status": "idle",
+            "reason": "no_recent_tasks",
+            "summary": "queue_idle",
+            "task_id": "",
+            "target_scope": "",
+            "next_action": "inspect",
+            "next_blocker": "none",
+        }
+    row = rows[0]
+    return {
+        "status": str(row.get("coordination_status") or "inspect"),
+        "reason": str(row.get("coordination_reason") or "manual_inspection_required"),
+        "summary": str(row.get("coordination_summary") or "inspect_before_followup"),
+        "task_id": str(row.get("task_id") or ""),
+        "target_scope": str(row.get("target_scope") or ""),
+        "next_action": str(row.get("next_action") or "inspect"),
+        "next_blocker": str(row.get("next_blocker") or "none"),
+    }
+
 
 def load_heartbeat_config() -> dict[str, object]:
     try:
@@ -592,6 +656,7 @@ def build_service_status_payload(
         {
             **row,
             "current": current_db and session is not None and session.get("task_id") == row["task_id"],
+            **build_service_status_coordination_payload(row),
             "next_summary": build_service_status_next_summary(row),
             "next_command": build_service_status_next_command(db, row),
         }
@@ -612,6 +677,7 @@ def build_service_status_payload(
             interval_ms=int(heartbeat_config["interval_ms"]),
             event_driven=bool(heartbeat_config["event_driven"]),
         ),
+        "coordination": build_service_coordination_payload(rows_with_current),
         "recent_tasks": rows_with_current,
     }
 
@@ -962,6 +1028,7 @@ def run_service_status(args: list[str]) -> int:
     effects = payload["effects"]
     probes = payload["probes"]
     heartbeat = payload["heartbeat"]
+    coordination = payload["coordination"]
     rows_with_current = payload["recent_tasks"]
 
     print(f"[mvp-wrapper] service-status => db={db} limit={limit} source={db_source}")
@@ -978,6 +1045,12 @@ def run_service_status(args: list[str]) -> int:
         f"latest_updated_at={heartbeat['latest_updated_at'] or 'none'} "
         f"age_ms={heartbeat['latest_age_ms'] if heartbeat['latest_age_ms'] is not None else 'none'} "
         f"freshness={heartbeat['latest_freshness']} status={heartbeat['status']} reason={heartbeat['reason']}"
+    )
+    print(
+        "[mvp-wrapper] service coordination => "
+        f"status={coordination['status']} reason={coordination['reason']} summary={coordination['summary']} "
+        f"task={coordination['task_id'] or 'none'} scope={coordination['target_scope'] or 'none'} "
+        f"next={coordination['next_action']} blocker={coordination['next_blocker']}"
     )
     if session is not None:
         current = "true" if bool(payload["current_db"]) else "false"
@@ -1003,6 +1076,8 @@ def run_service_status(args: list[str]) -> int:
             f"lease_freshness={row['lease_freshness']} "
             f"wait_ms={row['lease_remaining_ms'] if row['lease_remaining_ms'] is not None else 'none'} "
             f"next={row['next_action']} next_reason={row['next_reason']} blocker={row['next_blocker']} "
+            f"coordination={row['coordination_status']} coordination_reason={row['coordination_reason']} "
+            f"coordination_summary={row['coordination_summary']} "
             f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
@@ -1575,7 +1650,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
