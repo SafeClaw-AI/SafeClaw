@@ -1315,7 +1315,7 @@ def run_service_status(args: list[str]) -> int:
     print(
         "[mvp-wrapper] service sidecar => "
         f"status={sidecar['status']} required={str(sidecar['required']).lower()} "
-        f"configured={str(sidecar['configured']).lower()}"
+        f"configured={str(sidecar['configured']).lower()} detail={sidecar['detail']}"
     )
     print(f"[mvp-wrapper] service offline => {render_service_offline_gate_summary(offline_gate)}")
     print(
@@ -2379,7 +2379,7 @@ def run_doctor(args: list[str]) -> int:
     print(
         "[mvp-wrapper] doctor sidecar => "
         f"status={sidecar['status']} required={str(sidecar['required']).lower()} "
-        f"configured={str(sidecar['configured']).lower()}"
+        f"configured={str(sidecar['configured']).lower()} detail={sidecar['detail']}"
     )
     print(
         f"[mvp-wrapper] doctor summary => {doctor_status}"
