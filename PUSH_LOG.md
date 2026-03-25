@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 05:42:25 +0800
+最后更新时间：2026-03-26 05:53:45 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -272,7 +272,13 @@
 - Commit/push: planned message `docs: sync slice 32 progress artifacts`; final hash follows current `HEAD`.
 
 ### Round AS
-- Completed at: 2026-03-26 05:42:25 +0800
+- Completed at: 2026-03-26 05:53:21 +0800
 - Completed: blocked combo JSON now mirrors optional existing `preflight_error_code` at top-level `error.error_code` while still preserving `error.details.preflight_error_code`, `error.details.code`, the full nested `error.details.preflight` payload, and the previously added top-level `error.code` / `error.reason` / `error.summary` / `error.requested_action` mirrors. Help text, root docs, `tools/mvp/README.md`, `MVP_PROGRESS.md`, and `开发计划.md` were synced together.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
-- Commit/push: planned message `feat: mirror combo preflight error code to top-level error`; final hash follows current `HEAD`.
+- Commit/push: `9942e9c feat: mirror combo preflight error code to top-level error`.
+
+### Round AT
+- Completed at: 2026-03-26 05:53:45 +0800
+- Completed: synced post-push progress artifacts after `Slice 33`, refreshed `开发计划.md` baseline to `9942e9c`, updated tracker timestamps, and resolved `PUSH_LOG.md` Round AS from a planned message to the actual feature commit hash.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 33 progress artifacts`; final hash follows current `HEAD`.
