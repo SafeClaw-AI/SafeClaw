@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 02:31:54 +0800
+最后更新时间：2026-03-26 03:56:29 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -235,3 +235,9 @@
 - Completed: blocked combo JSON now mirrors shallow preflight shortcut fields at `error.details` top level: `preflight_requested_action`, `preflight_reason`, `preflight_summary`, and optional `preflight_error_code`, while still preserving the full nested `error.details.preflight` payload. Help text, root docs, `tools/mvp/README.md`, `MVP_PROGRESS.md`, and `开发计划.md` were synced together.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
 - Commit/push: planned message `feat: add combo preflight shortcut fields`; final hash follows current `HEAD`.
+
+### Round AM
+- Completed at: 2026-03-26 03:56:29 +0800
+- Completed: synced the missing `MVP_PROGRESS.md` row for `M1b Slice 28` and refreshed `开发计划.md` baseline/timestamp after verifying the post-push docs state; this is a docs closeout for the already-landed combo preflight shallow shortcuts slice.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- Commit/push: planned message `docs: sync slice 28 progress artifacts`; final hash follows current `HEAD`.
