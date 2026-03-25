@@ -1079,12 +1079,7 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
         if preflight_payload is not None:
             step_results.append(build_preflight_step_result(preflight_payload))
             if not bool(preflight_payload.get("allowed")):
-                details = build_remembered_session_details(
-                    failed_step="preflight",
-                    steps=step_results,
-                    preflight=preflight_payload,
-                    code="preflight-blocked",
-                )
+                details = build_preflight_blocked_details(preflight_payload, step_results)
                 return emit_json_error(local_action, "failed step=preflight", exit_code=1, details=details)
         try:
             action_result = execute_session_action_capture(session_args)
@@ -1524,6 +1519,25 @@ def build_session(args: list[str]) -> dict[str, str]:
 def build_remembered_session_details(**extra: object) -> dict[str, object]:
     details: dict[str, object] = dict(extra)
     details["remembered_session"] = load_session()
+    return details
+
+
+def build_preflight_blocked_details(
+    preflight_payload: dict[str, object],
+    steps: list[dict[str, object]],
+) -> dict[str, object]:
+    details = build_remembered_session_details(
+        failed_step="preflight",
+        steps=steps,
+        preflight=preflight_payload,
+        code="preflight-blocked",
+        preflight_requested_action=str(preflight_payload.get("requested_action") or ""),
+        preflight_reason=str(preflight_payload.get("reason") or ""),
+        preflight_summary=render_preflight_summary(preflight_payload),
+    )
+    error_code = str(preflight_payload.get("error_code") or "").strip()
+    if error_code:
+        details["preflight_error_code"] = error_code
     return details
 
 
@@ -1995,7 +2009,7 @@ def print_help() -> int:
         "common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json"
     )
     print(
-        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight including error_code"
+        "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level"
     )
     print(
         "[mvp-wrapper] verify => verify runs the practical MVP operator flow gate; "
@@ -3178,12 +3192,7 @@ def run_sequence_json(
     if preflight_payload is not None:
         step_results.append(build_preflight_step_result(preflight_payload))
         if not bool(preflight_payload.get("allowed")):
-            details = build_remembered_session_details(
-                failed_step="preflight",
-                steps=step_results,
-                preflight=preflight_payload,
-                code="preflight-blocked",
-            )
+            details = build_preflight_blocked_details(preflight_payload, step_results)
             return emit_json_error(name, "failed step=preflight", exit_code=1, details=details)
     for step in steps:
         try:

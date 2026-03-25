@@ -1081,6 +1081,11 @@ def assert_json_error_fields(
     expected_remembered_session_task_id: str | None = None,
     remembered_session_label: str | None = None,
     expect_no_remembered_session: bool = False,
+    expected_preflight_requested_action: str | None = None,
+    expected_preflight_reason: str | None = None,
+    expected_preflight_error_code: str | None = None,
+    expect_preflight_error_code_absent: bool = False,
+    expected_preflight_summary_substring: str | None = None,
 ) -> None:
     if error is None:
         return
@@ -1110,6 +1115,26 @@ def assert_json_error_fields(
         remembered_session = details.get("remembered_session") or {}
         if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_remembered_session_task_id:
             errors.append(remembered_session_label or f"{name} remembered_session 缺少 {expected_remembered_session_task_id}")
+            return
+    if expected_preflight_requested_action is not None:
+        if details.get("preflight_requested_action") != expected_preflight_requested_action:
+            errors.append(f"{name} missing preflight_requested_action={expected_preflight_requested_action}")
+            return
+    if expected_preflight_reason is not None:
+        if details.get("preflight_reason") != expected_preflight_reason:
+            errors.append(f"{name} missing preflight_reason={expected_preflight_reason}")
+            return
+    if expected_preflight_error_code is not None:
+        if details.get("preflight_error_code") != expected_preflight_error_code:
+            errors.append(f"{name} missing preflight_error_code={expected_preflight_error_code}")
+            return
+    if expect_preflight_error_code_absent:
+        if details.get("preflight_error_code") is not None:
+            errors.append(f"{name} expected no preflight_error_code")
+            return
+    if expected_preflight_summary_substring is not None:
+        if expected_preflight_summary_substring not in str(details.get("preflight_summary", "")):
+            errors.append(f"{name} missing preflight_summary substring {expected_preflight_summary_substring}")
 
 
 def run_wrapper_command(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -1313,7 +1338,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing preflight help hint")
-    elif "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight including error_code" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo preflight override hint")
     elif "[mvp-wrapper] source hints => status/report/recover/retry/reconcile --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -3155,6 +3180,10 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="failed step=preflight",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
     )
     if isinstance(details, dict):
         preflight_payload = details.get("preflight")
@@ -3221,6 +3250,10 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="failed step=preflight",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
+        expected_preflight_requested_action="service-run",
+        expected_preflight_reason="write_scope_requires_confirmation",
+        expect_preflight_error_code_absent=True,
+        expected_preflight_summary_substring="action=service-run",
     )
     if isinstance(details, dict):
         preflight_payload = details.get("preflight")
@@ -5140,6 +5173,10 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="failed step=preflight",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
+        expected_preflight_requested_action="demo",
+        expected_preflight_reason="write_scope_requires_confirmation",
+        expect_preflight_error_code_absent=True,
+        expected_preflight_summary_substring="action=demo",
     )
     if isinstance(details, dict):
         preflight_payload = details.get("preflight")
@@ -5200,6 +5237,10 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="failed step=preflight",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
     )
     if isinstance(details, dict):
         preflight_payload = details.get("preflight")
