@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-26 07:12:18 +0800
+最后更新时间：2026-03-26 07:25:33 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前三十七刀已完成，combo blocked error 镜像链盘点已确认基本收口
+当前阶段：已进入 M1b，前三十八刀已完成，service-status heartbeat 合同护栏已落地
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -55,6 +55,7 @@
 | [x] | M1b Slice 35: combo preflight top-level error requires_model | M1b plan | blocked combo JSON now mirrors existing `requires_model` at top-level `error.requires_model` while still preserving the full nested `error.details.preflight` payload and the previously added top-level error mirrors | Reduces combo-error model-dependency read depth |
 | [x] | M1b Slice 36: combo preflight top-level error requires_sidecar | M1b plan | blocked combo JSON now mirrors existing `requires_sidecar` at top-level `error.requires_sidecar` while still preserving the full nested `error.details.preflight` payload and the previously added top-level error mirrors | Reduces combo-error sidecar-dependency read depth |
 | [x] | M1b Slice 37: combo preflight mirror-chain audit | M1b plan | audited current blocked combo JSON mirrors and confirmed that the high-value existing fields are already exposed at top-level `error` or shallow `error.details`; remaining preflight fields are permission/runtime internals and stay nested under `error.details.preflight` | Marks combo mirror chain as basically closed |
+| [x] | M1b Slice 38: service-status heartbeat contract guardrails | M1b plan | strengthened smoke/operator-flow coverage for top-level heartbeat fields (`interval_ms` / `event_driven` / `latest_updated_at` / `latest_age_ms` / `latest_freshness` / `status` / `reason`), so the existing operator heartbeat summary cannot silently regress | Reduces heartbeat visibility drift |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

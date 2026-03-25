@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 07:12:18 +0800
+最后更新时间：2026-03-26 07:25:33 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -324,3 +324,15 @@
 - Completed: completed `Slice 37` as a mirror-chain audit round; traced combo blocked JSON against `build_preflight_payload`, `build_preflight_blocked_details`, both combo blocked exits, and `emit_json_error`, then confirmed that the high-value existing fields are already surfaced at top-level `error.*` or shallow `error.details.*`. Updated `MVP_PROGRESS.md`, `开发计划.md`, and this log so the next round can stop revisiting the already-closed mirror chain.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: record slice 37 mirror chain audit`; final hash follows current `HEAD`.
+
+### Round BB
+- Completed at: 2026-03-26 07:24:28 +0800
+- Completed: strengthened the existing service-status heartbeat contract without expanding runtime behavior. Smoke and operator-flow checks now guard `heartbeat.interval_ms`, `event_driven`, `latest_updated_at`, `latest_age_ms`, `latest_freshness`, `status`, and `reason`, so the current operator-facing heartbeat summary cannot silently regress.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- Commit/push: `c8d7348 test: guard service status heartbeat contract fields`.
+
+### Round BC
+- Completed at: 2026-03-26 07:25:33 +0800
+- Completed: synced post-push progress artifacts after `Slice 38`, refreshed `开发计划.md` baseline to `c8d7348`, updated tracker timestamps, and shifted the next candidate to a sidecar/operator gap audit.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 38 progress artifacts`; final hash follows current `HEAD`.
