@@ -811,6 +811,9 @@ def build_service_status_payload(
     effects = load_task_snapshot_counts(db_path, "effect_status")
     probes = load_task_snapshot_counts(db_path, "probe_state")
     heartbeat_config = load_heartbeat_config()
+    runtime_profile = build_runtime_profile_payload()
+    model_provider = build_model_provider_payload()
+    sidecar = build_sidecar_payload()
     rows = load_recent_tasks(db_path, limit, heartbeat_interval_ms=int(heartbeat_config["interval_ms"]))
     current_db = matches_session_db(session, db)
     rows_with_current = [
@@ -831,6 +834,9 @@ def build_service_status_payload(
         "limit": limit,
         "current_session": session,
         "current_db": current_db,
+        "runtime_profile": runtime_profile,
+        "model_provider": model_provider,
+        "sidecar": sidecar,
         "queue": queue,
         "workers": workers,
         "effects": effects,
@@ -1195,6 +1201,9 @@ def run_service_status(args: list[str]) -> int:
     effects = payload["effects"]
     probes = payload["probes"]
     heartbeat = payload["heartbeat"]
+    runtime_profile = payload["runtime_profile"]
+    model_provider = payload["model_provider"]
+    sidecar = payload["sidecar"]
     coordination = payload["coordination"]
     rows_with_current = payload["recent_tasks"]
 
@@ -1212,6 +1221,22 @@ def run_service_status(args: list[str]) -> int:
         f"latest_updated_at={heartbeat['latest_updated_at'] or 'none'} "
         f"age_ms={heartbeat['latest_age_ms'] if heartbeat['latest_age_ms'] is not None else 'none'} "
         f"freshness={heartbeat['latest_freshness']} status={heartbeat['status']} reason={heartbeat['reason']}"
+    )
+    print(
+        "[mvp-wrapper] service runtime => "
+        f"mode={runtime_profile['mode']} offline_ready={str(runtime_profile['offline_ready']).lower()} "
+        f"llm_required={str(runtime_profile['llm_required']).lower()} "
+        f"sidecar_required={str(runtime_profile['sidecar_required']).lower()}"
+    )
+    print(
+        "[mvp-wrapper] service model => "
+        f"status={model_provider['status']} required={str(model_provider['required']).lower()} "
+        f"configured={str(model_provider['configured']).lower()} degradation={model_provider['degradation_mode']}"
+    )
+    print(
+        "[mvp-wrapper] service sidecar => "
+        f"status={sidecar['status']} required={str(sidecar['required']).lower()} "
+        f"configured={str(sidecar['configured']).lower()}"
     )
     print(
         "[mvp-wrapper] service coordination => "
@@ -1842,7 +1867,7 @@ def print_help() -> int:
         "requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(

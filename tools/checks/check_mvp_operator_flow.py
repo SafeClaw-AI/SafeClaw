@@ -208,6 +208,23 @@ def assert_service_combo(
     expect_equal(errors, label, "service_status.queue.completed", ((status.get("queue") or {}).get("completed")), 1)
     expect_equal(errors, label, "service_status.workers.succeeded", ((status.get("workers") or {}).get("succeeded")), 1)
     expect_equal(errors, label, "service_status.effects.executed", ((status.get("effects") or {}).get("executed")), 1)
+    expect_equal(errors, label, "service_status.runtime_profile.mode", ((status.get("runtime_profile") or {}).get("mode")), "local_mvp")
+    expect_equal(errors, label, "service_status.runtime_profile.offline_ready", ((status.get("runtime_profile") or {}).get("offline_ready")), True)
+    expect_equal(errors, label, "service_status.runtime_profile.llm_required", ((status.get("runtime_profile") or {}).get("llm_required")), False)
+    expect_equal(errors, label, "service_status.runtime_profile.sidecar_required", ((status.get("runtime_profile") or {}).get("sidecar_required")), False)
+    expect_equal(errors, label, "service_status.model_provider.status", ((status.get("model_provider") or {}).get("status")), "not-configured")
+    expect_equal(errors, label, "service_status.model_provider.required", ((status.get("model_provider") or {}).get("required")), False)
+    expect_equal(errors, label, "service_status.model_provider.configured", ((status.get("model_provider") or {}).get("configured")), False)
+    expect_equal(errors, label, "service_status.model_provider.degradation_mode", ((status.get("model_provider") or {}).get("degradation_mode")), "local_only_ok")
+    expect_equal(errors, label, "service_status.sidecar.status", ((status.get("sidecar") or {}).get("status")), "not-configured")
+    expect_equal(errors, label, "service_status.sidecar.required", ((status.get("sidecar") or {}).get("required")), False)
+    expect_equal(errors, label, "service_status.sidecar.configured", ((status.get("sidecar") or {}).get("configured")), False)
+    if not (status.get("runtime_profile") or {}).get("detail"):
+        append_error(errors, label, "service_status.runtime_profile.detail missing")
+    if not (status.get("model_provider") or {}).get("detail"):
+        append_error(errors, label, "service_status.model_provider.detail missing")
+    if not (status.get("sidecar") or {}).get("detail"):
+        append_error(errors, label, "service_status.sidecar.detail missing")
     recent_tasks = status.get("recent_tasks") or []
     if not recent_tasks:
         append_error(errors, label, "service_status.recent_tasks missing")

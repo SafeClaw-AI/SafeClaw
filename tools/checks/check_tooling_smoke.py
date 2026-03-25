@@ -421,6 +421,9 @@ def assert_service_status_json_result(
     coordination = result.get("coordination") or {}
     recent_tasks = result.get("recent_tasks") or []
     current_session = result.get("current_session") or {}
+    runtime_profile = result.get("runtime_profile") or {}
+    model_provider = result.get("model_provider") or {}
+    sidecar = result.get("sidecar") or {}
     actual_db = str(result.get("db") or "").replace("\\", "/")
     normalized_expected_db = expected_db.replace("\\", "/")
     worker_succeeded = None if not isinstance(workers, dict) else (workers.get("succeeded") if "succeeded" in workers else workers.get("Succeeded"))
@@ -459,6 +462,34 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing coordination.reason={expected_service_coordination_reason}")
     elif expected_service_coordination_summary is not None and coordination.get("summary") != expected_service_coordination_summary:
         errors.append(f"{name} missing coordination.summary={expected_service_coordination_summary}")
+    elif not isinstance(runtime_profile, dict) or runtime_profile.get("mode") != "local_mvp":
+        errors.append(f"{name} missing runtime_profile.mode=local_mvp")
+    elif runtime_profile.get("offline_ready") is not True:
+        errors.append(f"{name} missing runtime_profile.offline_ready=true")
+    elif runtime_profile.get("llm_required") is not False:
+        errors.append(f"{name} missing runtime_profile.llm_required=false")
+    elif runtime_profile.get("sidecar_required") is not False:
+        errors.append(f"{name} missing runtime_profile.sidecar_required=false")
+    elif not runtime_profile.get("detail"):
+        errors.append(f"{name} missing runtime_profile.detail")
+    elif not isinstance(model_provider, dict) or model_provider.get("status") != "not-configured":
+        errors.append(f"{name} missing model_provider.status=not-configured")
+    elif model_provider.get("required") is not False:
+        errors.append(f"{name} missing model_provider.required=false")
+    elif model_provider.get("configured") is not False:
+        errors.append(f"{name} missing model_provider.configured=false")
+    elif model_provider.get("degradation_mode") != "local_only_ok":
+        errors.append(f"{name} missing model_provider.degradation_mode=local_only_ok")
+    elif not model_provider.get("detail"):
+        errors.append(f"{name} missing model_provider.detail")
+    elif not isinstance(sidecar, dict) or sidecar.get("status") != "not-configured":
+        errors.append(f"{name} missing sidecar.status=not-configured")
+    elif sidecar.get("required") is not False:
+        errors.append(f"{name} missing sidecar.required=false")
+    elif sidecar.get("configured") is not False:
+        errors.append(f"{name} missing sidecar.configured=false")
+    elif not sidecar.get("detail"):
+        errors.append(f"{name} missing sidecar.detail")
     elif not isinstance(recent_tasks, list) or not recent_tasks or recent_tasks[0].get("task_id") != expected_task_id:
         errors.append(f"{name} missing recent task {expected_task_id}")
     elif recent_tasks[0].get("current") is not True:
@@ -1248,7 +1279,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-recover help hint")
     elif "[mvp-wrapper] service reconcile => service-reconcile executes reconcile then service-status for an executed_assumed task; requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-reconcile help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -2191,6 +2222,12 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing heartbeat summary")
     elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing heartbeat freshness")
+    elif "[mvp-wrapper] service runtime => mode=local_mvp offline_ready=true llm_required=false sidecar_required=false" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing runtime summary")
+    elif "[mvp-wrapper] service model => status=not-configured required=false configured=false degradation=local_only_ok" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing model summary")
+    elif "[mvp-wrapper] service sidecar => status=not-configured required=false configured=false" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing sidecar summary")
     elif "[mvp-wrapper] service coordination => status=clear reason=execution_already_confirmed summary=no_followup_needed task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing coordination summary")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
