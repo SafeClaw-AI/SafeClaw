@@ -187,3 +187,9 @@
 - 完成内容：add real `reconcile` / `service-reconcile` operator path; `seed-crash --probe-mode none` now creates an `executed_assumed` scene, wrapper chains `executed_assumed -> reconcile -> service-status -> report`, and Rust `reconcile` now also closes the stale orchestrator lease so `queue.expired=1` no longer lingers.
 - Verification: `cargo +stable-x86_64-pc-windows-gnu check -p safeclaw-sqlite --example safeclaw_mvp_entry`, `python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `tools/checks/check_tooling_smoke.py`, `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息拟为 `feat: add reconcile flow to MVP wrapper`；最终 hash 以当前 `HEAD` 为准。
+
+### Round AE
+- Completed at: 2026-03-25 11:22:34 +0800
+- Completed: sync `MVP_PROGRESS.md` with a small Slice 22 progress row after the previous push, so the progress board reflects the shipped reconcile flow.
+- Verification: `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
+- Commit/push: planned message `docs: sync reconcile progress row`; final hash follows current `HEAD`.
