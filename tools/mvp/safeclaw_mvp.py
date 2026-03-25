@@ -27,11 +27,11 @@ LINKER = (
     r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
     r"WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\x86_64-w64-mingw32-gcc.exe"
 )
-SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry"}
+SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "recover", "seed-failed", "retry", "reconcile"}
 WRITES_SESSION = {"run", "seed-crash", "seed-failed"}
-READS_SESSION = {"report", "status", "recover", "retry"}
-TASK_CONTEXT_ACTIONS = {"report", "recover", "retry"}
-LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-status", "session", "sessions", "use", "forget", "workspace", "doctor", "preflight", "verify")
+READS_SESSION = {"report", "status", "recover", "retry", "reconcile"}
+TASK_CONTEXT_ACTIONS = {"report", "recover", "retry", "reconcile"}
+LOCAL_ACTIONS = ("demo", "recover-demo", "retry-demo", "service-demo", "service-run", "service-retry", "service-recover", "service-reconcile", "service-status", "session", "sessions", "use", "forget", "workspace", "doctor", "preflight", "verify")
 ENTRYPOINT_FILES = (
     ("cmd", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.cmd"),
     ("ps1", REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.ps1"),
@@ -47,6 +47,7 @@ PREFLIGHT_WRITE_ACTIONS = {
     "service-run",
     "service-retry",
     "service-recover",
+    "service-reconcile",
     "workspace",
     "use",
     "forget",
@@ -55,6 +56,7 @@ PREFLIGHT_WRITE_ACTIONS = {
     "recover",
     "seed-failed",
     "retry",
+    "reconcile",
 }
 KNOWN_PREFLIGHT_ACTIONS = set(LOCAL_ACTIONS) | SESSION_ACTIONS
 PREFLIGHT_TEMPLATE_ACTION_MAP = {
@@ -64,6 +66,7 @@ PREFLIGHT_TEMPLATE_ACTION_MAP = {
     "service-run": "run",
     "service-retry": "retry",
     "service-recover": "recover",
+    "service-reconcile": "reconcile",
     "service-status": "status",
     "run": "run",
     "report": "report",
@@ -72,6 +75,7 @@ PREFLIGHT_TEMPLATE_ACTION_MAP = {
     "recover": "recover",
     "seed-failed": "seed-failed",
     "retry": "retry",
+    "reconcile": "reconcile",
 }
 
 
@@ -99,6 +103,10 @@ LOCAL_ACTION_FLAG_SPECS = {
         "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--limit"},
         "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
     },
+    "service-reconcile": {
+        "value": {"--db", "--output", "--task-id", "--owner-id", "--effect-id", "--decision", "--limit"},
+        "boolean": {"--json", "--report", "--preflight", "--enforce-permission"},
+    },
     "service-status": {"value": {"--db", "--limit"}, "boolean": {"--json"}},
     "doctor": {"value": {"--db", "--output"}, "boolean": {"--json"}},
     "preflight": {"value": {"--action", "--scope"}, "boolean": {"--json", "--write", "--doctor-bypass", "--enforce-permission"}},
@@ -118,7 +126,7 @@ SESSION_ACTION_FLAG_SPECS = {
         "boolean": set(),
     },
     "seed-crash": {
-        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id"},
+        "value": {"--db", "--output", "--content", "--task-id", "--owner-id", "--effect-id", "--probe-mode"},
         "boolean": {"--reset"},
     },
     "recover": {
@@ -131,6 +139,10 @@ SESSION_ACTION_FLAG_SPECS = {
     },
     "retry": {
         "value": {"--db", "--task-id", "--output", "--content", "--owner-id", "--effect-id"},
+        "boolean": set(),
+    },
+    "reconcile": {
+        "value": {"--db", "--task-id", "--output", "--owner-id", "--effect-id", "--decision"},
         "boolean": set(),
     },
 }
@@ -268,6 +280,8 @@ def main(argv: list[str]) -> int:
         return dispatch_local_action("service-retry", raw_args[1:], run_service_retry)
     if action == "service-recover":
         return dispatch_local_action("service-recover", raw_args[1:], run_service_recover)
+    if action == "service-reconcile":
+        return dispatch_local_action("service-reconcile", raw_args[1:], run_service_reconcile)
     if action == "service-status":
         return dispatch_local_action("service-status", raw_args[1:], run_service_status)
     if action not in SESSION_ACTIONS:
@@ -907,7 +921,7 @@ def build_service_preflight_payload(
         local_action,
         target_scope=build_scope_value(output) if output else "",
         requires_write=local_action in PREFLIGHT_WRITE_ACTIONS,
-        doctor_bypass=False,
+        doctor_bypass=local_action == "service-reconcile",
         permission_enforced=permission_enforced,
         permission_context_source_hint="prepared-action",
     )
@@ -1087,6 +1101,10 @@ def run_service_retry(args: list[str]) -> int:
 
 def run_service_recover(args: list[str]) -> int:
     return run_service_session_combo("service-recover", "recover", args)
+
+
+def run_service_reconcile(args: list[str]) -> int:
+    return run_service_session_combo("service-reconcile", "reconcile", args)
 
 
 def run_preflight(args: list[str]) -> int:
@@ -1455,7 +1473,7 @@ def infer_preflight_permission_context(requested_action: str) -> dict[str, objec
     return {
         "target_scope": build_scope_value(output),
         "requires_write": requested_action.strip() in PREFLIGHT_WRITE_ACTIONS,
-        "doctor_bypass": False,
+        "doctor_bypass": mapped_action == "reconcile",
         "permission_context_source": "action-template",
     }
 
@@ -1741,19 +1759,19 @@ def print_help() -> int:
     )
     print(
         "[mvp-wrapper] examples => "
-        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify"
+        "demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-reconcile --task-id task-demo --decision executed --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | reconcile --task-id task-demo --decision executed | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify"
     )
     print(
         "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; "
-        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status"
+        "retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status; service-reconcile=reconcile->service-status"
     )
     print(
         "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；"
         "seed-failed/retry 演示失败态重试"
     )
     print(
-        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/"
-        "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/preflight/verify 支持 --json，"
+        "[mvp-wrapper] json => demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-reconcile/service-status/run/report/status/"
+        "seed-crash/recover/seed-failed/retry/reconcile/session/sessions/use/forget/workspace/doctor/preflight/verify 支持 --json，"
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
@@ -1797,6 +1815,10 @@ def print_help() -> int:
         "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
+        "[mvp-wrapper] service reconcile => service-reconcile executes reconcile then service-status for an executed_assumed task; "
+        "requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json"
+    )
+    print(
         "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
@@ -1821,21 +1843,21 @@ def print_help() -> int:
         "read actions fall back to workspace when no remembered session applies"
     )
     print(
-        "[mvp-wrapper] service report => add --report to service-run / service-retry / service-recover to append report after service-status"
+        "[mvp-wrapper] service report => add --report to service-run / service-retry / service-recover / service-reconcile to append report after service-status"
     )
     print(
-        "[mvp-wrapper] combo preflight => demo/recover-demo/retry-demo/service-run/service-retry/service-recover support --preflight / --enforce-permission; "
+        "[mvp-wrapper] combo preflight => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile support --preflight / --enforce-permission; "
         "JSON success returns result.preflight, blocked runs fail at step=preflight"
     )
     print(
-        "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；"
+        "[mvp-wrapper] source hints => status/report/recover/retry/reconcile --json 会额外返回 result.source_hints；"
         "可直接看到 db/output/owner_id/task_context 来源"
     )
     print(
-        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json result.steps[*] and error.details.steps[*] include source_hints"
+        "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile --json result.steps[*] and error.details.steps[*] include source_hints"
     )
     print(
-        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json returns result.remembered_session; "
+        "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile --json returns result.remembered_session; "
         "result.session stays as a compatibility alias; scripts should prefer remembered_session"
     )
     print(

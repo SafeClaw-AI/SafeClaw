@@ -181,3 +181,9 @@
 - 完成内容：为 `service-status` 新增 `next_task_id`，把 quarantined 现场的一跳处置对象显式抬到顶层 coordination 与 recent task；当当前 task 被 peer scope quarantine 阻断时，`next_command` 会直接指向隔离源 task 的 `report`；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: focus quarantine follow-up task in service status`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 AD
+- 完成时间：2026-03-25 11:06:57 +0800
+- 完成内容：add real `reconcile` / `service-reconcile` operator path; `seed-crash --probe-mode none` now creates an `executed_assumed` scene, wrapper chains `executed_assumed -> reconcile -> service-status -> report`, and Rust `reconcile` now also closes the stale orchestrator lease so `queue.expired=1` no longer lingers.
+- Verification: `cargo +stable-x86_64-pc-windows-gnu check -p safeclaw-sqlite --example safeclaw_mvp_entry`, `python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `tools/checks/check_tooling_smoke.py`, `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息拟为 `feat: add reconcile flow to MVP wrapper`；最终 hash 以当前 `HEAD` 为准。

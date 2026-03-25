@@ -744,6 +744,94 @@ def assert_service_recover_json_result(
     )
 
 
+
+
+def assert_service_reconcile_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_db: str,
+    expected_db_source: str,
+    expected_task_id: str,
+    expected_limit: int,
+    expected_decision: str,
+    expected_steps: list[str] | None = None,
+    expect_report_payload: bool = False,
+) -> None:
+    if result is None:
+        return
+    expected_steps = expected_steps or ["reconcile", "service-status"]
+    steps = result.get("steps") or []
+    remembered_session = result.get("remembered_session") or {}
+    session = result.get("session") or {}
+    reconcile_payload = result.get("reconcile") or {}
+    if not isinstance(steps, list) or [step.get("action") for step in steps] != expected_steps:
+        errors.append(f"{name} step sequence is incorrect")
+        return
+    if not isinstance(remembered_session, dict) or remembered_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing remembered_session {expected_task_id}")
+        return
+    if not isinstance(session, dict) or session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing session alias {expected_task_id}")
+        return
+    assert_matching_session_alias(result, errors, name)
+    if not isinstance(reconcile_payload, dict):
+        errors.append(f"{name} missing nested reconcile payload")
+        return
+    prepared = reconcile_payload.get("prepared") or []
+    nested_remembered_session = reconcile_payload.get("remembered_session") or {}
+    if not isinstance(prepared, list) or not prepared or prepared[0] != "reconcile":
+        errors.append(f"{name} nested reconcile missing prepared reconcile")
+        return
+    if "--decision" not in prepared:
+        errors.append(f"{name} nested reconcile missing --decision")
+        return
+    if prepared[prepared.index("--decision") + 1] != expected_decision:
+        errors.append(f"{name} nested reconcile missing --decision {expected_decision}")
+        return
+    if reconcile_payload.get("saved_session") is not None:
+        errors.append(f"{name} nested reconcile should not save session")
+        return
+    if not isinstance(nested_remembered_session, dict) or nested_remembered_session.get("task_id") != expected_task_id:
+        errors.append(f"{name} nested reconcile missing remembered_session {expected_task_id}")
+        return
+    assert_step_source_hints(
+        steps[:2],
+        errors,
+        name,
+        [
+            ("reconcile", {"db": expected_db_source, "task_context": "flag"}),
+            ("service-status", {"db": expected_db_source, "task_context": "session"}),
+        ],
+    )
+    if expect_report_payload:
+        report_payload = result.get("report") or {}
+        nested_report_session = report_payload.get("remembered_session") or {}
+        prepared_report = report_payload.get("prepared") or []
+        if not isinstance(report_payload, dict):
+            errors.append(f"{name} missing nested report payload")
+            return
+        if not isinstance(prepared_report, list) or not prepared_report or prepared_report[0] != "report":
+            errors.append(f"{name} nested report missing prepared report")
+            return
+        if not isinstance(nested_report_session, dict) or nested_report_session.get("task_id") != expected_task_id:
+            errors.append(f"{name} nested report missing remembered_session {expected_task_id}")
+            return
+    service_status = result.get("service_status")
+    if not isinstance(service_status, dict):
+        errors.append(f"{name} missing service_status payload")
+        return
+    assert_service_status_json_result(
+        service_status,
+        errors,
+        f"{name} service_status",
+        expected_db=expected_db,
+        expected_db_source=expected_db_source,
+        expected_task_id=expected_task_id,
+        expected_limit=expected_limit,
+    )
+
 def assert_run_json_result(
     result: dict[str, object] | None,
     errors: list[str],
@@ -1134,15 +1222,15 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-help 执行失败: exit={wrapper_help.returncode}")
     elif "[mvp-wrapper] usage => tools\\mvp\\safeclaw_mvp.cmd <action> [flags]" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少包装入口说明")
-    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-status, session, sessions, use, forget, workspace, doctor, preflight, verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] local actions => demo, recover-demo, retry-demo, service-demo, service-run, service-retry, service-recover, service-reconcile, service-status, session, sessions, use, forget, workspace, doctor, preflight, verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少本地动作列表")
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-reconcile --task-id task-demo --decision executed --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | reconcile --task-id task-demo --decision executed | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 task-id/status/report 示例提示")
-    elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status" not in wrapper_help_output:
+    elif "[mvp-wrapper] demo flows => demo=run->status->report; recover-demo=seed-crash->recover->report; retry-demo=seed-failed->retry->report; service-demo=worker-service-governance; service-run=run->service-status; service-retry=retry->service-status; service-recover=recover->service-status; service-reconcile=reconcile->service-status" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 demo 链路提示")
     elif "[mvp-wrapper] failure flows => run 直接执行到完成；seed-crash/recover 演示 uncertain 恢复；seed-failed/retry 演示失败态重试" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-reconcile/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/recover/seed-failed/retry/reconcile/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
     elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
@@ -1156,6 +1244,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
+    elif "[mvp-wrapper] service reconcile => service-reconcile executes reconcile then service-status for an executed_assumed task; requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json" not in wrapper_help_output:
+        errors.append("mvp-wrapper-help missing service-reconcile help hint")
     elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
@@ -1168,11 +1258,11 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, explicit --scope / --write / --doctor-bypass override it, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing preflight help hint")
-    elif "[mvp-wrapper] source hints => status/report/recover/retry --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
+    elif "[mvp-wrapper] source hints => status/report/recover/retry/reconcile --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
-    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json result.steps[*] and error.details.steps[*] include source_hints" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo source hints => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile --json result.steps[*] and error.details.steps[*] include source_hints" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo source_hints hint")
-    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover --json returns result.remembered_session; result.session stays as a compatibility alias; scripts should prefer remembered_session" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo session => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile --json returns result.remembered_session; result.session stays as a compatibility alias; scripts should prefer remembered_session" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo remembered_session hint")
     elif "[mvp-wrapper] session list => sessions 会列出当前 db 的最近任务快照；use 可按 --index / --task-id 激活其中一条" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 sessions 快照提示")
@@ -4292,6 +4382,142 @@ def collect_errors() -> list[str]:
         expected_task_id="task-wrapper-service-recover-report-json",
         expected_limit=1,
         expected_steps=["recover", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--probe-mode",
+            "none",
+            "--task-id",
+            "task-wrapper-service-reconcile-json",
+            "--db",
+            "target/mvp/service-reconcile-json.db",
+            "--output",
+            "target/mvp/service-reconcile-json.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-reconcile-seed-crash-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-reconcile-seed-crash-json",
+        expected_task_id="task-wrapper-service-reconcile-json",
+        expected_db_path="target/mvp/service-reconcile-json.db",
+        expected_output_path="target/mvp/service-reconcile-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    wrapper_service_status_reconcile = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-reconcile-json.db",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_reconcile_output = (wrapper_service_status_reconcile.stdout or "") + (wrapper_service_status_reconcile.stderr or "")
+    if wrapper_service_status_reconcile.returncode != 0:
+        errors.append(f"mvp-wrapper-service-reconcile-status-before failed: exit={wrapper_service_status_reconcile.returncode}")
+    elif "[mvp-wrapper] service coordination => status=quarantined reason=self_executed_assumed_scope_quarantine summary=reconcile_self_before_scope_write task=task-wrapper-service-reconcile-json" not in wrapper_service_status_reconcile_output:
+        errors.append("mvp-wrapper-service-reconcile-status-before missing self quarantine coordination summary")
+    elif 'next=inspect next_reason=executed_assumed_requires_reconcile blocker=scope_quarantine coordination=quarantined coordination_reason=self_executed_assumed_scope_quarantine coordination_summary=reconcile_self_before_scope_write' not in wrapper_service_status_reconcile_output:
+        errors.append("mvp-wrapper-service-reconcile-status-before missing reconcile next hint")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-reconcile-json.db",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-reconcile-status-before-json",
+        "service-status",
+    )
+    if result is not None:
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        if not isinstance(current_session, dict) or current_session.get("task_id") != "task-wrapper-service-reconcile-json":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing current_session task-wrapper-service-reconcile-json")
+        elif coordination.get("status") != "quarantined":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.status=quarantined")
+        elif coordination.get("reason") != "self_executed_assumed_scope_quarantine":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.reason=self_executed_assumed_scope_quarantine")
+        elif coordination.get("summary") != "reconcile_self_before_scope_write":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.summary=reconcile_self_before_scope_write")
+        elif coordination.get("scope_quarantine_active") is not True:
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.scope_quarantine_active=true")
+        elif coordination.get("scope_quarantine_source") != "self":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.scope_quarantine_source=self")
+        elif coordination.get("scope_quarantine_task_id") != "task-wrapper-service-reconcile-json":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.scope_quarantine_task_id=task-wrapper-service-reconcile-json")
+        elif coordination.get("next_task_id") != "task-wrapper-service-reconcile-json":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing coordination.next_task_id=task-wrapper-service-reconcile-json")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing recent task")
+        elif recent_tasks[0].get("task_id") != "task-wrapper-service-reconcile-json":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing recent task task-wrapper-service-reconcile-json")
+        elif recent_tasks[0].get("next_action") != "inspect":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_action=inspect")
+        elif recent_tasks[0].get("next_reason") != "executed_assumed_requires_reconcile":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_reason=executed_assumed_requires_reconcile")
+        elif recent_tasks[0].get("next_blocker") != "scope_quarantine":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_blocker=scope_quarantine")
+        elif recent_tasks[0].get("next_task_id") != "task-wrapper-service-reconcile-json":
+            errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_task_id=task-wrapper-service-reconcile-json")
+
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-reconcile",
+            "--db",
+            "target/mvp/service-reconcile-json.db",
+            "--task-id",
+            "task-wrapper-service-reconcile-json",
+            "--decision",
+            "executed",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-reconcile-json",
+        "service-reconcile",
+    )
+    assert_service_reconcile_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-reconcile-json",
+        expected_db="target\mvp\service-reconcile-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-reconcile-json",
+        expected_limit=1,
+        expected_decision="executed",
+        expected_steps=["reconcile", "service-status", "report"],
         expect_report_payload=True,
     )
 

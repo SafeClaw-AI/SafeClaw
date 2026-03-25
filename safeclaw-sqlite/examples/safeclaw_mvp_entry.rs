@@ -12,7 +12,7 @@ use safeclaw_core::{
         ProbeMode,
     },
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask, TaskOrchestrator},
-    InMemoryTaskRuntime, PreflightDecision, ScheduleIntent,
+    InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
     open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
@@ -41,6 +41,7 @@ fn main() -> Result<(), String> {
         CliAction::Recover => recover_action(&args),
         CliAction::SeedFailed => seed_failed_action(&args),
         CliAction::Retry => retry_action(&args),
+        CliAction::Reconcile => reconcile_action(&args),
     }
 }
 
@@ -61,10 +62,12 @@ fn run_action(args: &CliArgs) -> Result<(), String> {
     .with_lease_ttl_ms(60_000)
     .with_poll_interval_ms(5);
 
-    service.filesystem_probe_mut().register_expected_blake3(
-        effect_id.clone(),
-        blake3::hash(args.content.as_bytes()).to_hex().to_string(),
-    );
+    if args.probe_mode == ProbeModeCli::Auto {
+        service.filesystem_probe_mut().register_expected_blake3(
+            effect_id.clone(),
+            blake3::hash(args.content.as_bytes()).to_hex().to_string(),
+        );
+    }
     service
         .enqueue_task(OrchestratorTask::new(
             &args.task_id,
@@ -94,7 +97,7 @@ fn run_action(args: &CliArgs) -> Result<(), String> {
                 let content = content.clone();
                 move |claim| {
                     Ok((
-                        build_runtime(claim, &effect_id),
+                        build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()),
                         sandbox_write_command(&output_path, content.as_bytes()),
                     ))
                 }
@@ -197,7 +200,7 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
         claim.lease.fencing_token
     );
 
-    let mut runtime = build_runtime(&claim, &effect_id);
+    let mut runtime = build_runtime(&claim, &effect_id, args.probe_mode.to_probe_mode());
     runtime
         .begin_execution(PreflightDecision::Permit)
         .map_err(|error| format!("{error:?}"))?;
@@ -232,15 +235,25 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
     println!("[mvp] db: {}", args.db_path.display());
     println!("[mvp] output: {}", args.output_path.display());
     println!("[mvp] owner: {}", args.owner_id);
-    println!(
-        "[mvp] next recover => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- recover --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
-        args.db_path.display(),
-        args.output_path.display(),
-        args.task_id,
-        effect_id
-    );
-    if args.content != DEFAULT_CONTENT {
-        println!("[mvp] note => recover requires the same --content used during seed-crash");
+    if args.probe_mode == ProbeModeCli::None {
+        println!(
+            "[mvp] next reconcile => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- reconcile --db \"{}\" --output \"{}\" --task-id {} --effect-id {} --decision executed",
+            args.db_path.display(),
+            args.output_path.display(),
+            args.task_id,
+            effect_id
+        );
+    } else {
+        println!(
+            "[mvp] next recover => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- recover --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+            args.db_path.display(),
+            args.output_path.display(),
+            args.task_id,
+            effect_id
+        );
+        if args.content != DEFAULT_CONTENT {
+            println!("[mvp] note => recover requires the same --content used during seed-crash");
+        }
     }
     Ok(())
 }
@@ -284,6 +297,68 @@ fn recover_action(args: &CliArgs) -> Result<(), String> {
     Ok(())
 }
 
+fn reconcile_action(args: &CliArgs) -> Result<(), String> {
+    let effect_id = args.effect_id();
+    let decision = args
+        .reconcile_decision
+        .ok_or_else(|| format!("reconcile requires --decision <executed|not-executed>\n\n{}", usage_text()))?;
+    let mut store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    let mut runtime = store
+        .load_runtime(&args.task_id, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no reconcileable runtime for task={} effect={effect_id}", args.task_id))?;
+    let summary = runtime
+        .reconcile_assumed(decision.to_runtime_decision())
+        .map_err(|error| format!("{error:?}"))?;
+    let event_id = format!("safeclaw-mvp:reconcile:{}:{}", args.task_id, unique_suffix()?);
+    store
+        .persist_runtime(&runtime, event_id, "safeclaw-mvp-entry")
+        .map_err(|error| format!("{error:?}"))?;
+
+    let mut orchestrator = SqliteTaskOrchestrator::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    if let Some(active_lease) = orchestrator
+        .queue_snapshot()
+        .active_leases
+        .into_iter()
+        .find(|lease| lease.task_id == args.task_id)
+    {
+        orchestrator
+            .complete(&args.task_id, &active_lease.lease_id, &active_lease.owner_id)
+            .map_err(|error| format!("{error:?}"))?;
+    }
+
+    println!(
+        "[mvp] reconcile result => decision={} worker={:?} effect={:?} attempts={} quarantined={}",
+        decision.as_str(),
+        summary.worker_state,
+        summary.effect_status,
+        summary.attempt_count,
+        summary.quarantined_scopes.len()
+    );
+
+    let service = SqliteWorkerService::open(
+        &args.db_path,
+        SqliteOpenOptions::default(),
+        args.owner_id.clone(),
+    )
+    .map_err(|error| format!("{error:?}"))?;
+    print_runtime_status(&service, args, "reconcile", &args.task_id, &effect_id)?;
+    println!(
+        "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    Ok(())
+}
+
 fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
     ensure_parent_dir(&args.db_path)?;
     ensure_parent_dir(&args.output_path)?;
@@ -309,7 +384,7 @@ fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
     let failed = loop_driver
         .claim_and_drive_once(&args.owner_id, 0, PreflightDecision::Permit, {
             let effect_id = effect_id.clone();
-            move |claim| Ok((build_runtime(claim, &effect_id), sandbox_fail_command()))
+            move |claim| Ok((build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()), sandbox_fail_command()))
         })
         .map_err(|error| format!("{error:?}"))?
         .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
@@ -385,6 +460,44 @@ enum CliAction {
     Recover,
     SeedFailed,
     Retry,
+    Reconcile,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ProbeModeCli {
+    Auto,
+    None,
+}
+
+impl ProbeModeCli {
+    fn to_probe_mode(self) -> ProbeMode {
+        match self {
+            Self::Auto => ProbeMode::Auto,
+            Self::None => ProbeMode::None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReconcileCliDecision {
+    Executed,
+    NotExecuted,
+}
+
+impl ReconcileCliDecision {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Executed => "executed",
+            Self::NotExecuted => "not-executed",
+        }
+    }
+
+    fn to_runtime_decision(self) -> ReconcileDecision {
+        match self {
+            Self::Executed => ReconcileDecision::Success,
+            Self::NotExecuted => ReconcileDecision::Failure,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -397,6 +510,8 @@ struct CliArgs {
     owner_id: String,
     effect_id: Option<String>,
     reset: bool,
+    probe_mode: ProbeModeCli,
+    reconcile_decision: Option<ReconcileCliDecision>,
 }
 
 impl CliArgs {
@@ -416,6 +531,8 @@ impl CliArgs {
         let mut owner_id = String::from(DEFAULT_OWNER_ID);
         let mut effect_id = None;
         let mut reset = false;
+        let mut probe_mode = ProbeModeCli::Auto;
+        let mut reconcile_decision = None;
 
         let mut args = raw_args.into_iter();
         while let Some(arg) = args.next() {
@@ -448,6 +565,10 @@ impl CliArgs {
                     action = CliAction::Retry;
                     action_set = true;
                 }
+                "reconcile" if !action_set => {
+                    action = CliAction::Reconcile;
+                    action_set = true;
+                }
                 "--db" => db_path = Some(PathBuf::from(next_value(&mut args, "--db")?)),
                 "--output" => {
                     output_path = Some(PathBuf::from(next_value(&mut args, "--output")?))
@@ -456,6 +577,8 @@ impl CliArgs {
                 "--task-id" => task_id = Some(next_value(&mut args, "--task-id")?),
                 "--owner-id" => owner_id = next_value(&mut args, "--owner-id")?,
                 "--effect-id" => effect_id = Some(next_value(&mut args, "--effect-id")?),
+                "--probe-mode" => probe_mode = parse_probe_mode(&next_value(&mut args, "--probe-mode")?)?,
+                "--decision" => reconcile_decision = Some(parse_reconcile_decision(&next_value(&mut args, "--decision")?)?),
                 "--reset" => reset = true,
                 _ => return Err(format!("unknown argument: {arg}\n\n{}", usage_text())),
             }
@@ -468,7 +591,7 @@ impl CliArgs {
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
                 (db_path, output_path, task_id)
             }
-            CliAction::Report | CliAction::Recover | CliAction::Retry => {
+            CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Reconcile => {
                 let db_path = db_path.ok_or_else(|| {
                     format!("{} requires --db\n\n{}", action_name(action), usage_text())
                 })?;
@@ -497,6 +620,10 @@ impl CliArgs {
             }
         };
 
+        if action == CliAction::Reconcile && reconcile_decision.is_none() {
+            return Err(format!("reconcile requires --decision <executed|not-executed>\n\n{}", usage_text()));
+        }
+
         Ok(Self {
             action,
             db_path,
@@ -506,6 +633,8 @@ impl CliArgs {
             owner_id,
             effect_id,
             reset,
+            probe_mode,
+            reconcile_decision,
         })
     }
 
@@ -525,6 +654,7 @@ fn action_name(action: CliAction) -> &'static str {
         CliAction::Recover => "recover",
         CliAction::SeedFailed => "seed-failed",
         CliAction::Retry => "retry",
+        CliAction::Reconcile => "reconcile",
     }
 }
 
@@ -536,8 +666,23 @@ fn next_value(
         .ok_or_else(|| format!("missing value for {flag}\n\n{}", usage_text()))
 }
 
+fn parse_probe_mode(value: &str) -> Result<ProbeModeCli, String> {
+    match value {
+        "auto" => Ok(ProbeModeCli::Auto),
+        "none" => Ok(ProbeModeCli::None),
+        _ => Err(format!("unsupported --probe-mode value: {value}\n\n{}", usage_text())),
+    }
+}
+
+fn parse_reconcile_decision(value: &str) -> Result<ReconcileCliDecision, String> {
+    match value {
+        "executed" => Ok(ReconcileCliDecision::Executed),
+        "not-executed" => Ok(ReconcileCliDecision::NotExecuted),
+        _ => Err(format!("unsupported --decision value: {value}\n\n{}", usage_text())),
+    }
+}
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -645,7 +790,7 @@ fn reset_session_artifacts(db_path: &Path, output_path: &Path) {
     }
 }
 
-fn build_runtime(claim: &OrchestratorClaim, effect_id: &str) -> InMemoryTaskRuntime {
+fn build_runtime(claim: &OrchestratorClaim, effect_id: &str, probe_mode: ProbeMode) -> InMemoryTaskRuntime {
     let effect = EffectRecord::new(
         effect_id,
         claim.task.task_id.clone(),
@@ -656,7 +801,7 @@ fn build_runtime(claim: &OrchestratorClaim, effect_id: &str) -> InMemoryTaskRunt
         claim.task.intent.target_scope.clone(),
         EffectTier::Tier1,
         EffectReversibility::Rollbackable,
-        ProbeMode::Auto,
+        probe_mode,
     );
     InMemoryTaskRuntime::new(effect)
 }

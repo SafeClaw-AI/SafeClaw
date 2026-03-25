@@ -168,6 +168,9 @@ safeclaw.cmd service-retry --task-id task-demo-failed --limit 1 --report
 
 safeclaw.cmd seed-crash --reset --task-id task-demo-uncertain
 safeclaw.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
+
+safeclaw.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed
+safeclaw.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report
 ```
 
 如果要确认当前包装层仍处于可交付状态，可直接运行：
@@ -186,9 +189,10 @@ safeclaw.cmd verify --json
 - `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图；加 `--preflight` 会在执行前显示同一次实际参数对应的门禁摘要，加 `--enforce-permission` 则会在 `confirm` / `deny` 时直接拦下
 - `service-retry --report`：用于 failed 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
 - `service-recover --report`：用于 uncertain 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁
+- `service-reconcile --report`: closes an `executed_assumed` task via explicit `--decision executed|not-executed`; it also supports `--preflight` / `--enforce-permission` before execution
 - `demo` / `recover-demo` / `retry-demo`：一键演示正常执行、uncertain 恢复与 failed 重试；同样支持 `--preflight` / `--enforce-permission`，可先跑离线门禁再继续组合动作
 - `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
-- `demo` / `recover-demo` / `retry-demo` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}` 信封，便于脚本接入
+- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-reconcile` / `run` / `report` / `status` / `seed-crash` / `recover` / `seed-failed` / `retry` / `reconcile` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` support `--json`, returning a unified `{ok, action, schema_version, result|error}` envelope for scripts
 
 ### 当前边界
 

@@ -64,13 +64,14 @@
 - `missing-task-context` 表示 `report` / `recover` / `retry` 缺少 `--task-id`，且当前没有可复用 remembered session；此时可显式传入 `--task-id`，或先执行 `use` / `run` / `seed-crash` / `seed-failed` 建立上下文。
 - 对 `demo` / `recover-demo` / `retry-demo` 这类组合动作，若失败发生在 wrapper 预处理阶段，`error.details` 还会带上 `failed_step`、`code`、`error_message`，便于脚本直接定位失败步骤。
 - 若当前存在 remembered session，包装层会在错误细节中尽量附带 `remembered_session`，方便脚本决定是否重试或切换上下文。
-- `status` / `report` / `recover` / `retry` 的成功 `--json` 结果现在会额外给出 `result.source_hints`，标出 `db` / `output` / `owner_id` / `task_context` 的来源，便于脚本确认是否复用了 remembered session。
-- `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果现在也会在 `result.steps[*].source_hints` 标出每一步的来源，便于脚本判断组合动作何时切换到 remembered session。
-- `demo` / `recover-demo` / `retry-demo` 的成功 `--json` 结果现在会显式返回 `result.remembered_session`；`result.session` 仅作兼容别名，脚本应优先读取 `remembered_session`。
+- `status` / `report` / `recover` / `retry` / `reconcile` successful `--json` results also expose `result.source_hints`, showing where `db` / `output` / `owner_id` / `task_context` came from.
+- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-reconcile` successful `--json` results also expose `result.steps[*].source_hints`, so scripts can see when a combo starts reusing the remembered session.
+- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-reconcile` successful `--json` results now return `result.remembered_session`; `result.session` remains only a compatibility alias.
 - `service-demo` successful `--json` returns structured fields like `resolved_run`, `resolved_governance`, `confirmation_governance`, and `db_path`.
 - `service-run` successful `--json` returns combo `steps`, a nested `run` result, and `service_status` summary fields.
 - `service-retry` successful `--json` returns combo `steps`, a nested `retry` result, and `service_status` summary fields.
 - `service-recover` successful `--json` returns combo `steps`, a nested `recover` result, and `service_status` summary fields.
+- `service-reconcile` successful `--json` returns combo `steps`, a nested `reconcile` result, and `service_status` summary fields; after reconciliation it also closes the stale orchestrator lease so queue state returns to `expired=0`.
 - `service-status` successful `--json` returns structured fields like `queue`, `workers`, `effects`, `probes`, top-level `heartbeat`, top-level `coordination`, and `recent_tasks`; top-level `coordination` now also carries `next_task_id`, and each recent task now also includes `target_scope`, `requires_write`, `doctor_bypass`, `permission_tier`, `permission_policy`, `permission_reason`, `lease_state`, `lease_owner_id`, latest lease snapshot fields, `lease_remaining_ms` for active leases, same-scope peer / scope-quarantine visibility (`scope_peer_count` / `scope_active_peer_count` / `scope_active_peer_task_id` / `scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`), `next_action` (`ok` / `retry` / `recover` / `inspect`), `next_task_id`, a copyable `next_command`, a short `next_reason`, `next_blocker` (`none` / `active_lease` / `scope_quarantine` / `manual_review_needed`), task-level `coordination_status` / `coordination_reason` / `coordination_summary`, and a concise `next_summary`.
 - 若组合动作在底层执行阶段失败，错误 JSON 的 `error.details.steps[*].source_hints` 也会保留已进入失败步骤的来源，便于脚本区分“预处理失败”与“底层动作失败”。
 
@@ -97,6 +98,9 @@ tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed
+tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1
+tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report
 tools\mvp\safeclaw_mvp.cmd service-status
 tools\mvp\safeclaw_mvp.cmd service-demo --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --json
@@ -104,6 +108,9 @@ tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight --json
 tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report --json
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --json
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report --json
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed --json
+tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --json
+tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report --json
 tools\mvp\safeclaw_mvp.cmd service-status --json
 tools\mvp\safeclaw_mvp.cmd run --reset
 tools\mvp\safeclaw_mvp.cmd run --reset --json
@@ -141,6 +148,8 @@ tools\mvp\safeclaw_mvp.cmd seed-crash --reset
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset --json
 tools\mvp\safeclaw_mvp.cmd recover
 tools\mvp\safeclaw_mvp.cmd recover --json
+tools\mvp\safeclaw_mvp.cmd reconcile --task-id task-demo-assumed --decision executed
+tools\mvp\safeclaw_mvp.cmd reconcile --task-id task-demo-assumed --decision executed --json
 ```
 
 如果你想显式控制路径，也仍然支持完整参数：
@@ -152,6 +161,9 @@ tools\mvp\safeclaw_mvp.cmd status --db target\demo\session.db --output target\de
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd service-recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed
+tools\mvp\safeclaw_mvp.cmd service-reconcile --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed --decision executed --limit 1
+tools\mvp\safeclaw_mvp.cmd reconcile --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed --decision executed
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd service-retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
 tools\mvp\safeclaw_mvp.cmd retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
