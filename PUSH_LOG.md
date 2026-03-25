@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 06:30:28 +0800
+最后更新时间：2026-03-26 06:39:12 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -296,7 +296,13 @@
 - Commit/push: planned message `docs: sync slice 34 progress artifacts`; final hash follows current `HEAD`.
 
 ### Round AW
-- Completed at: 2026-03-26 06:30:28 +0800
+- Completed at: 2026-03-26 06:38:46 +0800
 - Completed: blocked combo JSON now mirrors existing `requires_model` at top-level `error.requires_model` while still preserving the full nested `error.details.preflight` payload and the previously added top-level `error.code` / `error.reason` / `error.error_code` / `error.degradation_mode` / `error.summary` / `error.requested_action` mirrors. Help text, root docs, `tools/mvp/README.md`, `MVP_PROGRESS.md`, and `开发计划.md` were synced together.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
-- Commit/push: planned message `feat: mirror combo preflight requires model to top-level error`; final hash follows current `HEAD`.
+- Commit/push: `9a32d14 feat: mirror combo preflight requires model to top-level error`.
+
+### Round AX
+- Completed at: 2026-03-26 06:39:12 +0800
+- Completed: synced post-push progress artifacts after `Slice 35`, refreshed `开发计划.md` baseline to `9a32d14`, updated tracker timestamps, and resolved `PUSH_LOG.md` Round AW from a planned message to the actual feature commit hash.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 35 progress artifacts`; final hash follows current `HEAD`.
