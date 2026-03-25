@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 06:39:12 +0800
+最后更新时间：2026-03-26 07:05:55 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -306,3 +306,15 @@
 - Completed: synced post-push progress artifacts after `Slice 35`, refreshed `开发计划.md` baseline to `9a32d14`, updated tracker timestamps, and resolved `PUSH_LOG.md` Round AW from a planned message to the actual feature commit hash.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: sync slice 35 progress artifacts`; final hash follows current `HEAD`.
+
+### Round AY
+- Completed at: 2026-03-26 07:05:32 +0800
+- Completed: blocked combo JSON now mirrors existing `requires_sidecar` at top-level `error.requires_sidecar` while still preserving the full nested `error.details.preflight` payload and the previously added top-level `error.code` / `error.reason` / `error.error_code` / `error.degradation_mode` / `error.requires_model` / `error.summary` / `error.requested_action` mirrors. Help text, root docs, `tools/mvp/README.md`, `MVP_PROGRESS.md`, and `开发计划.md` were synced together.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- Commit/push: `9c0f2cd feat: mirror combo preflight requires sidecar to top-level error`.
+
+### Round AZ
+- Completed at: 2026-03-26 07:05:55 +0800
+- Completed: synced post-push progress artifacts after `Slice 36`, refreshed `开发计划.md` baseline to `9c0f2cd`, updated tracker timestamps, and recorded the actual feature commit hash in `PUSH_LOG.md`.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 36 progress artifacts`; final hash follows current `HEAD`.
