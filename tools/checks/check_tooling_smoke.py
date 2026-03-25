@@ -404,6 +404,11 @@ def assert_service_status_json_result(
     expected_lease_fencing_token: int | None = None,
     expected_heartbeat_freshness: str | None = None,
     expected_heartbeat_status: str | None = None,
+    expected_heartbeat_interval_ms: int | None = None,
+    expected_heartbeat_event_driven: bool | None = None,
+    expected_heartbeat_reason: str | None = None,
+    expect_heartbeat_latest_updated_at_present: bool = False,
+    expect_heartbeat_latest_age_ms_present: bool = False,
     expected_next_action: str | None = None,
     expected_next_command: str | None = None,
     expected_next_reason: str | None = None,
@@ -462,6 +467,16 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing heartbeat.latest_freshness={expected_heartbeat_freshness}")
     elif expected_heartbeat_status is not None and heartbeat.get("status") != expected_heartbeat_status:
         errors.append(f"{name} missing heartbeat.status={expected_heartbeat_status}")
+    elif expected_heartbeat_interval_ms is not None and heartbeat.get("interval_ms") != expected_heartbeat_interval_ms:
+        errors.append(f"{name} missing heartbeat.interval_ms={expected_heartbeat_interval_ms}")
+    elif expected_heartbeat_event_driven is not None and heartbeat.get("event_driven") is not expected_heartbeat_event_driven:
+        errors.append(f"{name} missing heartbeat.event_driven={expected_heartbeat_event_driven}")
+    elif expected_heartbeat_reason is not None and heartbeat.get("reason") != expected_heartbeat_reason:
+        errors.append(f"{name} missing heartbeat.reason={expected_heartbeat_reason}")
+    elif expect_heartbeat_latest_updated_at_present and not heartbeat.get("latest_updated_at"):
+        errors.append(f"{name} missing heartbeat.latest_updated_at")
+    elif expect_heartbeat_latest_age_ms_present and not isinstance(heartbeat.get("latest_age_ms"), int):
+        errors.append(f"{name} missing heartbeat.latest_age_ms int")
     elif expected_service_coordination_status is not None and coordination.get("status") != expected_service_coordination_status:
         errors.append(f"{name} missing coordination.status={expected_service_coordination_status}")
     elif expected_service_coordination_reason is not None and coordination.get("reason") != expected_service_coordination_reason:
@@ -2371,8 +2386,10 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing effect summary")
     elif "[mvp-wrapper] service probes => none=1" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status ???? probe ??")
-    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true" not in wrapper_service_status_output:
+    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true latest_updated_at=" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing heartbeat summary")
+    elif " age_ms=" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing heartbeat age")
     elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing heartbeat freshness")
     elif "[mvp-wrapper] service runtime => mode=local_mvp offline_ready=true llm_required=false sidecar_required=false" not in wrapper_service_status_output:
@@ -2419,6 +2436,11 @@ def collect_errors() -> list[str]:
         expected_lease_fencing_token=1,
         expected_heartbeat_freshness="lost",
         expected_heartbeat_status="failed",
+        expected_heartbeat_interval_ms=10000,
+        expected_heartbeat_event_driven=True,
+        expected_heartbeat_reason="recent_task_update_exceeded_grace_window",
+        expect_heartbeat_latest_updated_at_present=True,
+        expect_heartbeat_latest_age_ms_present=True,
         expected_next_action="ok",
         expected_next_command='safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"',
         expected_next_reason="execution_already_confirmed",
@@ -2502,8 +2524,10 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-service-status-active failed: exit={wrapper_service_status_active.returncode}")
     elif "[mvp-wrapper] service queue => queued=0 active=1 expired=0 completed=0" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing active queue summary")
-    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true" not in wrapper_service_status_active_output:
+    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true latest_updated_at=" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing heartbeat summary")
+    elif " age_ms=" not in wrapper_service_status_active_output:
+        errors.append("mvp-wrapper-service-status-active missing heartbeat age")
     elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing heartbeat freshness")
     elif "[mvp-wrapper] service coordination => status=stalled reason=active_lease_without_recent_heartbeat summary=inspect_owner_or_wait_for_lease_expiry task=task-wrapper-service-status-active" not in wrapper_service_status_active_output:
@@ -2561,6 +2585,16 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-active-json missing heartbeat.latest_freshness=lost")
         elif heartbeat.get("status") != "failed":
             errors.append("mvp-wrapper-service-status-active-json missing heartbeat.status=failed")
+        elif heartbeat.get("interval_ms") != 10000:
+            errors.append("mvp-wrapper-service-status-active-json missing heartbeat.interval_ms=10000")
+        elif heartbeat.get("event_driven") is not True:
+            errors.append("mvp-wrapper-service-status-active-json missing heartbeat.event_driven=true")
+        elif heartbeat.get("reason") != "recent_task_update_exceeded_grace_window":
+            errors.append("mvp-wrapper-service-status-active-json missing heartbeat.reason=recent_task_update_exceeded_grace_window")
+        elif not heartbeat.get("latest_updated_at"):
+            errors.append("mvp-wrapper-service-status-active-json missing heartbeat.latest_updated_at")
+        elif not isinstance(heartbeat.get("latest_age_ms"), int):
+            errors.append("mvp-wrapper-service-status-active-json missing heartbeat.latest_age_ms int")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-status-active-json missing recent task")
         elif recent_tasks[0].get("permission_tier") != "TIER_1":

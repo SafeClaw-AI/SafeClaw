@@ -208,6 +208,11 @@ def assert_service_combo(
     expect_equal(errors, label, "service_status.queue.completed", ((status.get("queue") or {}).get("completed")), 1)
     expect_equal(errors, label, "service_status.workers.succeeded", ((status.get("workers") or {}).get("succeeded")), 1)
     expect_equal(errors, label, "service_status.effects.executed", ((status.get("effects") or {}).get("executed")), 1)
+    expect_equal(errors, label, "service_status.heartbeat.interval_ms", ((status.get("heartbeat") or {}).get("interval_ms")), 10000)
+    expect_equal(errors, label, "service_status.heartbeat.event_driven", ((status.get("heartbeat") or {}).get("event_driven")), True)
+    expect_equal(errors, label, "service_status.heartbeat.latest_freshness", ((status.get("heartbeat") or {}).get("latest_freshness")), "lost")
+    expect_equal(errors, label, "service_status.heartbeat.status", ((status.get("heartbeat") or {}).get("status")), "failed")
+    expect_equal(errors, label, "service_status.heartbeat.reason", ((status.get("heartbeat") or {}).get("reason")), "recent_task_update_exceeded_grace_window")
     expect_equal(errors, label, "service_status.runtime_profile.mode", ((status.get("runtime_profile") or {}).get("mode")), "local_mvp")
     expect_equal(errors, label, "service_status.runtime_profile.offline_ready", ((status.get("runtime_profile") or {}).get("offline_ready")), True)
     expect_equal(errors, label, "service_status.runtime_profile.llm_required", ((status.get("runtime_profile") or {}).get("llm_required")), False)
@@ -227,6 +232,10 @@ def assert_service_combo(
     expect_equal(errors, label, "service_status.offline_gate.requires_sidecar", ((status.get("offline_gate") or {}).get("requires_sidecar")), True)
     expect_equal(errors, label, "service_status.offline_gate.next_command", ((status.get("offline_gate") or {}).get("next_command")), "safeclaw.cmd preflight --action ai-reason")
     expect_equal(errors, label, "service_status.offline_gate.error_code", ((status.get("offline_gate") or {}).get("error_code")), "ERR_AI_PROVIDER_UNAVAILABLE")
+    if not (status.get("heartbeat") or {}).get("latest_updated_at"):
+        append_error(errors, label, "service_status.heartbeat.latest_updated_at missing")
+    if not isinstance((status.get("heartbeat") or {}).get("latest_age_ms"), int):
+        append_error(errors, label, "service_status.heartbeat.latest_age_ms missing int")
     if not (status.get("runtime_profile") or {}).get("detail"):
         append_error(errors, label, "service_status.runtime_profile.detail missing")
     if not (status.get("model_provider") or {}).get("detail"):
