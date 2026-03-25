@@ -1156,7 +1156,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-retry help hint")
     elif "[mvp-wrapper] service recover => service-recover executes recover then service-status for an uncertain task; supports recover flags plus --limit / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-recover help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -2332,6 +2332,196 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-service-status-active-json missing next_summary wait prefix")
             elif ",blocker=active_lease,reason=lease_still_active" not in next_summary:
                 errors.append("mvp-wrapper-service-status-active-json missing next_summary active payload")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-status-scope-a",
+            "--db",
+            "target/mvp/service-status-scope.db",
+            "--output",
+            "target/mvp/service-status-scope-a.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-scope-a-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-scope-a-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-scope-a",
+        expected_db_path="target/mvp/service-status-scope.db",
+        expected_output_path="target/mvp/service-status-scope-a.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--task-id",
+            "task-wrapper-service-status-scope-b",
+            "--db",
+            "target/mvp/service-status-scope.db",
+            "--output",
+            "target/mvp/service-status-scope-b.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-scope-b-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-scope-b-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-scope-b",
+        expected_db_path="target/mvp/service-status-scope.db",
+        expected_output_path="target/mvp/service-status-scope-b.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    scope_db_path = REPO_ROOT / "target" / "mvp" / "service-status-scope.db"
+    shared_scope = "scope:target/mvp/service-status-shared.txt"
+    future_expires_at_ms = int(time.time() * 1000) + 45_000
+    latest_updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5))
+    with sqlite3.connect(scope_db_path) as connection:
+        connection.execute(
+            "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
+            (shared_scope, "task-wrapper-service-status-scope-a", "task-wrapper-service-status-scope-b"),
+        )
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (int(time.time() * 1000) - 1_000, "task-wrapper-service-status-scope-a"),
+        )
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (future_expires_at_ms, "task-wrapper-service-status-scope-b"),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET updated_at = ?1 WHERE task_id = ?2",
+            (latest_updated_at, "task-wrapper-service-status-scope-a"),
+        )
+        connection.commit()
+
+    use_scope_result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "use",
+            "--db",
+            "target/mvp/service-status-scope.db",
+            "--task-id",
+            "task-wrapper-service-status-scope-a",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-scope-use-json",
+        "use",
+    )
+    if use_scope_result is not None:
+        if use_scope_result.get("task_id") != "task-wrapper-service-status-scope-a":
+            errors.append("mvp-wrapper-service-status-scope-use-json missing task-wrapper-service-status-scope-a")
+        elif use_scope_result.get("db") != "target/mvp/service-status-scope.db":
+            errors.append("mvp-wrapper-service-status-scope-use-json missing scope db")
+
+    wrapper_service_status_scope = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-scope.db",
+            "--limit",
+            "2",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_scope_output = (wrapper_service_status_scope.stdout or "") + (wrapper_service_status_scope.stderr or "")
+    if wrapper_service_status_scope.returncode != 0:
+        errors.append(f"mvp-wrapper-service-status-scope failed: exit={wrapper_service_status_scope.returncode}")
+    elif "[mvp-wrapper] service coordination => status=contended reason=same_scope_peer_active summary=wait_for_scope_peer_release task=task-wrapper-service-status-scope-a" not in wrapper_service_status_scope_output:
+        errors.append("mvp-wrapper-service-status-scope missing contended coordination summary")
+    elif "scope_peers=1 scope_active_peers=1 scope_active_task=task-wrapper-service-status-scope-b" not in wrapper_service_status_scope_output:
+        errors.append("mvp-wrapper-service-status-scope missing same-scope peer visibility")
+    elif "task=task-wrapper-service-status-scope-a" not in wrapper_service_status_scope_output:
+        errors.append("mvp-wrapper-service-status-scope missing scope task a")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-scope.db",
+            "--limit",
+            "2",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-scope-json",
+        "service-status",
+    )
+    if result is not None:
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        if not isinstance(current_session, dict) or current_session.get("task_id") != "task-wrapper-service-status-scope-a":
+            errors.append("mvp-wrapper-service-status-scope-json missing current_session task-wrapper-service-status-scope-a")
+        elif coordination.get("status") != "contended":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.status=contended")
+        elif coordination.get("reason") != "same_scope_peer_active":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.reason=same_scope_peer_active")
+        elif coordination.get("summary") != "wait_for_scope_peer_release":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.summary=wait_for_scope_peer_release")
+        elif coordination.get("scope_peer_count") != 1:
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.scope_peer_count=1")
+        elif coordination.get("scope_active_peer_count") != 1:
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.scope_active_peer_count=1")
+        elif coordination.get("scope_active_peer_task_id") != "task-wrapper-service-status-scope-b":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination.scope_active_peer_task_id=task-wrapper-service-status-scope-b")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-status-scope-json missing recent task")
+        elif recent_tasks[0].get("task_id") != "task-wrapper-service-status-scope-a":
+            errors.append("mvp-wrapper-service-status-scope-json missing recent task a")
+        elif recent_tasks[0].get("next_action") != "retry":
+            errors.append("mvp-wrapper-service-status-scope-json missing next_action=retry")
+        elif recent_tasks[0].get("coordination_status") != "contended":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination_status=contended")
+        elif recent_tasks[0].get("coordination_reason") != "same_scope_peer_active":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination_reason=same_scope_peer_active")
+        elif recent_tasks[0].get("coordination_summary") != "wait_for_scope_peer_release":
+            errors.append("mvp-wrapper-service-status-scope-json missing coordination_summary=wait_for_scope_peer_release")
+        elif recent_tasks[0].get("scope_peer_count") != 1:
+            errors.append("mvp-wrapper-service-status-scope-json missing scope_peer_count=1")
+        elif recent_tasks[0].get("scope_active_peer_count") != 1:
+            errors.append("mvp-wrapper-service-status-scope-json missing scope_active_peer_count=1")
+        elif recent_tasks[0].get("scope_active_peer_task_id") != "task-wrapper-service-status-scope-b":
+            errors.append("mvp-wrapper-service-status-scope-json missing scope_active_peer_task_id=task-wrapper-service-status-scope-b")
+        elif recent_tasks[0].get("next_summary") != "ready_now:action=retry,reason=failed_state_ready_for_retry":
+            errors.append("mvp-wrapper-service-status-scope-json missing next_summary retry")
+
 
 
     wrapper_service_run = subprocess.run(

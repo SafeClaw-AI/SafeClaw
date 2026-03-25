@@ -490,6 +490,9 @@ def build_service_status_coordination_payload(row: dict[str, object]) -> dict[st
     next_reason = str(row.get("next_reason") or "manual_inspection_required")
     next_blocker = str(row.get("next_blocker") or "none")
     lease_freshness = str(row.get("lease_freshness") or "unknown")
+    requires_write = bool(row.get("requires_write"))
+    doctor_bypass = bool(row.get("doctor_bypass"))
+    scope_active_peer_count = int(row.get("scope_active_peer_count") or 0)
     if next_blocker == "active_lease":
         if lease_freshness == "lost":
             return {
@@ -501,6 +504,12 @@ def build_service_status_coordination_payload(row: dict[str, object]) -> dict[st
             "coordination_status": "busy",
             "coordination_reason": "active_lease_in_progress",
             "coordination_summary": "wait_for_current_owner",
+        }
+    if scope_active_peer_count > 0 and requires_write and not doctor_bypass:
+        return {
+            "coordination_status": "contended",
+            "coordination_reason": "same_scope_peer_active",
+            "coordination_summary": "wait_for_scope_peer_release",
         }
     if next_action == "retry" and next_blocker == "none":
         return {
@@ -547,6 +556,68 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
         "target_scope": str(row.get("target_scope") or ""),
         "next_action": str(row.get("next_action") or "inspect"),
         "next_blocker": str(row.get("next_blocker") or "none"),
+        "scope_peer_count": int(row.get("scope_peer_count") or 0),
+        "scope_active_peer_count": int(row.get("scope_active_peer_count") or 0),
+        "scope_active_peer_task_id": str(row.get("scope_active_peer_task_id") or ""),
+    }
+
+
+def load_recent_task_scope_peer_facts(
+    connection: sqlite3.Connection,
+    target_scope: str,
+    task_id: str,
+    *,
+    now_ms: int,
+) -> dict[str, object]:
+    normalized_scope = target_scope.strip()
+    if not normalized_scope:
+        return {
+            "scope_peer_count": 0,
+            "scope_active_peer_count": 0,
+            "scope_active_peer_task_id": "",
+        }
+
+    rows = connection.execute(
+        """
+        SELECT
+            task_snapshots.task_id,
+            latest_lease.expires_at_ms,
+            latest_lease.released_at_ms
+        FROM task_snapshots
+        LEFT JOIN orchestrator_tasks
+          ON orchestrator_tasks.task_id = task_snapshots.task_id
+        LEFT JOIN orchestrator_leases AS latest_lease
+          ON latest_lease.lease_id = (
+              SELECT lease_view.lease_id
+              FROM orchestrator_leases AS lease_view
+              WHERE lease_view.task_id = task_snapshots.task_id
+              ORDER BY lease_view.fencing_token DESC, lease_view.rowid DESC
+              LIMIT 1
+          )
+        WHERE COALESCE(orchestrator_tasks.target_scope, '') = ?1
+          AND task_snapshots.task_id <> ?2
+        ORDER BY task_snapshots.updated_at DESC, task_snapshots.task_id DESC
+        """,
+        (normalized_scope, task_id),
+    ).fetchall()
+
+    active_peer_task_id = ""
+    active_peer_count = 0
+    for row in rows:
+        lease_state = classify_orchestrator_lease_state(
+            None if row[1] is None else int(row[1]),
+            None if row[2] is None else int(row[2]),
+            now_ms,
+        )
+        if lease_state == "active":
+            active_peer_count += 1
+            if not active_peer_task_id:
+                active_peer_task_id = str(row[0] or "")
+
+    return {
+        "scope_peer_count": len(rows),
+        "scope_active_peer_count": active_peer_count,
+        "scope_active_peer_task_id": active_peer_task_id,
     }
 
 
@@ -1050,7 +1121,9 @@ def run_service_status(args: list[str]) -> int:
         "[mvp-wrapper] service coordination => "
         f"status={coordination['status']} reason={coordination['reason']} summary={coordination['summary']} "
         f"task={coordination['task_id'] or 'none'} scope={coordination['target_scope'] or 'none'} "
-        f"next={coordination['next_action']} blocker={coordination['next_blocker']}"
+        f"next={coordination['next_action']} blocker={coordination['next_blocker']} "
+        f"scope_peers={coordination['scope_peer_count']} scope_active_peers={coordination['scope_active_peer_count']} "
+        f"scope_active_task={coordination['scope_active_peer_task_id'] or 'none'}"
     )
     if session is not None:
         current = "true" if bool(payload["current_db"]) else "false"
@@ -1079,6 +1152,8 @@ def run_service_status(args: list[str]) -> int:
             f"coordination={row['coordination_status']} coordination_reason={row['coordination_reason']} "
             f"coordination_summary={row['coordination_summary']} "
             f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
+            f"scope_peers={row['scope_peer_count']} scope_active_peers={row['scope_active_peer_count']} "
+            f"scope_active_task={row['scope_active_peer_task_id'] or 'none'} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
     return 0
@@ -1650,7 +1725,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / coordination summary / recent task summary, plus scope, same-scope peer visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
@@ -2334,6 +2409,7 @@ def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) 
         return []
 
     now_ms = int(time.time() * 1000)
+    items: list[dict[str, object]] = []
     with sqlite3.connect(db_path) as connection:
         rows = connection.execute(
             """
@@ -2376,28 +2452,26 @@ def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) 
             (limit,),
         ).fetchall()
 
-    items: list[dict[str, object]] = []
-    for row in rows:
-        lease_state = classify_orchestrator_lease_state(
-            None if row[10] is None else int(row[10]),
-            None if row[11] is None else int(row[11]),
-            now_ms,
-        )
-        lease_expires_at_ms = None if row[10] is None else int(row[10])
-        lease_released_at_ms = None if row[11] is None else int(row[11])
-        target_scope = str(row[5] or '')
-        requires_write = bool(row[6])
-        doctor_bypass = bool(row[7])
-        next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
-        next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
-        lease_age_ms = compute_timestamp_age_ms(row[3], now_ms)
-        lease_freshness = (
-            "none"
-            if lease_state == "none"
-            else classify_heartbeat_freshness(lease_age_ms, heartbeat_interval_ms)
-        )
-        items.append(
-            {
+        for row in rows:
+            lease_state = classify_orchestrator_lease_state(
+                None if row[10] is None else int(row[10]),
+                None if row[11] is None else int(row[11]),
+                now_ms,
+            )
+            lease_expires_at_ms = None if row[10] is None else int(row[10])
+            lease_released_at_ms = None if row[11] is None else int(row[11])
+            target_scope = str(row[5] or '')
+            requires_write = bool(row[6])
+            doctor_bypass = bool(row[7])
+            next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
+            next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
+            lease_age_ms = compute_timestamp_age_ms(row[3], now_ms)
+            lease_freshness = (
+                "none"
+                if lease_state == "none"
+                else classify_heartbeat_freshness(lease_age_ms, heartbeat_interval_ms)
+            )
+            item = {
                 "task_id": row[0],
                 "worker_state": row[1],
                 "effect_status": row[2],
@@ -2419,8 +2493,15 @@ def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) 
                 "next_action": next_action,
                 "next_reason": next_reason,
                 "next_blocker": suggest_recent_task_next_blocker(next_action, next_reason),
+                **load_recent_task_scope_peer_facts(
+                    connection,
+                    target_scope,
+                    str(row[0] or ''),
+                    now_ms=now_ms,
+                ),
             }
-        )
+            item.update(build_service_status_coordination_payload(item))
+            items.append(item)
     return items
 
 

@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 08:28:09 +0800
+最后更新时间：2026-03-25 08:55:58 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前十八刀已完成，新增 service-status coordination 可见化
+当前阶段：已进入 M1b，前十九刀已完成，新增 service-status same-scope peer 可见化
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -35,6 +35,7 @@
 | [x] | M1b 第十六刀：demo 前置门禁 | `01_文档/03_开发蓝图.md` M1b | `demo` / `recover-demo` / `retry-demo` 新增 `--preflight` / `--enforce-permission`；JSON 成功/阻断都会返回 preflight 结果 | 已落地，降低演示入口误放行风险 |
 | [x] | M1b 第十七刀：heartbeat / lease freshness 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 新增 top-level `heartbeat` 摘要，recent task 显式返回 `lease_age_ms` / `lease_freshness`，文本与 JSON 都可直接观察最新心跳 / 租约新鲜度 | 已落地，降低 operator 判断系统是否还“活着”的成本 |
 | [x] | M1b 第十八刀：service-status coordination 提示 | `01_文档/03_开发蓝图.md` M1b | `service-status` 新增 top-level `coordination` 摘要，recent task 显式返回 `coordination_status` / `coordination_reason` / `coordination_summary`，把心跳 / 租约 / 下一步决策压成 operator 可直读的协调态 | 已落地，降低“为何现在不该继续”的判断成本 |
+| [x] | M1b 第十九刀：service-status same-scope peer 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 新增 same-scope peer 事实：`scope_peer_count` / `scope_active_peer_count` / `scope_active_peer_task_id`，并在写路径被同 scope 活跃 peer 占用时给出 `contended` 协调态提示 | 已落地，降低“同 scope 现在是否该等”的判断成本 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
