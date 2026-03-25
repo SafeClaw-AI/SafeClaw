@@ -459,8 +459,19 @@ def render_cmd_arg(value: str) -> str:
 
 
 
-def build_service_status_next_command(db: str, row: dict[str, object]) -> str:
+def resolve_service_status_next_task_id(row: dict[str, object]) -> str:
     task_id = str(row.get("task_id") or "")
+    next_action = str(row.get("next_action") or "inspect")
+    scope_quarantine_source = str(row.get("scope_quarantine_source") or "none")
+    scope_quarantine_task_id = str(row.get("scope_quarantine_task_id") or "")
+    if next_action == "inspect" and scope_quarantine_source == "peer" and scope_quarantine_task_id:
+        return scope_quarantine_task_id
+    return task_id
+
+
+
+def build_service_status_next_command(db: str, row: dict[str, object]) -> str:
+    task_id = str(row.get("next_task_id") or resolve_service_status_next_task_id(row) or "")
     next_action = str(row.get("next_action") or "inspect")
     db_arg = render_cmd_arg(db)
     task_arg = render_cmd_arg(task_id)
@@ -559,6 +570,7 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
             "task_id": "",
             "target_scope": "",
             "next_action": "inspect",
+            "next_task_id": "",
             "next_blocker": "none",
             "scope_quarantine_active": False,
             "scope_quarantine_source": "none",
@@ -573,6 +585,7 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
         "task_id": str(row.get("task_id") or ""),
         "target_scope": str(row.get("target_scope") or ""),
         "next_action": str(row.get("next_action") or "inspect"),
+        "next_task_id": str(row.get("next_task_id") or resolve_service_status_next_task_id(row) or ""),
         "next_blocker": str(row.get("next_blocker") or "none"),
         "scope_peer_count": int(row.get("scope_peer_count") or 0),
         "scope_active_peer_count": int(row.get("scope_active_peer_count") or 0),
@@ -777,6 +790,7 @@ def build_service_status_payload(
             "current": current_db and session is not None and session.get("task_id") == row["task_id"],
             **build_service_status_coordination_payload(row),
             "next_summary": build_service_status_next_summary(row),
+            "next_task_id": resolve_service_status_next_task_id(row),
             "next_command": build_service_status_next_command(db, row),
         }
         for row in rows
@@ -1175,7 +1189,8 @@ def run_service_status(args: list[str]) -> int:
         f"scope_quarantine={str(bool(coordination['scope_quarantine_active'])).lower()} "
         f"quarantine_source={coordination['scope_quarantine_source']} "
         f"quarantine_task={coordination['scope_quarantine_task_id'] or 'none'} "
-        f"quarantine_count={coordination['scope_quarantine_count']}"
+        f"quarantine_count={coordination['scope_quarantine_count']} "
+        f"next_task={coordination['next_task_id'] or 'none'}"
     )
     if session is not None:
         current = "true" if bool(payload["current_db"]) else "false"
@@ -1204,6 +1219,7 @@ def run_service_status(args: list[str]) -> int:
             f"coordination={row['coordination_status']} coordination_reason={row['coordination_reason']} "
             f"coordination_summary={row['coordination_summary']} "
             f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
+            f"next_task={row['next_task_id'] or 'none'} "
             f"scope_peers={row['scope_peer_count']} scope_active_peers={row['scope_active_peer_count']} "
             f"scope_active_task={row['scope_active_peer_task_id'] or 'none'} "
             f"scope_quarantine={str(bool(row['scope_quarantine_active'])).lower()} "

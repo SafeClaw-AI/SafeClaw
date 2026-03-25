@@ -175,3 +175,9 @@
 - 完成内容：为 `service-status` 新增 scope quarantine 事实（`scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`），并在同 scope 存在 `executed_assumed` 时将协调态提升为 `quarantined`，同步把 `next_action` / `next_reason` / `next_blocker` 切换为 `inspect` / `scope_quarantined_by_peer` / `scope_quarantine`；同步 smoke、README 与整体计划进展表。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: surface scope quarantine in service status`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 AC
+- 完成时间：2026-03-25 09:44:44 +0800
+- 完成内容：为 `service-status` 新增 `next_task_id`，把 quarantined 现场的一跳处置对象显式抬到顶层 coordination 与 recent task；当当前 task 被 peer scope quarantine 阻断时，`next_command` 会直接指向隔离源 task 的 `report`；同步 smoke、README 与整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: focus quarantine follow-up task in service status`；最终 hash 以当前 `HEAD` 为准。

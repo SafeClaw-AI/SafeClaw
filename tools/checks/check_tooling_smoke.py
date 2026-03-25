@@ -2646,10 +2646,10 @@ def collect_errors() -> list[str]:
         errors.append(f"mvp-wrapper-service-status-quarantine failed: exit={wrapper_service_status_quarantine.returncode}")
     elif "[mvp-wrapper] service coordination => status=quarantined reason=peer_executed_assumed_scope_quarantine summary=wait_for_scope_reconcile task=task-wrapper-service-status-quarantine-b" not in wrapper_service_status_quarantine_output:
         errors.append("mvp-wrapper-service-status-quarantine missing quarantined coordination summary")
-    elif "scope_quarantine=true quarantine_source=peer quarantine_task=task-wrapper-service-status-quarantine-a quarantine_count=1" not in wrapper_service_status_quarantine_output:
+    elif "scope_quarantine=true quarantine_source=peer quarantine_task=task-wrapper-service-status-quarantine-a quarantine_count=1 next_task=task-wrapper-service-status-quarantine-a" not in wrapper_service_status_quarantine_output:
         errors.append("mvp-wrapper-service-status-quarantine missing quarantine visibility")
-    elif "next=inspect next_reason=scope_quarantined_by_peer blocker=scope_quarantine" not in wrapper_service_status_quarantine_output:
-        errors.append("mvp-wrapper-service-status-quarantine missing quarantine next hint")
+    elif 'next=inspect next_reason=scope_quarantined_by_peer blocker=scope_quarantine coordination=quarantined coordination_reason=peer_executed_assumed_scope_quarantine coordination_summary=wait_for_scope_reconcile next_summary=blocked:action=inspect,blocker=scope_quarantine,reason=scope_quarantined_by_peer next_cmd=safeclaw.cmd report --db "target/mvp/service-status-quarantine.db" --task-id "task-wrapper-service-status-quarantine-a" next_task=task-wrapper-service-status-quarantine-a' not in wrapper_service_status_quarantine_output:
+        errors.append("mvp-wrapper-service-status-quarantine missing quarantine next command")
 
     result = assert_command_json_result(
         [
@@ -2686,6 +2686,8 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_task_id=task-wrapper-service-status-quarantine-a")
         elif coordination.get("scope_quarantine_count") != 1:
             errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.scope_quarantine_count=1")
+        elif coordination.get("next_task_id") != "task-wrapper-service-status-quarantine-a":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing coordination.next_task_id=task-wrapper-service-status-quarantine-a")
         elif not isinstance(recent_tasks, list) or not recent_tasks:
             errors.append("mvp-wrapper-service-status-quarantine-json missing recent task")
         elif recent_tasks[0].get("task_id") != "task-wrapper-service-status-quarantine-b":
@@ -2712,6 +2714,10 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_task_id=task-wrapper-service-status-quarantine-a")
         elif recent_tasks[0].get("scope_quarantine_count") != 1:
             errors.append("mvp-wrapper-service-status-quarantine-json missing scope_quarantine_count=1")
+        elif recent_tasks[0].get("next_task_id") != "task-wrapper-service-status-quarantine-a":
+            errors.append("mvp-wrapper-service-status-quarantine-json missing next_task_id=task-wrapper-service-status-quarantine-a")
+        elif recent_tasks[0].get("next_command") != 'safeclaw.cmd report --db "target/mvp/service-status-quarantine.db" --task-id "task-wrapper-service-status-quarantine-a"':
+            errors.append("mvp-wrapper-service-status-quarantine-json missing next_command=quarantine-source report")
 
 
 
