@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+from mvp_state_guard import acquire_mvp_state_lock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WRAPPER = ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd"]
@@ -21,6 +24,31 @@ RETRY_OUTPUT = "target/mvp/operator-flow-retry.txt"
 RECOVER_TASK = "task-operator-flow-recover"
 RECOVER_DB = "target/mvp/operator-flow-recover.db"
 RECOVER_OUTPUT = "target/mvp/operator-flow-recover.txt"
+
+
+def reset_operator_flow_state() -> None:
+    state_root = REPO_ROOT / "target" / "mvp"
+    for relative_path in [
+        "last_session.json",
+        "workspace.json",
+        "operator-flow-run.db",
+        "operator-flow-run.db-shm",
+        "operator-flow-run.db-wal",
+        "operator-flow-run.txt",
+        "operator-flow-retry.db",
+        "operator-flow-retry.db-shm",
+        "operator-flow-retry.db-wal",
+        "operator-flow-retry.txt",
+        "operator-flow-recover.db",
+        "operator-flow-recover.db-shm",
+        "operator-flow-recover.db-wal",
+        "operator-flow-recover.txt",
+    ]:
+        path = state_root / relative_path
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
 
 
 def append_error(errors: list[str], label: str, message: str) -> None:
@@ -189,8 +217,10 @@ def assert_service_combo(
 
 
 
-def main() -> int:
+def _main() -> int:
     errors: list[str] = []
+
+    reset_operator_flow_state()
 
 
 
@@ -380,6 +410,15 @@ def main() -> int:
 
     print("MVP operator flow check passed.", flush=True)
     return 0
+
+
+def main() -> int:
+    try:
+        with acquire_mvp_state_lock("check_mvp_operator_flow"):
+            return _main()
+    except RuntimeError as error:
+        print(f"MVP operator flow check failed: {error}", flush=True)
+        return 1
 
 
 if __name__ == "__main__":

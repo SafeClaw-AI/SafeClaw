@@ -200,3 +200,8 @@
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py`, `tools/checks/check_tooling_smoke.py`, `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
 - Commit/push: planned message `feat: add reconcile command choices to service status`; final hash follows current `HEAD`.
 
+### Round AG
+- Completed at: 2026-03-26 01:36:45 +0800
+- Completed: added shared `target/mvp` validation locking via `tools/checks/mvp_state_guard.py`; `check_tooling_smoke.py` and `check_mvp_operator_flow.py` now fail fast on concurrent top-level runs, while nested `verify` inside smoke reuses the same lock via an inherited environment marker instead of self-deadlocking.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/mvp_state_guard.py tools/checks/check_tooling_smoke.py tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`, concurrent probe `check_tooling_smoke.py -> check_mvp_operator_flow.py` returns lock message.
+- Commit/push: planned message `fix: guard shared mvp validation state`; final hash follows current `HEAD`.

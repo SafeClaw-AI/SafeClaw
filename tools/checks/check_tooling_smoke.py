@@ -9,6 +9,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from mvp_state_guard import acquire_mvp_state_lock
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 CHECKS: list[tuple[str, list[str], str]] = [
@@ -5391,7 +5393,7 @@ def collect_errors() -> list[str]:
     return errors
 
 
-def main() -> int:
+def _main() -> int:
     errors = collect_errors()
     if errors:
         print("Tooling smoke check failed:")
@@ -5401,6 +5403,15 @@ def main() -> int:
 
     print("Tooling smoke check passed.")
     return 0
+
+
+def main() -> int:
+    try:
+        with acquire_mvp_state_lock("check_tooling_smoke"):
+            return _main()
+    except RuntimeError as error:
+        print(f"Tooling smoke check failed: {error}")
+        return 1
 
 
 if __name__ == "__main__":

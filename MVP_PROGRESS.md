@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 11:39:30 +0800
+最后更新时间：2026-03-26 01:36:45 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前二十三刀已完成，新增 executed_assumed 对账双选项提示
+当前阶段：已进入 M1b，前二十三刀已完成，新增 MVP 共享状态验证锁
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -17,6 +17,7 @@
 | [x] | Win11 本地 MVP wrapper / operator flow | `01_文档/08_用户旅程.md` | `safeclaw.cmd`、`safeclaw.ps1`、`tools/mvp` 已可手动使用 | README 根入口最短路径已纳入自动门禁 |
 | [x] | 追踪文档完整性防线 | `01_文档/09_迭代升级与自动化.md` | `MVP_PROGRESS.md`、`PUSH_LOG.md` 已接入公开文档检查 | 可拦截问号或乱码占位符 |
 | [x] | M1a 最后一轮可手用验收 | `01_文档/03_开发蓝图.md` M1 验收 | 根入口 `workspace -> doctor -> service-run/retry/recover -> verify` 已进 smoke；`selfcheck` 全绿 | 当前主线已收口 |
+| [x] | M1a/M1b 验证互斥护栏 | `01_文档/09_迭代升级与自动化.md` 验证门禁 | `tools/checks/check_tooling_smoke.py` 与 `tools/checks/check_mvp_operator_flow.py` 新增共享 `target/mvp` 状态锁；`smoke` 内嵌 `verify` 可复用同轮锁，避免并发检查互相踩踏导致假失败 | 已落地，降低共享状态误报成本 |
 | [x] | M1b 首刀：doctor 离线边界诊断 | `01_文档/03_开发蓝图.md` M1b | `doctor` 现已显式返回 `runtime_profile` / `model_provider` / `sidecar`，说明当前 local MVP 离线可跑、无 provider/sidecar 也属正常 | 已落地，降低使用歧义 |
 | [x] | M1b 第二刀：service-status scope 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回并输出 `target_scope` / `requires_write` / `doctor_bypass`，让当前任务边界直接可见 | 已落地，降低权限边界不可见性 |
 | [x] | M1b 第三刀：service-status lease 可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 的 `recent_tasks` 现已显式返回并输出 `lease_state` / `lease_owner_id` / `lease_fencing_token`，让最新租约是否 active / expired / released 直接可见 | 已落地，降低恢复判断成本 |
