@@ -219,6 +219,14 @@ def assert_service_combo(
     expect_equal(errors, label, "service_status.sidecar.status", ((status.get("sidecar") or {}).get("status")), "not-configured")
     expect_equal(errors, label, "service_status.sidecar.required", ((status.get("sidecar") or {}).get("required")), False)
     expect_equal(errors, label, "service_status.sidecar.configured", ((status.get("sidecar") or {}).get("configured")), False)
+    expect_equal(errors, label, "service_status.offline_gate.status", ((status.get("offline_gate") or {}).get("status")), "blocked")
+    expect_equal(errors, label, "service_status.offline_gate.reason", ((status.get("offline_gate") or {}).get("reason")), "ERR_AI_PROVIDER_UNAVAILABLE")
+    expect_equal(errors, label, "service_status.offline_gate.summary", ((status.get("offline_gate") or {}).get("summary")), "ai_actions_require_provider")
+    expect_equal(errors, label, "service_status.offline_gate.requested_action", ((status.get("offline_gate") or {}).get("requested_action")), "ai-reason")
+    expect_equal(errors, label, "service_status.offline_gate.requires_model", ((status.get("offline_gate") or {}).get("requires_model")), True)
+    expect_equal(errors, label, "service_status.offline_gate.requires_sidecar", ((status.get("offline_gate") or {}).get("requires_sidecar")), True)
+    expect_equal(errors, label, "service_status.offline_gate.next_command", ((status.get("offline_gate") or {}).get("next_command")), "safeclaw.cmd preflight --action ai-reason")
+    expect_equal(errors, label, "service_status.offline_gate.error_code", ((status.get("offline_gate") or {}).get("error_code")), "ERR_AI_PROVIDER_UNAVAILABLE")
     if not (status.get("runtime_profile") or {}).get("detail"):
         append_error(errors, label, "service_status.runtime_profile.detail missing")
     if not (status.get("model_provider") or {}).get("detail"):

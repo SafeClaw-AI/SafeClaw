@@ -798,6 +798,39 @@ def build_service_heartbeat_payload(
     }
 
 
+def build_service_offline_gate_payload() -> dict[str, object]:
+    preflight_payload = build_preflight_payload("ai-reason")
+    requested_action = str(preflight_payload.get("requested_action") or "ai-reason")
+    error_code = str(preflight_payload.get("error_code") or "")
+    status = "ready" if bool(preflight_payload.get("allowed")) else "blocked"
+    if status == "ready":
+        summary = "ai_actions_ready"
+    elif error_code == "ERR_AI_PROVIDER_UNAVAILABLE":
+        summary = "ai_actions_require_provider"
+    else:
+        summary = "check_preflight_for_details"
+    return {
+        "status": status,
+        "reason": str(preflight_payload.get("reason") or "none"),
+        "summary": summary,
+        "requested_action": requested_action,
+        "requires_model": bool(preflight_payload.get("requires_model")),
+        "requires_sidecar": bool(preflight_payload.get("requires_sidecar")),
+        "next_command": f"safeclaw.cmd preflight --action {requested_action}",
+        "error_code": error_code,
+        "detail": str(preflight_payload.get("detail") or ""),
+    }
+
+
+def render_service_offline_gate_summary(payload: dict[str, object]) -> str:
+    return (
+        f"status={payload['status']} reason={payload['reason']} summary={payload['summary']} "
+        f"action={payload['requested_action']} requires_model={str(bool(payload['requires_model'])).lower()} "
+        f"requires_sidecar={str(bool(payload['requires_sidecar'])).lower()} "
+        f"next={payload['next_command']} error_code={payload['error_code'] or 'none'}"
+    )
+
+
 
 def build_service_status_payload(
     args: list[str],
@@ -815,6 +848,7 @@ def build_service_status_payload(
     runtime_profile = build_runtime_profile_payload()
     model_provider = build_model_provider_payload()
     sidecar = build_sidecar_payload()
+    offline_gate = build_service_offline_gate_payload()
     rows = load_recent_tasks(db_path, limit, heartbeat_interval_ms=int(heartbeat_config["interval_ms"]))
     current_db = matches_session_db(session, db)
     rows_with_current = [
@@ -838,6 +872,7 @@ def build_service_status_payload(
         "runtime_profile": runtime_profile,
         "model_provider": model_provider,
         "sidecar": sidecar,
+        "offline_gate": offline_gate,
         "queue": queue,
         "workers": workers,
         "effects": effects,
@@ -1209,6 +1244,7 @@ def run_service_status(args: list[str]) -> int:
     runtime_profile = payload["runtime_profile"]
     model_provider = payload["model_provider"]
     sidecar = payload["sidecar"]
+    offline_gate = payload["offline_gate"]
     coordination = payload["coordination"]
     rows_with_current = payload["recent_tasks"]
 
@@ -1243,6 +1279,7 @@ def run_service_status(args: list[str]) -> int:
         f"status={sidecar['status']} required={str(sidecar['required']).lower()} "
         f"configured={str(sidecar['configured']).lower()}"
     )
+    print(f"[mvp-wrapper] service offline => {render_service_offline_gate_summary(offline_gate)}")
     print(
         "[mvp-wrapper] service coordination => "
         f"status={coordination['status']} reason={coordination['reason']} summary={coordination['summary']} "
@@ -1903,7 +1940,7 @@ def print_help() -> int:
         "requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / offline gate summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(

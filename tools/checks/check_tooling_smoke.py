@@ -429,6 +429,7 @@ def assert_service_status_json_result(
     runtime_profile = result.get("runtime_profile") or {}
     model_provider = result.get("model_provider") or {}
     sidecar = result.get("sidecar") or {}
+    offline_gate = result.get("offline_gate") or {}
     actual_db = str(result.get("db") or "").replace("\\", "/")
     normalized_expected_db = expected_db.replace("\\", "/")
     worker_succeeded = None if not isinstance(workers, dict) else (workers.get("succeeded") if "succeeded" in workers else workers.get("Succeeded"))
@@ -495,6 +496,22 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing sidecar.configured=false")
     elif not sidecar.get("detail"):
         errors.append(f"{name} missing sidecar.detail")
+    elif not isinstance(offline_gate, dict) or offline_gate.get("status") != "blocked":
+        errors.append(f"{name} missing offline_gate.status=blocked")
+    elif offline_gate.get("reason") != "ERR_AI_PROVIDER_UNAVAILABLE":
+        errors.append(f"{name} missing offline_gate.reason=ERR_AI_PROVIDER_UNAVAILABLE")
+    elif offline_gate.get("summary") != "ai_actions_require_provider":
+        errors.append(f"{name} missing offline_gate.summary=ai_actions_require_provider")
+    elif offline_gate.get("requested_action") != "ai-reason":
+        errors.append(f"{name} missing offline_gate.requested_action=ai-reason")
+    elif offline_gate.get("requires_model") is not True:
+        errors.append(f"{name} missing offline_gate.requires_model=true")
+    elif offline_gate.get("requires_sidecar") is not True:
+        errors.append(f"{name} missing offline_gate.requires_sidecar=true")
+    elif offline_gate.get("next_command") != "safeclaw.cmd preflight --action ai-reason":
+        errors.append(f"{name} missing offline_gate.next_command=safeclaw.cmd preflight --action ai-reason")
+    elif offline_gate.get("error_code") != "ERR_AI_PROVIDER_UNAVAILABLE":
+        errors.append(f"{name} missing offline_gate.error_code=ERR_AI_PROVIDER_UNAVAILABLE")
     elif not isinstance(recent_tasks, list) or not recent_tasks or recent_tasks[0].get("task_id") != expected_task_id:
         errors.append(f"{name} missing recent task {expected_task_id}")
     elif recent_tasks[0].get("current") is not True:
@@ -1284,7 +1301,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help missing service-recover help hint")
     elif "[mvp-wrapper] service reconcile => service-reconcile executes reconcile then service-status for an executed_assumed task; requires --decision executed|not-executed and supports reconcile flags plus --limit / --report / --preflight / --enforce-permission / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-reconcile help hint")
-    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
+    elif "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / runtime / model-provider / sidecar snapshots / offline gate summary / coordination summary / recent task summary, plus scope, same-scope peer / scope-quarantine visibility, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, coordination hints, and one-line summaries; supports --db / --limit / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing service-status help hint")
     elif "[mvp-wrapper] error session => 包装层错误 JSON 若当前存在 remembered session；会在 error.details.remembered_session 附带它" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误 remembered_session 提示")
@@ -2292,6 +2309,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing model summary")
     elif "[mvp-wrapper] service sidecar => status=not-configured required=false configured=false" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing sidecar summary")
+    elif "[mvp-wrapper] service offline => status=blocked reason=ERR_AI_PROVIDER_UNAVAILABLE summary=ai_actions_require_provider action=ai-reason requires_model=true requires_sidecar=true next=safeclaw.cmd preflight --action ai-reason error_code=ERR_AI_PROVIDER_UNAVAILABLE" not in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status missing offline gate summary")
     elif "[mvp-wrapper] service coordination => status=clear reason=execution_already_confirmed summary=no_followup_needed task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing coordination summary")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
