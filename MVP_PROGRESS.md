@@ -1,8 +1,8 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-25 11:06:57 +0800
+最后更新时间：2026-03-25 11:39:30 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前二十一刀已完成，新增 service-status 隔离态一跳处置定位
+当前阶段：已进入 M1b，前二十三刀已完成，新增 executed_assumed 对账双选项提示
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -39,6 +39,7 @@
 | [x] | M1b 第二十刀：service-status scope 隔离可见化 | `01_文档/03_开发蓝图.md` M1b | `service-status` 新增 scope quarantine 事实：`scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`，并在同 scope 存在 `executed_assumed` 时给出 `quarantined` 协调态与 `inspect` / `scope_quarantine` 下一步提示 | 已落地，降低“同 scope 是否必须先对账再继续”的判断成本 |
 | [x] | M1b 第二十一刀：service-status 隔离态一跳处置 | `01_文档/03_开发蓝图.md` M1b | `service-status` 新增 `next_task_id`；当当前 task 被 peer scope quarantine 阻断时，`next_command` 会直接指向隔离源 task 的 `report`，顶层 coordination 与 recent task 都会显式给出应先关注的 task | 已落地，降低“知道被隔离但不知道先看谁”的判断成本 |
 | [x] | M1b Slice 22: reconcile flow | M1b plan | `seed-crash --probe-mode none -> reconcile -> service-status -> report` is now wired end-to-end; wrapper adds `service-reconcile` / `reconcile`, and Rust reconcile closes the stale orchestrator lease | Reduces executed_assumed closeout friction |
+| [x] | M1b Slice 23: reconcile command choices | M1b plan | `service-status` now surfaces `recent_tasks[*].reconcile_commands.executed` / `not_executed` and prints a matching text hint, so the operator can copy the exact closeout choice from the `executed_assumed` scene without guessing `--decision` | Reduces reconcile handoff friction |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

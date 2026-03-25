@@ -497,6 +497,21 @@ def build_service_status_next_command(db: str, row: dict[str, object]) -> str:
 
 
 
+def build_service_status_reconcile_commands(db: str, row: dict[str, object]) -> dict[str, str]:
+    next_reason = str(row.get("next_reason") or "")
+    task_id = str(row.get("task_id") or "")
+    if next_reason != "executed_assumed_requires_reconcile" or not task_id:
+        return {}
+    db_arg = render_cmd_arg(db)
+    task_arg = render_cmd_arg(task_id)
+    base = f"safeclaw.cmd service-reconcile --db {db_arg} --task-id {task_arg}"
+    return {
+        "executed": f"{base} --decision executed --limit 1 --report",
+        "not_executed": f"{base} --decision not-executed --limit 1 --report",
+    }
+
+
+
 def build_service_status_next_summary(row: dict[str, object]) -> str:
     next_action = str(row.get("next_action") or "inspect")
     next_reason = str(row.get("next_reason") or "manual_inspection_required")
@@ -806,6 +821,7 @@ def build_service_status_payload(
             "next_summary": build_service_status_next_summary(row),
             "next_task_id": resolve_service_status_next_task_id(row),
             "next_command": build_service_status_next_command(db, row),
+            "reconcile_commands": build_service_status_reconcile_commands(db, row),
         }
         for row in rows
     ]
@@ -1246,6 +1262,13 @@ def run_service_status(args: list[str]) -> int:
             f"quarantine_count={row['scope_quarantine_count']} "
             f"updated_at={row['updated_at']} current={str(row['current']).lower()}"
         )
+        reconcile_commands = row.get("reconcile_commands") or {}
+        if isinstance(reconcile_commands, dict) and reconcile_commands:
+            print(
+                f"[mvp-wrapper] service recent[{index}] reconcile => "
+                f"executed={reconcile_commands.get('executed', 'none')} "
+                f"not_executed={reconcile_commands.get('not_executed', 'none')}"
+            )
     return 0
 def run_sequence(
     name: str,

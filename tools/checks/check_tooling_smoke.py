@@ -4438,6 +4438,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-reconcile-status-before missing self quarantine coordination summary")
     elif 'next=inspect next_reason=executed_assumed_requires_reconcile blocker=scope_quarantine coordination=quarantined coordination_reason=self_executed_assumed_scope_quarantine coordination_summary=reconcile_self_before_scope_write' not in wrapper_service_status_reconcile_output:
         errors.append("mvp-wrapper-service-reconcile-status-before missing reconcile next hint")
+    elif '[mvp-wrapper] service recent[0] reconcile => executed=safeclaw.cmd service-reconcile --db "target/mvp/service-reconcile-json.db" --task-id "task-wrapper-service-reconcile-json" --decision executed --limit 1 --report not_executed=safeclaw.cmd service-reconcile --db "target/mvp/service-reconcile-json.db" --task-id "task-wrapper-service-reconcile-json" --decision not-executed --limit 1 --report' not in wrapper_service_status_reconcile_output:
+        errors.append("mvp-wrapper-service-reconcile-status-before missing reconcile command choices")
 
     result = assert_command_json_result(
         [
@@ -4486,6 +4488,14 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_blocker=scope_quarantine")
         elif recent_tasks[0].get("next_task_id") != "task-wrapper-service-reconcile-json":
             errors.append("mvp-wrapper-service-reconcile-status-before-json missing next_task_id=task-wrapper-service-reconcile-json")
+        else:
+            reconcile_commands = recent_tasks[0].get("reconcile_commands") or {}
+            if not isinstance(reconcile_commands, dict):
+                errors.append("mvp-wrapper-service-reconcile-status-before-json missing reconcile_commands object")
+            elif reconcile_commands.get("executed") != 'safeclaw.cmd service-reconcile --db "target/mvp/service-reconcile-json.db" --task-id "task-wrapper-service-reconcile-json" --decision executed --limit 1 --report':
+                errors.append("mvp-wrapper-service-reconcile-status-before-json missing reconcile_commands.executed")
+            elif reconcile_commands.get("not_executed") != 'safeclaw.cmd service-reconcile --db "target/mvp/service-reconcile-json.db" --task-id "task-wrapper-service-reconcile-json" --decision not-executed --limit 1 --report':
+                errors.append("mvp-wrapper-service-reconcile-status-before-json missing reconcile_commands.not_executed")
 
     result = assert_command_json_result(
         [

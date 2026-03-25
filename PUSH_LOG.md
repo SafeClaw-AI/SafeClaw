@@ -193,3 +193,10 @@
 - Completed: sync `MVP_PROGRESS.md` with a small Slice 22 progress row after the previous push, so the progress board reflects the shipped reconcile flow.
 - Verification: `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
 - Commit/push: planned message `docs: sync reconcile progress row`; final hash follows current `HEAD`.
+
+### Round AF
+- Completed at: 2026-03-25 11:39:30 +0800
+- Completed: `service-status` now surfaces two explicit reconcile choices for the `executed_assumed` scene via `recent_tasks[*].reconcile_commands.executed` / `not_executed`, and the text output prints the same closeout commands inline; smoke and docs were synced together.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py`, `tools/checks/check_tooling_smoke.py`, `tools/checks/check_public_docs.py`, `tools/checks/selfcheck.py`
+- Commit/push: planned message `feat: add reconcile command choices to service status`; final hash follows current `HEAD`.
+
