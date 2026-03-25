@@ -8,6 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +20,8 @@ DEFAULT_DB = STATE_ROOT / "session.db"
 DEFAULT_OUTPUT = STATE_ROOT / "output.txt"
 DEFAULT_OWNER_ID = "safeclaw-mvp"
 DEFAULT_LIST_LIMIT = 5
+DEFAULT_HEARTBEAT_INTERVAL_MS = 10_000
+HEARTBEAT_CONFIG_FILE = REPO_ROOT / "specs" / "config" / "heartbeat.json"
 TOOLCHAIN = "stable-x86_64-pc-windows-gnu"
 LINKER = (
     r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
@@ -483,6 +486,93 @@ def build_service_status_next_summary(row: dict[str, object]) -> str:
 
 
 
+def load_heartbeat_config() -> dict[str, object]:
+    try:
+        payload = json.loads(HEARTBEAT_CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"interval_ms": DEFAULT_HEARTBEAT_INTERVAL_MS, "event_driven": True}
+
+    interval_ms = payload.get("default_interval_ms")
+    if not isinstance(interval_ms, int) or interval_ms <= 0:
+        interval_ms = DEFAULT_HEARTBEAT_INTERVAL_MS
+    return {
+        "interval_ms": interval_ms,
+        "event_driven": bool(payload.get("event_driven", True)),
+    }
+
+
+
+def parse_iso_timestamp_ms(value: object) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        timestamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    return int(timestamp.timestamp() * 1000)
+
+
+
+def compute_timestamp_age_ms(value: object, now_ms: int) -> int | None:
+    parsed_ms = parse_iso_timestamp_ms(value)
+    if parsed_ms is None:
+        return None
+    age_ms = now_ms - parsed_ms
+    return age_ms if age_ms >= 0 else 0
+
+
+
+def classify_heartbeat_freshness(age_ms: int | None, interval_ms: int) -> str:
+    if age_ms is None:
+        return "unknown"
+    if age_ms <= interval_ms:
+        return "fresh"
+    if age_ms <= interval_ms * 2:
+        return "slow"
+    return "lost"
+
+
+
+def describe_heartbeat_freshness(freshness: str) -> tuple[str, str]:
+    if freshness == "fresh":
+        return "healthy", "recent_task_update_within_interval"
+    if freshness == "slow":
+        return "degraded", "recent_task_update_exceeded_interval"
+    if freshness == "lost":
+        return "failed", "recent_task_update_exceeded_grace_window"
+    if freshness == "none":
+        return "idle", "no_recent_tasks"
+    return "unknown", "recent_task_timestamp_unparseable"
+
+
+
+def build_service_heartbeat_payload(
+    rows: list[dict[str, object]],
+    *,
+    interval_ms: int,
+    event_driven: bool,
+) -> dict[str, object]:
+    latest_updated_at = None if not rows else rows[0].get("updated_at")
+    latest_age_ms = None if not rows else rows[0].get("lease_age_ms")
+    freshness = "none" if not rows else str(rows[0].get("lease_freshness") or "unknown")
+    status, reason = describe_heartbeat_freshness(freshness)
+    return {
+        "interval_ms": interval_ms,
+        "event_driven": event_driven,
+        "latest_updated_at": latest_updated_at,
+        "latest_age_ms": latest_age_ms,
+        "latest_freshness": freshness,
+        "status": status,
+        "reason": reason,
+    }
+
+
+
 def build_service_status_payload(
     args: list[str],
     session: dict[str, str] | None,
@@ -495,7 +585,8 @@ def build_service_status_payload(
     workers = load_task_snapshot_counts(db_path, "worker_state")
     effects = load_task_snapshot_counts(db_path, "effect_status")
     probes = load_task_snapshot_counts(db_path, "probe_state")
-    rows = load_recent_tasks(db_path, limit)
+    heartbeat_config = load_heartbeat_config()
+    rows = load_recent_tasks(db_path, limit, heartbeat_interval_ms=int(heartbeat_config["interval_ms"]))
     current_db = matches_session_db(session, db)
     rows_with_current = [
         {
@@ -516,6 +607,11 @@ def build_service_status_payload(
         "workers": workers,
         "effects": effects,
         "probes": probes,
+        "heartbeat": build_service_heartbeat_payload(
+            rows_with_current,
+            interval_ms=int(heartbeat_config["interval_ms"]),
+            event_driven=bool(heartbeat_config["event_driven"]),
+        ),
         "recent_tasks": rows_with_current,
     }
 
@@ -865,6 +961,7 @@ def run_service_status(args: list[str]) -> int:
     workers = payload["workers"]
     effects = payload["effects"]
     probes = payload["probes"]
+    heartbeat = payload["heartbeat"]
     rows_with_current = payload["recent_tasks"]
 
     print(f"[mvp-wrapper] service-status => db={db} limit={limit} source={db_source}")
@@ -875,6 +972,13 @@ def run_service_status(args: list[str]) -> int:
     print(f"[mvp-wrapper] service workers => {render_count_summary(workers)}")
     print(f"[mvp-wrapper] service effects => {render_count_summary(effects)}")
     print(f"[mvp-wrapper] service probes => {render_count_summary(probes)}")
+    print(
+        "[mvp-wrapper] service heartbeat => "
+        f"interval_ms={heartbeat['interval_ms']} event_driven={str(bool(heartbeat['event_driven'])).lower()} "
+        f"latest_updated_at={heartbeat['latest_updated_at'] or 'none'} "
+        f"age_ms={heartbeat['latest_age_ms'] if heartbeat['latest_age_ms'] is not None else 'none'} "
+        f"freshness={heartbeat['latest_freshness']} status={heartbeat['status']} reason={heartbeat['reason']}"
+    )
     if session is not None:
         current = "true" if bool(payload["current_db"]) else "false"
         print(
@@ -895,6 +999,8 @@ def run_service_status(args: list[str]) -> int:
             f"perm_reason={row['permission_reason']} "
             f"lease={row['lease_state']} lease_owner={row['lease_owner_id'] or 'none'} "
             f"lease_fence={row['lease_fencing_token'] if row['lease_fencing_token'] is not None else 'none'} "
+            f"lease_age_ms={row['lease_age_ms'] if row['lease_age_ms'] is not None else 'none'} "
+            f"lease_freshness={row['lease_freshness']} "
             f"wait_ms={row['lease_remaining_ms'] if row['lease_remaining_ms'] is not None else 'none'} "
             f"next={row['next_action']} next_reason={row['next_reason']} blocker={row['next_blocker']} "
             f"next_summary={row['next_summary']} next_cmd={row['next_command']} "
@@ -1469,7 +1575,7 @@ def print_help() -> int:
         "supports recover flags plus --limit / --preflight / --enforce-permission / --json"
     )
     print(
-        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / recent task summary, plus scope, permission decisions, latest lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
+        "[mvp-wrapper] service status => service-status shows queue / worker / effect / probe / heartbeat summary / recent task summary, plus scope, permission decisions, lease freshness, active-lease wait timing, next action hints, suggested commands, short reasons, blockers, and one-line summaries; "
         "supports --db / --limit / --json"
     )
     print(
@@ -1873,7 +1979,7 @@ def print_sessions(args: list[str]) -> int:
         )
 
     db_path = resolve_repo_path(db)
-    rows = load_recent_tasks(db_path, limit)
+    rows = load_recent_tasks(db_path, limit, heartbeat_interval_ms=int(load_heartbeat_config()["interval_ms"]))
     rows_with_current = [
         {
             **row,
@@ -1950,7 +2056,7 @@ def activate_session(args: list[str]) -> int:
                 exit_code=2,
                 text_message=f"[mvp-wrapper] invalid --index: {index_raw}",
             )
-        rows = load_recent_tasks(db_path, max(index + 1, DEFAULT_LIST_LIMIT))
+        rows = load_recent_tasks(db_path, max(index + 1, DEFAULT_LIST_LIMIT), heartbeat_interval_ms=int(load_heartbeat_config()["interval_ms"]))
         if index >= len(rows):
             return emit_local_action_error(
                 "use",
@@ -2148,7 +2254,7 @@ def suggest_recent_task_permission_reason(
 
 
 
-def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
+def load_recent_tasks(db_path: Path, limit: int, *, heartbeat_interval_ms: int) -> list[dict[str, object]]:
     if not db_path.exists():
         return []
 
@@ -2209,6 +2315,12 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
         doctor_bypass = bool(row[7])
         next_action = suggest_recent_task_next_action(str(row[1]), str(row[2]), lease_state)
         next_reason = suggest_recent_task_next_reason(str(row[1]), str(row[2]), lease_state)
+        lease_age_ms = compute_timestamp_age_ms(row[3], now_ms)
+        lease_freshness = (
+            "none"
+            if lease_state == "none"
+            else classify_heartbeat_freshness(lease_age_ms, heartbeat_interval_ms)
+        )
         items.append(
             {
                 "task_id": row[0],
@@ -2222,6 +2334,8 @@ def load_recent_tasks(db_path: Path, limit: int) -> list[dict[str, object]]:
                 "lease_expires_at_ms": lease_expires_at_ms,
                 "lease_released_at_ms": lease_released_at_ms,
                 "lease_state": lease_state,
+                "lease_age_ms": lease_age_ms,
+                "lease_freshness": lease_freshness,
                 "lease_remaining_ms": compute_orchestrator_lease_remaining_ms(
                     lease_expires_at_ms,
                     lease_released_at_ms,

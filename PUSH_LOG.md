@@ -151,3 +151,9 @@
 - 完成内容：为 `demo` / `recover-demo` / `retry-demo` 增加 `--preflight` / `--enforce-permission`；一键演示入口已接入前置门禁，文本会先打印 preflight，JSON 会返回 `result.preflight` 或 `details.preflight`。
 - 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
 - 提交推送：本轮提交信息为 `feat: add preflight gates to demo flows`；最终 hash 以当前 `HEAD` 为准。
+
+### 轮次 Y
+- 完成时间：2026-03-25 08:02:43 +0800
+- 完成内容：为 `service-status` 补上 `heartbeat` 摘要与 recent task 的 `lease_age_ms` / `lease_freshness` 可见化；文本会额外打印 service heartbeat 概览，JSON 会返回 `result.heartbeat`；同步 smoke / README / 整体计划进展表。
+- 验证内容：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`tools/checks/check_tooling_smoke.py`、`tools/checks/check_public_docs.py`、`tools/checks/selfcheck.py`
+- 提交推送：本轮提交信息为 `feat: add heartbeat freshness to service status`；最终 hash 以当前 `HEAD` 为准。
