@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 06:03:36 +0800
+最后更新时间：2026-03-26 06:21:03 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -284,7 +284,13 @@
 - Commit/push: planned message `docs: sync slice 33 progress artifacts`; final hash follows current `HEAD`.
 
 ### Round AU
-- Completed at: 2026-03-26 06:03:36 +0800
+- Completed at: 2026-03-26 06:20:37 +0800
 - Completed: blocked combo JSON now mirrors existing `degradation_mode` at top-level `error.degradation_mode` while still preserving the full nested `error.details.preflight` payload and the previously added top-level `error.code` / `error.reason` / `error.error_code` / `error.summary` / `error.requested_action` mirrors. Help text, root docs, `tools/mvp/README.md`, `MVP_PROGRESS.md`, and `开发计划.md` were synced together.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
-- Commit/push: planned message `feat: mirror combo preflight degradation mode to top-level error`; final hash follows current `HEAD`.
+- Commit/push: `59afb03 feat: mirror combo preflight degradation mode to top-level error`.
+
+### Round AV
+- Completed at: 2026-03-26 06:21:03 +0800
+- Completed: synced post-push progress artifacts after `Slice 34`, refreshed `开发计划.md` baseline to `59afb03`, updated tracker timestamps, and resolved `PUSH_LOG.md` Round AU from a planned message to the actual feature commit hash.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- Commit/push: planned message `docs: sync slice 34 progress artifacts`; final hash follows current `HEAD`.
