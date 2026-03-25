@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 03:56:29 +0800
+最后更新时间：2026-03-26 04:29:03 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -241,3 +241,9 @@
 - Completed: synced the missing `MVP_PROGRESS.md` row for `M1b Slice 28` and refreshed `开发计划.md` baseline/timestamp after verifying the post-push docs state; this is a docs closeout for the already-landed combo preflight shallow shortcuts slice.
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
 - Commit/push: planned message `docs: sync slice 28 progress artifacts`; final hash follows current `HEAD`.
+
+### Round AN
+- Completed at: 2026-03-26 04:29:03 +0800
+- Completed: blocked combo JSON now mirrors preflight-blocked at top-level error.code while still preserving error.details.code, the full nested error.details.preflight payload, and the shallow preflight shortcut fields. Help text, root docs, 	ools/mvp/README.md, MVP_PROGRESS.md, and 开发计划.md were synced together.
+- Verification: `C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- Commit/push: planned message eat: mirror combo preflight code to top-level error; final hash follows current HEAD.

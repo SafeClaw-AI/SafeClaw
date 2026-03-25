@@ -1073,6 +1073,7 @@ def assert_json_error_fields(
     *,
     expected_error_message_substring: str | None = None,
     error_message_label: str | None = None,
+    expected_top_level_error_code: str | None = None,
     expected_code: str | None = None,
     expected_failed_step: str | None = None,
     expected_details_message_substring: str | None = None,
@@ -1092,6 +1093,10 @@ def assert_json_error_fields(
     if expected_error_message_substring is not None:
         if expected_error_message_substring not in str(error.get("message", "")):
             errors.append(error_message_label or f"{name} 输出缺少错误信息")
+            return
+    if expected_top_level_error_code is not None:
+        if error.get("code") != expected_top_level_error_code:
+            errors.append(f"{name} missing error.code={expected_top_level_error_code}")
             return
     if details is None:
         return
@@ -1338,7 +1343,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少 doctor 检查项提示")
     elif "[mvp-wrapper] preflight => preflight checks whether an action stays allowed in the current local-only MVP entry; common wrapper/session actions auto-infer permission context from remembered session/workspace/default output, preflight-only ai-reason returns ERR_AI_PROVIDER_UNAVAILABLE when no provider/sidecar is configured, explicit --scope / --write / --doctor-bypass override permission context, and --enforce-permission fails closed on confirm / deny; supports --action <name> / --scope <value> / --json" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing preflight help hint")
-    elif "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level" not in wrapper_help_output:
+    elif "[mvp-wrapper] combo preflight override => demo/recover-demo/retry-demo/service-run/service-retry/service-recover/service-reconcile accept --preflight-action <name>; blocked combo JSON keeps full error.details.preflight, mirrors preflight-blocked at top-level error.code, and mirrors preflight_requested_action / preflight_reason / preflight_summary / optional preflight_error_code at the error.details top level" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing combo preflight override hint")
     elif "[mvp-wrapper] source hints => status/report/recover/retry/reconcile --json 会额外返回 result.source_hints；可直接看到 db/output/owner_id/task_context 来源" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 source_hints 提示")
@@ -3178,6 +3183,7 @@ def collect_errors() -> list[str]:
         "service-run",
         expected_exit=1,
         expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
         expected_preflight_requested_action="ai-reason",
@@ -3248,6 +3254,7 @@ def collect_errors() -> list[str]:
         "service-run",
         expected_exit=1,
         expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
         expected_preflight_requested_action="service-run",
@@ -5171,6 +5178,7 @@ def collect_errors() -> list[str]:
         "demo",
         expected_exit=1,
         expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
         expected_preflight_requested_action="demo",
@@ -5235,6 +5243,7 @@ def collect_errors() -> list[str]:
         "demo",
         expected_exit=1,
         expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
         expected_code="preflight-blocked",
         expected_failed_step="preflight",
         expected_preflight_requested_action="ai-reason",
