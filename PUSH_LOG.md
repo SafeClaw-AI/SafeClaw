@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 00:57:42 +0800
+最后更新时间：2026-03-27 01:10:31 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -774,3 +774,15 @@
 - 本轮完成：同步 `Slice 76` 台账；新增时间戳记录 `docs/round_logs/20260327_005742_slice76.md`；`MVP_PROGRESS.md` 改到前 76 刀已完成；`开发计划.md` 基线改到 `24b8ed2`，下一刀写死为 `Slice 77`：`ps1 service-retry --limit bad --json` invalid-limit 护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 76 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round EA
+- 完成时间：2026-03-27 01:10:31 +0800
+- 本轮完成：做完 `Slice 77`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-retry --limit bad --json` 的 invalid-limit 护栏；现在会稳定锁住顶层错误消息与 `action=service-retry` 的浅层错误输出。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`0bc53d7 test: guard ps1 service retry invalid limit`。
+
+### Round EB
+- 完成时间：2026-03-27 01:10:31 +0800
+- 本轮完成：同步 `Slice 77` 台账；新增时间戳记录 `docs/round_logs/20260327_011031_slice77.md`；`MVP_PROGRESS.md` 改到前 77 刀已完成；`开发计划.md` 基线改到 `0bc53d7`，下一刀改回“待重新扫描后确定”，因为 `service-retry invalid-limit` 三层已经补齐。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 77 progress artifacts`；最终哈希以当时 `HEAD` 为准。
