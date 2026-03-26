@@ -703755,6 +703755,102 @@ def collect_errors() -> list[str]:
 
     )
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-crash",
+
+            "--reset",
+
+            "--probe-mode",
+
+            "none",
+
+            "--task-id",
+
+            "task-wrapper-service-reconcile-report-json",
+
+            "--db",
+
+            "target/mvp/service-reconcile-report-json.db",
+
+            "--output",
+
+            "target/mvp/service-reconcile-report-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json",
+
+        "seed-crash",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json",
+
+        expected_task_id="task-wrapper-service-reconcile-report-json",
+
+        expected_db_path="target/mvp/service-reconcile-report-json.db",
+
+        expected_output_path="target/mvp/service-reconcile-report-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-reconcile", "--db", "target/mvp/service-reconcile-report-json.db", "--task-id", "task-wrapper-service-reconcile-report-json", "--decision", "executed", "--limit", "1", "--report", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-reconcile-report-json",
+
+        "service-reconcile",
+
+    )
+
+    assert_service_reconcile_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-reconcile-report-json",
+
+        expected_db="target\mvp\service-reconcile-report-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-reconcile-report-json",
+
+        expected_limit=1,
+
+        expected_decision="executed",
+
+        expected_steps=["reconcile", "service-status", "report"],
+
+        expect_report_payload=True,
+
+    )
+
     wrapper_cmd_verify = subprocess.run(
 
 
