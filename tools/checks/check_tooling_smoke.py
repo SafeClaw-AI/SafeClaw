@@ -453801,7 +453801,39 @@ def collect_errors() -> list[str]:
 
 
 
-    wrapper_service_run_preflight = subprocess.run(
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "service-run", "--reset", "--task-id", "task-wrapper-service-run-json", "--db", "target/mvp/service-run-json.db", "--output", "target/mvp/service-run-json.txt", "--limit", "1", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-run-json",
+
+        "service-run",
+
+    )
+
+    assert_service_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-run-json",
+
+        expected_db="target\\mvp\\service-run-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-run-json",
+
+        expected_limit=1,
+
+    )
+
+
+
+    wrapper_service_run_preflight = subprocess.run(
 
 
 
