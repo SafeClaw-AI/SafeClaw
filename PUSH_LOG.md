@@ -987,3 +987,15 @@
 - 本轮完成：同步 `Slice 94` 台账；新增时间戳记录 `docs/round_logs/20260327_053452_slice94.md`；`MVP_PROGRESS.md` 改到前 94 刀已完成；`开发计划.md` 基线改到 `e99ec61`，下一刀写死为 `Slice 95`：`ps1 recover --db ... --task-id ... --json` 成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 94 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FK
+- 完成时间：2026-03-27 05:54:13 +0800
+- 本轮完成：做完 `Slice 95`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover --db target/mvp/recover-json.db --task-id task-wrapper-recover-json --json` 的成功结果断言；先补独立 `seed-crash` 基座锁住 crash 现场，再继续复用后面的 wrapper A/B 会话重建，避免和既有 `use/report` 护栏互相踩状态。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`de10477 test: guard ps1 recover json`。
+
+### Round FL
+- 完成时间：2026-03-27 05:54:13 +0800
+- 本轮完成：同步 `Slice 95` 台账；新增时间戳记录 `docs/round_logs/20260327_055413_slice95.md`；`MVP_PROGRESS.md` 改到前 95 刀已完成；`开发计划.md` 基线改到 `de10477`，下一刀写死为 `Slice 96`：`ps1 status --db ... --task-id ... --json` 显式上下文成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 95 progress artifacts`；最终哈希以当时 `HEAD` 为准。
