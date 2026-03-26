@@ -31,6 +31,16 @@ RECONCILE_OUTPUT = "target/mvp/operator-flow-reconcile.txt"
 STALLED_TASK = "task-operator-flow-stalled"
 STALLED_DB = "target/mvp/operator-flow-stalled.db"
 STALLED_OUTPUT = "target/mvp/operator-flow-stalled.txt"
+CONTENDED_A_TASK = "task-operator-flow-contended-a"
+CONTENDED_B_TASK = "task-operator-flow-contended-b"
+CONTENDED_DB = "target/mvp/operator-flow-contended.db"
+CONTENDED_A_OUTPUT = "target/mvp/operator-flow-contended-a.txt"
+CONTENDED_B_OUTPUT = "target/mvp/operator-flow-contended-b.txt"
+QUARANTINE_A_TASK = "task-operator-flow-quarantine-a"
+QUARANTINE_B_TASK = "task-operator-flow-quarantine-b"
+QUARANTINE_DB = "target/mvp/operator-flow-quarantine.db"
+QUARANTINE_A_OUTPUT = "target/mvp/operator-flow-quarantine-a.txt"
+QUARANTINE_B_OUTPUT = "target/mvp/operator-flow-quarantine-b.txt"
 
 
 def reset_operator_flow_state() -> None:
@@ -58,6 +68,16 @@ def reset_operator_flow_state() -> None:
         "operator-flow-stalled.db-shm",
         "operator-flow-stalled.db-wal",
         "operator-flow-stalled.txt",
+        "operator-flow-contended.db",
+        "operator-flow-contended.db-shm",
+        "operator-flow-contended.db-wal",
+        "operator-flow-contended-a.txt",
+        "operator-flow-contended-b.txt",
+        "operator-flow-quarantine.db",
+        "operator-flow-quarantine.db-shm",
+        "operator-flow-quarantine.db-wal",
+        "operator-flow-quarantine-a.txt",
+        "operator-flow-quarantine-b.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -564,6 +584,278 @@ def _main() -> int:
                 append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing wait prefix: {next_summary!r}")
             elif ",blocker=active_lease,reason=lease_still_active" not in next_summary:
                 append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing active-lease payload: {next_summary!r}")
+
+    seed_failed_contended_a = run_json(
+        [
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            CONTENDED_A_TASK,
+            "--db",
+            CONTENDED_DB,
+            "--output",
+            CONTENDED_A_OUTPUT,
+        ],
+        "operator-flow/seed-failed-contended-a",
+        errors,
+    )
+    if seed_failed_contended_a is not None:
+        expect_equal(errors, "operator-flow/seed-failed-contended-a", "action", seed_failed_contended_a.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_contended_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-a", "remembered_session", CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_A_OUTPUT)
+    wait_for_session(CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_A_OUTPUT, errors, "operator-flow/seed-failed-contended-a")
+
+    seed_failed_contended_b = run_json(
+        [
+            "seed-failed",
+            "--task-id",
+            CONTENDED_B_TASK,
+            "--db",
+            CONTENDED_DB,
+            "--output",
+            CONTENDED_B_OUTPUT,
+        ],
+        "operator-flow/seed-failed-contended-b",
+        errors,
+    )
+    if seed_failed_contended_b is not None:
+        expect_equal(errors, "operator-flow/seed-failed-contended-b", "action", seed_failed_contended_b.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_contended_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-b", "remembered_session", CONTENDED_B_TASK, CONTENDED_DB, CONTENDED_B_OUTPUT)
+
+    contended_scope = "scope:target/mvp/operator-flow-contended-shared.txt"
+    with sqlite3.connect(REPO_ROOT / CONTENDED_DB) as connection:
+        connection.execute(
+            "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
+            (contended_scope, CONTENDED_A_TASK, CONTENDED_B_TASK),
+        )
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (int(time.time() * 1000) - 1_000, CONTENDED_A_TASK),
+        )
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (int(time.time() * 1000) + 45_000, CONTENDED_B_TASK),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET updated_at = ?1 WHERE task_id = ?2",
+            (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5)), CONTENDED_A_TASK),
+        )
+        connection.commit()
+
+    use_contended = run_json(
+        [
+            "use",
+            "--db",
+            CONTENDED_DB,
+            "--task-id",
+            CONTENDED_A_TASK,
+        ],
+        "operator-flow/use-contended",
+        errors,
+    )
+    if use_contended is not None:
+        expect_equal(errors, "operator-flow/use-contended", "action", use_contended.get("action"), "use")
+        use_contended_result = use_contended.get("result") or {}
+        expect_equal(errors, "operator-flow/use-contended", "result.task_id", use_contended_result.get("task_id"), CONTENDED_A_TASK)
+        expect_equal(errors, "operator-flow/use-contended", "result.db", use_contended_result.get("db"), CONTENDED_DB)
+
+    contended_status = run_json(
+        [
+            "service-status",
+            "--db",
+            CONTENDED_DB,
+            "--limit",
+            "2",
+        ],
+        "operator-flow/service-status-contended",
+        errors,
+    )
+    if contended_status is not None:
+        result = contended_status.get("result") or {}
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-status-contended", "result.db", result.get("db"), CONTENDED_DB)
+        expect_equal(errors, "operator-flow/service-status-contended", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-status-contended", "result.limit", result.get("limit"), 2)
+        expect_equal(errors, "operator-flow/service-status-contended", "current_session.task_id", current_session.get("task_id"), CONTENDED_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.status", coordination.get("status"), "contended")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.reason", coordination.get("reason"), "same_scope_peer_active")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.summary", coordination.get("summary"), "wait_for_scope_peer_release")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.task_id", coordination.get("task_id"), CONTENDED_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.target_scope", coordination.get("target_scope"), contended_scope)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_action", coordination.get("next_action"), "retry")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_task_id", coordination.get("next_task_id"), CONTENDED_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_blocker", coordination.get("next_blocker"), "none")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 1)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 1)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), CONTENDED_B_TASK)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
+        if not recent_tasks:
+            append_error(errors, "operator-flow/service-status-contended", "recent task missing")
+        else:
+            task = recent_tasks[0]
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.task_id", task.get("task_id"), CONTENDED_A_TASK)
+            expect_true(errors, "operator-flow/service-status-contended", "recent.current", task.get("current"))
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.effect_status", task.get("effect_status"), "prepared")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.lease_state", task.get("lease_state"), "expired")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_action", task.get("next_action"), "retry")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_reason", task.get("next_reason"), "failed_state_ready_for_retry")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_blocker", task.get("next_blocker"), "none")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_summary", task.get("next_summary"), "ready_now:action=retry,reason=failed_state_ready_for_retry")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_task_id", task.get("next_task_id"), CONTENDED_A_TASK)
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_command", task.get("next_command"), f'safeclaw.cmd service-retry --db "{CONTENDED_DB}" --task-id "{CONTENDED_A_TASK}" --limit 1 --report')
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_status", task.get("coordination_status"), "contended")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_reason", task.get("coordination_reason"), "same_scope_peer_active")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_summary", task.get("coordination_summary"), "wait_for_scope_peer_release")
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_peer_count", task.get("scope_peer_count"), 1)
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 1)
+            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), CONTENDED_B_TASK)
+
+    seed_failed_quarantine_a = run_json(
+        [
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            QUARANTINE_A_TASK,
+            "--db",
+            QUARANTINE_DB,
+            "--output",
+            QUARANTINE_A_OUTPUT,
+        ],
+        "operator-flow/seed-failed-quarantine-a",
+        errors,
+    )
+    if seed_failed_quarantine_a is not None:
+        expect_equal(errors, "operator-flow/seed-failed-quarantine-a", "action", seed_failed_quarantine_a.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_quarantine_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-quarantine-a", "remembered_session", QUARANTINE_A_TASK, QUARANTINE_DB, QUARANTINE_A_OUTPUT)
+    wait_for_session(QUARANTINE_A_TASK, QUARANTINE_DB, QUARANTINE_A_OUTPUT, errors, "operator-flow/seed-failed-quarantine-a")
+
+    seed_failed_quarantine_b = run_json(
+        [
+            "seed-failed",
+            "--task-id",
+            QUARANTINE_B_TASK,
+            "--db",
+            QUARANTINE_DB,
+            "--output",
+            QUARANTINE_B_OUTPUT,
+        ],
+        "operator-flow/seed-failed-quarantine-b",
+        errors,
+    )
+    if seed_failed_quarantine_b is not None:
+        expect_equal(errors, "operator-flow/seed-failed-quarantine-b", "action", seed_failed_quarantine_b.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_quarantine_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-quarantine-b", "remembered_session", QUARANTINE_B_TASK, QUARANTINE_DB, QUARANTINE_B_OUTPUT)
+
+    with sqlite3.connect(REPO_ROOT / QUARANTINE_DB) as connection:
+        connection.execute(
+            "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
+            ("scope:target/mvp/operator-flow-quarantine-shared.txt", QUARANTINE_A_TASK, QUARANTINE_B_TASK),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET effect_status = ?1 WHERE task_id = ?2",
+            ("executed_assumed", QUARANTINE_A_TASK),
+        )
+        connection.execute(
+            "UPDATE task_snapshots SET updated_at = ?1 WHERE task_id = ?2",
+            (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5)), QUARANTINE_B_TASK),
+        )
+        connection.execute(
+            "UPDATE orchestrator_leases SET expires_at_ms = ?1, released_at_ms = NULL WHERE task_id = ?2",
+            (int(time.time() * 1000) - 1_000, QUARANTINE_A_TASK),
+        )
+        connection.execute(
+            "UPDATE orchestrator_leases SET expires_at_ms = ?1, released_at_ms = NULL WHERE task_id = ?2",
+            (int(time.time() * 1000) - 1_000, QUARANTINE_B_TASK),
+        )
+        connection.commit()
+
+    use_quarantine = run_json(
+        [
+            "use",
+            "--db",
+            QUARANTINE_DB,
+            "--task-id",
+            QUARANTINE_B_TASK,
+        ],
+        "operator-flow/use-quarantine",
+        errors,
+    )
+    if use_quarantine is not None:
+        expect_equal(errors, "operator-flow/use-quarantine", "action", use_quarantine.get("action"), "use")
+        use_quarantine_result = use_quarantine.get("result") or {}
+        expect_equal(errors, "operator-flow/use-quarantine", "result.task_id", use_quarantine_result.get("task_id"), QUARANTINE_B_TASK)
+        expect_equal(errors, "operator-flow/use-quarantine", "result.db", use_quarantine_result.get("db"), QUARANTINE_DB)
+
+    quarantine_status = run_json(
+        [
+            "service-status",
+            "--db",
+            QUARANTINE_DB,
+            "--limit",
+            "2",
+        ],
+        "operator-flow/service-status-quarantine",
+        errors,
+    )
+    if quarantine_status is not None:
+        result = quarantine_status.get("result") or {}
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-status-quarantine", "result.db", result.get("db"), QUARANTINE_DB)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "result.limit", result.get("limit"), 2)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "current_session.task_id", current_session.get("task_id"), QUARANTINE_B_TASK)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.status", coordination.get("status"), "quarantined")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.reason", coordination.get("reason"), "peer_executed_assumed_scope_quarantine")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.summary", coordination.get("summary"), "wait_for_scope_reconcile")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.task_id", coordination.get("task_id"), QUARANTINE_B_TASK)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.target_scope", coordination.get("target_scope"), "scope:target/mvp/operator-flow-quarantine-shared.txt")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_action", coordination.get("next_action"), "inspect")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_task_id", coordination.get("next_task_id"), QUARANTINE_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_blocker", coordination.get("next_blocker"), "scope_quarantine")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 1)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), True)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "peer")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), QUARANTINE_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 1)
+        if not recent_tasks:
+            append_error(errors, "operator-flow/service-status-quarantine", "recent task missing")
+        else:
+            task = recent_tasks[0]
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.task_id", task.get("task_id"), QUARANTINE_B_TASK)
+            expect_true(errors, "operator-flow/service-status-quarantine", "recent.current", task.get("current"))
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.effect_status", task.get("effect_status"), "prepared")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.lease_state", task.get("lease_state"), "expired")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_action", task.get("next_action"), "inspect")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_reason", task.get("next_reason"), "scope_quarantined_by_peer")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_blocker", task.get("next_blocker"), "scope_quarantine")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=scope_quarantine,reason=scope_quarantined_by_peer")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_task_id", task.get("next_task_id"), QUARANTINE_A_TASK)
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{QUARANTINE_DB}" --task-id "{QUARANTINE_A_TASK}"')
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_status", task.get("coordination_status"), "quarantined")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_reason", task.get("coordination_reason"), "peer_executed_assumed_scope_quarantine")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_summary", task.get("coordination_summary"), "wait_for_scope_reconcile")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), True)
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "peer")
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), QUARANTINE_A_TASK)
+            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 1)
 
     seed_crash_reconcile = run_json(
         [
