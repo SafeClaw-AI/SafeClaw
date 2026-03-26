@@ -1071,3 +1071,15 @@
 - 本轮完成：同步 `Slice 101` 台账；新增时间戳记录 `docs/round_logs/20260327_071124_slice101.md`；`MVP_PROGRESS.md` 改到前 101 刀已完成；`开发计划.md` 基线改到 `54b8084`，下一刀改回现场验真后再编号，不提前写死 `Slice 102`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 101 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FY
+- 完成时间：2026-03-27 07:22:13 +0800
+- 本轮完成：做完 `Slice 102`，在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 status --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，再用显式 `report` 建立 remembered session，锁住 crash 会话链下 `source_hints` 的 `db/output/owner_id/task_context=session` 与治理回显。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`4960520 test: guard ps1 status session crash json`。
+
+### Round FZ
+- 完成时间：2026-03-27 07:22:13 +0800
+- 本轮完成：同步 `Slice 102` 台账；新增时间戳记录 `docs/round_logs/20260327_072213_slice102.md`；`MVP_PROGRESS.md` 改到前 102 刀已完成；`开发计划.md` 基线改到 `4960520`，下一刀改回现场验真后再编号，不提前写死 `Slice 103`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 102 progress artifacts`；最终哈希以当时 `HEAD` 为准。
