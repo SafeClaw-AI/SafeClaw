@@ -963,3 +963,15 @@
 - 本轮完成：同步 `Slice 92` 台账；新增时间戳记录 `docs/round_logs/20260327_044727_slice92.md`；`MVP_PROGRESS.md` 改到前 92 刀已完成；`开发计划.md` 基线改到 `5e194b2`，下一刀写死为 `Slice 93`：`ps1 report --json` 成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 92 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FG
+- 完成时间：2026-03-27 05:10:45 +0800
+- 本轮完成：做完 `Slice 93`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --json` 的成功结果断言；这刀直接复用前面已经切到 `task-wrapper-b` 的 remembered session，锁住 `report` 的 passthrough 结果与 session 来源提示。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`852afb8 test: guard ps1 report json`。
+
+### Round FH
+- 完成时间：2026-03-27 05:10:45 +0800
+- 本轮完成：同步 `Slice 93` 台账；新增时间戳记录 `docs/round_logs/20260327_051045_slice93.md`；`MVP_PROGRESS.md` 改到前 93 刀已完成；`开发计划.md` 基线改到 `852afb8`，下一刀写死为 `Slice 94`：`ps1 retry --db ... --task-id ... --json` 成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 93 progress artifacts`；最终哈希以当时 `HEAD` 为准。
