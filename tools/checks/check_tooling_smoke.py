@@ -598808,6 +598808,144 @@ def collect_errors() -> list[str]:
 
     )
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-failed",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-retry-json",
+
+            "--db",
+
+            "target/mvp/retry-json.db",
+
+            "--output",
+
+            "target/mvp/retry-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-retry-json-seed-failed-ps1-json",
+
+        "seed-failed",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-retry-json-seed-failed-ps1-json",
+
+        expected_task_id="task-wrapper-retry-json",
+
+        expected_db_path="target/mvp/retry-json.db",
+
+        expected_output_path="target/mvp/retry-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "retry", "--db", "target/mvp/retry-json.db", "--task-id", "task-wrapper-retry-json", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-retry-json",
+
+        "retry",
+
+    )
+
+    if result is not None:
+
+        prepared = result.get("prepared") or []
+
+        remembered_session = result.get("remembered_session") or {}
+
+        source_hints = result.get("source_hints") or {}
+
+        captured_output = str(result.get("captured_output") or "")
+
+        if not prepared or prepared[0] != "retry":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing prepared retry")
+
+        elif "task-wrapper-retry-json" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-retry-json missing captured task task-wrapper-retry-json")
+
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-retry-json":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing remembered session task-wrapper-retry-json")
+
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing source_hints.db=flag")
+
+        elif source_hints.get("output") != "session":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing source_hints.output=session")
+
+        elif source_hints.get("owner_id") != "session":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing source_hints.owner_id=session")
+
+        elif source_hints.get("task_context") != "flag":
+
+            errors.append("mvp-wrapper-ps1-retry-json missing source_hints.task_context=flag")
+
+    wrapper_restore_after_ps1_retry_a = subprocess.run(
+
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
+
+        cwd=REPO_ROOT,
+
+        capture_output=True,
+
+        text=True,
+
+    )
+
+    if wrapper_restore_after_ps1_retry_a.returncode != 0:
+
+        errors.append(f"mvp-wrapper-restore-after-ps1-retry-a failed: exit={wrapper_restore_after_ps1_retry_a.returncode}")
+
+    wrapper_restore_after_ps1_retry_b = subprocess.run(
+
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--task-id", "task-wrapper-b"],
+
+        cwd=REPO_ROOT,
+
+        capture_output=True,
+
+        text=True,
+
+    )
+
+    if wrapper_restore_after_ps1_retry_b.returncode != 0:
+
+        errors.append(f"mvp-wrapper-restore-after-ps1-retry-b failed: exit={wrapper_restore_after_ps1_retry_b.returncode}")
+
     wrapper_use = subprocess.run(
 
 
