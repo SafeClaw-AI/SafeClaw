@@ -5104,6 +5104,14 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "sessions", "--limit", "bad", "--json"],
+        errors,
+        "mvp-wrapper-ps1-invalid-sessions-json",
+        "sessions",
+        expected_error_message_substring="invalid --limit",
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "session", "--bogus", "--json"],
         errors,
         "mvp-wrapper-invalid-session-json",
