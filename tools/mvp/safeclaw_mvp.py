@@ -351,11 +351,17 @@ def execute_session_action_json(args: list[str]) -> int:
 
     payload = build_session_action_result_payload(result)
     if result["exit_code"] != 0:
+        failure = None
+        if action == "resume":
+            failure = apply_resume_failure_contract(payload, clean_args, str(result["output"]))
         return emit_json_error(
             action,
             "underlying action failed",
             exit_code=int(result["exit_code"]),
             details=payload,
+            code=None if failure is None else failure["code"],
+            reason=None if failure is None else failure["reason"],
+            summary=None if failure is None else failure["summary"],
         )
     return emit_json_result(action, payload)
 
@@ -365,6 +371,25 @@ def execute_session_action_capture(args: list[str]) -> dict[str, object]:
     session = load_session()
     prepared = prepare_args(action, args, session)
     exit_code, output = run_cargo_capture(prepared, action=action)
+    saved_session = None
+    if exit_code == 0 and action in WRITES_SESSION:
+        saved_session = build_session(prepared)
+        save_session(saved_session)
+    return {
+        "action": action,
+        "prepared": prepared,
+        "exit_code": exit_code,
+        "output": output,
+        "saved_session": saved_session,
+        "source_hints": describe_prepared_sources(action, args, session, prepared),
+    }
+
+
+def execute_session_action_replay_capture(args: list[str]) -> dict[str, object]:
+    action = args[0]
+    session = load_session()
+    prepared = prepare_args(action, args, session)
+    exit_code, output = run_cargo_capture(prepared, action=action, replay_output=True)
     saved_session = None
     if exit_code == 0 and action in WRITES_SESSION:
         saved_session = build_session(prepared)
@@ -990,6 +1015,47 @@ def build_service_status_args(args: list[str], limit: int) -> list[str]:
     return status_args
 
 
+def build_resume_inspect_command(args: list[str]) -> str:
+    db, _ = resolve_db_selection(args, load_session())
+    return f"safeclaw.cmd service-status --db {render_cmd_arg(db)} --limit 1"
+
+
+def classify_service_resume_failure(args: list[str], output: str) -> dict[str, str] | None:
+    captured_output = str(output).strip()
+    inspect_command = build_resume_inspect_command(args)
+    if "no hibernated runtime ready for resume" in captured_output:
+        return {
+            "code": "resume-target-missing",
+            "reason": "hibernated_runtime_missing",
+            "summary": "inspect_service_status_before_resume",
+            "error_message": "resume requires a hibernated runtime for the selected task; inspect service-status before retrying",
+            "next_command": inspect_command,
+            "text_hint": f"[mvp-wrapper] service-resume hint => no hibernated runtime is ready; inspect state via {inspect_command}",
+        }
+    if "ReconcileUnavailable" in captured_output:
+        return {
+            "code": "resume-target-not-hibernated",
+            "reason": "resume_target_not_hibernated",
+            "summary": "inspect_service_status_before_resume",
+            "error_message": "resume only works for hibernated tasks; inspect service-status and follow the current state's next command",
+            "next_command": inspect_command,
+            "text_hint": f"[mvp-wrapper] service-resume hint => current task is not hibernated; inspect state via {inspect_command}",
+        }
+    return None
+
+
+def apply_resume_failure_contract(details: dict[str, object], args: list[str], output: str) -> dict[str, str] | None:
+    failure = classify_service_resume_failure(args, output)
+    if failure is None:
+        return None
+    details["code"] = failure["code"]
+    details["error_message"] = failure["error_message"]
+    details["reason"] = failure["reason"]
+    details["summary"] = failure["summary"]
+    details["next_command"] = failure["next_command"]
+    return failure
+
+
 def build_service_status_step_result(payload: dict[str, object]) -> dict[str, object]:
     return {
         "action": "service-status",
@@ -1132,15 +1198,22 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
             }
         )
         if action_result["exit_code"] != 0:
+            details = build_remembered_session_details(
+                failed_step=session_action,
+                steps=step_results,
+                captured_output=str(action_result["output"]).strip(),
+            )
+            failure = None
+            if session_action == "resume":
+                failure = apply_resume_failure_contract(details, args, str(action_result["output"]))
             return emit_json_error(
                 local_action,
                 f"failed step={session_action}",
                 exit_code=int(action_result["exit_code"]),
-                details=build_remembered_session_details(
-                    failed_step=session_action,
-                    steps=step_results,
-                    captured_output=str(action_result["output"]).strip(),
-                ),
+                details=details,
+                code=None if failure is None else failure["code"],
+                reason=None if failure is None else failure["reason"],
+                summary=None if failure is None else failure["summary"],
             )
 
         status_payload = build_service_status_payload(status_args, load_session(), limit=limit)
@@ -1200,8 +1273,18 @@ def run_service_session_combo(local_action: str, session_action: str, args: list
             return 1
 
     print(f"[mvp-wrapper] {local_action} => {session_action}")
-    exit_code = execute_session_action(session_args)
+    try:
+        action_result = execute_session_action_replay_capture(session_args)
+    except ValueError as error:
+        print(f"[mvp-wrapper] {session_action} => error {error}", file=sys.stderr)
+        print(f"[mvp-wrapper] {local_action} => failed step={session_action} exit=2", file=sys.stderr)
+        return 2
+    exit_code = int(action_result["exit_code"])
     if exit_code != 0:
+        if session_action == "resume":
+            failure = classify_service_resume_failure(args, str(action_result["output"]))
+            if failure is not None:
+                print(failure["text_hint"], file=sys.stderr)
         print(f"[mvp-wrapper] {local_action} => failed step={session_action} exit={exit_code}", file=sys.stderr)
         return exit_code
 
@@ -1987,12 +2070,13 @@ def print_help() -> int:
         "统一返回 {ok, action, schema_version, result|error} 信封"
     )
     print(
-        "[mvp-wrapper] errors => invalid-argument / missing-task-context；"
+        "[mvp-wrapper] errors => invalid-argument / missing-task-context / resume-target-missing / resume-target-not-hibernated；"
         "组合动作 JSON 失败会额外附带 failed_step / code / error_message"
     )
     print(
         "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；"
-        "missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文"
+        "missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文；"
+        "resume-target-* 时请先跑 service-status 确认当前 task 是否仍在 hibernated"
     )
     print(
         "[mvp-wrapper] error message => error.message 是稳定的 wrapper 级消息；"

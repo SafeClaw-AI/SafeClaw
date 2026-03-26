@@ -1462,9 +1462,9 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-help 输出缺少异常链提示")
     elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-resume/service-reconcile/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/seed-hibernated/recover/seed-failed/retry/resume/reconcile/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
         errors.append("mvp-wrapper-help missing JSON envelope hint")
-    elif "[mvp-wrapper] errors => invalid-argument / missing-task-context；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
+    elif "[mvp-wrapper] errors => invalid-argument / missing-task-context / resume-target-missing / resume-target-not-hibernated；组合动作 JSON 失败会额外附带 failed_step / code / error_message" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少 JSON 错误码提示")
-    elif "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文" not in wrapper_help_output:
+    elif "[mvp-wrapper] error hints => invalid-argument 多为未知参数或 flag 缺值；missing-task-context 时请传 --task-id，或先 use/run/seed-crash/seed-failed 建立上下文；resume-target-* 时请先跑 service-status 确认当前 task 是否仍在 hibernated" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少错误码解释提示")
     elif "[mvp-wrapper] error message => error.message 是稳定的 wrapper 级消息；脚本无需解析底层 cargo 文案" not in wrapper_help_output:
         errors.append("mvp-wrapper-help 输出缺少稳定 error.message 提示")
@@ -2741,6 +2741,165 @@ def collect_errors() -> list[str]:
         expected_steps=["resume", "service-status", "report"],
         expect_report_payload=True,
     )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-resume-not-hibernated",
+            "--db",
+            "target/mvp/service-resume-not-hibernated.db",
+            "--output",
+            "target/mvp/service-resume-not-hibernated.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-resume-not-hibernated-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-resume-not-hibernated-seed-failed-json",
+        expected_task_id="task-wrapper-service-resume-not-hibernated",
+        expected_db_path="target/mvp/service-resume-not-hibernated.db",
+        expected_output_path="target/mvp/service-resume-not-hibernated.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    assert_command_failure_output(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-resume",
+            "--db",
+            "target/mvp/service-resume-not-hibernated.db",
+            "--task-id",
+            "task-wrapper-service-resume-not-hibernated",
+            "--limit",
+            "1",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-resume-not-hibernated",
+        expected_substring='[mvp-wrapper] service-resume hint => current task is not hibernated; inspect state via safeclaw.cmd service-status --db "target/mvp/service-resume-not-hibernated.db" --limit 1',
+        missing_output_label="mvp-wrapper-cmd-service-resume-not-hibernated missing resume hint",
+        expected_exit=1,
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-resume-not-hibernated-json",
+            "--db",
+            "target/mvp/service-resume-not-hibernated-json.db",
+            "--output",
+            "target/mvp/service-resume-not-hibernated-json.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json",
+        expected_task_id="task-wrapper-service-resume-not-hibernated-json",
+        expected_db_path="target/mvp/service-resume-not-hibernated-json.db",
+        expected_output_path="target/mvp/service-resume-not-hibernated-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    assert_command_json_error(
+        [
+            "cmd",
+            "/c",
+            "tools\mvp\safeclaw_mvp.cmd",
+            "service-resume",
+            "--db",
+            "target/mvp/service-resume-not-hibernated-json.db",
+            "--task-id",
+            "task-wrapper-service-resume-not-hibernated-json",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-resume-not-hibernated-json",
+        "service-resume",
+        expected_exit=1,
+        expected_error_message_substring="failed step=resume",
+        expected_top_level_error_code="resume-target-not-hibernated",
+        expected_top_level_error_reason="resume_target_not_hibernated",
+        expected_failed_step="resume",
+        expected_code="resume-target-not-hibernated",
+        expected_details_message_substring="resume only works for hibernated tasks",
+    )
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-resume-missing",
+            "--db",
+            "target/mvp/service-resume-missing.db",
+            "--output",
+            "target/mvp/service-resume-missing.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-resume-missing-run-json",
+        "run",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-resume-missing-run-json",
+        expected_task_id="task-wrapper-service-resume-missing",
+        expected_db_path="target/mvp/service-resume-missing.db",
+        expected_output_path="target/mvp/service-resume-missing.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    assert_command_json_error(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-resume",
+            "--db",
+            "target/mvp/service-resume-missing.db",
+            "--task-id",
+            "task-wrapper-service-resume-missing",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-resume-missing-json",
+        "service-resume",
+        expected_exit=1,
+        expected_error_message_substring="failed step=resume",
+        expected_top_level_error_code="resume-target-missing",
+        expected_top_level_error_reason="hibernated_runtime_missing",
+        expected_failed_step="resume",
+        expected_code="resume-target-missing",
+        expected_details_message_substring="resume requires a hibernated runtime for the selected task",
+    )
+
 
     result = assert_command_json_result(
         [
