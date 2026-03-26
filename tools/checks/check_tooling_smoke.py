@@ -5490,6 +5490,14 @@ def collect_errors() -> list[str]:
     assert_verify_json_result(result, errors, "mvp-wrapper-verify-json")
 
     assert_command_json_error(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "verify", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-cmd-verify-invalid-json",
+        "verify",
+        expected_error_message_substring="unknown argument: --bogus",
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "verify", "--bogus", "--json"],
         errors,
         "mvp-wrapper-verify-invalid-json",
