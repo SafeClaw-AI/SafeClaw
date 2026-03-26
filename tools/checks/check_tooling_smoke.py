@@ -5048,6 +5048,18 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "retry", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-ps1-retry-invalid-json",
+        "retry",
+        expected_error_message_substring="unknown argument",
+        error_message_label="mvp-wrapper-ps1-retry-invalid-json missing unknown argument",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-invalid-json-base",
+        remembered_session_label="mvp-wrapper-ps1-retry-invalid-json missing invalid-json-base",
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "retry", "--bogus", "--json"],
         errors,
         "mvp-wrapper-retry-invalid-json",
