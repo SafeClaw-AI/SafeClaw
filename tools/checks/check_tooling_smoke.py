@@ -5498,6 +5498,14 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "verify", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-ps1-verify-invalid-json",
+        "verify",
+        expected_error_message_substring="unknown argument: --bogus",
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "verify", "--bogus", "--json"],
         errors,
         "mvp-wrapper-verify-invalid-json",
