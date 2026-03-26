@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 05:10:45 +0800
+最后更新时间：2026-03-27 05:34:52 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前九十三刀已完成；这一轮把 `ps1 report` json 合同锁进 smoke
+当前阶段：已进入 M1b，前九十四刀已完成；这一轮把 `ps1 retry` json 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -113,6 +113,7 @@
 | [x] | M1b Slice 91: ps1 service-reconcile json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-reconcile --db target/mvp/service-reconcile-json.db --task-id task-wrapper-service-reconcile-json --decision executed --limit 1 --json` 的成功结果断言，并在前面补一份独立 `seed-crash` 基座，锁住 wrapper 组合结果、remembered session 与 reconcile/service-status 子结果 | 防止 PowerShell 包装层的 service-reconcile 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 92: ps1 service-reconcile report json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-reconcile --db target/mvp/service-reconcile-report-json.db --task-id task-wrapper-service-reconcile-report-json --decision executed --limit 1 --report --json` 的成功结果断言，并在前面补一份独立 `seed-crash` 基座，锁住 wrapper 组合结果、report 子结果与 remembered session | 防止 PowerShell 包装层的 service-reconcile report 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 93: ps1 report json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --json` 的成功结果断言，锁住 `report` 的 passthrough 结果与 session 来源提示 | 防止 PowerShell 包装层的 report 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 94: ps1 retry json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 retry --db target/mvp/retry-json.db --task-id task-wrapper-retry-json --json` 的成功结果断言，并先用独立 `seed-failed` 基座准备 failed 现场，随后重建 wrapper A/B 会话，锁住 `retry` 成功结果与来源提示，同时避免和既有 wrapper use/report 护栏串状态 | 防止 PowerShell 包装层的 retry 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
