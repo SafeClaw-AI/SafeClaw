@@ -4884,6 +4884,19 @@ def collect_errors() -> list[str]:
         expect_no_remembered_session=True,
     )
 
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-reconcile", "--db", "target/mvp/service-reconcile-missing.db", "--decision", "executed", "--json"],
+        errors,
+        "mvp-wrapper-service-reconcile-missing-task-json",
+        "service-reconcile",
+        expected_error_message_substring="failed step=reconcile",
+        error_message_label="mvp-wrapper-service-reconcile-missing-task-json missing wrapper error",
+        expected_failed_step="reconcile",
+        expected_code="missing-task-context",
+        expected_details_message_substring="missing task context",
+        expect_no_remembered_session=True,
+    )
+
     wrapper_invalid_json_base = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-invalid-json-base"],
         cwd=REPO_ROOT,
