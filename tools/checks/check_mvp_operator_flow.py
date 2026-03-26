@@ -41,6 +41,9 @@ QUARANTINE_B_TASK = "task-operator-flow-quarantine-b"
 QUARANTINE_DB = "target/mvp/operator-flow-quarantine.db"
 QUARANTINE_A_OUTPUT = "target/mvp/operator-flow-quarantine-a.txt"
 QUARANTINE_B_OUTPUT = "target/mvp/operator-flow-quarantine-b.txt"
+HIBERNATED_TASK = "task-operator-flow-hibernated"
+HIBERNATED_DB = "target/mvp/operator-flow-hibernated.db"
+HIBERNATED_OUTPUT = "target/mvp/operator-flow-hibernated.txt"
 
 
 def reset_operator_flow_state() -> None:
@@ -78,6 +81,10 @@ def reset_operator_flow_state() -> None:
         "operator-flow-quarantine.db-wal",
         "operator-flow-quarantine-a.txt",
         "operator-flow-quarantine-b.txt",
+        "operator-flow-hibernated.db",
+        "operator-flow-hibernated.db-shm",
+        "operator-flow-hibernated.db-wal",
+        "operator-flow-hibernated.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -192,6 +199,8 @@ def assert_service_combo(
     output: str,
     expected_output_source: str,
     expected_owner_source: str,
+    expected_steps: list[str] | None = None,
+    expect_report_payload: bool = False,
 ) -> None:
     if payload is None:
         return
@@ -199,8 +208,9 @@ def assert_service_combo(
     expect_equal(errors, label, "action", payload.get("action"), combo_action)
     result = payload.get("result") or {}
     steps = result.get("steps") or []
-    expect_equal(errors, label, "steps.actions", [step.get("action") for step in steps], [primary_action, "service-status"])
-    if len(steps) == 2:
+    expected_steps = expected_steps or [primary_action, "service-status"]
+    expect_equal(errors, label, "steps.actions", [step.get("action") for step in steps], expected_steps)
+    if len(steps) >= 2:
         expect_true(errors, label, "steps[0].ok", steps[0].get("ok"))
         expect_true(errors, label, "steps[1].ok", steps[1].get("ok"))
         expect_equal(errors, label, "steps[0].source_hints.db", (steps[0].get("source_hints") or {}).get("db"), "flag")
@@ -212,6 +222,8 @@ def assert_service_combo(
             (steps[1].get("source_hints") or {}).get("task_context"),
             "session",
         )
+    if len(steps) >= 3:
+        expect_true(errors, label, "steps[2].ok", steps[2].get("ok"))
 
     assert_session_fields(result.get("remembered_session"), errors, label, "remembered_session", task_id, db, output)
     assert_session_fields(result.get("session"), errors, label, "session", task_id, db, output)
@@ -235,6 +247,12 @@ def assert_service_combo(
     )
     expect_equal(errors, label, f"{primary_action}.source_hints.task_context", (primary.get("source_hints") or {}).get("task_context"), "flag")
     assert_session_fields(primary.get("remembered_session"), errors, label, f"{primary_action}.remembered_session", task_id, db, output)
+
+    if expect_report_payload:
+        report = result.get("report") or {}
+        expect_equal(errors, label, "report.prepared[0]", (report.get("prepared") or [None])[0], "report")
+        expect_equal(errors, label, "report.saved_session", report.get("saved_session"), None)
+        assert_session_fields(report.get("remembered_session"), errors, label, "report.remembered_session", task_id, db, output)
 
     status = result.get("service_status") or {}
     expect_equal(errors, label, "service_status.db", status.get("db"), db)
@@ -482,6 +500,115 @@ def _main() -> int:
         output=RECOVER_OUTPUT,
         expected_output_source="session",
         expected_owner_source="session",
+    )
+
+    seed_hibernated = run_json(
+        [
+            "seed-hibernated",
+            "--reset",
+            "--task-id",
+            HIBERNATED_TASK,
+            "--db",
+            HIBERNATED_DB,
+            "--output",
+            HIBERNATED_OUTPUT,
+        ],
+        "operator-flow/seed-hibernated",
+        errors,
+    )
+    if seed_hibernated is not None:
+        expect_equal(errors, "operator-flow/seed-hibernated", "action", seed_hibernated.get("action"), "seed-hibernated")
+        assert_session_fields((seed_hibernated.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-hibernated", "remembered_session", HIBERNATED_TASK, HIBERNATED_DB, HIBERNATED_OUTPUT)
+    wait_for_session(HIBERNATED_TASK, HIBERNATED_DB, HIBERNATED_OUTPUT, errors, "operator-flow/seed-hibernated")
+
+    hibernated_status = run_json(
+        [
+            "service-status",
+            "--db",
+            HIBERNATED_DB,
+            "--limit",
+            "1",
+        ],
+        "operator-flow/service-status-hibernated",
+        errors,
+    )
+    if hibernated_status is not None:
+        result = hibernated_status.get("result") or {}
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-status-hibernated", "result.db", result.get("db"), HIBERNATED_DB)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "result.limit", result.get("limit"), 1)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "current_session.task_id", current_session.get("task_id"), HIBERNATED_TASK)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "workers.hibernated", ((result.get("workers") or {}).get("hibernated")), 1)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.status", coordination.get("status"), "hibernated")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.reason", coordination.get("reason"), "hibernated_waiting_for_resume")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.summary", coordination.get("summary"), "inspect_and_resume_or_expire")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.task_id", coordination.get("task_id"), HIBERNATED_TASK)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.target_scope", coordination.get("target_scope"), f"scope:{HIBERNATED_OUTPUT}")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_action", coordination.get("next_action"), "inspect")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_task_id", coordination.get("next_task_id"), HIBERNATED_TASK)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_blocker", coordination.get("next_blocker"), "manual_review_needed")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
+        if not recent_tasks:
+            append_error(errors, "operator-flow/service-status-hibernated", "recent task missing")
+        else:
+            task = recent_tasks[0]
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.task_id", task.get("task_id"), HIBERNATED_TASK)
+            expect_true(errors, "operator-flow/service-status-hibernated", "recent.current", task.get("current"))
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.worker_state", task.get("worker_state"), "hibernated")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.lease_state", task.get("lease_state"), "expired")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_action", task.get("next_action"), "inspect")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_reason", task.get("next_reason"), "hibernated_waiting_for_resume")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_blocker", task.get("next_blocker"), "manual_review_needed")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=manual_review_needed,reason=hibernated_waiting_for_resume")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_task_id", task.get("next_task_id"), HIBERNATED_TASK)
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_command", task.get("next_command"), f'safeclaw.cmd service-resume --db "{HIBERNATED_DB}" --task-id "{HIBERNATED_TASK}" --limit 1 --report')
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_status", task.get("coordination_status"), "hibernated")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_reason", task.get("coordination_reason"), "hibernated_waiting_for_resume")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_summary", task.get("coordination_summary"), "inspect_and_resume_or_expire")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), False)
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "none")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), "")
+            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 0)
+
+    service_resume = run_json(
+        [
+            "service-resume",
+            "--db",
+            HIBERNATED_DB,
+            "--task-id",
+            HIBERNATED_TASK,
+            "--limit",
+            "1",
+            "--report",
+        ],
+        "operator-flow/service-resume",
+        errors,
+    )
+    assert_service_combo(
+        service_resume,
+        errors,
+        "operator-flow/service-resume",
+        combo_action="service-resume",
+        primary_action="resume",
+        task_id=HIBERNATED_TASK,
+        db=HIBERNATED_DB,
+        output=HIBERNATED_OUTPUT,
+        expected_output_source="session",
+        expected_owner_source="session",
+        expected_steps=["resume", "service-status", "report"],
+        expect_report_payload=True,
     )
 
     seed_failed_stalled = run_json(
