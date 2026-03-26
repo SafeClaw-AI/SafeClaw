@@ -538866,6 +538866,94 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-crash",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-service-recover-json",
+
+            "--db",
+
+            "target/mvp/service-recover-json.db",
+
+            "--output",
+
+            "target/mvp/service-recover-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-recover-json-seed-crash-ps1-json",
+
+        "seed-crash",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-recover-json-seed-crash-ps1-json",
+
+        expected_task_id="task-wrapper-service-recover-json",
+
+        expected_db_path="target/mvp/service-recover-json.db",
+
+        expected_output_path="target/mvp/service-recover-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-recover", "--db", "target/mvp/service-recover-json.db", "--task-id", "task-wrapper-service-recover-json", "--limit", "1", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-recover-json",
+
+        "service-recover",
+
+    )
+
+    assert_service_recover_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-recover-json",
+
+        expected_db="target\mvp\service-recover-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-recover-json",
+
+        expected_limit=1,
+
+    )
+
+
     assert_command_json_error(
 
 
