@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 02:30:29 +0800
+最后更新时间：2026-03-27 02:53:13 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -859,3 +859,15 @@
 - 本轮完成：同步 `Slice 83` 台账；新增时间戳记录 `docs/round_logs/20260327_023029_slice83.md`；`MVP_PROGRESS.md` 改到前 83 刀已完成，并补齐表格里漏记的 `Slice 77` 到 `Slice 82`；`开发计划.md` 基线改到 `64b6712`，下一刀写死为 `Slice 84`：`ps1 service-run --report --json` 成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 83 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round EO
+- 完成时间：2026-03-27 02:53:13 +0800
+- 本轮完成：做完 `Slice 84`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-run --reset --task-id task-wrapper-service-run-report-json --db target/mvp/service-run-report-json.db --output target/mvp/service-run-report-json.txt --limit 1 --report --json` 的成功结果断言；现在会稳定锁住 `service-run` 的 wrapper 组合结果、report 子结果与 remembered session。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`5955313 test: guard ps1 service run report json`。
+
+### Round EP
+- 完成时间：2026-03-27 02:53:13 +0800
+- 本轮完成：同步 `Slice 84` 台账；新增时间戳记录 `docs/round_logs/20260327_025313_slice84.md`；`MVP_PROGRESS.md` 改到前 84 刀已完成；`开发计划.md` 基线改到 `5955313`，下一刀写死为 `Slice 85`：`ps1 service-retry --json` 成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 84 progress artifacts`；最终哈希以当时 `HEAD` 为准。
