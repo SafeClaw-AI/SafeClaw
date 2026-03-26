@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-26 13:53:51 +0800
+最后更新时间：2026-03-26 23:25:17 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前五十六刀已完成；这一轮把 `ps1 resume` 缺上下文合同锁进 smoke
+当前阶段：已进入 M1b，前六十九刀已完成；这一轮把 `ps1 status` invalid-json remembered-session 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -88,6 +88,7 @@
 | [x] | M1b Slice 66: ps1 demo fail-json remembered-session 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 demo --bogus --json` 在已有 demo remembered session 基座时的 `failed step=run` 护栏，锁住 `details.failed_step=run`、`details.code=invalid-argument`、`details.error_message` 与 `remembered_session.task_id=task-wrapper-demo-json` | 防止 PowerShell 包装层的 demo remembered-session fail-json 合同静默漂移 |
 | [x] | M1b Slice 67: ps1 recover-demo fail-json remembered-session 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover-demo --bogus --json` 在已有 recover-demo remembered session 基座时的 `failed step=seed-crash` 护栏，锁住 `details.failed_step=seed-crash`、`details.code=invalid-argument`、`details.error_message` 与 `remembered_session.task_id=task-wrapper-recover-demo-json` | 防止 PowerShell 包装层的 recover-demo remembered-session fail-json 合同静默漂移 |
 | [x] | M1b Slice 68: ps1 retry-demo fail-json remembered-session 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 retry-demo --bogus --json` 在已有 retry-demo remembered session 基座时的 `failed step=seed-failed` 护栏，锁住 `details.failed_step=seed-failed`、`details.code=invalid-argument`、`details.error_message` 与 `remembered_session.task_id=task-wrapper-retry-demo-json` | 防止 PowerShell 包装层的 retry-demo remembered-session fail-json 合同静默漂移 |
+| [x] | M1b Slice 69: ps1 status invalid-json remembered-session 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 status --bogus --json` 在已有 remembered session 基座时的 `invalid-argument` 护栏，锁住顶层错误消息、`details.code=invalid-argument` 与 `remembered_session.task_id=task-wrapper-b` | 防止 PowerShell 包装层的 status invalid-json remembered-session 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
