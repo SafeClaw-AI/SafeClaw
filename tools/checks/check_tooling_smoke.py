@@ -599356,6 +599356,170 @@ def collect_errors() -> list[str]:
 
             errors.append("mvp-wrapper-ps1-report-explicit-crash-json missing source_hints.task_context=flag")
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-crash",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-session-explicit-crash",
+
+            "--db",
+
+            "target/mvp/session-explicit-crash.db",
+
+            "--output",
+
+            "target/mvp/session-explicit-crash.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-session-explicit-crash-seed-json",
+
+        "seed-crash",
+
+    )
+
+
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-session-explicit-crash-seed-json",
+
+        expected_task_id="task-wrapper-session-explicit-crash",
+
+        expected_db_path="target/mvp/session-explicit-crash.db",
+
+        expected_output_path="target/mvp/session-explicit-crash.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "report", "--db", "target/mvp/session-explicit-crash.db", "--task-id", "task-wrapper-session-explicit-crash", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-report-session-explicit-crash-json",
+
+        "report",
+
+    )
+
+
+
+    if result is not None:
+
+        prepared = result.get("prepared") or []
+
+        remembered_session = result.get("remembered_session") or {}
+
+        source_hints = result.get("source_hints") or {}
+
+        captured_output = str(result.get("captured_output") or "")
+
+        if not prepared or prepared[0] != "report":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing prepared report")
+
+        elif "task-wrapper-session-explicit-crash" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing captured task task-wrapper-session-explicit-crash")
+
+        elif "QueueForManualReview" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing QueueForManualReview")
+
+        elif "worker=Uncertain" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing worker=Uncertain")
+
+        elif "effect=Uncertain" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing effect=Uncertain")
+
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-session-explicit-crash":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing remembered session task-wrapper-session-explicit-crash")
+
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing source_hints.db=flag")
+
+        elif source_hints.get("output") != "session":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing source_hints.output=session")
+
+        elif source_hints.get("owner_id") != "session":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing source_hints.owner_id=session")
+
+        elif source_hints.get("task_context") != "flag":
+
+            errors.append("mvp-wrapper-ps1-report-session-explicit-crash-json missing source_hints.task_context=flag")
+
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "session", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-session-explicit-crash-json",
+
+        "session",
+
+    )
+
+
+
+    if result is not None:
+
+        if result.get("task_id") != "task-wrapper-session-explicit-crash":
+
+            errors.append("mvp-wrapper-ps1-session-explicit-crash-json missing task_id=task-wrapper-session-explicit-crash")
+
+        elif result.get("effect_id") != "effect-task-wrapper-session-explicit-crash":
+
+            errors.append("mvp-wrapper-ps1-session-explicit-crash-json missing effect_id=effect-task-wrapper-session-explicit-crash")
+
+        elif result.get("db") != "target/mvp/session-explicit-crash.db":
+
+            errors.append("mvp-wrapper-ps1-session-explicit-crash-json missing db=target/mvp/session-explicit-crash.db")
+
+        elif result.get("output") != "target/mvp/session-explicit-crash.txt":
+
+            errors.append("mvp-wrapper-ps1-session-explicit-crash-json missing output=target/mvp/session-explicit-crash.txt")
+
+        elif result.get("owner_id") != "safeclaw-mvp":
+
+            errors.append("mvp-wrapper-ps1-session-explicit-crash-json missing owner_id=safeclaw-mvp")
+
+
+
     wrapper_restore_after_ps1_retry_a = subprocess.run(
 
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
