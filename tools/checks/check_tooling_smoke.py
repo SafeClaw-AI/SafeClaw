@@ -6228,6 +6228,21 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "recover-demo", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-ps1-recover-demo-fail-json",
+        "recover-demo",
+        expected_failed_step="seed-crash",
+        expected_code="invalid-argument",
+        expected_details_message_substring="unknown argument",
+        details_message_label="mvp-wrapper-ps1-recover-demo-fail-json missing unknown argument",
+        expected_remembered_session_task_id="task-wrapper-recover-demo-json",
+        remembered_session_label="mvp-wrapper-ps1-recover-demo-fail-json missing task-wrapper-recover-demo-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-ps1-recover-demo-fail-json should not keep legacy session",
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus", "--json"],
         errors,
         "mvp-wrapper-recover-demo-fail-json",
