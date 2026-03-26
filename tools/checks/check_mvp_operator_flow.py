@@ -24,6 +24,9 @@ RETRY_OUTPUT = "target/mvp/operator-flow-retry.txt"
 RECOVER_TASK = "task-operator-flow-recover"
 RECOVER_DB = "target/mvp/operator-flow-recover.db"
 RECOVER_OUTPUT = "target/mvp/operator-flow-recover.txt"
+RECONCILE_TASK = "task-operator-flow-reconcile"
+RECONCILE_DB = "target/mvp/operator-flow-reconcile.db"
+RECONCILE_OUTPUT = "target/mvp/operator-flow-reconcile.txt"
 
 
 def reset_operator_flow_state() -> None:
@@ -43,6 +46,10 @@ def reset_operator_flow_state() -> None:
         "operator-flow-recover.db-shm",
         "operator-flow-recover.db-wal",
         "operator-flow-recover.txt",
+        "operator-flow-reconcile.db",
+        "operator-flow-reconcile.db-shm",
+        "operator-flow-reconcile.db-wal",
+        "operator-flow-reconcile.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -445,6 +452,118 @@ def _main() -> int:
         task_id=RECOVER_TASK,
         db=RECOVER_DB,
         output=RECOVER_OUTPUT,
+        expected_output_source="session",
+        expected_owner_source="session",
+    )
+
+    seed_crash_reconcile = run_json(
+        [
+            "seed-crash",
+            "--reset",
+            "--probe-mode",
+            "none",
+            "--task-id",
+            RECONCILE_TASK,
+            "--db",
+            RECONCILE_DB,
+            "--output",
+            RECONCILE_OUTPUT,
+        ],
+        "operator-flow/seed-crash-reconcile",
+        errors,
+    )
+    if seed_crash_reconcile is not None:
+        expect_equal(errors, "operator-flow/seed-crash-reconcile", "action", seed_crash_reconcile.get("action"), "seed-crash")
+        assert_session_fields((seed_crash_reconcile.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-reconcile", "remembered_session", RECONCILE_TASK, RECONCILE_DB, RECONCILE_OUTPUT)
+    wait_for_session(RECONCILE_TASK, RECONCILE_DB, RECONCILE_OUTPUT, errors, "operator-flow/seed-crash-reconcile")
+
+    reconcile_status_before = run_json(
+        [
+            "service-status",
+            "--db",
+            RECONCILE_DB,
+            "--limit",
+            "1",
+        ],
+        "operator-flow/service-reconcile-status-before",
+        errors,
+    )
+    if reconcile_status_before is not None:
+        result = reconcile_status_before.get("result") or {}
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.db", result.get("db"), RECONCILE_DB)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.limit", result.get("limit"), 1)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "current_session.task_id", current_session.get("task_id"), RECONCILE_TASK)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.status", coordination.get("status"), "quarantined")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.reason", coordination.get("reason"), "self_executed_assumed_scope_quarantine")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.summary", coordination.get("summary"), "reconcile_self_before_scope_write")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.task_id", coordination.get("task_id"), RECONCILE_TASK)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.target_scope", coordination.get("target_scope"), f"scope:{RECONCILE_OUTPUT}")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_action", coordination.get("next_action"), "inspect")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_task_id", coordination.get("next_task_id"), RECONCILE_TASK)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_blocker", coordination.get("next_blocker"), "scope_quarantine")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), True)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "self")
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), RECONCILE_TASK)
+        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 1)
+        if not recent_tasks:
+            append_error(errors, "operator-flow/service-reconcile-status-before", "recent task missing")
+        else:
+            task = recent_tasks[0]
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.task_id", task.get("task_id"), RECONCILE_TASK)
+            expect_true(errors, "operator-flow/service-reconcile-status-before", "recent.current", task.get("current"))
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.effect_status", task.get("effect_status"), "executed_assumed")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.lease_state", task.get("lease_state"), "expired")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_action", task.get("next_action"), "inspect")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_reason", task.get("next_reason"), "executed_assumed_requires_reconcile")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_blocker", task.get("next_blocker"), "scope_quarantine")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=scope_quarantine,reason=executed_assumed_requires_reconcile")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_task_id", task.get("next_task_id"), RECONCILE_TASK)
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}"')
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_status", task.get("coordination_status"), "quarantined")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_reason", task.get("coordination_reason"), "self_executed_assumed_scope_quarantine")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_summary", task.get("coordination_summary"), "reconcile_self_before_scope_write")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), True)
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "self")
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), RECONCILE_TASK)
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 1)
+            reconcile_commands = task.get("reconcile_commands") or {}
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.reconcile_commands.executed", reconcile_commands.get("executed"), f'safeclaw.cmd service-reconcile --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}" --decision executed --limit 1 --report')
+            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.reconcile_commands.not_executed", reconcile_commands.get("not_executed"), f'safeclaw.cmd service-reconcile --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}" --decision not-executed --limit 1 --report')
+
+    service_reconcile = run_json(
+        [
+            "service-reconcile",
+            "--db",
+            RECONCILE_DB,
+            "--task-id",
+            RECONCILE_TASK,
+            "--decision",
+            "executed",
+            "--limit",
+            "1",
+        ],
+        "operator-flow/service-reconcile",
+        errors,
+    )
+    assert_service_combo(
+        service_reconcile,
+        errors,
+        "operator-flow/service-reconcile",
+        combo_action="service-reconcile",
+        primary_action="reconcile",
+        task_id=RECONCILE_TASK,
+        db=RECONCILE_DB,
+        output=RECONCILE_OUTPUT,
         expected_output_source="session",
         expected_owner_source="session",
     )
