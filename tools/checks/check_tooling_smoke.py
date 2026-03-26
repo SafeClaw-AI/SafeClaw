@@ -5088,6 +5088,14 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "doctor", "--db", "--json"],
+        errors,
+        "mvp-wrapper-cmd-invalid-doctor-json",
+        "doctor",
+        expected_error_message_substring="missing value after --db",
+    )
+
+    assert_command_json_error(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "doctor", "--db", "--json"],
         errors,
         "mvp-wrapper-ps1-invalid-doctor-json",
