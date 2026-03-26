@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 03:50:55 +0800
+最后更新时间：2026-03-27 04:01:31 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -917,3 +917,14 @@
 - 本轮完成：同步 `Slice 88` 台账；新增时间戳记录 `docs/round_logs/20260327_035055_slice88.md`；`MVP_PROGRESS.md` 改到前 88 刀已完成；`开发计划.md` 基线改到 `8bea228`，下一刀写死为 `Slice 89`：`ps1 service-resume --json` 成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 88 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round EY
+- 完成时间：2026-03-27 04:01:31 +0800
+- 本轮完成：做完 `Slice 89`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-resume --db target/mvp/service-resume-json.db --task-id task-wrapper-service-resume-json --limit 1 --json` 的成功结果断言；由于 `service-resume` 会改变现场，还在前面补了一份独立 `seed-hibernated` 基座，避免和 `cmd` 护栏互相踩状态。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`0007de9 test: guard ps1 service resume json`。
+
+### Round EZ
+- 完成时间：2026-03-27 04:01:31 +0800
+- 本轮完成：同步 `Slice 89` 台账；新增时间戳记录 `docs/round_logs/20260327_040131_slice89.md`；`MVP_PROGRESS.md` 改到前 89 刀已完成；`开发计划.md` 基线改到 `0007de9`，下一刀写死为 `Slice 90`：`ps1 service-resume --report --json` 成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 89 progress artifacts`；最终哈希以当时 `HEAD` 为准。
