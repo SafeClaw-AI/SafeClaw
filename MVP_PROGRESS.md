@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-26 10:14:30 +0800
+最后更新时间：2026-03-26 10:57:58 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前四十六刀已完成；这一轮把 hibernated 现场从模糊 inspect 提示改成了可读的人话提示
+当前阶段：已进入 M1b，前四十七刀已完成；这一轮把 hibernated 现场从“看得见”推进到“能真实 resume”
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -66,6 +66,7 @@
 | [x] | M1b Slice 44: peer quarantine / contended 护栏 | M1b plan | 在 `operator-flow` 里补上 `same_scope_peer_active` 和 `peer_executed_assumed_scope_quarantine` 两条 peer 边缘路径，锁定 `contended` / `quarantined`、peer task id、quarantine source 与下一条命令 | 防止 peer scope 提示静默漂移 |
 | [x] | M1b Slice 45: budget source 复查 + no-fake-budget 护栏 | M1b plan | 再次确认当前仓库还没有真实 budget runtime/source；并在 smoke 里锁住 `doctor` / `service-status` 现在故意不暴露 `budget` 文本或 JSON 字段 | 防止先长出假预算面板、后面返工 |
 | [x] | M1b Slice 46: hibernated 可见化护栏 | M1b plan | `service-status` 现在会把 `hibernated` 现场显式回显成 `coordination=hibernated` / `next_reason=hibernated_waiting_for_resume`，smoke 也把这条提示锁住了 | 防止冬眠现场退回模糊 inspect 提示 |
+| [x] | M1b Slice 47: hibernated resume 真入口 | M1b plan | 新增 `seed-hibernated` / `resume` / `service-resume`；`service-status` 在 hibernated 现场会把 `next_command` 直接切到 `service-resume --report`，smoke 也补上了真实 `seed-hibernated -> service-resume -> service-status -> report` 闭环 | 防止冬眠现场看得到却接不回去 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
