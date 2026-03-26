@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,9 @@ RECOVER_OUTPUT = "target/mvp/operator-flow-recover.txt"
 RECONCILE_TASK = "task-operator-flow-reconcile"
 RECONCILE_DB = "target/mvp/operator-flow-reconcile.db"
 RECONCILE_OUTPUT = "target/mvp/operator-flow-reconcile.txt"
+STALLED_TASK = "task-operator-flow-stalled"
+STALLED_DB = "target/mvp/operator-flow-stalled.db"
+STALLED_OUTPUT = "target/mvp/operator-flow-stalled.txt"
 
 
 def reset_operator_flow_state() -> None:
@@ -50,6 +54,10 @@ def reset_operator_flow_state() -> None:
         "operator-flow-reconcile.db-shm",
         "operator-flow-reconcile.db-wal",
         "operator-flow-reconcile.txt",
+        "operator-flow-stalled.db",
+        "operator-flow-stalled.db-shm",
+        "operator-flow-stalled.db-wal",
+        "operator-flow-stalled.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -455,6 +463,107 @@ def _main() -> int:
         expected_output_source="session",
         expected_owner_source="session",
     )
+
+    seed_failed_stalled = run_json(
+        [
+            "seed-failed",
+            "--reset",
+            "--task-id",
+            STALLED_TASK,
+            "--db",
+            STALLED_DB,
+            "--output",
+            STALLED_OUTPUT,
+        ],
+        "operator-flow/seed-failed-stalled",
+        errors,
+    )
+    if seed_failed_stalled is not None:
+        expect_equal(errors, "operator-flow/seed-failed-stalled", "action", seed_failed_stalled.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_stalled.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-stalled", "remembered_session", STALLED_TASK, STALLED_DB, STALLED_OUTPUT)
+    wait_for_session(STALLED_TASK, STALLED_DB, STALLED_OUTPUT, errors, "operator-flow/seed-failed-stalled")
+
+    with sqlite3.connect(REPO_ROOT / STALLED_DB) as connection:
+        connection.execute(
+            """
+            UPDATE orchestrator_leases
+            SET expires_at_ms = ?1,
+                released_at_ms = NULL
+            WHERE task_id = ?2
+            """,
+            (int(time.time() * 1000) + 45_000, STALLED_TASK),
+        )
+        connection.commit()
+
+    stalled_status = run_json(
+        [
+            "service-status",
+            "--db",
+            STALLED_DB,
+            "--limit",
+            "1",
+        ],
+        "operator-flow/service-status-stalled",
+        errors,
+    )
+    if stalled_status is not None:
+        result = stalled_status.get("result") or {}
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-status-stalled", "result.db", result.get("db"), STALLED_DB)
+        expect_equal(errors, "operator-flow/service-status-stalled", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-status-stalled", "result.limit", result.get("limit"), 1)
+        expect_equal(errors, "operator-flow/service-status-stalled", "current_session.task_id", current_session.get("task_id"), STALLED_TASK)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.status", coordination.get("status"), "stalled")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.reason", coordination.get("reason"), "active_lease_without_recent_heartbeat")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.summary", coordination.get("summary"), "inspect_owner_or_wait_for_lease_expiry")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.task_id", coordination.get("task_id"), STALLED_TASK)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.target_scope", coordination.get("target_scope"), f"scope:{STALLED_OUTPUT}")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_action", coordination.get("next_action"), "inspect")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_task_id", coordination.get("next_task_id"), STALLED_TASK)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_blocker", coordination.get("next_blocker"), "active_lease")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
+        if not recent_tasks:
+            append_error(errors, "operator-flow/service-status-stalled", "recent task missing")
+        else:
+            task = recent_tasks[0]
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.task_id", task.get("task_id"), STALLED_TASK)
+            expect_true(errors, "operator-flow/service-status-stalled", "recent.current", task.get("current"))
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.effect_status", task.get("effect_status"), "prepared")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_state", task.get("lease_state"), "active")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_owner_id", task.get("lease_owner_id"), OWNER_ID)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_fencing_token", task.get("lease_fencing_token"), 1)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_freshness", task.get("lease_freshness"), "lost")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_action", task.get("next_action"), "inspect")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_reason", task.get("next_reason"), "lease_still_active")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_blocker", task.get("next_blocker"), "active_lease")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_task_id", task.get("next_task_id"), STALLED_TASK)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{STALLED_DB}" --task-id "{STALLED_TASK}"')
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_status", task.get("coordination_status"), "stalled")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_reason", task.get("coordination_reason"), "active_lease_without_recent_heartbeat")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_summary", task.get("coordination_summary"), "inspect_owner_or_wait_for_lease_expiry")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), False)
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "none")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), "")
+            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 0)
+            lease_remaining_ms = task.get("lease_remaining_ms")
+            if not isinstance(lease_remaining_ms, int) or lease_remaining_ms <= 0:
+                append_error(errors, "operator-flow/service-status-stalled", f"recent.lease_remaining_ms expected positive int, got {lease_remaining_ms!r}")
+            next_summary = task.get("next_summary")
+            if not isinstance(next_summary, str) or not next_summary.startswith("wait:remaining_ms="):
+                append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing wait prefix: {next_summary!r}")
+            elif ",blocker=active_lease,reason=lease_still_active" not in next_summary:
+                append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing active-lease payload: {next_summary!r}")
 
     seed_crash_reconcile = run_json(
         [
