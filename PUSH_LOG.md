@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 09:33:04 +0800
+最后更新时间：2026-03-26 09:49:21 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -390,3 +390,15 @@
 - 本轮完成：同步 `Slice 43` 台账；`MVP_PROGRESS.md` 改成前 43 刀已完成，`开发计划.md` 基线改到 `86a010e`，下一刀切到 `Slice 44`：peer quarantine / contended 盘点。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 43 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BM
+- 完成时间：2026-03-26 09:49:21 +0800
+- 本轮完成：做完 `Slice 44`，在 `check_mvp_operator_flow.py` 里补上 `same_scope_peer_active` 和 `peer_executed_assumed_scope_quarantine` 两条 peer 边缘路径；锁定 `contended` / `quarantined`、peer task id、quarantine source、`next_task_id` 与 `next_command`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- 提交推送：`eae7a0e test: guard peer coordination operator flow`。
+
+### Round BN
+- 完成时间：2026-03-26 09:49:21 +0800
+- 本轮完成：同步 `Slice 44` 台账；新增时间戳记录 `docs/round_logs/20260326_094921_slice44.md`；`开发计划.md` 基线改到 `eae7a0e`，下一刀切到 `Slice 45`：budget runtime/source 前置条件复查。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 44 progress artifacts`；最终哈希以当时 `HEAD` 为准。
