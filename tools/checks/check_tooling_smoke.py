@@ -513562,6 +513562,94 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-failed",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-service-retry-json",
+
+            "--db",
+
+            "target/mvp/service-retry-json.db",
+
+            "--output",
+
+            "target/mvp/service-retry-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-retry-json-seed-failed-ps1-json",
+
+        "seed-failed",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-retry-json-seed-failed-ps1-json",
+
+        expected_task_id="task-wrapper-service-retry-json",
+
+        expected_db_path="target/mvp/service-retry-json.db",
+
+        expected_output_path="target/mvp/service-retry-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-retry", "--db", "target/mvp/service-retry-json.db", "--task-id", "task-wrapper-service-retry-json", "--limit", "1", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-retry-json",
+
+        "service-retry",
+
+    )
+
+    assert_service_retry_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-retry-json",
+
+        expected_db="target\mvp\service-retry-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-retry-json",
+
+        expected_limit=1,
+
+    )
+
+
     assert_command_json_error(
 
 
