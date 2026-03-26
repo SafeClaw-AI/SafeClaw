@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 01:53:53 +0800
+最后更新时间：2026-03-27 02:13:51 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -834,3 +834,15 @@
 - 本轮完成：同步 `Slice 81` 台账；新增时间戳记录 `docs/round_logs/20260327_015353_slice81.md`；`MVP_PROGRESS.md` 改到前 81 刀已完成；`开发计划.md` 基线改到 `28ff094`，下一刀改回“待重新扫描后确定”，因为 `service-status invalid-limit` 三层已经补齐。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 81 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round EK
+- 完成时间：2026-03-27 02:13:51 +0800
+- 本轮完成：做完 `Slice 82`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-status --json` 的成功结果断言；现在会稳定锁住 `service-status` 的 JSON 包装层主结果与关键治理字段。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`3364f23 test: guard ps1 service status json`。
+
+### Round EL
+- 完成时间：2026-03-27 02:13:51 +0800
+- 本轮完成：同步 `Slice 82` 台账；新增时间戳记录 `docs/round_logs/20260327_021351_slice82.md`；`MVP_PROGRESS.md` 改到前 82 刀已完成；`开发计划.md` 基线改到 `3364f23`，下一刀写死为 `Slice 83`：`ps1 service-run --json` 成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 82 progress artifacts`；最终哈希以当时 `HEAD` 为准。
