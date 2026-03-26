@@ -622,3 +622,14 @@
 - 本轮完成：同步 `Slice 63` 台账；新增时间戳记录 `docs/round_logs/20260326_152447_slice63.md`；`MVP_PROGRESS.md` 改到前 63 刀已完成；`开发计划.md` 基线改到 `3ca079d`，下一刀切到 `Slice 64`：`ps1 verify` invalid-json 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 63 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round DA
+- 完成时间：2026-03-26 15:35:24 +0800
+- 本轮完成：做完 `Slice 64`，在 `check_tooling_smoke.py` 补上 `ps1 verify --bogus --json` 的 invalid-json 护栏；现在会稳定锁住顶层错误消息与 `action=verify` 的浅层错误输出。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`93deb00 test: guard ps1 verify invalid json`。
+
+### Round DB
+- 完成时间：2026-03-26 15:35:24 +0800
+- 本轮完成：同步 `Slice 64` 台账；新增时间戳记录 `docs/round_logs/20260326_153524_slice64.md`；`MVP_PROGRESS.md` 改到前 64 刀已完成；`开发计划.md` 基线改到 `93deb00`，下一刀切到 `Slice 65`：`cmd recover` invalid-json remembered-session 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 64 progress artifacts`；最终哈希以当时 `HEAD` 为准。
