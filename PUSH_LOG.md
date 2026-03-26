@@ -1035,3 +1035,15 @@
 - 本轮完成：同步 `Slice 98` 台账；新增时间戳记录 `docs/round_logs/20260327_062805_slice98.md`；`MVP_PROGRESS.md` 改到前 98 刀已完成；`开发计划.md` 基线改到 `76dcb6f`，下一刀写死为 `Slice 99`：`ps1 report --db ... --task-id ... --json` crash 显式上下文成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 98 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FS
+- 完成时间：2026-03-27 06:38:26 +0800
+- 本轮完成：做完 `Slice 99`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --db target/mvp/report-explicit-crash.db --task-id task-wrapper-report-explicit-crash --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，锁住 `QueueForManualReview` / `worker=Uncertain` / `effect=Uncertain` 这一组治理回显、remembered session 与显式来源提示，同时不影响后续 `use/report` 护栏。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`12a4506 test: guard ps1 report explicit crash json`。
+
+### Round FT
+- 完成时间：2026-03-27 06:38:26 +0800
+- 本轮完成：同步 `Slice 99` 台账；新增时间戳记录 `docs/round_logs/20260327_063826_slice99.md`；`MVP_PROGRESS.md` 改到前 99 刀已完成；`开发计划.md` 基线改到 `12a4506`，下一刀写死为 `Slice 100`：crash 连续性下的 `ps1 session --json` 护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 99 progress artifacts`；最终哈希以当时 `HEAD` 为准。
