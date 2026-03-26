@@ -600,3 +600,14 @@
 - 本轮完成：同步 `Slice 61` 台账；新增时间戳记录 `docs/round_logs/20260326_145509_slice61.md`；`MVP_PROGRESS.md` 改到前 61 刀已完成；`开发计划.md` 基线改到 `65113a1`，下一刀切到 `Slice 62`：`cmd doctor` missing-value-after-db 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 61 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round CW
+- 完成时间：2026-03-26 15:06:58 +0800
+- 本轮完成：做完 `Slice 62`，在 `check_tooling_smoke.py` 补上 `cmd doctor --db --json` 的 missing-value-after-db 护栏；现在会稳定锁住顶层错误消息与 `action=doctor` 的浅层错误输出。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`f4935e3 test: guard cmd doctor missing db value`。
+
+### Round CX
+- 完成时间：2026-03-26 15:06:58 +0800
+- 本轮完成：同步 `Slice 62` 台账；新增时间戳记录 `docs/round_logs/20260326_150658_slice62.md`；`MVP_PROGRESS.md` 改到前 62 刀已完成；`开发计划.md` 基线改到 `f4935e3`，下一刀切到 `Slice 63`：`cmd verify` invalid-json 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 62 progress artifacts`；最终哈希以当时 `HEAD` 为准。
