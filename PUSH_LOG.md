@@ -1059,3 +1059,15 @@
 - 本轮完成：同步 `Slice 100` 台账；新增时间戳记录 `docs/round_logs/20260327_065526_slice100.md`；`MVP_PROGRESS.md` 改到前 100 刀已完成；`开发计划.md` 基线改到 `a34a4ab`，下一刀改回现场验真后再编号，不提前写死 `Slice 101`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 100 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FW
+- 完成时间：2026-03-27 07:11:24 +0800
+- 本轮完成：做完 `Slice 101`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 sessions --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，再用显式 `report` 建立 remembered session，锁住 `db_source=session`、`current_session` 与 `rows[0]` 里的 crash 连续性回显。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`54b8084 test: guard ps1 sessions explicit crash json`。
+
+### Round FX
+- 完成时间：2026-03-27 07:11:24 +0800
+- 本轮完成：同步 `Slice 101` 台账；新增时间戳记录 `docs/round_logs/20260327_071124_slice101.md`；`MVP_PROGRESS.md` 改到前 101 刀已完成；`开发计划.md` 基线改到 `54b8084`，下一刀改回现场验真后再编号，不提前写死 `Slice 102`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 101 progress artifacts`；最终哈希以当时 `HEAD` 为准。
