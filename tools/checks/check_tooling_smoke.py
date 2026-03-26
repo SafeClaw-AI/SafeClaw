@@ -4448,6 +4448,18 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--db", "--json"],
+        errors,
+        "mvp-wrapper-cmd-status-missing-db-json",
+        "status",
+        expected_error_message_substring="missing value after --db",
+        error_message_label="mvp-wrapper-cmd-status-missing-db-json missing value after --db",
+        expected_code="invalid-argument",
+        expected_remembered_session_task_id="task-wrapper-b",
+        remembered_session_label="mvp-wrapper-cmd-status-missing-db-json missing task-wrapper-b",
+    )
+
+    assert_command_json_error(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "status", "--db", "--json"],
         errors,
         "mvp-wrapper-ps1-status-missing-db-json",
