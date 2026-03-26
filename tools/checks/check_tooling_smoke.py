@@ -684832,6 +684832,99 @@ def collect_errors() -> list[str]:
 
     result = assert_command_json_result(
 
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-crash",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-service-recover-report-json",
+
+            "--db",
+
+            "target/mvp/service-recover-report-json.db",
+
+            "--output",
+
+            "target/mvp/service-recover-report-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-recover-report-json-seed-crash-ps1-json",
+
+        "seed-crash",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-recover-report-json-seed-crash-ps1-json",
+
+        expected_task_id="task-wrapper-service-recover-report-json",
+
+        expected_db_path="target/mvp/service-recover-report-json.db",
+
+        expected_output_path="target/mvp/service-recover-report-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-recover", "--db", "target/mvp/service-recover-report-json.db", "--task-id", "task-wrapper-service-recover-report-json", "--limit", "1", "--report", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-recover-report-json",
+
+        "service-recover",
+
+    )
+
+    assert_service_recover_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-recover-report-json",
+
+        expected_db="target\mvp\service-recover-report-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-recover-report-json",
+
+        expected_limit=1,
+
+        expected_steps=["recover", "service-status", "report"],
+
+        expect_report_payload=True,
+
+    )
+
+
+    result = assert_command_json_result(
+
 
 
 
