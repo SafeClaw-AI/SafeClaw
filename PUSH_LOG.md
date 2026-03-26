@@ -485,3 +485,15 @@
 - 本轮完成：同步 `Slice 51` 台账；新增时间戳记录 `docs/round_logs/20260326_125233_slice51.md`；`MVP_PROGRESS.md` 改到前 51 刀已完成；`开发计划.md` 基线改到 `81c2cf6`，下一刀切到 `Slice 52`：原生 `reconcile` missing-context 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 51 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round CC
+- 完成时间：2026-03-26 13:03:50 +0800
+- 本轮完成：做完 `Slice 52`，在 `check_tooling_smoke.py` 补上原生 `reconcile --json --db <fresh> --decision executed` 的缺上下文护栏；现在无 remembered session、也未显式给 `--task-id` 时，会稳定锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`8060d99 test: guard reconcile missing context`。
+
+### Round CD
+- 完成时间：2026-03-26 13:04:04 +0800
+- 本轮完成：同步 `Slice 52` 台账；新增时间戳记录 `docs/round_logs/20260326_130404_slice52.md`；`MVP_PROGRESS.md` 改到前 52 刀已完成；`开发计划.md` 基线改到 `8060d99`，下一刀切到 `Slice 53`：原生 `resume` missing-context 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 52 progress artifacts`；最终哈希以当时 `HEAD` 为准。
