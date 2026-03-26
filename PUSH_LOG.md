@@ -438,3 +438,14 @@
 - 本轮完成：同步 `Slice 47` 台账；新增时间戳记录 `docs/round_logs/20260326_105808_slice47.md`；README 和 `tools/mvp/README.md` 补上 `service-resume` / `seed-hibernated` / `resume` 说明；`开发计划.md` 基线改到 `528b58c`，下一刀切到 `Slice 48`：hibernated operator-flow 真链路护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 47 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round BU
+- 完成时间：2026-03-26 11:27:44 +0800
+- 本轮完成：做完 `Slice 48`，在 `check_mvp_operator_flow.py` 里补上 `seed-hibernated -> service-status -> service-resume --report` 这条真闭环；先锁住 hibernated 现场，再锁住 resume 后的 clear/report 收口。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`96869dc test: guard hibernated resume operator flow`。
+
+### Round BV
+- 完成时间：2026-03-26 11:28:53 +0800
+- 本轮完成：同步 `Slice 48` 台账；新增时间戳记录 `docs/round_logs/20260326_112853_slice48.md`；`MVP_PROGRESS.md` 改到前 48 刀已完成；`开发计划.md` 基线改到 `96869dc`，下一刀切到 `Slice 49`：service-resume 失败面合同护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 48 progress artifacts`；最终哈希以当时 `HEAD` 为准。
