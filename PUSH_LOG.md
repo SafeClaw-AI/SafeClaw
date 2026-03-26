@@ -656,3 +656,14 @@
 - 本轮完成：同步 `Slice 66` 台账；新增时间戳记录 `docs/round_logs/20260326_161638_slice66.md`；`MVP_PROGRESS.md` 改到前 66 刀已完成；`开发计划.md` 基线改到 `47d65ab`，下一刀改为“待重新扫描相邻最小缺口后再定”，避免未验真先写死编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 66 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round DG
+- 完成时间：2026-03-26 16:35:09 +0800
+- 本轮完成：做完 `Slice 67`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover-demo --bogus --json` 的 fail-json remembered-session 护栏；现在已有 recover-demo remembered session 基座时，会稳定锁住顶层 `failed step=seed-crash`、`details.failed_step=seed-crash`、`details.code=invalid-argument`、`details.error_message` 与 `remembered_session.task_id=task-wrapper-recover-demo-json`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`0187ba6 test: guard ps1 recover demo fail json session`。
+
+### Round DH
+- 完成时间：2026-03-26 16:35:09 +0800
+- 本轮完成：同步 `Slice 67` 台账；新增时间戳记录 `docs/round_logs/20260326_163509_slice67.md`；`MVP_PROGRESS.md` 改到前 67 刀已完成；`开发计划.md` 基线改到 `0187ba6`，下一刀切到 `Slice 68`：`ps1 retry-demo` fail-json remembered-session 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 67 progress artifacts`；最终哈希以当时 `HEAD` 为准。
