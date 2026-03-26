@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 07:58:53 +0800
+最后更新时间：2026-03-26 08:09:28 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -366,3 +366,15 @@
 - 本轮完成：同步 `Slice 41` 台账；把 `MVP_PROGRESS.md`、`PUSH_LOG.md` 的写法改成尽量中文、短句、小学生能懂，并把这个要求直接写进文档。下一刀改为 `Slice 42`：并发边缘场景盘点。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 41 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BI
+- 完成时间：2026-03-26 08:08:10 +0800
+- 本轮完成：做完 `Slice 42`，在 `check_mvp_operator_flow.py` 里补上 `executed_assumed -> service-status -> service-reconcile` 这条自隔离边缘路径；先检查 `quarantined` 现场，再检查 `service-reconcile` 收口后的 `clear` 基线。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`
+- 提交推送：`09f0dd0 test: guard reconcile quarantine operator flow`。
+
+### Round BJ
+- 完成时间：2026-03-26 08:09:28 +0800
+- 本轮完成：同步 `Slice 42` 台账；`开发计划.md` 改到 `Slice 43`，继续保持 `MVP_PROGRESS.md`、`PUSH_LOG.md` 用中文短句、小学生易懂的写法。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 42 progress artifacts`；最终哈希以当时 `HEAD` 为准。
