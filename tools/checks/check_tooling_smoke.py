@@ -490165,6 +490165,15 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "service-recover", "--limit", "bad", "--json"],
+        errors,
+        "mvp-wrapper-ps1-service-recover-invalid-limit-json",
+        "service-recover",
+        expected_error_message_substring="invalid --limit",
+        error_message_label="mvp-wrapper-ps1-service-recover-invalid-limit-json missing invalid --limit",
+    )
+
+    assert_command_json_error(
 
 
 
