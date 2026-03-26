@@ -669040,6 +669040,41 @@ def collect_errors() -> list[str]:
 
     result = assert_command_json_result(
 
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-run", "--reset", "--task-id", "task-wrapper-service-run-report-json", "--db", "target/mvp/service-run-report-json.db", "--output", "target/mvp/service-run-report-json.txt", "--limit", "1", "--report", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-run-report-json",
+
+        "service-run",
+
+    )
+
+    assert_service_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-run-report-json",
+
+        expected_db="target\mvp\service-run-report-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-run-report-json",
+
+        expected_limit=1,
+
+        expected_steps=["run", "service-status", "report"],
+
+        expect_report_payload=True,
+
+    )
+
+
+    result = assert_command_json_result(
+
 
 
 
