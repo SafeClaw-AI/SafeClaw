@@ -361257,6 +361257,94 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-hibernated",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-service-resume-json",
+
+            "--db",
+
+            "target/mvp/service-resume-json.db",
+
+            "--output",
+
+            "target/mvp/service-resume-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-resume-json-seed-hibernated-ps1-json",
+
+        "seed-hibernated",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-resume-json-seed-hibernated-ps1-json",
+
+        expected_task_id="task-wrapper-service-resume-json",
+
+        expected_db_path="target/mvp/service-resume-json.db",
+
+        expected_output_path="target/mvp/service-resume-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-resume", "--db", "target/mvp/service-resume-json.db", "--task-id", "task-wrapper-service-resume-json", "--limit", "1", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-resume-json",
+
+        "service-resume",
+
+    )
+
+    assert_service_resume_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-resume-json",
+
+        expected_db="target\mvp\service-resume-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-resume-json",
+
+        expected_limit=1,
+
+    )
+
+
     assert_command_json_error(
 
 
