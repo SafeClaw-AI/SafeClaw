@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 05:54:13 +0800
+最后更新时间：2026-03-27 06:08:54 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前九十五刀已完成；这一轮把 `ps1 recover` json 合同锁进 smoke
+当前阶段：已进入 M1b，前九十六刀已完成；这一轮把 `ps1 status` 显式 json 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -115,6 +115,7 @@
 | [x] | M1b Slice 93: ps1 report json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --json` 的成功结果断言，锁住 `report` 的 passthrough 结果与 session 来源提示 | 防止 PowerShell 包装层的 report 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 94: ps1 retry json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 retry --db target/mvp/retry-json.db --task-id task-wrapper-retry-json --json` 的成功结果断言，并先用独立 `seed-failed` 基座准备 failed 现场，随后重建 wrapper A/B 会话，锁住 `retry` 成功结果与来源提示，同时避免和既有 wrapper use/report 护栏串状态 | 防止 PowerShell 包装层的 retry 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 95: ps1 recover json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover --db target/mvp/recover-json.db --task-id task-wrapper-recover-json --json` 的成功结果断言，并先用独立 `seed-crash` 基座准备 crash 现场；随后继续复用既有 wrapper A/B 会话重建，锁住 `recover` 成功结果与来源提示，同时不干扰后续 wrapper use/report 护栏 | 防止 PowerShell 包装层的 recover 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 96: ps1 status json 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 status --db target/mvp/recover-json.db --task-id task-wrapper-recover-json --json` 的成功结果断言；直接复用上一刀的 `seed-crash -> recover` 现场，锁住 `status` 成功结果、remembered session 与 `source_hints` 的显式来源提示，同时不干扰后续 wrapper use/report 护栏 | 防止 PowerShell 包装层的 status 显式上下文成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
