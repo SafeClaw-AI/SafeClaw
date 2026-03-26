@@ -4907,6 +4907,17 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "resume", "--db", "target/mvp/resume-missing-ps1.db", "--json"],
+        errors,
+        "mvp-wrapper-ps1-resume-missing-task-json",
+        "resume",
+        expected_error_message_substring="missing task context",
+        error_message_label="mvp-wrapper-ps1-resume-missing-task-json missing wrapper error",
+        expected_code="missing-task-context",
+        expect_no_remembered_session=True,
+    )
+
+    assert_command_json_error(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "reconcile", "--db", "target/mvp/reconcile-missing-cmd.db", "--decision", "executed", "--json"],
         errors,
         "mvp-wrapper-cmd-reconcile-missing-task-json",
