@@ -449,3 +449,15 @@
 - 本轮完成：同步 `Slice 48` 台账；新增时间戳记录 `docs/round_logs/20260326_112853_slice48.md`；`MVP_PROGRESS.md` 改到前 48 刀已完成；`开发计划.md` 基线改到 `96869dc`，下一刀切到 `Slice 49`：service-resume 失败面合同护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 48 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BW
+- 完成时间：2026-03-26 12:10:42 +0800
+- 本轮完成：做完 `Slice 49`，给 `service-resume` 补上“没有 hibernated runtime / 当前任务不是 hibernated”两类稳定失败合同；文本模式补 `service-status` hint，`--json` 稳定返回 `resume-target-missing` / `resume-target-not-hibernated`，并补齐顶层 `error.code` / `error.reason` / `error.summary`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`ed3ba9e feat: classify service-resume failure hints`。
+
+### Round BX
+- 完成时间：2026-03-26 12:11:06 +0800
+- 本轮完成：同步 `Slice 49` 台账；新增时间戳记录 `docs/round_logs/20260326_121106_slice49.md`；`MVP_PROGRESS.md` 改到前 49 刀已完成；`开发计划.md` 基线改到 `ed3ba9e`，下一刀切到 `Slice 50`：`service-resume` missing-context 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 49 progress artifacts`；最终哈希以当时 `HEAD` 为准。

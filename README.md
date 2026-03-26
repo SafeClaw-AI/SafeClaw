@@ -189,7 +189,7 @@ safeclaw.cmd verify --json
 - `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图；加 `--preflight` 会在执行前显示同一次实际参数对应的门禁摘要，加 `--enforce-permission` 则会在 `confirm` / `deny` 时直接拦下；如需在组合动作里复用 AI/provider 阻断合同，可加 `--preflight-action ai-reason`
 - `service-retry --report`：用于 failed 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁，也支持 `--preflight-action <name>` 覆盖组合动作的预检合同
 - `service-recover --report`：用于 uncertain 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁，也支持 `--preflight-action <name>` 覆盖组合动作的预检合同
-- `service-resume --report`：用于 hibernated 任务的首选恢复路径；会先执行真实 `resume`，再打印最新 `service-status`，必要时还能顺手补 `report`；同样支持 `--preflight` / `--enforce-permission` 与 `--preflight-action <name>`
+- `service-resume --report`：用于 hibernated 任务的首选恢复路径；会先执行真实 `resume`，再打印最新 `service-status`，必要时还能顺手补 `report`；同样支持 `--preflight` / `--enforce-permission` 与 `--preflight-action <name>`；若接错现场，`--json` 现在会稳定返回 `resume-target-missing` / `resume-target-not-hibernated`，并附带回看 `service-status` 的提示
 - `service-reconcile --report`: closes an `executed_assumed` task via explicit `--decision executed|not-executed`; it also supports `--preflight` / `--enforce-permission` before execution, plus `--preflight-action <name>` for alternate combo gate contracts
 - `demo` / `recover-demo` / `retry-demo`：一键演示正常执行、uncertain 恢复与 failed 重试；同样支持 `--preflight` / `--enforce-permission`，可先跑离线门禁再继续组合动作
 - `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
