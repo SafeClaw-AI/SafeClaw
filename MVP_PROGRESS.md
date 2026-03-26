@@ -1,10 +1,10 @@
-﻿# 整体计划实现进展表
+# 整体计划实现进展表
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 06:38:26 +0800
+最后更新时间：2026-03-27 06:55:26 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前九十九刀已完成；这一轮把 crash 现场 `ps1 report` 显式 json 合同锁进 smoke
+当前阶段：已进入 M1b，前一百刀已完成；这一轮把 crash 连续性下 `ps1 session --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -119,6 +119,7 @@
 | [x] | M1b Slice 97: ps1 report json 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --db target/mvp/recover-json.db --task-id task-wrapper-recover-json --json` 的成功结果断言；直接复用上一刀的 `seed-crash -> recover` 现场，锁住 `report` 成功结果、remembered session 与 `source_hints` 的显式来源提示，同时不干扰后续 wrapper use/report 护栏 | 防止 PowerShell 包装层的 report 显式上下文成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 98: ps1 status json crash 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 status --db target/mvp/status-explicit-crash.db --task-id task-wrapper-status-explicit-crash --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，锁住 `QueueForManualReview` / `worker=Uncertain` / `effect=Uncertain` 这一组治理回显、remembered session 与显式来源提示，同时不干扰后续 wrapper use/report 护栏 | 防止 PowerShell 包装层的 crash 现场 status 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 99: ps1 report json crash 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --db target/mvp/report-explicit-crash.db --task-id task-wrapper-report-explicit-crash --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，锁住 `QueueForManualReview` / `worker=Uncertain` / `effect=Uncertain` 这一组治理回显、remembered session 与显式来源提示，同时不干扰后续 wrapper use/report 护栏 | 防止 PowerShell 包装层的 crash 现场 report 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 100: ps1 session json crash 连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 session --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，再用显式 `report` 建立 remembered session，锁住 `task-wrapper-session-explicit-crash` 的连续会话、显式 `db/output` 与 `owner_id` 回显 | 防止 PowerShell 包装层的 crash 连续性 session 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
