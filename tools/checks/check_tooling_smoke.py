@@ -361345,6 +361345,98 @@ def collect_errors() -> list[str]:
     )
 
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-hibernated",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-service-resume-report-json",
+
+            "--db",
+
+            "target/mvp/service-resume-report-json.db",
+
+            "--output",
+
+            "target/mvp/service-resume-report-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json",
+
+        "seed-hibernated",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json",
+
+        expected_task_id="task-wrapper-service-resume-report-json",
+
+        expected_db_path="target/mvp/service-resume-report-json.db",
+
+        expected_output_path="target/mvp/service-resume-report-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "service-resume", "--db", "target/mvp/service-resume-report-json.db", "--task-id", "task-wrapper-service-resume-report-json", "--limit", "1", "--report", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-resume-report-json",
+
+        "service-resume",
+
+    )
+
+    assert_service_resume_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-resume-report-json",
+
+        expected_db="target\mvp\service-resume-report-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-resume-report-json",
+
+        expected_limit=1,
+
+        expected_steps=["resume", "service-status", "report"],
+
+        expect_report_payload=True,
+
+    )
+
+
     assert_command_json_error(
 
 
