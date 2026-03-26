@@ -599070,6 +599070,56 @@ def collect_errors() -> list[str]:
 
             errors.append("mvp-wrapper-ps1-status-explicit-json missing source_hints.task_context=flag")
 
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "report", "--db", "target/mvp/recover-json.db", "--task-id", "task-wrapper-recover-json", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-report-explicit-json",
+
+        "report",
+
+    )
+
+    if result is not None:
+
+        prepared = result.get("prepared") or []
+
+        remembered_session = result.get("remembered_session") or {}
+
+        source_hints = result.get("source_hints") or {}
+
+        captured_output = str(result.get("captured_output") or "")
+
+        if not prepared or prepared[0] != "report":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing prepared report")
+
+        elif "task-wrapper-recover-json" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing captured task task-wrapper-recover-json")
+
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-recover-json":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing remembered session task-wrapper-recover-json")
+
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing source_hints.db=flag")
+
+        elif source_hints.get("output") != "session":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing source_hints.output=session")
+
+        elif source_hints.get("owner_id") != "session":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing source_hints.owner_id=session")
+
+        elif source_hints.get("task_context") != "flag":
+
+            errors.append("mvp-wrapper-ps1-report-explicit-json missing source_hints.task_context=flag")
+
     wrapper_restore_after_ps1_retry_a = subprocess.run(
 
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
