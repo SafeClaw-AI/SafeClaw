@@ -598782,6 +598782,32 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "report", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-report-json",
+
+        "report",
+
+    )
+
+    assert_session_passthrough_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-report-json",
+
+        action="report",
+
+        expected_task_id="task-wrapper-b",
+
+    )
+
     wrapper_use = subprocess.run(
 
 
