@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-26 12:11:06 +0800
+最后更新时间：2026-03-26 12:39:40 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前四十九刀已完成；这一轮把 `service-resume` 接错现场的失败合同锁进 smoke
+当前阶段：已进入 M1b，前五十刀已完成；这一轮把 `service-resume` 缺上下文合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -69,6 +69,7 @@
 | [x] | M1b Slice 47: hibernated resume 真入口 | M1b plan | 新增 `seed-hibernated` / `resume` / `service-resume`；`service-status` 在 hibernated 现场会把 `next_command` 直接切到 `service-resume --report`，smoke 也补上了真实 `seed-hibernated -> service-resume -> service-status -> report` 闭环 | 防止冬眠现场看得到却接不回去 |
 | [x] | M1b Slice 48: hibernated operator-flow 真链路护栏 | M1b plan | 在 `check_mvp_operator_flow.py` 里补上 `seed-hibernated -> service-status -> service-resume --report` 真闭环；先锁住 hibernated 现场，再锁住 resume 后的 clear/report 收口 | 防止 hibernated 真入口只在 smoke 有护栏 |
 | [x] | M1b Slice 49: service-resume 失败面合同护栏 | M1b plan | 给 `service-resume` 补上“没有 hibernated runtime / 当前任务不是 hibernated”两类稳定失败合同；文本模式补 `service-status` hint，`--json` 稳定返回 `resume-target-missing` / `resume-target-not-hibernated` 及顶层 `error.code` / `error.reason` / `error.summary` | 防止 operator 接错现场时只剩底层报错 |
+| [x] | M1b Slice 50: service-resume missing-context 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `service-resume --json` 在无 remembered session、也未显式给 `--task-id` 时的 `missing-task-context` 护栏，锁住 `failed_step=resume`、`details.code=missing-task-context` 与空 `remembered_session` | 防止 resume 缺上下文时的 wrapper 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
