@@ -82,6 +82,7 @@
 | [x] | M1b Slice 60: ps1 session invalid-json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 session --bogus --json` 的 `unknown argument` 护栏，锁住顶层错误消息与 `action=session` 的浅层错误输出 | 防止 PowerShell 包装层的 session invalid-json 合同静默漂移 |
 | [x] | M1b Slice 61: ps1 sessions invalid-limit 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 sessions --limit bad --json` 的 `invalid --limit` 护栏，锁住顶层错误消息与 `action=sessions` 的浅层错误输出 | 防止 PowerShell 包装层的 sessions invalid-limit 合同静默漂移 |
 | [x] | M1b Slice 62: cmd doctor missing-value-after-db 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd doctor --db --json` 的 `missing value after --db` 护栏，锁住顶层错误消息与 `action=doctor` 的浅层错误输出 | 防止 cmd 包装层的 doctor 缺值合同静默漂移 |
+| [x] | M1b Slice 63: cmd verify invalid-json 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd verify --bogus --json` 的 `unknown argument` 护栏，锁住顶层错误消息与 `action=verify` 的浅层错误输出 | 防止 cmd 包装层的 verify invalid-json 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
