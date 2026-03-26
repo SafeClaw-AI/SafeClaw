@@ -4871,6 +4871,19 @@ def collect_errors() -> list[str]:
         expect_no_remembered_session=True,
     )
 
+    assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-resume", "--json"],
+        errors,
+        "mvp-wrapper-service-resume-without-session-json",
+        "service-resume",
+        expected_error_message_substring="failed step=resume",
+        error_message_label="mvp-wrapper-service-resume-without-session-json missing wrapper error",
+        expected_failed_step="resume",
+        expected_code="missing-task-context",
+        expected_details_message_substring="missing task context",
+        expect_no_remembered_session=True,
+    )
+
     wrapper_invalid_json_base = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-invalid-json-base"],
         cwd=REPO_ROOT,
