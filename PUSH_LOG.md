@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 00:11:37 +0800
+最后更新时间：2026-03-27 00:23:45 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -726,3 +726,15 @@
 - 本轮完成：同步 `Slice 72` 台账；新增时间戳记录 `docs/round_logs/20260327_001137_slice72.md`；`MVP_PROGRESS.md` 改到前 72 刀已完成；`开发计划.md` 基线改到 `4eec91d`，下一刀切到 `Slice 73`：`ps1 recover --json` missing-task-context 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 72 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round DS
+- 完成时间：2026-03-27 00:23:45 +0800
+- 本轮完成：做完 `Slice 73`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover --json` 的 missing-task-context 护栏；现在无 remembered session 时，会稳定锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`684c002 test: guard ps1 recover missing context`。
+
+### Round DT
+- 完成时间：2026-03-27 00:23:45 +0800
+- 本轮完成：同步 `Slice 73` 台账；新增时间戳记录 `docs/round_logs/20260327_002345_slice73.md`；`MVP_PROGRESS.md` 改到前 73 刀已完成；`开发计划.md` 基线改到 `684c002`，下一刀改回“待重新扫描后确定”，避免未验真先写死 `Slice 74`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 73 progress artifacts`；最终哈希以当时 `HEAD` 为准。
