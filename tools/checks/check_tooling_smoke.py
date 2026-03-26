@@ -703663,7 +703663,99 @@ def collect_errors() -> list[str]:
 
 
 
-    wrapper_cmd_verify = subprocess.run(
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-crash",
+
+            "--reset",
+
+            "--probe-mode",
+
+            "none",
+
+            "--task-id",
+
+            "task-wrapper-service-reconcile-json",
+
+            "--db",
+
+            "target/mvp/service-reconcile-json.db",
+
+            "--output",
+
+            "target/mvp/service-reconcile-json.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-service-reconcile-json-seed-crash-ps1-json",
+
+        "seed-crash",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-service-reconcile-json-seed-crash-ps1-json",
+
+        expected_task_id="task-wrapper-service-reconcile-json",
+
+        expected_db_path="target/mvp/service-reconcile-json.db",
+
+        expected_output_path="target/mvp/service-reconcile-json.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "service-reconcile", "--db", "target/mvp/service-reconcile-json.db", "--task-id", "task-wrapper-service-reconcile-json", "--decision", "executed", "--limit", "1", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-service-reconcile-json",
+
+        "service-reconcile",
+
+    )
+
+    assert_service_reconcile_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-ps1-service-reconcile-json",
+
+        expected_db="target\\mvp\\service-reconcile-json.db",
+
+        expected_db_source="flag",
+
+        expected_task_id="task-wrapper-service-reconcile-json",
+
+        expected_limit=1,
+
+        expected_decision="executed",
+
+    )
+
+    wrapper_cmd_verify = subprocess.run(
 
 
 
