@@ -1,8 +1,10 @@
 # 整体计划实现进展表
 
-最后更新时间：2026-03-26 07:44:00 +0800
+说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
+
+最后更新时间：2026-03-26 07:58:53 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前四十刀（含 `Slice 40` 审计刀）已完成，下一候选转向并发/operator gap audit
+当前阶段：已进入 M1b，前四十一刀已完成；这一轮把并发 coordination 的基础护栏补上了
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -56,8 +58,9 @@
 | [x] | M1b Slice 36: combo preflight top-level error requires_sidecar | M1b plan | blocked combo JSON now mirrors existing `requires_sidecar` at top-level `error.requires_sidecar` while still preserving the full nested `error.details.preflight` payload and the previously added top-level error mirrors | Reduces combo-error sidecar-dependency read depth |
 | [x] | M1b Slice 37: combo preflight mirror-chain audit | M1b plan | audited current blocked combo JSON mirrors and confirmed that the high-value existing fields are already exposed at top-level `error` or shallow `error.details`; remaining preflight fields are permission/runtime internals and stay nested under `error.details.preflight` | Marks combo mirror chain as basically closed |
 | [x] | M1b Slice 38: service-status heartbeat contract guardrails | M1b plan | strengthened smoke/operator-flow coverage for top-level heartbeat fields (`interval_ms` / `event_driven` / `latest_updated_at` / `latest_age_ms` / `latest_freshness` / `status` / `reason`), so the existing operator heartbeat summary cannot silently regress | Reduces heartbeat visibility drift |
-| [x] | M1b Slice 39: sidecar operator detail snapshots | M1b plan | doctor/service-status sidecar text snapshots now also expose the existing `detail` string, and smoke guardrails now lock that text contract plus the matching preflight sidecar JSON structure (`required` / `configured` / `detail`) | Reduces sidecar snapshot drift |
-| [x] | M1b Slice 40: budget/operator gap audit | M1b plan | audited blueprint-side financial budget rules against current MVP wrapper/operator surfaces and confirmed there is still no live budget payload, config stub, or operator snapshot in `doctor` / `service-status` / `preflight`; exposing budget now would require pseudo-data or a larger `mmap` / reservation implementation, so this round closes as an audit and shifts the next candidate to concurrency/operator gap audit | Avoids false budget contracts and premature rework |
+| [x] | M1b Slice 39: sidecar detail 快照 | M1b plan | `doctor` / `service-status` 现在会直接显示 sidecar 的 `detail`，smoke 也把这条快照锁住了 | 防止 sidecar 快照悄悄变样 |
+| [x] | M1b Slice 40: budget/operator 盘点 | M1b plan | 对照蓝图后确认：现在还没有真实 budget 数据源，所以这轮先不做预算面板 | 避免做出假合同、后面返工 |
+| [x] | M1b Slice 41: 并发 coordination 基础护栏 | M1b plan | 在 `operator-flow` 里锁定 `service-status.coordination` 和 `recent_tasks[0]` 的基础并发字段与 0 peer / 0 quarantine 基线值 | 防止并发看板静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

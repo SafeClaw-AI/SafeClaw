@@ -1,11 +1,12 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 07:37:26 +0800
+最后更新时间：2026-03-26 07:58:53 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
 - 每轮已完成记录都要带完成时间，精确到时分秒。
 - 只记对仓库有实际影响的轮次，不记纯讨论。
+- 尽量用中文、短句、小学生能懂；先写做了什么，再写为什么重要。
 
 ## 流水
 ### 轮次 A
@@ -349,7 +350,19 @@
 - Verification: `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - Commit/push: planned message `docs: sync slice 39 progress artifacts`; final hash follows current `HEAD`.
 ### Round BF
-- Completed at: 2026-03-26 07:44:00 +0800
-- Completed: completed `Slice 40` as a budget/operator gap audit round; traced blueprint financial-budget rules (`mmap` persistence, `reserved -> charged/refunded/disputed`, crash reconcile) against current MVP wrapper/operator surfaces in `tools/mvp/safeclaw_mvp.py`, `README.md`, and `tools/mvp/README.md`, then confirmed there is still no live budget payload / config stub / operator text summary to expose. Closed the round by documenting that budget output should wait for a real runtime source instead of inventing pseudo-data, and shifted the next candidate to a concurrency/operator gap audit.
-- Verification: `git diff --check`, `C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
-- Commit/push: planned message `docs: record slice 40 budget audit`; final hash follows current `HEAD`.
+- 完成时间：2026-03-26 07:44:00 +0800
+- 本轮完成：做完 `Slice 40` 的预算盘点，确认现在还没有真实 budget 数据源，所以先不做预算面板；下一刀转去看并发/operator。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: record slice 40 budget audit`；最终哈希以当时 `HEAD` 为准。
+
+### Round BG
+- 完成时间：2026-03-26 07:57:40 +0800
+- 本轮完成：做完 `Slice 41`，在 `check_mvp_operator_flow.py` 里补上 `service-status.coordination` 和 `recent_tasks[0]` 的基础并发护栏，锁定 `clear` / `execution_already_confirmed` / `no_followup_needed`，以及 0 peer / 0 quarantine 的基线值。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`
+- 提交推送：`e724f02 test: guard service status coordination baseline`。
+
+### Round BH
+- 完成时间：2026-03-26 07:58:53 +0800
+- 本轮完成：同步 `Slice 41` 台账；把 `MVP_PROGRESS.md`、`PUSH_LOG.md` 的写法改成尽量中文、短句、小学生能懂，并把这个要求直接写进文档。下一刀改为 `Slice 42`：并发边缘场景盘点。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 41 progress artifacts`；最终哈希以当时 `HEAD` 为准。
