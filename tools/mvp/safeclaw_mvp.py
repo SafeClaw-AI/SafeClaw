@@ -567,6 +567,7 @@ def build_service_status_coordination_payload(row: dict[str, object]) -> dict[st
     next_reason = str(row.get("next_reason") or "manual_inspection_required")
     next_blocker = str(row.get("next_blocker") or "none")
     lease_freshness = str(row.get("lease_freshness") or "unknown")
+    worker_state = str(row.get("worker_state") or "")
     requires_write = bool(row.get("requires_write"))
     doctor_bypass = bool(row.get("doctor_bypass"))
     scope_active_peer_count = int(row.get("scope_active_peer_count") or 0)
@@ -595,6 +596,12 @@ def build_service_status_coordination_payload(row: dict[str, object]) -> dict[st
             "coordination_status": "busy",
             "coordination_reason": "active_lease_in_progress",
             "coordination_summary": "wait_for_current_owner",
+        }
+    if worker_state == "hibernated" and next_reason == "hibernated_waiting_for_resume":
+        return {
+            "coordination_status": "hibernated",
+            "coordination_reason": "hibernated_waiting_for_resume",
+            "coordination_summary": "inspect_and_resume_or_expire",
         }
     if scope_active_peer_count > 0 and requires_write and not doctor_bypass:
         return {
@@ -2609,6 +2616,8 @@ def suggest_recent_task_next_action(
         return "ok"
     if effect_status == "executed_assumed":
         return "inspect"
+    if worker_state == "hibernated":
+        return "inspect"
     if scope_quarantine_blocked:
         return "inspect"
     if lease_state == "active":
@@ -2633,6 +2642,8 @@ def suggest_recent_task_next_reason(
         return "execution_already_confirmed"
     if effect_status == "executed_assumed":
         return "executed_assumed_requires_reconcile"
+    if worker_state == "hibernated":
+        return "hibernated_waiting_for_resume"
     if scope_quarantine_blocked:
         return (
             "scope_quarantined_by_peer"

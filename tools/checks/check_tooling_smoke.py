@@ -2483,6 +2483,130 @@ def collect_errors() -> list[str]:
             "seed-failed",
             "--reset",
             "--task-id",
+            "task-wrapper-service-status-hibernated",
+            "--db",
+            "target/mvp/service-status-hibernated.db",
+            "--output",
+            "target/mvp/service-status-hibernated.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-hibernated-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-status-hibernated-seed-failed-json",
+        expected_task_id="task-wrapper-service-status-hibernated",
+        expected_db_path="target/mvp/service-status-hibernated.db",
+        expected_output_path="target/mvp/service-status-hibernated.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+    hibernated_db_path = REPO_ROOT / "target" / "mvp" / "service-status-hibernated.db"
+    future_updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5))
+    with sqlite3.connect(hibernated_db_path) as connection:
+        connection.execute(
+            "UPDATE task_snapshots SET worker_state = ?1, updated_at = ?2 WHERE task_id = ?3",
+            ("hibernated", future_updated_at, "task-wrapper-service-status-hibernated"),
+        )
+        connection.execute(
+            "UPDATE orchestrator_leases SET released_at_ms = ?1 WHERE task_id = ?2",
+            (int(time.time() * 1000), "task-wrapper-service-status-hibernated"),
+        )
+        connection.commit()
+
+    wrapper_service_status_hibernated = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-hibernated.db",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wrapper_service_status_hibernated_output = (wrapper_service_status_hibernated.stdout or "") + (wrapper_service_status_hibernated.stderr or "")
+    if wrapper_service_status_hibernated.returncode != 0:
+        errors.append(f"mvp-wrapper-service-status-hibernated failed: exit={wrapper_service_status_hibernated.returncode}")
+    elif "[mvp-wrapper] service workers => hibernated=1" not in wrapper_service_status_hibernated_output:
+        errors.append("mvp-wrapper-service-status-hibernated missing hibernated worker summary")
+    elif "[mvp-wrapper] service coordination => status=hibernated reason=hibernated_waiting_for_resume summary=inspect_and_resume_or_expire task=task-wrapper-service-status-hibernated" not in wrapper_service_status_hibernated_output:
+        errors.append("mvp-wrapper-service-status-hibernated missing hibernated coordination summary")
+    elif 'worker=hibernated' not in wrapper_service_status_hibernated_output:
+        errors.append("mvp-wrapper-service-status-hibernated missing hibernated recent task")
+    elif 'next=inspect next_reason=hibernated_waiting_for_resume blocker=manual_review_needed coordination=hibernated coordination_reason=hibernated_waiting_for_resume coordination_summary=inspect_and_resume_or_expire next_summary=blocked:action=inspect,blocker=manual_review_needed,reason=hibernated_waiting_for_resume next_cmd=safeclaw.cmd report --db "target/mvp/service-status-hibernated.db" --task-id "task-wrapper-service-status-hibernated"' not in wrapper_service_status_hibernated_output:
+        errors.append("mvp-wrapper-service-status-hibernated missing hibernated next hints")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-status",
+            "--db",
+            "target/mvp/service-status-hibernated.db",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-status-hibernated-json",
+        "service-status",
+    )
+    if result is not None:
+        coordination = result.get("coordination") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        current_session = result.get("current_session") or {}
+        if not isinstance(current_session, dict) or current_session.get("task_id") != "task-wrapper-service-status-hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing current_session task-wrapper-service-status-hibernated")
+        elif (result.get("workers") or {}).get("hibernated") != 1:
+            errors.append("mvp-wrapper-service-status-hibernated-json missing workers.hibernated=1")
+        elif coordination.get("status") != "hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination.status=hibernated")
+        elif coordination.get("reason") != "hibernated_waiting_for_resume":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination.reason=hibernated_waiting_for_resume")
+        elif coordination.get("summary") != "inspect_and_resume_or_expire":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination.summary=inspect_and_resume_or_expire")
+        elif coordination.get("next_task_id") != "task-wrapper-service-status-hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination.next_task_id=task-wrapper-service-status-hibernated")
+        elif not isinstance(recent_tasks, list) or not recent_tasks:
+            errors.append("mvp-wrapper-service-status-hibernated-json missing recent task")
+        elif recent_tasks[0].get("task_id") != "task-wrapper-service-status-hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing recent task task-wrapper-service-status-hibernated")
+        elif recent_tasks[0].get("worker_state") != "hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing worker_state=hibernated")
+        elif recent_tasks[0].get("lease_state") != "released":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing lease_state=released")
+        elif recent_tasks[0].get("next_action") != "inspect":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing next_action=inspect")
+        elif recent_tasks[0].get("next_reason") != "hibernated_waiting_for_resume":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing next_reason=hibernated_waiting_for_resume")
+        elif recent_tasks[0].get("next_blocker") != "manual_review_needed":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing next_blocker=manual_review_needed")
+        elif recent_tasks[0].get("next_summary") != "blocked:action=inspect,blocker=manual_review_needed,reason=hibernated_waiting_for_resume":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing next_summary hibernated payload")
+        elif recent_tasks[0].get("coordination_status") != "hibernated":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination_status=hibernated")
+        elif recent_tasks[0].get("coordination_reason") != "hibernated_waiting_for_resume":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination_reason=hibernated_waiting_for_resume")
+        elif recent_tasks[0].get("coordination_summary") != "inspect_and_resume_or_expire":
+            errors.append("mvp-wrapper-service-status-hibernated-json missing coordination_summary=inspect_and_resume_or_expire")
+        elif recent_tasks[0].get("next_command") != 'safeclaw.cmd report --db "target/mvp/service-status-hibernated.db" --task-id "task-wrapper-service-status-hibernated"':
+            errors.append("mvp-wrapper-service-status-hibernated-json missing next_command=report")
+
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-failed",
+            "--reset",
+            "--task-id",
             "task-wrapper-service-status-active",
             "--db",
             "target/mvp/service-status-active.db",
