@@ -314,6 +314,8 @@ def assert_preflight_json_result(
         errors.append(f"{name} missing sidecar.configured=false")
     elif not sidecar.get("detail"):
         errors.append(f"{name} missing sidecar.detail")
+    elif "budget" in result:
+        errors.append(f"{name} unexpectedly exposed budget without runtime source")
 
 
 
@@ -533,6 +535,8 @@ def assert_service_status_json_result(
         errors.append(f"{name} missing offline_gate.next_command=safeclaw.cmd preflight --action ai-reason")
     elif offline_gate.get("error_code") != "ERR_AI_PROVIDER_UNAVAILABLE":
         errors.append(f"{name} missing offline_gate.error_code=ERR_AI_PROVIDER_UNAVAILABLE")
+    elif "budget" in result:
+        errors.append(f"{name} unexpectedly exposed budget without runtime source")
     elif not isinstance(recent_tasks, list) or not recent_tasks or recent_tasks[0].get("task_id") != expected_task_id:
         errors.append(f"{name} missing recent task {expected_task_id}")
     elif recent_tasks[0].get("current") is not True:
@@ -1780,6 +1784,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-doctor ???? model provider ??")
     elif "[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false detail=sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor ???? sidecar ??")
+    elif "[mvp-wrapper] doctor budget =>" in wrapper_doctor_output:
+        errors.append("mvp-wrapper-doctor 意外暴露 budget 文本")
     elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
 
@@ -2406,6 +2412,8 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-status missing sidecar summary")
     elif "[mvp-wrapper] service offline => status=blocked reason=ERR_AI_PROVIDER_UNAVAILABLE summary=ai_actions_require_provider action=ai-reason requires_model=true requires_sidecar=true next=safeclaw.cmd preflight --action ai-reason error_code=ERR_AI_PROVIDER_UNAVAILABLE" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing offline gate summary")
+    elif "[mvp-wrapper] service budget =>" in wrapper_service_status_output:
+        errors.append("mvp-wrapper-service-status 意外暴露 budget 文本")
     elif "[mvp-wrapper] service coordination => status=clear reason=execution_already_confirmed summary=no_followup_needed task=task-wrapper-service-status" not in wrapper_service_status_output:
         errors.append("mvp-wrapper-service-status missing coordination summary")
     elif "task=task-wrapper-service-status" not in wrapper_service_status_output:
