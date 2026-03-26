@@ -939,3 +939,15 @@
 - 本轮完成：同步 `Slice 90` 台账；新增时间戳记录 `docs/round_logs/20260327_041418_slice90.md`；`MVP_PROGRESS.md` 改到前 90 刀已完成；`开发计划.md` 基线改到 `84c7af0`，下一刀写死为 `Slice 91`：`ps1 service-reconcile --json` 成功结果护栏，因为已现场验真。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 90 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round FC
+- 完成时间：2026-03-27 04:32:21 +0800
+- 本轮完成：做完 `Slice 91`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 service-reconcile --db target/mvp/service-reconcile-json.db --task-id task-wrapper-service-reconcile-json --decision executed --limit 1 --json` 的成功结果断言；由于 `service-reconcile` 会改变现场，还在前面补了一份独立 `seed-crash` 基座，并显式带上 `--probe-mode none`，避免和 `cmd` 护栏互相踩状态。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`92905d7 test: guard ps1 service reconcile json`。
+
+### Round FD
+- 完成时间：2026-03-27 04:32:21 +0800
+- 本轮完成：同步 `Slice 91` 台账；新增时间戳记录 `docs/round_logs/20260327_043221_slice91.md`；`MVP_PROGRESS.md` 改到前 91 刀已完成；`开发计划.md` 基线改到 `92905d7`，下一刀写死为 `Slice 92`：`ps1 service-reconcile --report --json` 成功结果护栏，因为已现场验真。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 91 progress artifacts`；最终哈希以当时 `HEAD` 为准。
