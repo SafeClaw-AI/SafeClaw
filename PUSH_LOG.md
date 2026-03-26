@@ -533,3 +533,15 @@
 - 本轮完成：同步 `Slice 55` 台账；新增时间戳记录 `docs/round_logs/20260326_134210_slice55.md`；`MVP_PROGRESS.md` 改到前 55 刀已完成；`开发计划.md` 基线改到 `88473b7`，下一刀切到 `Slice 56`：`ps1 resume` missing-context 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 55 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round CK
+- 完成时间：2026-03-26 13:53:35 +0800
+- 本轮完成：做完 `Slice 56`，在 `check_tooling_smoke.py` 补上 `ps1 resume --json --db <fresh>` 的缺上下文护栏；现在无 remembered session、也未显式给 `--task-id` 时，会稳定锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`e92edbd test: guard ps1 resume missing context`。
+
+### Round CL
+- 完成时间：2026-03-26 13:53:51 +0800
+- 本轮完成：同步 `Slice 56` 台账；新增时间戳记录 `docs/round_logs/20260326_135351_slice56.md`；`MVP_PROGRESS.md` 改到前 56 刀已完成；`开发计划.md` 基线改到 `e92edbd`，下一刀切到 `Slice 57`：`ps1 reconcile` missing-context 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 56 progress artifacts`；最终哈希以当时 `HEAD` 为准。

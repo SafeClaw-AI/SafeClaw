@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-26 13:42:10 +0800
+最后更新时间：2026-03-26 13:53:51 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前五十五刀已完成；这一轮把 `cmd reconcile` 缺上下文合同锁进 smoke
+当前阶段：已进入 M1b，前五十六刀已完成；这一轮把 `ps1 resume` 缺上下文合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -75,6 +75,7 @@
 | [x] | M1b Slice 53: resume missing-context 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上原生 `resume --json --db <fresh>` 在无 remembered session、也未显式给 `--task-id` 时的 `missing-task-context` 护栏，锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session` | 防止原生 resume 缺上下文时的 JSON 合同静默漂移 |
 | [x] | M1b Slice 54: cmd resume missing-context 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd resume --db <fresh> --json` 在无 remembered session、也未显式给 `--task-id` 时的 `missing-task-context` 护栏，锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session` | 防止 cmd 包装层的原生 resume 合同静默漂移 |
 | [x] | M1b Slice 55: cmd reconcile missing-context 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd reconcile --db <fresh> --decision executed --json` 在无 remembered session、也未显式给 `--task-id` 时的 `missing-task-context` 护栏，锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session` | 防止 cmd 包装层的原生 reconcile 合同静默漂移 |
+| [x] | M1b Slice 56: ps1 resume missing-context 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 resume --db <fresh> --json` 在无 remembered session、也未显式给 `--task-id` 时的 `missing-task-context` 护栏，锁住顶层错误消息、`details.code=missing-task-context` 与空 `remembered_session` | 防止 PowerShell 包装层的原生 resume 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
