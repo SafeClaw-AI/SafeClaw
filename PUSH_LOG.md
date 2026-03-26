@@ -1095,3 +1095,14 @@
 - 本轮完成：同步 `Slice 103` 台账；新增时间戳记录 `docs/round_logs/20260327_073259_slice103.md`；`MVP_PROGRESS.md` 改到前 103 刀已完成；`开发计划.md` 基线改到 `119726d`，下一刀改回现场验真后再编号，不提前写死 `Slice 104`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 103 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round GC
+- 完成时间：2026-03-27 07:50:27 +0800
+- 本轮完成：做完 `Slice 104`，在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，再用显式 `report` 建立 remembered session，锁住 crash 会话链下 recover 的恢复回显与 `source_hints` 的 `db/output/owner_id/task_context=session`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`f11f1fa test: guard ps1 recover session crash json`。
+
+### Round GD
+- 完成时间：2026-03-27 07:50:27 +0800
+- 本轮完成：同步 `Slice 104` 台账；新增时间戳记录 `docs/round_logs/20260327_075027_slice104.md`；`MVP_PROGRESS.md` 改到前 104 刀已完成；`开发计划.md` 基线改到 `f11f1fa`，下一刀优先现场验真无参 `ps1 retry --json`，但不提前写死 `Slice 105`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 104 progress artifacts`；最终哈希以当时 `HEAD` 为准。
