@@ -4885,6 +4885,17 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "resume", "--db", "target/mvp/resume-missing.db", "--json"],
+        errors,
+        "mvp-wrapper-resume-missing-task-json",
+        "resume",
+        expected_error_message_substring="missing task context",
+        error_message_label="mvp-wrapper-resume-missing-task-json missing wrapper error",
+        expected_code="missing-task-context",
+        expect_no_remembered_session=True,
+    )
+
+    assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "reconcile", "--db", "target/mvp/reconcile-missing.db", "--decision", "executed", "--json"],
         errors,
         "mvp-wrapper-reconcile-missing-task-json",
