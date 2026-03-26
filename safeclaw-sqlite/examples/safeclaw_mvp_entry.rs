@@ -7,12 +7,14 @@ use std::{
 
 use rusqlite::{Connection, OptionalExtension};
 use safeclaw_core::{
+    ConfirmationAction, HibernationAction,
     effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
         ProbeMode,
     },
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask, TaskOrchestrator},
-    InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, ScheduleIntent,
+    worker_lifecycle::WorkerState, InMemoryTaskRuntime, PreflightDecision,
+    ReconcileDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
     open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
@@ -38,9 +40,11 @@ fn main() -> Result<(), String> {
         CliAction::Report => report_action(&args),
         CliAction::Status => status_action(&args),
         CliAction::SeedCrash => seed_crash_action(&args),
+        CliAction::SeedHibernated => seed_hibernated_action(&args),
         CliAction::Recover => recover_action(&args),
         CliAction::SeedFailed => seed_failed_action(&args),
         CliAction::Retry => retry_action(&args),
+        CliAction::Resume => resume_action(&args),
         CliAction::Reconcile => reconcile_action(&args),
     }
 }
@@ -258,6 +262,89 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
     Ok(())
 }
 
+fn seed_hibernated_action(args: &CliArgs) -> Result<(), String> {
+    ensure_parent_dir(&args.db_path)?;
+    ensure_parent_dir(&args.output_path)?;
+    if args.reset {
+        reset_session_artifacts(&args.db_path, &args.output_path);
+    }
+
+    let effect_id = args.effect_id();
+    let mut orchestrator = SqliteTaskOrchestrator::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    )
+    .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    orchestrator
+        .enqueue(OrchestratorTask::new(
+            &args.task_id,
+            ScheduleIntent::write(format!("scope:{}", args.output_path.display())),
+            0,
+        ))
+        .map_err(|error| format!("{error:?}"))?;
+
+    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    print_snapshot("after-enqueue", orchestrator.queue_snapshot());
+
+    let claim = orchestrator
+        .claim_next(&args.owner_id, 0)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
+    println!(
+        "[mvp] hibernated claim => task={} lease={} fence={}",
+        claim.task.task_id,
+        claim.lease.lease_id,
+        claim.lease.fencing_token
+    );
+
+    let mut runtime = build_runtime(&claim, &effect_id, args.probe_mode.to_probe_mode());
+    let waiting = runtime
+        .run_confirmation_checkpoint()
+        .map_err(|error| format!("{error:?}"))?;
+    println!(
+        "[mvp] confirmation checkpoint => worker={:?} effect={:?}",
+        waiting.worker_state,
+        waiting.effect_status
+    );
+    let hibernated = runtime
+        .resolve_confirmation(ConfirmationAction::Timeout)
+        .map_err(|error| format!("{error:?}"))?;
+    println!(
+        "[mvp] hibernated result => worker={:?} effect={:?}",
+        hibernated.worker_state,
+        hibernated.effect_status
+    );
+
+    let mut store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    store
+        .persist_runtime(
+            &runtime,
+            format!("safeclaw-mvp:{}:hibernated", claim.lease.lease_id),
+            "safeclaw-mvp-entry",
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    print_snapshot("after-seed-hibernated", orchestrator.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next resume => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- resume --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    if args.content != DEFAULT_CONTENT {
+        println!("[mvp] note => resume requires the same --content intended for the successful write");
+    }
+    Ok(())
+}
+
 fn recover_action(args: &CliArgs) -> Result<(), String> {
     let effect_id = args.effect_id();
     let mut loop_driver = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
@@ -451,15 +538,114 @@ fn retry_action(args: &CliArgs) -> Result<(), String> {
     Ok(())
 }
 
+fn resume_action(args: &CliArgs) -> Result<(), String> {
+    let effect_id = args.effect_id();
+
+    let mut blocked_orchestrator = SqliteTaskOrchestrator::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    )
+    .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let blocked = blocked_orchestrator
+        .claim_next(&args.owner_id, RECOVERY_BLOCKED_NOW_MS)
+        .map_err(|error| format!("{error:?}"))?;
+    println!("[mvp] resume blocked before expiry => {}", blocked.is_none());
+
+    let mut orchestrator = SqliteTaskOrchestrator::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    )
+    .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let claim = orchestrator
+        .claim_next(&args.owner_id, RECOVERY_RECLAIM_NOW_MS)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no hibernated runtime ready for resume task={} effect={effect_id}", args.task_id))?;
+    println!(
+        "[mvp] resume claim => task={} lease={} fence={}",
+        claim.task.task_id,
+        claim.lease.lease_id,
+        claim.lease.fencing_token
+    );
+
+    let mut store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    let mut runtime = store
+        .load_runtime(&claim.task.task_id, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("no hibernated runtime ready for resume task={} effect={effect_id}", args.task_id))?;
+
+    let resumed = runtime
+        .resolve_hibernation(HibernationAction::Resume(PreflightDecision::Permit))
+        .map_err(|error| format!("{error:?}"))?;
+    println!(
+        "[mvp] resume phase => worker={:?} effect={:?}",
+        resumed.worker_state,
+        resumed.effect_status
+    );
+    store
+        .persist_runtime(
+            &runtime,
+            format!("safeclaw-mvp:{}:pre-resume", claim.lease.lease_id),
+            "safeclaw-mvp-entry",
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    let executor = LocalSandboxExecutor::new();
+    let (report, final_summary) = executor
+        .run_and_apply(
+            &mut runtime,
+            &sandbox_write_command(&args.output_path, args.content.as_bytes()),
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    println!(
+        "[mvp] resume result => worker={:?} effect={:?} exit={:?} timed_out={}",
+        final_summary.worker_state,
+        final_summary.effect_status,
+        report.exit_code,
+        report.timed_out
+    );
+    store
+        .persist_runtime(
+            &runtime,
+            format!("safeclaw-mvp:{}:post-resume", claim.lease.lease_id),
+            "safeclaw-mvp-entry",
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    if final_summary.worker_state == WorkerState::Succeeded {
+        orchestrator
+            .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+            .map_err(|error| format!("{error:?}"))?;
+    }
+
+    print_snapshot("after-resume", orchestrator.queue_snapshot());
+    print_output_state(&args.output_path)?;
+    println!("[mvp] db: {}", args.db_path.display());
+    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] owner: {}", args.owner_id);
+    println!(
+        "[mvp] next report => cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- report --db \"{}\" --output \"{}\" --task-id {} --effect-id {}",
+        args.db_path.display(),
+        args.output_path.display(),
+        args.task_id,
+        effect_id
+    );
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CliAction {
     Run,
     Report,
     Status,
     SeedCrash,
+    SeedHibernated,
     Recover,
     SeedFailed,
     Retry,
+    Resume,
     Reconcile,
 }
 
@@ -553,6 +739,10 @@ impl CliArgs {
                     action = CliAction::SeedCrash;
                     action_set = true;
                 }
+                "seed-hibernated" if !action_set => {
+                    action = CliAction::SeedHibernated;
+                    action_set = true;
+                }
                 "recover" if !action_set => {
                     action = CliAction::Recover;
                     action_set = true;
@@ -563,6 +753,10 @@ impl CliArgs {
                 }
                 "retry" if !action_set => {
                     action = CliAction::Retry;
+                    action_set = true;
+                }
+                "resume" if !action_set => {
+                    action = CliAction::Resume;
                     action_set = true;
                 }
                 "reconcile" if !action_set => {
@@ -585,13 +779,13 @@ impl CliArgs {
         }
 
         let (db_path, output_path, task_id) = match action {
-            CliAction::Run | CliAction::SeedCrash | CliAction::SeedFailed => {
+            CliAction::Run | CliAction::SeedCrash | CliAction::SeedHibernated | CliAction::SeedFailed => {
                 let output_path = output_path.unwrap_or(default_output);
                 let db_path = db_path.unwrap_or(default_db);
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
                 (db_path, output_path, task_id)
             }
-            CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Reconcile => {
+            CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Resume | CliAction::Reconcile => {
                 let db_path = db_path.ok_or_else(|| {
                     format!("{} requires --db\n\n{}", action_name(action), usage_text())
                 })?;
@@ -651,9 +845,11 @@ fn action_name(action: CliAction) -> &'static str {
         CliAction::Report => "report",
         CliAction::Status => "status",
         CliAction::SeedCrash => "seed-crash",
+        CliAction::SeedHibernated => "seed-hibernated",
         CliAction::Recover => "recover",
         CliAction::SeedFailed => "seed-failed",
         CliAction::Retry => "retry",
+        CliAction::Resume => "resume",
         CliAction::Reconcile => "reconcile",
     }
 }
@@ -682,7 +878,7 @@ fn parse_reconcile_decision(value: &str) -> Result<ReconcileCliDecision, String>
     }
 }
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | seed-hibernated [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | resume --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
