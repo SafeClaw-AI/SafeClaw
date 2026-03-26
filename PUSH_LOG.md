@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 08:09:28 +0800
+最后更新时间：2026-03-26 09:33:04 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -378,3 +378,15 @@
 - 本轮完成：同步 `Slice 42` 台账；`开发计划.md` 改到 `Slice 43`，继续保持 `MVP_PROGRESS.md`、`PUSH_LOG.md` 用中文短句、小学生易懂的写法。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 42 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BK
+- 完成时间：2026-03-26 09:33:04 +0800
+- 本轮完成：做完 `Slice 43`，在 `check_mvp_operator_flow.py` 里补上 `seed-failed -> active lease -> service-status` 这条等待/检查路径；锁定 `coordination=stalled` / `active_lease_without_recent_heartbeat` / `lease_remaining_ms` / `next_blocker=active_lease` / `next_summary`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- 提交推送：`86a010e test: guard stalled active lease operator flow`。
+
+### Round BL
+- 完成时间：2026-03-26 09:33:04 +0800
+- 本轮完成：同步 `Slice 43` 台账；`MVP_PROGRESS.md` 改成前 43 刀已完成，`开发计划.md` 基线改到 `86a010e`，下一刀切到 `Slice 44`：peer quarantine / contended 盘点。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 43 progress artifacts`；最终哈希以当时 `HEAD` 为准。
