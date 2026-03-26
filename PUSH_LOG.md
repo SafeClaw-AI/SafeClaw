@@ -633,3 +633,14 @@
 - 本轮完成：同步 `Slice 64` 台账；新增时间戳记录 `docs/round_logs/20260326_153524_slice64.md`；`MVP_PROGRESS.md` 改到前 64 刀已完成；`开发计划.md` 基线改到 `93deb00`，下一刀切到 `Slice 65`：`cmd recover` invalid-json remembered-session 护栏。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 64 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round DC
+- 完成时间：2026-03-26 15:52:30 +0800
+- 本轮完成：做完 `Slice 65`，在 `check_tooling_smoke.py` 补上 `cmd recover --bogus --json` 的 invalid-json remembered-session 护栏；现在已有 remembered session 基座时，会稳定锁住顶层错误消息、`details.code=invalid-argument` 与 `remembered_session.task_id=task-wrapper-invalid-json-base`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`dff9711 test: guard cmd recover invalid json session`。
+
+### Round DD
+- 完成时间：2026-03-26 15:52:30 +0800
+- 本轮完成：同步 `Slice 65` 台账；新增时间戳记录 `docs/round_logs/20260326_155230_slice65.md`；`MVP_PROGRESS.md` 改到前 65 刀已完成；`开发计划.md` 基线改到 `dff9711`，下一刀切到 `Slice 66`：`ps1 demo` fail-json remembered-session 护栏。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 65 progress artifacts`；最终哈希以当时 `HEAD` 为准。
