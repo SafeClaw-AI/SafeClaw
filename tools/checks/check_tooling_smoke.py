@@ -326654,6 +326654,49 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "service-status", "--json"],
+        errors,
+        "mvp-wrapper-ps1-service-status-json",
+        "service-status",
+    )
+    assert_service_status_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-service-status-json",
+        expected_db="target\\mvp\\service-status.db",
+        expected_db_source="session",
+        expected_task_id="task-wrapper-service-status",
+        expected_target_scope="scope:target/mvp/service-status.txt",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="confirm",
+        expected_permission_reason="write_scope_requires_confirmation",
+        expected_lease_state="released",
+        expected_lease_freshness="lost",
+        expected_lease_owner_id="safeclaw-mvp",
+        expected_lease_fencing_token=1,
+        expected_heartbeat_freshness="lost",
+        expected_heartbeat_status="failed",
+        expected_heartbeat_interval_ms=10000,
+        expected_heartbeat_event_driven=True,
+        expected_heartbeat_reason="recent_task_update_exceeded_grace_window",
+        expect_heartbeat_latest_updated_at_present=True,
+        expect_heartbeat_latest_age_ms_present=True,
+        expected_next_action="ok",
+        expected_next_command='safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"',
+        expected_next_reason="execution_already_confirmed",
+        expected_next_blocker="none",
+        expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed",
+        expected_coordination_status="clear",
+        expected_coordination_reason="execution_already_confirmed",
+        expected_coordination_summary="no_followup_needed",
+        expected_service_coordination_status="clear",
+        expected_service_coordination_reason="execution_already_confirmed",
+        expected_service_coordination_summary="no_followup_needed",
+    )
+
     assert_command_json_error(
 
 
