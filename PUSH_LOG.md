@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 09:59:39 +0800
+最后更新时间：2026-03-26 10:14:30 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -414,3 +414,15 @@
 - 本轮完成：同步 `Slice 45` 台账；新增时间戳记录 `docs/round_logs/20260326_095939_slice45.md`；README 和 `tools/mvp/README.md` 补了一句“当前故意没有 budget 面板”；`开发计划.md` 基线改到 `2166301`，下一刀切到 `Slice 46`：hibernated / resume wrapper gap audit。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 45 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BQ
+- 完成时间：2026-03-26 10:14:30 +0800
+- 本轮完成：做完 `Slice 46`，给 `service-status` 补上 hibernated 现场的人话提示；现在 winter 现场会显式回显 `coordination=hibernated` / `next_reason=hibernated_waiting_for_resume` / `coordination_summary=inspect_and_resume_or_expire`，不再退回泛化的 manual inspect。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`
+- 提交推送：`df8bf74 feat: surface hibernated service status hints`。
+
+### Round BR
+- 完成时间：2026-03-26 10:14:30 +0800
+- 本轮完成：同步 `Slice 46` 台账；新增时间戳记录 `docs/round_logs/20260326_101430_slice46.md`；README 和 `tools/mvp/README.md` 补了 hibernated 提示说明；`开发计划.md` 基线改到 `df8bf74`，下一刀切到 `Slice 47`：resume 入口缺口盘点。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 46 progress artifacts`；最终哈希以当时 `HEAD` 为准。
