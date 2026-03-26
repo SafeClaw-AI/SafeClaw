@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-26 09:49:21 +0800
+最后更新时间：2026-03-26 09:59:39 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -402,3 +402,15 @@
 - 本轮完成：同步 `Slice 44` 台账；新增时间戳记录 `docs/round_logs/20260326_094921_slice44.md`；`开发计划.md` 基线改到 `eae7a0e`，下一刀切到 `Slice 45`：budget runtime/source 前置条件复查。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
 - 提交推送：计划消息 `docs: sync slice 44 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round BO
+- 完成时间：2026-03-26 09:59:39 +0800
+- 本轮完成：做完 `Slice 45` 的 budget 复查，确认当前 budget 仍只有蓝图 / specs / 错误码，没有真实 runtime/source；并在 `check_tooling_smoke.py` 里补上 no-fake-budget 护栏，锁住 `doctor` / `service-status` 现在不会意外长出 `budget` 文本或 JSON 字段。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`
+- 提交推送：`2166301 test: guard budget surface absence`。
+
+### Round BP
+- 完成时间：2026-03-26 09:59:39 +0800
+- 本轮完成：同步 `Slice 45` 台账；新增时间戳记录 `docs/round_logs/20260326_095939_slice45.md`；README 和 `tools/mvp/README.md` 补了一句“当前故意没有 budget 面板”；`开发计划.md` 基线改到 `2166301`，下一刀切到 `Slice 46`：hibernated / resume wrapper gap audit。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`
+- 提交推送：计划消息 `docs: sync slice 45 progress artifacts`；最终哈希以当时 `HEAD` 为准。
