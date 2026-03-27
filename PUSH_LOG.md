@@ -1378,3 +1378,14 @@
 - 本轮完成：同步 `Slice 128` 台账；新增时间戳记录 `docs/round_logs/20260327_234402_slice128.md`；`MVP_PROGRESS.md` 改到前 128 刀已完成；`开发计划.md` 基线改到 `494f918`，下一刀继续回现场验真后再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 128 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round IA
+- 完成时间：2026-03-28 00:08:51 +0800
+- 本轮完成：做完 `Slice 129`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd forget --json` 的成功结果断言；锁住 `path=target\mvp\last_session.json` 与 `forgot/reason=removed|none` 的双稳态。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`3a42c40 test: guard cmd forget json`。
+
+### Round IB
+- 完成时间：2026-03-28 00:08:51 +0800
+- 本轮完成：同步 `Slice 129` 台账；新增时间戳记录 `docs/round_logs/20260328_000851_slice129.md`；`MVP_PROGRESS.md` 改到前 129 刀已完成；`开发计划.md` 基线改到 `3a42c40`，下一刀继续回现场验真后再编号。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 129 progress artifacts`；最终哈希以当时 `HEAD` 为准。
