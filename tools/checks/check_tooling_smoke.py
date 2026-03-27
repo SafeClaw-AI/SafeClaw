@@ -613921,6 +613921,18 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "forget", "--json"],
+        errors,
+        "mvp-wrapper-cmd-forget-json",
+        "forget",
+    )
+    if result is not None:
+        forget_state = (result.get("forgot"), result.get("reason"))
+        if result.get("path") != "target\mvp\last_session.json":
+            errors.append("mvp-wrapper-cmd-forget-json missing session path")
+        elif forget_state not in {(True, "removed"), (False, "none")}:
+            errors.append("mvp-wrapper-cmd-forget-json unexpected forget state")
     wrapper_ps1_session_after_cmd_forget_json = subprocess.run(
 
 
