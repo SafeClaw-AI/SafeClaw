@@ -223775,6 +223775,13 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "verify", "--json"],
+        errors,
+        "safeclaw-root-ps1-verify-json",
+        "verify",
+    )
+    assert_verify_json_result(result, errors, "safeclaw-root-ps1-verify-json")
+    result = assert_command_json_result(
 
 
 
