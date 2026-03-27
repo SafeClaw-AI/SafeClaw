@@ -351394,6 +351394,53 @@ def collect_errors() -> list[str]:
         elif source_hints.get("task_context") != "flag":
             errors.append("mvp-wrapper-resume-json missing source_hints.task_context=flag")
     result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "seed-hibernated", "--reset", "--task-id", "task-wrapper-cmd-resume-json", "--db", "target/mvp/cmd-resume-json.db", "--output", "target/mvp/cmd-resume-json.txt", "--json"],
+        errors,
+        "mvp-wrapper-cmd-resume-json-seed-hibernated-json",
+        "seed-hibernated",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-resume-json-seed-hibernated-json",
+        expected_task_id="task-wrapper-cmd-resume-json",
+        expected_db_path="target/mvp/cmd-resume-json.db",
+        expected_output_path="target/mvp/cmd-resume-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "resume", "--db", "target/mvp/cmd-resume-json.db", "--task-id", "task-wrapper-cmd-resume-json", "--output", "target/mvp/cmd-resume-json.txt", "--json"],
+        errors,
+        "mvp-wrapper-cmd-resume-json",
+        "resume",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        remembered_session = result.get("remembered_session") or {}
+        source_hints = result.get("source_hints") or {}
+        captured_output = str(result.get("captured_output") or "")
+        if not prepared or prepared[0] != "resume":
+            errors.append("mvp-wrapper-cmd-resume-json missing prepared resume")
+        elif "task-wrapper-cmd-resume-json" not in captured_output:
+            errors.append("mvp-wrapper-cmd-resume-json missing captured task task-wrapper-cmd-resume-json")
+        elif result.get("saved_session") is not None:
+            errors.append("mvp-wrapper-cmd-resume-json should not save session")
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-cmd-resume-json":
+            errors.append("mvp-wrapper-cmd-resume-json missing remembered session task-wrapper-cmd-resume-json")
+        elif remembered_session.get("db") != "target/mvp/cmd-resume-json.db":
+            errors.append("mvp-wrapper-cmd-resume-json missing remembered session db")
+        elif remembered_session.get("output") != "target/mvp/cmd-resume-json.txt":
+            errors.append("mvp-wrapper-cmd-resume-json missing remembered session output")
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+            errors.append("mvp-wrapper-cmd-resume-json missing source_hints.db=flag")
+        elif source_hints.get("output") != "flag":
+            errors.append("mvp-wrapper-cmd-resume-json missing source_hints.output=flag")
+        elif source_hints.get("owner_id") != "session":
+            errors.append("mvp-wrapper-cmd-resume-json missing source_hints.owner_id=session")
+        elif source_hints.get("task_context") != "flag":
+            errors.append("mvp-wrapper-cmd-resume-json missing source_hints.task_context=flag")
+    result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "seed-hibernated", "--reset", "--task-id", "task-wrapper-cmd-seed-hibernated-json", "--db", "target/mvp/cmd-seed-hibernated-json.db", "--output", "target/mvp/cmd-seed-hibernated-json.txt", "--json"],
         errors,
         "mvp-wrapper-cmd-seed-hibernated-json",
