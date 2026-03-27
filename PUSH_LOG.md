@@ -1546,3 +1546,15 @@
 - 本轮完成：同步 `Slice 143` 台账；新增时间戳记录 `docs/round_logs/20260328_034554_slice143.md`；`MVP_PROGRESS.md` 改到前 143 刀已完成；`开发计划.md` 基线改到 `a108edd`，下一刀优先看 `safeclaw.ps1 verify --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 143 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round JE
+- 完成时间：2026-03-28 03:57:47 +0800
+- 本轮完成：做完 `Slice 144`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 verify --json` 的成功结果断言；锁住 `exit_code=0`、`script=tools/checks/check_mvp_operator_flow.py` 与 `captured_output=MVP operator flow check passed.`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`c078ebf test: guard root ps1 verify json`。
+
+### Round JF
+- 完成时间：2026-03-28 03:57:47 +0800
+- 本轮完成：同步 `Slice 144` 台账；新增时间戳记录 `docs/round_logs/20260328_035747_slice144.md`；`MVP_PROGRESS.md` 改到前 144 刀已完成；`开发计划.md` 基线改到 `c078ebf`，下一刀优先看 `safeclaw.ps1 workspace --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 144 progress artifacts`；最终哈希以当时 `HEAD` 为准。
