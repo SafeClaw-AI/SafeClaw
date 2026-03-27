@@ -226431,6 +226431,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-failed", "--reset", "--task-id", "task-root-ps1-seed-failed-json", "--db", "target/mvp/root-ps1-seed-failed-json.db", "--output", "target/mvp/root-ps1-seed-failed-json.txt", "--json"],
+        errors,
+        "safeclaw-root-ps1-seed-failed-json",
+        "seed-failed",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-seed-failed-json",
+        expected_task_id="task-root-ps1-seed-failed-json",
+        expected_db_path="target/mvp/root-ps1-seed-failed-json.db",
+        expected_output_path="target/mvp/root-ps1-seed-failed-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-hibernated", "--reset", "--task-id", "task-root-ps1-seed-hibernated-json", "--db", "target/mvp/root-ps1-seed-hibernated-json.db", "--output", "target/mvp/root-ps1-seed-hibernated-json.txt", "--json"],
         errors,
         "safeclaw-root-ps1-seed-hibernated-json",
