@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 22:14:14 +0800
+最后更新时间：2026-03-27 22:37:37 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 123 刀已完成；这一轮把 wrapper `cmd preflight --action service-run --json` 合同锁进 smoke
+当前阶段：已进入 M1b，前 124 刀已完成；这一轮把 wrapper `cmd workspace --name demo --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -143,6 +143,7 @@
 | [x] | M1b Slice 121: cmd session json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd session --json` 在 failed remembered session 下的成功结果断言；复用现有 `task-wrapper-session-failed` 基座，锁住 `task_id/effect_id/db/output/owner_id` 回显 | 防止 CMD 包装层的 failed 会话连续性 session 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 122: cmd sessions json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd sessions --json` 在 failed remembered session 下的成功结果断言；复用现有 `task-wrapper-sessions-failed` 基座，锁住 `current_session`、`rows[0]`、`db_source=session` 与 `coordination_summary=retry_now` | 防止 CMD 包装层的 failed 会话连续性 sessions 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 123: cmd preflight json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd preflight --action service-run --json` 的成功结果断言；锁住 `requested_action=service-run`、权限门禁字段与 `degradation_mode=local_only_ok` | 防止 CMD 包装层的 preflight 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 124: cmd workspace json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd workspace --name demo --json` 的成功结果断言；复用现有 demo workspace 激活链，锁住 `active/name/db/output/path/changed=true` | 防止 CMD 包装层的 workspace 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

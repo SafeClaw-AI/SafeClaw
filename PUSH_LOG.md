@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 22:14:14 +0800
+最后更新时间：2026-03-27 22:37:37 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1319,3 +1319,15 @@
 - 本轮完成：同步 `Slice 123` 台账；新增时间戳记录 `docs/round_logs/20260327_221414_slice123.md`；`MVP_PROGRESS.md` 改到前 123 刀已完成；`开发计划.md` 基线改到 `409ae58`，下一刀继续回现场验真后再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 123 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round HQ
+- 完成时间：2026-03-27 22:37:37 +0800
+- 本轮完成：做完 `Slice 124`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd workspace --name demo --json` 的成功结果断言；复用现有 demo workspace 激活链，锁住 `active/name/db/output/path/changed=true`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`9a51daa test: guard cmd workspace json`。
+
+### Round HR
+- 完成时间：2026-03-27 22:37:37 +0800
+- 本轮完成：同步 `Slice 124` 台账；新增时间戳记录 `docs/round_logs/20260327_223737_slice124.md`；`MVP_PROGRESS.md` 改到前 124 刀已完成；`开发计划.md` 基线改到 `9a51daa`，下一刀继续回现场验真后再编号。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 124 progress artifacts`；最终哈希以当时 `HEAD` 为准。
