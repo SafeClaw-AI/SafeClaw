@@ -601364,6 +601364,42 @@ def collect_errors() -> list[str]:
 
     result = assert_command_json_result(
 
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
+
+        errors,
+
+        "mvp-wrapper-cmd-session-failed-json",
+
+        "session",
+
+    )
+
+    if result is not None:
+
+        if result.get("task_id") != "task-wrapper-session-failed":
+
+            errors.append("mvp-wrapper-cmd-session-failed-json missing task_id=task-wrapper-session-failed")
+
+        elif result.get("effect_id") != "effect-task-wrapper-session-failed":
+
+            errors.append("mvp-wrapper-cmd-session-failed-json missing effect_id=effect-task-wrapper-session-failed")
+
+        elif result.get("db") != "target/mvp/session-failed.db":
+
+            errors.append("mvp-wrapper-cmd-session-failed-json missing db=target/mvp/session-failed.db")
+
+        elif result.get("output") != "target/mvp/session-failed.txt":
+
+            errors.append("mvp-wrapper-cmd-session-failed-json missing output=target/mvp/session-failed.txt")
+
+        elif result.get("owner_id") != "safeclaw-mvp":
+
+            errors.append("mvp-wrapper-cmd-session-failed-json missing owner_id=safeclaw-mvp")
+
+
+
+    result = assert_command_json_result(
+
         [
 
             PYTHON,
