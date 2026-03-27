@@ -226463,6 +226463,18 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "workspace", "--clear", "--json"],
+        errors,
+        "safeclaw-root-ps1-workspace-clear-json",
+        "workspace",
+    )
+    if result is not None:
+        clear_state = (result.get("cleared"), result.get("reason"))
+        if result.get("path") != "target\mvp\workspace.json":
+            errors.append("safeclaw-root-ps1-workspace-clear-json missing workspace path")
+        elif clear_state != (False, "none"):
+            errors.append("safeclaw-root-ps1-workspace-clear-json unexpected clear state")
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-crash", "--reset", "--task-id", "task-root-ps1-seed-crash-json", "--db", "target/mvp/root-ps1-seed-crash-json.db", "--output", "target/mvp/root-ps1-seed-crash-json.txt", "--json"],
         errors,
         "safeclaw-root-ps1-seed-crash-json",
