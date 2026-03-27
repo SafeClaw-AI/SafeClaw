@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 08:21:13 +0800
+最后更新时间：2026-03-27 08:33:17 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 106 刀已完成；这一轮把 failed 会话连续性下无参 `ps1 status --json` 合同锁进 smoke
+当前阶段：已进入 M1b，前 107 刀已完成；这一轮把 failed 会话连续性下无参 `ps1 report --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -126,6 +126,7 @@
 | [x] | M1b Slice 104: ps1 recover json crash 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 recover --json` 的成功结果断言；先补独立 `seed-crash` 基座准备 crash 现场，再用显式 `report` 建立 remembered session，锁住 crash 会话链下 recover 的恢复回显与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 PowerShell 包装层的 crash 会话连续性 recover 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 105: ps1 retry json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 retry --json` 的成功结果断言；先补独立 `seed-failed` 基座准备 failed 现场，再用显式 `report` 建立 remembered session，锁住 failed 会话链下 retry 的恢复回显与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 PowerShell 包装层的 failed 会话连续性 retry 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 106: ps1 status json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 status --json` 的成功结果断言；先补独立 `seed-failed` 基座准备 failed 现场，再用显式 `report` 建立 remembered session，锁住 failed 会话链下 status 的治理回显与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 PowerShell 包装层的 failed 会话连续性 status 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 107: ps1 report json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --json` 的成功结果断言；先补独立 `seed-failed` 基座准备 failed 现场，再用显式 `report` 建立 remembered session，锁住 failed 会话链下 report 的治理回显与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 PowerShell 包装层的 failed 会话连续性 report 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
