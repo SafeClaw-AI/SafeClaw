@@ -309039,6 +309039,18 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "workspace", "--clear", "--json"],
+        errors,
+        "mvp-wrapper-cmd-workspace-clear-json",
+        "workspace",
+    )
+    if result is not None:
+        clear_state = (result.get("cleared"), result.get("reason"))
+        if result.get("path") != "target\mvp\workspace.json":
+            errors.append("mvp-wrapper-cmd-workspace-clear-json missing workspace path")
+        elif clear_state not in {(True, "removed"), (False, "none")}:
+            errors.append("mvp-wrapper-cmd-workspace-clear-json unexpected clear state")
     result = assert_command_json_result(
 
 
