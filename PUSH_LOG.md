@@ -1509,4 +1509,14 @@
 - 完成时间：2026-03-28 03:11:38 +0800
 - 本轮完成：同步 `Slice 140` 台账；新增时间戳记录 `docs/round_logs/20260328_031138_slice140.md`；`MVP_PROGRESS.md` 改到前 140 刀已完成；`开发计划.md` 基线改到 `3be3e50`，下一刀优先看 `safeclaw.ps1 forget --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
-- 提交推送：计划消息 `docs: sync slice 140 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+- 提交推送：计划消息 `docs: sync slice 140 progress artifacts`；最终哈希以当时 `HEAD` 为准。### Round IY
+- 完成时间：2026-03-28 03:22:04 +0800
+- 本轮完成：做完 `Slice 141`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 forget --json` 的成功结果断言；锁住 no-op 场景下的 `forgot=false`、`path=target\mvp\last_session.json` 与 `reason=none`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`9565b78 test: guard root ps1 forget json`。
+
+### Round IZ
+- 完成时间：2026-03-28 03:22:04 +0800
+- 本轮完成：同步 `Slice 141` 台账；新增时间戳记录 `docs/round_logs/20260328_032204_slice141.md`；`MVP_PROGRESS.md` 改到前 141 刀已完成；`开发计划.md` 基线改到 `9565b78`，下一刀优先看 `safeclaw.ps1 preflight --action service-run --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 141 progress artifacts`；最终哈希以当时 `HEAD` 为准。
