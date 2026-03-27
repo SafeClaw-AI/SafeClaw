@@ -1238,3 +1238,14 @@
 - 本轮完成：同步 `Slice 116` 台账；新增时间戳记录 `docs/round_logs/20260327_105602_slice116.md`；`MVP_PROGRESS.md` 改到前 116 刀已完成；`开发计划.md` 基线改到 `d723b09`，下一刀改回现场验真后再编号，不提前写死 `Slice 117`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 116 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round HC
+- 完成时间：2026-03-27 11:10:54 +0800
+- 本轮完成：做完 `Slice 117`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd status --db target/mvp/cmd-status-explicit-failed.db --task-id task-wrapper-cmd-status-explicit-failed --json` 的成功结果断言；先补独立 `seed-failed` 基座，锁住显式上下文下的治理回显、remembered session 与 `source_hints` 的显式来源提示。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`80752de test: guard cmd status explicit failed json`。
+
+### Round HD
+- 完成时间：2026-03-27 11:10:54 +0800
+- 本轮完成：同步 `Slice 117` 台账；新增时间戳记录 `docs/round_logs/20260327_111054_slice117.md`；`MVP_PROGRESS.md` 改到前 117 刀已完成；`开发计划.md` 基线改到 `80752de`，下一刀改回现场验真后再编号，不提前写死 `Slice 118`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 117 progress artifacts`；最终哈希以当时 `HEAD` 为准。
