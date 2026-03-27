@@ -199423,6 +199423,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "workspace", "--name", "readme-root-ps1", "--json"],
+        errors,
+        "safeclaw-root-ps1-workspace-json",
+        "workspace",
+    )
+    assert_workspace_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-workspace-json",
+        expected_active=True,
+        expected_name="readme-root-ps1",
+        expected_db_path="target/mvp/workspaces/readme-root-ps1/session.db",
+        expected_output_path="target/mvp/workspaces/readme-root-ps1/output.txt",
+        expected_changed=True,
+    )
+    result = assert_command_json_result(
 
 
 
