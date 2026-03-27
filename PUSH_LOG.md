@@ -1444,3 +1444,14 @@
 - 本轮完成：同步 `Slice 134` 台账；新增时间戳记录 `docs/round_logs/20260328_013331_slice134.md`；`MVP_PROGRESS.md` 改到前 134 刀已完成；`开发计划.md` 基线改到 `7827fcf`，下一刀优先看 `safeclaw.ps1 resume --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 134 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round IM
+- 完成时间：2026-03-28 01:42:38 +0800
+- 本轮完成：做完 `Slice 135`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 resume --db ... --task-id ... --output ... --json` 的成功结果断言；先用独立 `seed-hibernated` 基座准备现场，锁住 `saved_session=null`、`remembered_session` 镜像与 `source_hints=db/output=flag, owner_id=session, task_context=flag`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`6016a99 test: guard root ps1 resume json`。
+
+### Round IN
+- 完成时间：2026-03-28 01:44:04 +0800
+- 本轮完成：同步 `Slice 135` 台账；新增时间戳记录 `docs/round_logs/20260328_014404_slice135.md`；`MVP_PROGRESS.md` 改到前 135 刀已完成；`开发计划.md` 基线改到 `6016a99`，下一刀优先看 `safeclaw.ps1 seed-failed --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 135 progress artifacts`；最终哈希以当时 `HEAD` 为准。
