@@ -228642,6 +228642,52 @@ def collect_errors() -> list[str]:
         expected_degradation_mode="local_only_ok",
         expected_reason="current_mvp_action_is_local_only",
     )
+    payload = load_json_payload(
+        run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "preflight", "--action", "ai-reason", "--json"]),
+        errors,
+        "safeclaw-root-cmd-preflight-ai-reason-json",
+        1,
+    )
+    result = None
+    if payload is not None:
+        if payload.get("ok") is not False or payload.get("action") != "preflight":
+            errors.append("safeclaw-root-cmd-preflight-ai-reason-json unexpected top-level payload")
+        else:
+            candidate = payload.get("result")
+            if not isinstance(candidate, dict):
+                errors.append("safeclaw-root-cmd-preflight-ai-reason-json missing result payload")
+            else:
+                result = candidate
+    assert_preflight_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-preflight-ai-reason-json",
+        expected_requested_action="ai-reason",
+        expected_known=True,
+        expected_action_class="ai-action",
+        expected_tier="TIER_2",
+        expected_writes_state=False,
+        expected_permission_context_source="none",
+        expected_target_scope="",
+        expected_requires_write=False,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=False,
+        expected_permission_tier="TIER_0",
+        expected_permission_policy="not_evaluated",
+        expected_permission_reason="permission_context_not_provided",
+        expected_permission_enforced=False,
+        expected_action_allowed=False,
+        expected_action_decision="deny",
+        expected_action_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_allowed=False,
+        expected_decision="deny",
+        expected_offline_ready=False,
+        expected_degradation_mode="provider_unavailable",
+        expected_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_requires_model=True,
+        expected_requires_sidecar=True,
+        expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+    )
     result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "preflight", "--action", "service-run", "--json"],
         errors,
