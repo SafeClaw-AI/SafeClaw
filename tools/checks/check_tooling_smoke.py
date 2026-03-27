@@ -226447,6 +226447,65 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
     result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-hibernated",
+            "--reset",
+            "--task-id",
+            "task-root-ps1-resume-json",
+            "--db",
+            "target/mvp/root-ps1-resume-json.db",
+            "--output",
+            "target/mvp/root-ps1-resume-json.txt",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-resume-json-seed-hibernated-json",
+        "seed-hibernated",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-resume-json-seed-hibernated-json",
+        expected_task_id="task-root-ps1-resume-json",
+        expected_db_path="target/mvp/root-ps1-resume-json.db",
+        expected_output_path="target/mvp/root-ps1-resume-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "resume", "--db", "target/mvp/root-ps1-resume-json.db", "--task-id", "task-root-ps1-resume-json", "--output", "target/mvp/root-ps1-resume-json.txt", "--json"],
+        errors,
+        "safeclaw-root-ps1-resume-json",
+        "resume",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        remembered_session = result.get("remembered_session") or {}
+        source_hints = result.get("source_hints") or {}
+        captured_output = str(result.get("captured_output") or "")
+        if not prepared or prepared[0] != "resume":
+            errors.append("safeclaw-root-ps1-resume-json missing prepared resume")
+        elif "task-root-ps1-resume-json" not in captured_output:
+            errors.append("safeclaw-root-ps1-resume-json missing captured task task-root-ps1-resume-json")
+        elif result.get("saved_session") is not None:
+            errors.append("safeclaw-root-ps1-resume-json should not save session")
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-root-ps1-resume-json":
+            errors.append("safeclaw-root-ps1-resume-json missing remembered session task-root-ps1-resume-json")
+        elif remembered_session.get("db") != "target/mvp/root-ps1-resume-json.db":
+            errors.append("safeclaw-root-ps1-resume-json missing remembered session db")
+        elif remembered_session.get("output") != "target/mvp/root-ps1-resume-json.txt":
+            errors.append("safeclaw-root-ps1-resume-json missing remembered session output")
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+            errors.append("safeclaw-root-ps1-resume-json missing source_hints.db=flag")
+        elif source_hints.get("output") != "flag":
+            errors.append("safeclaw-root-ps1-resume-json missing source_hints.output=flag")
+        elif source_hints.get("owner_id") != "session":
+            errors.append("safeclaw-root-ps1-resume-json missing source_hints.owner_id=session")
+        elif source_hints.get("task_context") != "flag":
+            errors.append("safeclaw-root-ps1-resume-json missing source_hints.task_context=flag")
+    result = assert_command_json_result(
         ["cmd", "/c", "safeclaw.cmd", "seed-hibernated", "--reset", "--task-id", "task-root-cmd-seed-hibernated-json", "--db", "target/mvp/root-cmd-seed-hibernated-json.db", "--output", "target/mvp/root-cmd-seed-hibernated-json.txt", "--json"],
         errors,
         "safeclaw-root-cmd-seed-hibernated-json",
