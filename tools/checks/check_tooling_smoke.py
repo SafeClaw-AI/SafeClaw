@@ -601204,6 +601204,126 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+
+        [
+
+            PYTHON,
+
+            "tools/mvp/safeclaw_mvp.py",
+
+            "seed-failed",
+
+            "--reset",
+
+            "--task-id",
+
+            "task-wrapper-status-explicit-failed",
+
+            "--db",
+
+            "target/mvp/status-explicit-failed.db",
+
+            "--output",
+
+            "target/mvp/status-explicit-failed.txt",
+
+            "--json",
+
+        ],
+
+        errors,
+
+        "mvp-wrapper-status-explicit-failed-seed-json",
+
+        "seed-failed",
+
+    )
+
+    assert_run_json_result(
+
+        result,
+
+        errors,
+
+        "mvp-wrapper-status-explicit-failed-seed-json",
+
+        expected_task_id="task-wrapper-status-explicit-failed",
+
+        expected_db_path="target/mvp/status-explicit-failed.db",
+
+        expected_output_path="target/mvp/status-explicit-failed.txt",
+
+        expected_db_source="flag",
+
+        expected_output_source="flag",
+
+    )
+
+    result = assert_command_json_result(
+
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "status", "--db", "target/mvp/status-explicit-failed.db", "--task-id", "task-wrapper-status-explicit-failed", "--json"],
+
+        errors,
+
+        "mvp-wrapper-ps1-status-explicit-failed-json",
+
+        "status",
+
+    )
+
+    if result is not None:
+
+        prepared = result.get("prepared") or []
+
+        remembered_session = result.get("remembered_session") or {}
+
+        source_hints = result.get("source_hints") or {}
+
+        captured_output = str(result.get("captured_output") or "")
+
+        if not prepared or prepared[0] != "status":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing prepared status")
+
+        elif "task-wrapper-status-explicit-failed" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing captured task task-wrapper-status-explicit-failed")
+
+        elif "RetryEligible" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing RetryEligible")
+
+        elif "worker=Failed" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing worker=Failed")
+
+        elif "effect=Prepared" not in captured_output:
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing effect=Prepared")
+
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-status-explicit-failed":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing remembered session task-wrapper-status-explicit-failed")
+
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing source_hints.db=flag")
+
+        elif source_hints.get("output") != "session":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing source_hints.output=session")
+
+        elif source_hints.get("owner_id") != "session":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing source_hints.owner_id=session")
+
+        elif source_hints.get("task_context") != "flag":
+
+            errors.append("mvp-wrapper-ps1-status-explicit-failed-json missing source_hints.task_context=flag")
+
+
+
     wrapper_restore_after_ps1_retry_a = subprocess.run(
 
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--reset", "--task-id", "task-wrapper-a"],
