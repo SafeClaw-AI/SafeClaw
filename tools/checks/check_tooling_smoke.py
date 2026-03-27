@@ -598795,6 +598795,19 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
+        errors,
+        "mvp-wrapper-cmd-session-json",
+        "session",
+    )
+    assert_session_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-session-json",
+        expected_task_id="task-wrapper-b",
+    )
+
     result = assert_command_json_result(
 
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "report", "--json"],
