@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 23:05:09 +0800
+最后更新时间：2026-03-27 23:22:41 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1355,3 +1355,15 @@
 - 本轮完成：同步 `Slice 126` 台账；新增时间戳记录 `docs/round_logs/20260327_230509_slice126.md`；`MVP_PROGRESS.md` 改到前 126 刀已完成；`开发计划.md` 基线改到 `290146c`，下一刀继续回现场验真后再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 126 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round HW
+- 完成时间：2026-03-27 23:22:41 +0800
+- 本轮完成：做完 `Slice 127`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd seed-hibernated --reset --task-id ... --db ... --output ... --json` 的成功结果断言；锁住 `saved_session/remembered_session` 镜像、显式 `db/output` 路径与 `source_hints=db/output=flag`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`04b6992 test: guard cmd seed hibernated json`。
+
+### Round HX
+- 完成时间：2026-03-27 23:22:41 +0800
+- 本轮完成：同步 `Slice 127` 台账；新增时间戳记录 `docs/round_logs/20260327_232241_slice127.md`；`MVP_PROGRESS.md` 改到前 127 刀已完成；`开发计划.md` 基线改到 `04b6992`，下一刀继续回现场验真后再编号。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 127 progress artifacts`；最终哈希以当时 `HEAD` 为准。
