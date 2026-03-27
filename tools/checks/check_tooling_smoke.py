@@ -600342,6 +600342,101 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-wrapper-cmd-recover-session-crash",
+            "--db",
+            "target/mvp/cmd-recover-session-crash.db",
+            "--output",
+            "target/mvp/cmd-recover-session-crash.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-recover-session-crash-seed-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-recover-session-crash-seed-json",
+        expected_task_id="task-wrapper-cmd-recover-session-crash",
+        expected_db_path="target/mvp/cmd-recover-session-crash.db",
+        expected_output_path="target/mvp/cmd-recover-session-crash.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\mvp\safeclaw_mvp.ps1", "report", "--db", "target/mvp/cmd-recover-session-crash.db", "--task-id", "task-wrapper-cmd-recover-session-crash", "--json"],
+        errors,
+        "mvp-wrapper-ps1-report-cmd-recover-session-crash-json",
+        "report",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        remembered_session = result.get("remembered_session") or {}
+        source_hints = result.get("source_hints") or {}
+        captured_output = str(result.get("captured_output") or "")
+        if not prepared or prepared[0] != "report":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing prepared report")
+        elif "task-wrapper-cmd-recover-session-crash" not in captured_output:
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing captured task task-wrapper-cmd-recover-session-crash")
+        elif "QueueForManualReview" not in captured_output:
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing QueueForManualReview")
+        elif "worker=Uncertain" not in captured_output:
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing worker=Uncertain")
+        elif "effect=Uncertain" not in captured_output:
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing effect=Uncertain")
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-cmd-recover-session-crash":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing remembered session task-wrapper-cmd-recover-session-crash")
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing source_hints.db=flag")
+        elif source_hints.get("output") != "session":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing source_hints.output=session")
+        elif source_hints.get("owner_id") != "session":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing source_hints.owner_id=session")
+        elif source_hints.get("task_context") != "flag":
+            errors.append("mvp-wrapper-ps1-report-cmd-recover-session-crash-json missing source_hints.task_context=flag")
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "recover", "--json"],
+        errors,
+        "mvp-wrapper-cmd-recover-session-crash-json",
+        "recover",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        remembered_session = result.get("remembered_session") or {}
+        source_hints = result.get("source_hints") or {}
+        captured_output = str(result.get("captured_output") or "")
+        if not prepared or prepared[0] != "recover":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing prepared recover")
+        elif "task-wrapper-cmd-recover-session-crash" not in prepared:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing prepared task task-wrapper-cmd-recover-session-crash")
+        elif "recover blocked before expiry => true" not in captured_output:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing recover blocked before expiry")
+        elif "recover result => from=Uncertain" not in captured_output:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing from=Uncertain")
+        elif "worker=Succeeded" not in captured_output:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing worker=Succeeded")
+        elif "effect=Executed" not in captured_output:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing effect=Executed")
+        elif "completed=true" not in captured_output:
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing completed=true")
+        elif not isinstance(remembered_session, dict) or remembered_session.get("task_id") != "task-wrapper-cmd-recover-session-crash":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing remembered session task-wrapper-cmd-recover-session-crash")
+        elif not isinstance(source_hints, dict) or source_hints.get("db") != "session":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing source_hints.db=session")
+        elif source_hints.get("output") != "session":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing source_hints.output=session")
+        elif source_hints.get("owner_id") != "session":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing source_hints.owner_id=session")
+        elif source_hints.get("task_context") != "session":
+            errors.append("mvp-wrapper-cmd-recover-session-crash-json missing source_hints.task_context=session")
+
     result = assert_command_json_result(
 
         [
