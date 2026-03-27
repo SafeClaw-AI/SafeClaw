@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 01:57:17 +0800
+最后更新时间：2026-03-28 02:08:12 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 136 刀已完成；这一轮把 `safeclaw.ps1 seed-failed --json` 合同锁进 smoke
+当前阶段：已进入 M1b，前 137 刀已完成；这一轮把 `safeclaw.ps1 seed-crash --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -156,6 +156,7 @@
 | [x] | M1b Slice 134: root ps1 seed-hibernated json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 seed-hibernated --reset --task-id ... --db ... --output ... --json` 的成功结果断言；锁住 `saved_session/remembered_session` 镜像、显式 `db/output` 路径与 `source_hints=db/output=flag` | 防止根入口 PowerShell 的 seed-hibernated 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 135: root ps1 resume json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 resume --db ... --task-id ... --output ... --json` 的成功结果断言，并先用独立 `seed-hibernated` 基座准备现场；锁住 `saved_session=null`、`remembered_session` 镜像与 `source_hints=db/output=flag, owner_id=session, task_context=flag` | 防止根入口 PowerShell 的 resume 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 136: root ps1 seed-failed json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 seed-failed --reset --task-id ... --db ... --output ... --json` 的成功结果断言；锁住 `saved_session/remembered_session` 镜像、显式 `db/output` 路径与 `source_hints=db/output=flag` | 防止根入口 PowerShell 的 seed-failed 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 137: root ps1 seed-crash json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 seed-crash --reset --task-id ... --db ... --output ... --json` 的成功结果断言；锁住 `saved_session/remembered_session` 镜像、显式 `db/output` 路径与 `source_hints=db/output=flag` | 防止根入口 PowerShell 的 seed-crash 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
