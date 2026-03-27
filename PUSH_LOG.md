@@ -1216,3 +1216,14 @@
 - 本轮完成：同步 `Slice 114` 台账；新增时间戳记录 `docs/round_logs/20260327_102738_slice114.md`；`MVP_PROGRESS.md` 改到前 114 刀已完成；`开发计划.md` 基线改到 `7359dc8`，下一刀改回现场验真后再编号，不提前写死 `Slice 115`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 114 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round GY
+- 完成时间：2026-03-27 10:46:11 +0800
+- 本轮完成：做完 `Slice 115`，在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd retry --json` 的成功结果断言；先补独立 `seed-failed` 基座，再用显式 `ps1 report` 建立 remembered session，锁住 `task-wrapper-cmd-retry-session` 的 retry 成功回显与 `source_hints` 的 session 来源。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`d21ae27 test: guard cmd retry session json`。
+
+### Round GZ
+- 完成时间：2026-03-27 10:46:11 +0800
+- 本轮完成：同步 `Slice 115` 台账；新增时间戳记录 `docs/round_logs/20260327_104611_slice115.md`；`MVP_PROGRESS.md` 改到前 115 刀已完成；`开发计划.md` 基线改到 `d21ae27`，下一刀改回现场验真后再编号，不提前写死 `Slice 116`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 115 progress artifacts`；最终哈希以当时 `HEAD` 为准。
