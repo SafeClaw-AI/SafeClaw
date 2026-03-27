@@ -351323,6 +351323,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "seed-hibernated", "--reset", "--task-id", "task-wrapper-cmd-seed-hibernated-json", "--db", "target/mvp/cmd-seed-hibernated-json.db", "--output", "target/mvp/cmd-seed-hibernated-json.txt", "--json"],
+        errors,
+        "mvp-wrapper-cmd-seed-hibernated-json",
+        "seed-hibernated",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-seed-hibernated-json",
+        expected_task_id="task-wrapper-cmd-seed-hibernated-json",
+        expected_db_path="target/mvp/cmd-seed-hibernated-json.db",
+        expected_output_path="target/mvp/cmd-seed-hibernated-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
 
 
 
