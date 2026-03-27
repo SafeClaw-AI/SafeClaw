@@ -601598,6 +601598,86 @@ def collect_errors() -> list[str]:
 
     result = assert_command_json_result(
 
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions", "--json"],
+
+        errors,
+
+        "mvp-wrapper-cmd-sessions-failed-json",
+
+        "sessions",
+
+    )
+
+    if result is not None:
+
+        rows = result.get("rows") or []
+
+        current_session = result.get("current_session") or {}
+
+        if result.get("db") != "target/mvp/sessions-failed.db":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing db=target/mvp/sessions-failed.db")
+
+        elif result.get("db_source") != "session":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing db_source=session")
+
+        elif result.get("limit") != 5:
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing limit=5")
+
+        elif not isinstance(current_session, dict) or current_session.get("task_id") != "task-wrapper-sessions-failed":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing current_session task-wrapper-sessions-failed")
+
+        elif current_session.get("effect_id") != "effect-task-wrapper-sessions-failed":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing current_session effect-task-wrapper-sessions-failed")
+
+        elif current_session.get("db") != "target/mvp/sessions-failed.db":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing current_session db=target/mvp/sessions-failed.db")
+
+        elif current_session.get("output") != "target/mvp/sessions-failed.txt":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing current_session output=target/mvp/sessions-failed.txt")
+
+        elif current_session.get("owner_id") != "safeclaw-mvp":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing current_session owner_id=safeclaw-mvp")
+
+        elif not rows or rows[0].get("task_id") != "task-wrapper-sessions-failed":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] task-wrapper-sessions-failed")
+
+        elif rows[0].get("effect_id") != "effect-task-wrapper-sessions-failed":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] effect-task-wrapper-sessions-failed")
+
+        elif rows[0].get("worker_state") != "failed":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] worker_state=failed")
+
+        elif rows[0].get("effect_status") != "prepared":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] effect_status=prepared")
+
+        elif rows[0].get("next_action") != "retry":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] next_action=retry")
+
+        elif rows[0].get("coordination_summary") != "retry_now":
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] coordination_summary=retry_now")
+
+        elif rows[0].get("current") is not True:
+
+            errors.append("mvp-wrapper-cmd-sessions-failed-json missing rows[0] current=true")
+
+
+
+    result = assert_command_json_result(
+
         [
 
             PYTHON,
