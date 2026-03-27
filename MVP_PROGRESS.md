@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 10:17:44 +0800
+最后更新时间：2026-03-27 10:27:38 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 113 刀已完成；这一轮把无参 `cmd /c tools\mvp\safeclaw_mvp.cmd session --json` 会话合同锁进 smoke
+当前阶段：已进入 M1b，前 114 刀已完成；这一轮把无参 `cmd /c tools\mvp\safeclaw_mvp.cmd sessions --json` 会话列表合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -133,6 +133,7 @@
 | [x] | M1b Slice 111: ps1 report json failed 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File tools\mvp\safeclaw_mvp.ps1 report --db target/mvp/report-explicit-failed.db --task-id task-wrapper-report-explicit-failed --json` 的成功结果断言；先补独立 `seed-failed` 基座准备 failed 现场，锁住显式上下文下的治理回显、remembered session 与 `source_hints` 的显式来源提示 | 防止 PowerShell 包装层的 failed 显式上下文 report 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 112: cmd status json 会话透传护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd status --json` 的成功结果断言；复用现有 remembered session 基座，锁住 `task-wrapper-b` 的 captured_output、remembered session 与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 CMD 包装层的 status 成功 JSON 会话透传合同静默漂移 |
 | [x] | M1b Slice 113: cmd session json 会话护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd session --json` 的成功结果断言；复用现有 remembered session 基座，锁住 `task-wrapper-b` 的 `task_id/effect_id/db/output/owner_id` 回显 | 防止 CMD 包装层的 session 成功 JSON 会话合同静默漂移 |
+| [x] | M1b Slice 114: cmd sessions json 会话列表护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd sessions --json` 的成功结果断言；复用现有 remembered session 基座，锁住 `current_session=task-wrapper-b`、`rows[0]=task-wrapper-b`、`rows[1]=task-wrapper-a` 与列表基线 | 防止 CMD 包装层的 sessions 成功 JSON 列表合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
