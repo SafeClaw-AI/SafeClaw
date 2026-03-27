@@ -226431,6 +226431,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-crash", "--reset", "--task-id", "task-root-ps1-seed-crash-json", "--db", "target/mvp/root-ps1-seed-crash-json.db", "--output", "target/mvp/root-ps1-seed-crash-json.txt", "--json"],
+        errors,
+        "safeclaw-root-ps1-seed-crash-json",
+        "seed-crash",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-seed-crash-json",
+        expected_task_id="task-root-ps1-seed-crash-json",
+        expected_db_path="target/mvp/root-ps1-seed-crash-json.db",
+        expected_output_path="target/mvp/root-ps1-seed-crash-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-failed", "--reset", "--task-id", "task-root-ps1-seed-failed-json", "--db", "target/mvp/root-ps1-seed-failed-json.db", "--output", "target/mvp/root-ps1-seed-failed-json.txt", "--json"],
         errors,
         "safeclaw-root-ps1-seed-failed-json",
