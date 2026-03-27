@@ -1606,3 +1606,15 @@
 - 本轮完成：同步 `Slice 148` 台账；新增时间戳记录 `docs/round_logs/20260328_044953_slice148.md`；`MVP_PROGRESS.md` 改到前 148 刀已完成；`开发计划.md` 基线改到 `62e36d5`，下一刀优先看 `safeclaw.ps1 service-status --limit 5 --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 148 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round JO
+- 完成时间：2026-03-28 05:05:56 +0800
+- 本轮完成：做完 `Slice 149`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-status --limit 5 --json` 的成功结果断言；锁住默认/无 current session 场景下的 `db=target/mvp/session.db`、`db_source=default`、`limit=5`、`runtime_profile.mode=local_mvp`、`model_provider/sidecar=not-configured` 与 `offline_gate=ERR_AI_PROVIDER_UNAVAILABLE`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`6330466 test: guard root ps1 service-status json`。
+
+### Round JP
+- 完成时间：2026-03-28 05:05:56 +0800
+- 本轮完成：同步 `Slice 149` 台账；新增时间戳记录 `docs/round_logs/20260328_050556_slice149.md`；`MVP_PROGRESS.md` 改到前 149 刀已完成；`开发计划.md` 基线改到 `6330466`，下一刀优先看 `safeclaw.cmd preflight --action ai-reason --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 149 progress artifacts`；最终哈希以当时 `HEAD` 为准。
