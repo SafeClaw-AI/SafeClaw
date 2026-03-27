@@ -199453,6 +199453,22 @@ def collect_errors() -> list[str]:
         expected_output_path="target/mvp/output.txt",
     )
     result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "doctor", "--json"],
+        errors,
+        "safeclaw-root-cmd-doctor-default-json",
+        "doctor",
+    )
+    assert_doctor_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-doctor-default-json",
+        expected_db_path="target\mvp\session.db",
+        expected_output_path="target\mvp\output.txt",
+        expected_db_source="default",
+        expected_output_source="default",
+        expected_workspace_active=False,
+    )
+    result = assert_command_json_result(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "doctor", "--json"],
         errors,
         "safeclaw-root-ps1-doctor-json",
