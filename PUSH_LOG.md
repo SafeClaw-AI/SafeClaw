@@ -1400,3 +1400,14 @@
 - 本轮完成：同步 `Slice 130` 台账；新增时间戳记录 `docs/round_logs/20260328_002753_slice130.md`；`MVP_PROGRESS.md` 改到前 130 刀已完成；`开发计划.md` 基线改到 `604fd78`，下一刀继续回现场验真后再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 130 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round IE
+- 完成时间：2026-03-28 00:39:43 +0800
+- 本轮完成：做完 `Slice 131`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd resume --db ... --task-id ... --output ... --json` 的成功结果断言；先用独立 `seed-hibernated` 基座准备现场，锁住 `saved_session=null`、`remembered_session` 镜像与 `source_hints=db/output=flag, owner_id=session, task_context=flag`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`c65cd03 test: guard cmd resume json`。
+
+### Round IF
+- 完成时间：2026-03-28 00:39:43 +0800
+- 本轮完成：同步 `Slice 131` 台账；新增时间戳记录 `docs/round_logs/20260328_003943_slice131.md`；`MVP_PROGRESS.md` 改到前 131 刀已完成；`开发计划.md` 基线改到 `c65cd03`，下一刀继续回现场验真后再编号。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 131 progress artifacts`；最终哈希以当时 `HEAD` 为准。
