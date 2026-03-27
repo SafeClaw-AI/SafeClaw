@@ -248574,6 +248574,39 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "preflight", "--action", "service-run", "--json"],
+        errors,
+        "mvp-wrapper-cmd-preflight-json",
+        "preflight",
+    )
+    assert_preflight_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-preflight-json",
+        expected_requested_action="service-run",
+        expected_known=True,
+        expected_action_class="local-action",
+        expected_tier="TIER_1",
+        expected_writes_state=True,
+        expected_permission_context_source="action-template",
+        expected_target_scope="scope:target/mvp/output.txt",
+        expected_requires_write=True,
+        expected_doctor_bypass=False,
+        expected_permission_context_applied=True,
+        expected_permission_tier="TIER_1",
+        expected_permission_policy="confirm",
+        expected_permission_reason="write_scope_requires_confirmation",
+        expected_permission_enforced=False,
+        expected_action_allowed=True,
+        expected_action_decision="allow",
+        expected_action_reason="current_mvp_action_is_local_only",
+        expected_allowed=True,
+        expected_decision="allow",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
     wrapper_preflight_unknown = subprocess.run(
 
 
