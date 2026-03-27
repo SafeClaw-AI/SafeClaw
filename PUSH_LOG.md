@@ -1534,3 +1534,15 @@
 - 本轮完成：同步 `Slice 142` 台账；新增时间戳记录 `docs/round_logs/20260328_033240_slice142.md`；`MVP_PROGRESS.md` 改到前 142 刀已完成；`开发计划.md` 基线改到 `f183dbc`，下一刀优先看 `safeclaw.cmd preflight --action service-run --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 142 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round JC
+- 完成时间：2026-03-28 03:45:54 +0800
+- 本轮完成：做完 `Slice 143`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action service-run --json` 的成功结果断言；锁住 `requested_action=service-run`、`target_scope=scope:target/mvp/output.txt`、`permission_policy=confirm`、`action_decision=allow` 与 `degradation_mode=local_only_ok`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`a108edd test: guard root cmd preflight json`。
+
+### Round JD
+- 完成时间：2026-03-28 03:45:54 +0800
+- 本轮完成：同步 `Slice 143` 台账；新增时间戳记录 `docs/round_logs/20260328_034554_slice143.md`；`MVP_PROGRESS.md` 改到前 143 刀已完成；`开发计划.md` 基线改到 `a108edd`，下一刀优先看 `safeclaw.ps1 verify --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 143 progress artifacts`；最终哈希以当时 `HEAD` 为准。

@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 03:32:40 +0800
+最后更新时间：2026-03-28 03:45:54 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 142 刀已完成；这一轮把 `safeclaw.ps1 preflight --action service-run --json` 合同锁进 smoke
+当前阶段：已进入 M1b，前 143 刀已完成；这一轮把 `safeclaw.cmd preflight --action service-run --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -162,6 +162,7 @@
 | [x] | M1b Slice 140: root ps1 workspace-clear json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 workspace --clear --json` 的成功结果断言；锁住 no-op 场景下的 `cleared=false`、`path=target\mvp\workspace.json` 与 `reason=none` | 防止根入口 PowerShell 的 workspace clear 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 141: root ps1 forget json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 forget --json` 的成功结果断言；锁住 no-op 场景下的 `forgot=false`、`path=target\mvp\last_session.json` 与 `reason=none` | 防止根入口 PowerShell 的 forget 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 142: root ps1 preflight json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 preflight --action service-run --json` 的成功结果断言；锁住 `requested_action=service-run`、`target_scope=scope:target/mvp/output.txt`、`permission_policy=confirm`、`action_decision=allow` 与 `degradation_mode=local_only_ok` | 防止根入口 PowerShell 的 preflight 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 143: root cmd preflight json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action service-run --json` 的成功结果断言；锁住 `requested_action=service-run`、`target_scope=scope:target/mvp/output.txt`、`permission_policy=confirm`、`action_decision=allow` 与 `degradation_mode=local_only_ok` | 防止根入口 CMD 的 preflight 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
