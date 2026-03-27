@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-27 11:45:46 +0800
+最后更新时间：2026-03-27 12:00:52 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 119 刀已完成；这一轮把 failed 会话连续性 `cmd status --json` 合同锁进 smoke
+当前阶段：已进入 M1b，前 120 刀已完成；这一轮把 failed 会话连续性 `cmd report --json` 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -139,6 +139,7 @@
 | [x] | M1b Slice 117: cmd status json failed 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd status --db target/mvp/cmd-status-explicit-failed.db --task-id task-wrapper-cmd-status-explicit-failed --json` 的成功结果断言；先补独立 `seed-failed` 基座，锁住显式上下文下的治理回显、remembered session 与 `source_hints` 的显式来源提示 | 防止 CMD 包装层的 failed 显式上下文 status 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 118: cmd report json failed 显式上下文护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd report --db target/mvp/cmd-report-explicit-failed.db --task-id task-wrapper-cmd-report-explicit-failed --json` 的成功结果断言；先补独立 `seed-failed` 基座，锁住显式上下文下的治理回显、remembered session 与 `source_hints` 的显式来源提示 | 防止 CMD 包装层的 failed 显式上下文 report 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 119: cmd status json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd status --json` 在 failed remembered session 下的成功结果断言；复用现有 `task-wrapper-status-failed-session` 基座，锁住治理回显、remembered session 与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 CMD 包装层的 failed 会话连续性 status 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 120: cmd report json failed 会话连续性护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd report --json` 在 failed remembered session 下的成功结果断言；复用现有 `task-wrapper-report-failed-session` 基座，锁住治理回显、remembered session 与 `source_hints` 的 `db/output/owner_id/task_context=session` | 防止 CMD 包装层的 failed 会话连续性 report 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
