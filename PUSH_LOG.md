@@ -1579,7 +1579,7 @@
 
 ### Round JJ
 - 完成时间：2026-03-28 04:23:52 +0800
-- 本轮完成：同步 `Slice 146` 台账；新增时间戳记录 `docs/round_logs/20260328_042352_slice146.md`；`MVP_PROGRESS.md` 改到前 146 刀已完成；`开发计划.md` 基线改到 `48e8ad9`，下一刀优先看 `safeclaw.cmd verify --json`。
+- 本轮完成：同步 `Slice 146` 台账；新增时间戳记录 `docs/round_logs/20260328_042352_slice146.md`；`MVP_PROGRESS.md` 改到前 146 刀已完成；`开发计划.md` 基线改到 `48e8ad9`，下一刀优先看 `safeclaw.cmd service-status --limit 5 --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 146 progress artifacts`；最终哈希以当时 `HEAD` 为准。
 
@@ -1591,6 +1591,6 @@
 
 ### Round JL
 - 完成时间：2026-03-28 04:34:08 +0800
-- 本轮完成：同步 `Slice 147` 台账；新增时间戳记录 `docs/round_logs/20260328_043408_slice147.md`；`MVP_PROGRESS.md` 改到前 147 刀已完成；`开发计划.md` 基线改到 `ac50327`，下一刀优先看 `safeclaw.cmd verify --json`。
+- 本轮完成：同步 `Slice 147` 台账；新增时间戳记录 `docs/round_logs/20260328_043408_slice147.md`；`MVP_PROGRESS.md` 改到前 147 刀已完成；`开发计划.md` 基线改到 `ac50327`，下一刀优先看 `safeclaw.cmd service-status --limit 5 --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 147 progress artifacts`；最终哈希以当时 `HEAD` 为准。
