@@ -1183,3 +1183,14 @@
 - 本轮完成：同步 `Slice 111` 台账；新增时间戳记录 `docs/round_logs/20260327_092941_slice111.md`；`MVP_PROGRESS.md` 改到前 111 刀已完成；`开发计划.md` 基线改到 `8e264e6`，下一刀改回现场验真后再编号，不提前写死 `Slice 112`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 111 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round GS
+- 完成时间：2026-03-27 09:58:58 +0800
+- 本轮完成：做完 `Slice 112`，在 `check_tooling_smoke.py` 补上无参 `cmd /c tools\mvp\safeclaw_mvp.cmd status --json` 的成功结果断言；复用现有 remembered session 基座，锁住 `task-wrapper-b` 的 captured_output、remembered session 与 `source_hints` 的 `db/output/owner_id/task_context=session`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`aa50bef test: guard cmd status json`。
+
+### Round GT
+- 完成时间：2026-03-27 09:58:58 +0800
+- 本轮完成：同步 `Slice 112` 台账；新增时间戳记录 `docs/round_logs/20260327_095858_slice112.md`；`MVP_PROGRESS.md` 改到前 112 刀已完成；`开发计划.md` 基线改到 `aa50bef`，下一刀改回现场验真后再编号，不提前写死 `Slice 113`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 112 progress artifacts`；最终哈希以当时 `HEAD` 为准。
