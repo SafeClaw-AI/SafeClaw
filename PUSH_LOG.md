@@ -1367,3 +1367,14 @@
 - 本轮完成：同步 `Slice 127` 台账；新增时间戳记录 `docs/round_logs/20260327_232241_slice127.md`；`MVP_PROGRESS.md` 改到前 127 刀已完成；`开发计划.md` 基线改到 `04b6992`，下一刀继续回现场验真后再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 127 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+### Round HY
+- 完成时间：2026-03-27 23:44:02 +0800
+- 本轮完成：做完 `Slice 128`，在 `check_tooling_smoke.py` 补上 `cmd /c tools\mvp\safeclaw_mvp.cmd workspace --clear --json` 的成功结果断言；锁住 `path=target\mvp\workspace.json` 与 `cleared/reason=removed|none` 的双稳态。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`494f918 test: guard cmd workspace clear json`。
+
+### Round HZ
+- 完成时间：2026-03-27 23:44:02 +0800
+- 本轮完成：同步 `Slice 128` 台账；新增时间戳记录 `docs/round_logs/20260327_234402_slice128.md`；`MVP_PROGRESS.md` 改到前 128 刀已完成；`开发计划.md` 基线改到 `494f918`，下一刀继续回现场验真后再编号。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 128 progress artifacts`；最终哈希以当时 `HEAD` 为准。
