@@ -228449,6 +228449,18 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "forget", "--json"],
+        errors,
+        "safeclaw-root-ps1-forget-json",
+        "forget",
+    )
+    if result is not None:
+        forget_state = (result.get("forgot"), result.get("reason"))
+        if result.get("path") != "target\mvp\last_session.json":
+            errors.append("safeclaw-root-ps1-forget-json missing session path")
+        elif forget_state != (False, "none"):
+            errors.append("safeclaw-root-ps1-forget-json unexpected forget state")
+    result = assert_command_json_result(
 
 
 
