@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 04:23:52 +0800
+最后更新时间：2026-03-28 04:34:08 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 146 刀已完成；这一轮把 `safeclaw.cmd workspace --json` 默认态合同锁进 smoke
+当前阶段：已进入 M1b，前 147 刀已完成；这一轮把 `safeclaw.cmd doctor --json` 默认态合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -166,6 +166,7 @@
 | [x] | M1b Slice 144: root ps1 verify json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 verify --json` 的成功结果断言；锁住 `exit_code=0`、`script=tools/checks/check_mvp_operator_flow.py` 与 `captured_output=MVP operator flow check passed.` | 防止根入口 PowerShell 的 verify 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 145: root ps1 workspace-state json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 workspace --json` 的成功结果断言；锁住默认/无活动工作区场景下的 `active=false`、`name=null`、`db/output` 默认路径与 `path=target\mvp\workspace.json` | 防止根入口 PowerShell 的 workspace 默认态 JSON 合同静默漂移 |
 | [x] | M1b Slice 146: root cmd workspace-state json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd workspace --json` 的成功结果断言；锁住默认/无活动工作区场景下的 `active=false`、`name=null`、`db/output` 默认路径与 `path=target\mvp\workspace.json` | 防止根入口 CMD 的 workspace 默认态 JSON 合同静默漂移 |
+| [x] | M1b Slice 147: root cmd doctor default json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd doctor --json` 的成功结果断言；锁住默认/无活动工作区场景下的 `status=ready`、`failing_checks=[]`、`workspace.active=false`、`db/output` 默认路径与 `db/output source=default` | 防止根入口 CMD 的 doctor 默认态 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
