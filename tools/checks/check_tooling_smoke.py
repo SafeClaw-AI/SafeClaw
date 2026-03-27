@@ -301984,6 +301984,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "workspace", "--name", "demo", "--json"],
+        errors,
+        "mvp-wrapper-cmd-workspace-activate-json",
+        "workspace",
+    )
+    assert_workspace_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-workspace-activate-json",
+        expected_active=True,
+        expected_name="demo",
+        expected_db_path="target\mvp\workspaces\demo\session.db",
+        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_changed=True,
+    )
+    result = assert_command_json_result(
 
 
 
