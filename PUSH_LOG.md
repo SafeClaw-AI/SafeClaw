@@ -1618,3 +1618,15 @@
 - 本轮完成：同步 `Slice 149` 台账；新增时间戳记录 `docs/round_logs/20260328_050556_slice149.md`；`MVP_PROGRESS.md` 改到前 149 刀已完成；`开发计划.md` 基线改到 `6330466`，下一刀优先看 `safeclaw.cmd preflight --action ai-reason --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 149 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round JQ
+- 完成时间：2026-03-28 05:23:30 +0800
+- 本轮完成：做完 `Slice 150`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action ai-reason --json` 的失败 JSON 断言；锁住 `decision=deny`、`reason/error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`requires_model=true`、`requires_sidecar=true`、`permission_policy=not_evaluated` 与 `degradation_mode=provider_unavailable`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`294e467 test: guard root cmd preflight ai-reason json`。
+
+### Round JR
+- 完成时间：2026-03-28 05:23:30 +0800
+- 本轮完成：同步 `Slice 150` 台账；新增时间戳记录 `docs/round_logs/20260328_052330_slice150.md`；`MVP_PROGRESS.md` 改到前 150 刀已完成；`开发计划.md` 基线改到 `294e467`，下一刀优先看 `safeclaw.ps1 preflight --action ai-reason --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 150 progress artifacts`；最终哈希以当时 `HEAD` 为准。
