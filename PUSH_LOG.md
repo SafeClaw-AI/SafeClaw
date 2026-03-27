@@ -1488,3 +1488,15 @@
 - 本轮完成：同步 `Slice 138` 台账；新增时间戳记录 `docs/round_logs/20260328_022926_slice138.md`；`MVP_PROGRESS.md` 改到前 138 刀已完成；`开发计划.md` 基线改到 `7e51708`，下一刀优先看 `safeclaw.ps1 doctor --json`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 138 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round IU
+- 完成时间：2026-03-28 02:53:12 +0800
+- 本轮完成：做完 `Slice 139`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 doctor --json` 的成功结果断言；锁住默认/无活动工作区场景下的 `status=ready`、`failing_checks=[]`、`workspace.active=false`、`db/output` 默认路径、`db/output source=default`、`runtime_profile.mode=local_mvp` 与 `model_provider.status=not-configured`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`3f1b5c6 test: guard root ps1 doctor json`。
+
+### Round IV
+- 完成时间：2026-03-28 02:53:12 +0800
+- 本轮完成：同步 `Slice 139` 台账；新增时间戳记录 `docs/round_logs/20260328_025312_slice139.md`；`MVP_PROGRESS.md` 改到前 139 刀已完成；`开发计划.md` 基线改到 `3f1b5c6`，下一刀优先看 `safeclaw.ps1 workspace --clear --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 139 progress artifacts`；最终哈希以当时 `HEAD` 为准。
