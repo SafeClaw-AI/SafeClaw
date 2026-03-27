@@ -226431,6 +226431,22 @@ def collect_errors() -> list[str]:
 
 
     result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "seed-hibernated", "--reset", "--task-id", "task-root-cmd-seed-hibernated-json", "--db", "target/mvp/root-cmd-seed-hibernated-json.db", "--output", "target/mvp/root-cmd-seed-hibernated-json.txt", "--json"],
+        errors,
+        "safeclaw-root-cmd-seed-hibernated-json",
+        "seed-hibernated",
+    )
+    assert_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-seed-hibernated-json",
+        expected_task_id="task-root-cmd-seed-hibernated-json",
+        expected_db_path="target/mvp/root-cmd-seed-hibernated-json.db",
+        expected_output_path="target/mvp/root-cmd-seed-hibernated-json.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+    result = assert_command_json_result(
         [
             PYTHON,
             "tools/mvp/safeclaw_mvp.py",
