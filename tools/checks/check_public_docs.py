@@ -13,6 +13,7 @@ README_FILE = REPO_ROOT / "README.md"
 SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
 DEVLOG_FILE = REPO_ROOT / "docs" / "DEVLOG.md"
+IMPLEMENTATION_STRATEGY_FILE = REPO_ROOT / "docs" / "IMPLEMENTATION_STRATEGY.md"
 SPECS_README_FILE = REPO_ROOT / "specs" / "README.md"
 CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
@@ -52,6 +53,21 @@ REQUIRED_MARKERS = {
         "README.md",
         "specs/",
         "Phase 0",
+    ],
+    IMPLEMENTATION_STRATEGY_FILE: [
+        "README.md",
+        "specs/",
+        "tests/contracts/",
+        "tools/checks/",
+        "selfcheck.py",
+        "ledger_index_manifest.py",
+        "check_ledger_alignment.py",
+        "check_consistency.py",
+        "check_versions.py",
+        "check_structure.py",
+        "check_scaffold.py",
+        "check_public_docs.py",
+        "Contract tests",
     ],
     SPECS_README_FILE: [
         "specs/",

@@ -49,3 +49,9 @@
 - 自动测试已覆盖该层核心不变量
 - `python tools/checks/selfcheck.py` 继续通过
 - 没有引入新的真源漂移
+
+## 当前 selfcheck policy
+
+- `python tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- 这条 ledger policy chain 会显式前置在 `Contract tests` 之前
