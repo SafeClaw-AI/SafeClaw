@@ -12,6 +12,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         [PYTHON, "-u", "tools/checks/ledger_index_manifest.py"],
     ),
     (
+        "Ledger alignment",
+        [PYTHON, "-u", "tools/checks/check_ledger_alignment.py"],
+    ),
+    (
         "Contract tests",
         [PYTHON, "-u", "-m", "unittest", "discover", "-s", "tests/contracts", "-p", "test_*.py", "-v"],
     ),

@@ -5,6 +5,7 @@
 ## 当前入口
 
 - `spec_index.py`：加载 `specs/` 索引
+- `check_ledger_alignment.py`：台账索引与三份主台账内容对齐检查
 - `check_consistency.py`：跨文件一致性检查
 - `check_versions.py`：版本一致性检查
 - `check_structure.py`：结构完整性检查
