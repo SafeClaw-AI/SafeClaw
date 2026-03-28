@@ -1708,3 +1708,15 @@
 - 本轮完成：现场复核 `safeclaw.ps1 workspace --clear --json` 后的 `safeclaw.ps1 doctor --json` 默认态，确认这条合同已被现有 `safeclaw-root-ps1-doctor-json` 覆盖；把下一刀改回“先盘点真实空位”，不把标签命名差异误当成合同缺口。
 - 验证：`.\safeclaw.ps1 workspace --clear --json`、`.\safeclaw.ps1 doctor --json`。
 - 提交推送：并入本轮 docs 收口，一起提交。
+
+### Round KF
+- 完成时间：2026-03-28 15:25:39 +0800
+- 本轮完成：做完 `Slice 157`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-reconcile --task-id task-readme-root-assumed-cmd --decision executed --limit 1 --report --json` 的成功 JSON 断言；先补独立 executed-assumed 基座，再锁住 `steps=reconcile/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-assumed-cmd`、`decision=executed` 与 `limit=1`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`8042b1c test: guard root cmd service-reconcile json`。
+
+### Round KG
+- 完成时间：2026-03-28 15:25:39 +0800
+- 本轮完成：同步 `Slice 157` 台账；新增时间戳记录 `docs/round_logs/20260328_152539_slice157.md`；`MVP_PROGRESS.md` 改到前 157 刀已完成；`开发计划.md` 基线改到 `8042b1c`，下一刀改回先盘点真实空位。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 157 progress artifacts`；最终哈希以当时 `HEAD` 为准。
