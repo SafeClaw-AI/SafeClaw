@@ -210604,6 +210604,38 @@ def collect_errors() -> list[str]:
 
 
 
+    result = assert_command_json_result(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "safeclaw.ps1",
+            "service-run",
+            "--reset",
+            "--task-id",
+            "task-readme-root",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-run-json",
+        "service-run",
+    )
+    assert_service_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-run-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root",
+        expected_limit=1,
+        expected_steps=["run", "service-status", "report"],
+        expect_report_payload=True,
+        expected_run_db_source="workspace",
+    )
     payload = load_json_payload(
 
 
