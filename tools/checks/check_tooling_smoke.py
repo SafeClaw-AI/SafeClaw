@@ -229273,10 +229273,10 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-preflight-demo-json",
         "preflight",
     )
-    assert_preflight_json_result(
-        result,
-        errors,
-        "safeclaw-root-cmd-preflight-demo-json",
+    assert_preflight_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-preflight-demo-json",
         expected_requested_action="demo",
         expected_known=True,
         expected_action_class="local-action",
@@ -229421,15 +229421,37 @@ def collect_errors() -> list[str]:
         expected_action_reason="current_mvp_action_is_local_only",
         expected_allowed=True,
         expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
-    result = assert_command_json_result(
-        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "preflight", "--action", "demo", "--json"],
-        errors,
-        "safeclaw-root-ps1-preflight-demo-json",
-        "preflight",
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
+    assert_command_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "demo", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        errors,
+        "safeclaw-root-cmd-demo-preflight-ai-json",
+        "demo",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
+        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_degradation_mode="provider_unavailable",
+        expected_top_level_error_requires_model=True,
+        expected_top_level_error_requires_sidecar=True,
+        expected_top_level_error_requested_action="ai-reason",
+        expected_failed_step="preflight",
+        expected_code="preflight-blocked",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
+        expect_top_level_error_summary_matches_preflight=True,
+    )
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "preflight", "--action", "demo", "--json"],
+        errors,
+        "safeclaw-root-ps1-preflight-demo-json",
+        "preflight",
     )
     assert_preflight_json_result(
         result,
@@ -229454,10 +229476,32 @@ def collect_errors() -> list[str]:
         expected_action_reason="current_mvp_action_is_local_only",
         expected_allowed=True,
         expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
+        expected_offline_ready=True,
+        expected_degradation_mode="local_only_ok",
+        expected_reason="current_mvp_action_is_local_only",
+    )
+    assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "demo", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        errors,
+        "safeclaw-root-ps1-demo-preflight-ai-json",
+        "demo",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
+        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_degradation_mode="provider_unavailable",
+        expected_top_level_error_requires_model=True,
+        expected_top_level_error_requires_sidecar=True,
+        expected_top_level_error_requested_action="ai-reason",
+        expected_failed_step="preflight",
+        expected_code="preflight-blocked",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
+        expect_top_level_error_summary_matches_preflight=True,
+    )
     result = assert_command_json_result(
 
 
