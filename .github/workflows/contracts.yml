@@ -22,8 +22,11 @@ jobs:
       - name: Regenerate generated indexes
         run: python tools/codegen/regenerate_all.py
 
-      - name: Run contract tests
-        run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
+      - name: Run ledger index manifest check
+        run: python tools/checks/ledger_index_manifest.py
+
+      - name: Run ledger alignment check
+        run: python tools/checks/check_ledger_alignment.py
 
       - name: Run cross-file consistency check
         run: python tools/checks/check_consistency.py
@@ -34,14 +37,17 @@ jobs:
       - name: Run structure completeness check
         run: python tools/checks/check_structure.py
 
-      - name: Run naming lint
-        run: python tools/lint/check_naming.py
+      - name: Run scaffold layout check
+        run: python tools/checks/check_scaffold.py
 
       - name: Run public docs alignment check
         run: python tools/checks/check_public_docs.py
 
-      - name: Run scaffold layout check
-        run: python tools/checks/check_scaffold.py
+      - name: Run naming lint
+        run: python tools/lint/check_naming.py
+
+      - name: Run contract tests
+        run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
 
       - name: Run tooling smoke check
         run: python tools/checks/check_tooling_smoke.py

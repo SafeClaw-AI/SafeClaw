@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 03:40:04 +0800
+最后更新时间：2026-03-29 03:49:32 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1879,3 +1879,8 @@
 - 本轮完成：把 `tools/checks/selfcheck.py` 里的 ledger policy chain 抽成 `LEDGER_POLICY_CHECKS` 单一常量真源；同时让 `tests/contracts/test_selfcheck.py` 直接复用该常量，不再手写重复前缀列表。
 - 验证：`python -m py_compile tools/checks/selfcheck.py tests/contracts/test_selfcheck.py`、`python -m unittest tests.contracts.test_selfcheck -v`。
 - 提交推送：本轮提交信息拟为 `refactor: centralize selfcheck ledger policy chain`；最终 hash 以当前 `HEAD` 为准。
+### Round LK
+- 完成时间：2026-03-29 03:49:32 +0800
+- 本轮完成：让 `.github/workflows/contracts.yml` 显式前置 ledger policy chain；补上 `Run ledger index manifest check`、`Run ledger alignment check`，并把 `Run contract tests` 后移到迁移护栏之后；同时新增 `tests/contracts/test_contracts_workflow.py` 锁住顺序。
+- 验证：`python -m py_compile tests/contracts/test_contracts_workflow.py`、`python -m unittest tests.contracts.test_contracts_workflow -v`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `ci: front-load ledger policy in contracts workflow`；最终 hash 以当前 `HEAD` 为准。
