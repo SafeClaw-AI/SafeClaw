@@ -217293,6 +217293,71 @@ def collect_errors() -> list[str]:
 
 
     payload = load_json_payload(
+        run_wrapper_command(
+            [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "safeclaw.ps1",
+                "seed-failed",
+                "--reset",
+                "--task-id",
+                "task-readme-root-failed-ps1",
+                "--json",
+            ]
+        ),
+        errors,
+        "safeclaw-root-ps1-service-retry-seed-failed-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "safeclaw-root-ps1-service-retry-seed-failed-json",
+        "seed-failed",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        session = result.get("saved_session") or {}
+        source_hints = result.get("source_hints") or {}
+        if not prepared or prepared[0] != "seed-failed":
+            errors.append("safeclaw-root-ps1-service-retry-seed-failed-json missing prepared seed-failed")
+        elif session.get("task_id") != "task-readme-root-failed-ps1":
+            errors.append("safeclaw-root-ps1-service-retry-seed-failed-json missing saved session task")
+        elif source_hints.get("db") != "workspace":
+            errors.append("safeclaw-root-ps1-service-retry-seed-failed-json missing workspace db source")
+    result = assert_command_json_result(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "safeclaw.ps1",
+            "service-retry",
+            "--task-id",
+            "task-readme-root-failed-ps1",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-retry-json",
+        "service-retry",
+    )
+    assert_service_retry_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-retry-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-failed-ps1",
+        expected_limit=1,
+        expected_steps=["retry", "service-status", "report"],
+        expect_report_payload=True,
+    )
+    payload = load_json_payload(
 
 
 
