@@ -23,6 +23,7 @@ REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
 CHECKS_README_FILE = REPO_ROOT / "tools" / "checks" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
+OPERATOR_PLAYBOOK_FILE = REPO_ROOT / "tools" / "mvp" / "OPERATOR_PLAYBOOK.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 
 REQUIRED_MARKERS = {
@@ -110,6 +111,18 @@ REQUIRED_MARKERS = {
         "tests/contracts/",
         "tests/fixtures/",
         "合同测试",
+    ],
+    OPERATOR_PLAYBOOK_FILE: [
+        "verify",
+        "tools\\checks\\selfcheck.py",
+        "ledger_index_manifest.py",
+        "check_ledger_alignment.py",
+        "check_consistency.py",
+        "check_versions.py",
+        "check_structure.py",
+        "check_scaffold.py",
+        "check_public_docs.py",
+        "Contract tests",
     ],
 }
 

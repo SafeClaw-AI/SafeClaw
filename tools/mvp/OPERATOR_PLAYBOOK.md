@@ -78,6 +78,12 @@ set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
 %SAFECLAW_MVP_PYTHON% tools\checks\selfcheck.py
 ```
 
+Current selfcheck policy:
+
+- `verify` 只跑当前 practical MVP operator flow gate
+- `tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- 这条 ledger policy chain 会显式前置在 `Contract tests` 之前
 ## Current Guidance
 
 - Treat `workspace -> doctor -> service-run --report` as the normal operator path

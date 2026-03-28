@@ -107,7 +107,7 @@ SafeClaw 目前还处于非常早期的阶段。
 | [扩展接口](specs/spi/base_fields.json) | 未来新增能力的标准插槽，不用动核心就能扩展 |
 | [版本锚点](VERSION) | 当前公开协议层版本，供生成、测试与发布统一引用 |
 | [合同测试](tests/contracts/README.md) | 从协议直接推出的最小合同测试骨架 |
-| [自检门禁](tools/checks/selfcheck.py) | 串起合同测试、一致性检查、版本检查、结构检查 |
+| [自检门禁](tools/checks/selfcheck.py) | 先跑 ledger index manifest / 台账对齐 / 一致性 / 版本 / 结构 / 骨架 / 公开文档，再进入合同测试与后续门禁 |
 
 为什么先公开这些？  
 因为**规矩比功能重要**。能力可以慢慢加，但底线必须一开始就定死。

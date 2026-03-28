@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 03:49:32 +0800
+最后更新时间：2026-03-29 03:55:18 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1884,3 +1884,8 @@
 - 本轮完成：让 `.github/workflows/contracts.yml` 显式前置 ledger policy chain；补上 `Run ledger index manifest check`、`Run ledger alignment check`，并把 `Run contract tests` 后移到迁移护栏之后；同时新增 `tests/contracts/test_contracts_workflow.py` 锁住顺序。
 - 验证：`python -m py_compile tests/contracts/test_contracts_workflow.py`、`python -m unittest tests.contracts.test_contracts_workflow -v`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `ci: front-load ledger policy in contracts workflow`；最终 hash 以当前 `HEAD` 为准。
+### Round LL
+- 完成时间：2026-03-29 03:55:18 +0800
+- 本轮完成：对齐根 `README.md` 与 `tools/mvp/OPERATOR_PLAYBOOK.md` 的 selfcheck 入口说明；明确 `verify` 只跑 practical operator flow，而 `tools/checks/selfcheck.py` 会先跑 ledger-first policy chain；同时扩大 `check_public_docs.py` 把这两处入口说明锁住。
+- 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `docs: align operator entries with ledger policy`；最终 hash 以当前 `HEAD` 为准。

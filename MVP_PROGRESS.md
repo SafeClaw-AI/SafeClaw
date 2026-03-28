@@ -204,6 +204,7 @@
 | [x] | V4 tools checks README 锁定 ledger policy | `docs/30-方案/23-V4-tools-checks-readme-ledger-policy-record-20260329_033045.md` | `tools/checks/README.md` 已显式写出迁移期优先链路，并由 `check_public_docs.py` 与 `test_public_docs_check.py` 锁住 | 防止公开入口说明再次落后于真实门禁 |
 | [x] | V4 selfcheck ledger policy 常量化 | `docs/30-方案/24-V4-selfcheck-ledger-policy-constant-record-20260329_034004.md` | `selfcheck.py` 已把 ledger policy chain 抽成单一常量真源，并由 `test_selfcheck.py` 直接复用 | 防止后续顺序调整时双处漂移 |
 | [x] | V4 CI contracts workflow 消费 ledger policy | `docs/30-方案/25-V4-contracts-workflow-ledger-policy-record-20260329_034932.md` | `.github/workflows/contracts.yml` 已显式前置 ledger policy chain，并由 `test_contracts_workflow.py` 锁住顺序 | 形成第八个真实消费点，先把长期 CI 入口对齐到现行迁移护栏 |
+| [x] | V4 operator entry 对齐 ledger policy | `docs/30-方案/26-V4-operator-entry-ledger-policy-record-20260329_035518.md` | 根 `README.md` 与 `tools/mvp/OPERATOR_PLAYBOOK.md` 已对齐现行 ledger-first 自检顺序，并由 `check_public_docs.py` 锁住 | 形成第九个最小切片，先把维护入口说明对齐到真实门禁 |
 
 
 
