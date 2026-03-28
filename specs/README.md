@@ -23,6 +23,9 @@ specs/
     heartbeat.json           # 心跳协议 0 token
   spi/
     base_fields.json         # 4 SPI 公共字段
+    keystore/                # 密钥抽象层预留接口
+    boot-integrity/          # 启动完整性抽象层预留接口
+    storage-encryption/      # 存储加密抽象层预留接口
   manifests/
     README.md                # 非权威模板说明
     plugin_runner.template.jsonc
