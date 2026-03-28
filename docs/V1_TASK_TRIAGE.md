@@ -38,3 +38,9 @@
 
 如果某项内容无法从当前 `specs/`、命名规则、版本规则或最新 README 中稳定推断，
 就不应直接写进公开计划，而应等待新的权威文档先定稿。
+
+## 当前 selfcheck policy
+
+- `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- `Contract tests` 与其他后续门禁会显式后置在这条 ledger policy chain 之后
