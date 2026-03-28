@@ -224064,6 +224064,45 @@ def collect_errors() -> list[str]:
         expect_report_payload=True,
     )
     payload = load_json_payload(
+        run_wrapper_command(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-hibernated", "--reset", "--task-id", "task-readme-root-hibernated-ps1", "--json"]),
+        errors,
+        "safeclaw-root-ps1-service-resume-seed-hibernated-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "safeclaw-root-ps1-service-resume-seed-hibernated-json",
+        "seed-hibernated",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        session = result.get("saved_session") or {}
+        source_hints = result.get("source_hints") or {}
+        if not prepared or prepared[0] != "seed-hibernated":
+            errors.append("safeclaw-root-ps1-service-resume-seed-hibernated-json missing prepared seed-hibernated")
+        elif session.get("task_id") != "task-readme-root-hibernated-ps1":
+            errors.append("safeclaw-root-ps1-service-resume-seed-hibernated-json missing saved session task")
+        elif source_hints.get("db") != "workspace":
+            errors.append("safeclaw-root-ps1-service-resume-seed-hibernated-json missing workspace db source")
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "service-resume", "--task-id", "task-readme-root-hibernated-ps1", "--limit", "1", "--report", "--json"],
+        errors,
+        "safeclaw-root-ps1-service-resume-json",
+        "service-resume",
+    )
+    assert_service_resume_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-resume-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-hibernated-ps1",
+        expected_limit=1,
+        expected_steps=["resume", "service-status", "report"],
+        expect_report_payload=True,
+    )
+    payload = load_json_payload(
         run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "seed-crash", "--reset", "--probe-mode", "none", "--task-id", "task-readme-root-assumed-cmd", "--json"]),
         errors,
         "safeclaw-root-cmd-service-reconcile-seed-crash-json",
