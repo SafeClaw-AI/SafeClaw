@@ -8,7 +8,7 @@
 - `check_ledger_alignment.py`：台账索引与三份主台账内容对齐检查
 - `check_consistency.py`：跨文件一致性检查
 - `check_versions.py`：版本一致性检查
-- `check_structure.py`：结构完整性检查
+- `check_structure.py`：结构完整性检查，并约束 ledger 目标路径不得提前落地
 - `check_public_docs.py`：公开文档对齐检查
 - `check_scaffold.py`：仓库骨架检查
 - `check_tooling_smoke.py`：工具烟测

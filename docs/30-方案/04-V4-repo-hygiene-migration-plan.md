@@ -135,6 +135,6 @@
 
 ## 下一步建议
 
-1. 下一刀优先选择第四个最小消费点继续接 manifest。
-2. `tools/checks/check_ledger_alignment.py` 已作为独立检查器实际消费三份主台账，并已接入 `selfcheck.py`。
+1. 下一刀优先选择第五个最小消费点继续接 manifest。
+2. `tools/checks/check_structure.py` 已开始消费 manifest，并锁住 `docs/records/` 不得在 legacy-only 阶段提前落地。
 3. `docs/round_logs/` 历史迁移必须单独成刀，不能夹带在台账迁移里。

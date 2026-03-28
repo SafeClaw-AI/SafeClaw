@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 02:12:27 +0800
+最后更新时间：2026-03-29 02:28:16 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1834,3 +1834,8 @@
 - 本轮完成：补齐 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 与最近两刀实际状态的同步；把验证顺序、下一候选与台账门禁链路写回主台账，避免后续继续在过期状态上推进。
 - 验证：`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
 - 提交推送：本轮提交信息拟为 `docs: sync ledger tracker status`；最终 hash 以当前 `HEAD` 为准。
+### Round LB
+- 完成时间：2026-03-29 02:28:16 +0800
+- 本轮完成：让 `check_structure.py` 也开始消费 ledger manifest；新增 `collect_ledger_path_policy_errors()`，锁住三份主台账的 `target_path` 必须落在 `docs/records/`，且在 `legacy-only` 阶段不得提前创建 `docs/records/` 或目标文件。
+- 验证：`python -m py_compile tools/checks/check_structure.py`、`python -m unittest tests.contracts.test_structure_check -v`、`python tools/checks/check_structure.py`、`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `test: guard ledger target paths in structure check`；最终 hash 以当前 `HEAD` 为准。
