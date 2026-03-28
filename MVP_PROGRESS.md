@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-29 02:34:58 +0800
+最后更新时间：2026-03-29 02:42:50 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 172 刀已完成；最近四轮补上了台账 manifest / structure / scaffold / ledger alignment 门禁链路
+当前阶段：已进入 M1b，前 172 刀已完成；最近五轮补上了台账 manifest / consistency / structure / scaffold / ledger alignment 门禁链路
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -196,6 +196,8 @@
 | [x] | V4 独立 ledger alignment 门禁 | `docs/30-方案/14-V4-ledger-alignment-check-record-20260329_020543.md` | `check_ledger_alignment.py` 已独立校验三份主台账，并接入 `selfcheck.py` | 形成第三个真实消费点，减少单脚本堆逻辑 |
 | [x] | V4 ledger 结构路径护栏 | `docs/30-方案/16-V4-structure-ledger-path-record-20260329_022816.md` | `check_structure.py` 已开始读取 manifest，并锁住 `docs/records/` 在 legacy-only 阶段不得提前落地 | 形成第四个真实消费点，先卡住结构漂移 |
 | [x] | V4 ledger scaffold 根台账护栏 | `docs/30-方案/17-V4-scaffold-ledger-legacy-record-20260329_023458.md` | `check_scaffold.py` 已开始读取 manifest，并锁住 legacy 阶段根台账文件仍须保留 | 形成第五个真实消费点，先卡住根文件过早迁移 |
+| [x] | V4 ledger 文档映射一致性护栏 | `docs/30-方案/18-V4-ledger-doc-consistency-record-20260329_024250.md` | `check_consistency.py` 已开始读取 manifest，并锁住机读索引与 `06-V4-ledger-compat-index-spec.md` 映射不漂移 | 形成第六个真实消费点，先卡住文档与机读真源分叉 |
+
 
 
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |

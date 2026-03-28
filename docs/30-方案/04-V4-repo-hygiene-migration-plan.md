@@ -135,6 +135,6 @@
 
 ## 下一步建议
 
-1. 下一刀优先选择第六个最小消费点继续接 manifest。
-2. `tools/checks/check_scaffold.py` 已开始消费 manifest，并锁住 legacy 阶段根台账文件仍须保留。
+1. 下一刀优先选择第七个最小消费点继续接 manifest。
+2. `tools/checks/check_consistency.py` 已开始消费 manifest，并锁住机读索引与兼容方案映射不漂移。
 3. `docs/round_logs/` 历史迁移必须单独成刀，不能夹带在台账迁移里。

@@ -7,7 +7,29 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from tools.checks.ledger_index_manifest import load_ledger_index_manifest
 from tools.checks.spec_index import build_spec_index
+
+LEDGER_COMPAT_SPEC_FILE = REPO_ROOT / "docs" / "30-方案" / "06-V4-ledger-compat-index-spec.md"
+
+
+def collect_ledger_manifest_doc_errors() -> list[str]:
+    manifest = load_ledger_index_manifest()
+    spec_text = LEDGER_COMPAT_SPEC_FILE.read_text(encoding="utf-8")
+    errors: list[str] = []
+
+    for entry in manifest.ledgers:
+        mapping_line = f"- `{entry.logical_id}`：`{entry.legacy_path}` -> `{entry.target_path}`"
+        if mapping_line not in spec_text:
+            errors.append(f"台账映射未写入兼容索引方案: {mapping_line}")
+
+        if entry.cutover_state == "legacy-only":
+            if "### Phase A：当前阶段" not in spec_text:
+                errors.append("兼容索引方案缺少 Phase A：当前阶段")
+            if "- 只读旧路径" not in spec_text:
+                errors.append("兼容索引方案缺少 legacy-only 只读旧路径说明")
+
+    return errors
 
 
 def collect_errors() -> list[str]:
@@ -86,6 +108,7 @@ def collect_errors() -> list[str]:
         if category not in error_categories:
             errors.append(f"{key} category 未在 categories 中注册: {category}")
 
+    errors.extend(collect_ledger_manifest_doc_errors())
     return errors
 
 
