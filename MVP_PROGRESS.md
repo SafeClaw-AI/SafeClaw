@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 16:23:34 +0800
+最后更新时间：2026-03-28 16:44:28 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 159 刀已完成；这一轮把 `safeclaw.ps1 service-resume --json` 成功合同锁进 smoke
+当前阶段：已进入 M1b，前 160 刀已完成；这一轮把 `safeclaw.ps1 service-reconcile --json` 成功合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -179,6 +179,7 @@
 | [x] | M1b Slice 157: root cmd service-reconcile json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-reconcile --task-id task-readme-root-assumed-cmd --decision executed --limit 1 --report --json` 的成功 JSON 断言；先补独立 executed-assumed 基座，再锁住 `steps=reconcile/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-assumed-cmd`、`decision=executed` 与 `limit=1` | 防止 README 根入口的 service-reconcile 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 158: root cmd service-resume json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-hibernated-cmd --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-cmd` 与 `limit=1` | 防止 README 推荐根入口的 service-resume 成功 JSON 合同静默漂移 |
 | [x] | M1b Slice 159: root ps1 service-resume json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-hibernated-ps1 --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-ps1` 与 `limit=1` | 防止 README PowerShell 根入口的 service-resume 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 160: root ps1 service-reconcile json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-reconcile --task-id task-readme-root-assumed-ps1 --decision executed --limit 1 --report --json` 的成功 JSON 断言；先补独立 executed-assumed 基座，再锁住 `steps=reconcile/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-assumed-ps1`、`decision=executed` 与 `limit=1` | 防止 README PowerShell 根入口的 service-reconcile 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |

@@ -1744,3 +1744,9 @@
 - 本轮完成：做完 `Slice 159`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-hibernated-ps1 --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-ps1` 与 `limit=1`。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `4c42771 test: guard root ps1 service-resume json`；本次 docs 收口计划消息 `docs: sync slice 159 progress artifacts`。
+
+### Round KL
+- 完成时间：2026-03-28 16:44:28 +0800
+- 本轮完成：做完 `Slice 160`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-reconcile --task-id task-readme-root-assumed-ps1 --decision executed --limit 1 --report --json` 的成功 JSON 断言；先补独立 executed-assumed 基座，再锁住 `steps=reconcile/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-assumed-ps1`、`decision=executed` 与 `limit=1`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `67b64b4 test: guard root ps1 service-reconcile json`；本次 docs 收口计划消息 `docs: sync slice 160 progress artifacts`。
