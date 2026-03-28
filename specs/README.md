@@ -1,4 +1,4 @@
-# SafeClaw specs/ — 单一真源
+# SafeClaw specs/ ? 单一真源
 
 > `specs/` 是当前公开仓库的协议真源。
 > 合同测试、检查脚本、最小生成产物都从这里推导。
@@ -35,8 +35,9 @@ specs/
 
 1. `specs/` 是当前公开仓库中的协议真源。
 2. `state_id / event_id / tier_id / rev_id / error code` 属于稳定标识，测试可直接引用。
-3. `specs/` 变更必须同步通过合同测试与所有门禁检查。
-4. `manifests/` 当前是 **Phase 0 非权威模板**，用于预留自动化落点，不代表完整冻结 schema。
+3. `specs/` 变更必须同步通过 ledger-first policy chain 与合同测试。
+4. `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py -> check_ledger_alignment.py -> check_consistency.py -> check_versions.py -> check_structure.py -> check_scaffold.py -> check_public_docs.py`，然后才进入 `Contract tests`。
+5. `manifests/` 当前是 **Phase 0 非权威模板**，用于预留自动化落点，不代表完整冻结 schema。
 
 ## 当前闭环
 
