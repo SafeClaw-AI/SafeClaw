@@ -1738,3 +1738,9 @@
 - 本轮完成：做完 `Slice 158`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-hibernated-cmd --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-cmd` 与 `limit=1`。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `17e3977 test: guard root cmd service-resume json`；本次 docs 收口计划消息 `docs: sync slice 158 progress artifacts`。
+
+### Round KK
+- 完成时间：2026-03-28 16:23:34 +0800
+- 本轮完成：做完 `Slice 159`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-hibernated-ps1 --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-ps1` 与 `limit=1`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `4c42771 test: guard root ps1 service-resume json`；本次 docs 收口计划消息 `docs: sync slice 159 progress artifacts`。
