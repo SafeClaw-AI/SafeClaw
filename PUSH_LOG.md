@@ -1773,3 +1773,8 @@
 - 本轮完成：做完 `Slice 164`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-failed-resume-ps1 --limit 1 --json` 的错误 JSON 断言；先补独立 failed 基座，再锁住 `error.code=resume-target-not-hibernated`、`error.reason=resume_target_not_hibernated`、`failed_step=resume` 与 `error.details.message` 里的 hibernated 提示。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `4cb05b2 test: guard root ps1 service-resume not-hibernated json`；本次 docs 收口计划消息 `docs: sync slice 164 progress artifacts`。
+### Round KQ
+- 完成时间：2026-03-28 18:24:03 +0800
+- 本轮完成：做完 `Slice 165`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-run --reset --task-id task-readme-root-service-run-preflight-ai-cmd --limit 1 --report --preflight --preflight-action ai-reason --json` 的错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `e136a51 test: guard root cmd service-run preflight ai json`；本次 docs 收口计划消息 `docs: sync slice 165 progress artifacts`。
