@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 18:24:03 +0800
+最后更新时间：2026-03-28 18:39:02 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 165 刀已完成；这一轮把 `safeclaw.cmd service-run --preflight --preflight-action ai-reason --json` 的阻断合同锁进 smoke
+当前阶段：已进入 M1b，前 166 刀已完成；这一轮把 `safeclaw.ps1 service-run --preflight --preflight-action ai-reason --json` 的阻断合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -185,6 +185,7 @@
 | [x] | M1b Slice 163: root ps1 service-resume missing json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-missing-resume-ps1 --limit 1 --json` 的错误 JSON 断言；先补独立 service-run 基座，再锁住 `error.code=resume-target-missing`、`error.reason=hibernated_runtime_missing`、`failed_step=resume` 与 `error.details.message` 里的 missing 提示 | 防止 README PowerShell 根入口的 `service-resume --json` 公开错误码静默漂移 |
 | [x] | M1b Slice 164: root ps1 service-resume not-hibernated json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-failed-resume-ps1 --limit 1 --json` 的错误 JSON 断言；先补独立 failed 基座，再锁住 `error.code=resume-target-not-hibernated`、`error.reason=resume_target_not_hibernated`、`failed_step=resume` 与 `error.details.message` 里的 hibernated 提示 | 防止 README PowerShell 根入口的 `service-resume --json` 公开错误码静默漂移 |
 | [x] | M1b Slice 165: root cmd service-run preflight ai json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-run --reset --task-id task-readme-root-service-run-preflight-ai-cmd --limit 1 --report --preflight --preflight-action ai-reason --json` 的错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段 | 防止 README 里组合动作复用 AI 离线门禁的根入口 JSON 合同静默漂移 |
+| [x] | M1b Slice 166: root ps1 service-run preflight ai json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-run --reset --task-id task-readme-root-service-run-preflight-ai-ps1 --limit 1 --report --preflight --preflight-action ai-reason --json` 的错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段 | 防止 README 里组合动作复用 AI 离线门禁的 PowerShell 根入口 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
