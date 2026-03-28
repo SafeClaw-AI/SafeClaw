@@ -16,10 +16,6 @@ CHECKS: list[tuple[str, list[str]]] = [
         [PYTHON, "-u", "tools/checks/check_ledger_alignment.py"],
     ),
     (
-        "Contract tests",
-        [PYTHON, "-u", "-m", "unittest", "discover", "-s", "tests/contracts", "-p", "test_*.py", "-v"],
-    ),
-    (
         "Cross-file consistency",
         [PYTHON, "-u", "tools/checks/check_consistency.py"],
     ),
@@ -32,16 +28,20 @@ CHECKS: list[tuple[str, list[str]]] = [
         [PYTHON, "-u", "tools/checks/check_structure.py"],
     ),
     (
-        "Naming lint",
-        [PYTHON, "-u", "tools/lint/check_naming.py"],
+        "Scaffold layout",
+        [PYTHON, "-u", "tools/checks/check_scaffold.py"],
     ),
     (
         "Public docs alignment",
         [PYTHON, "-u", "tools/checks/check_public_docs.py"],
     ),
     (
-        "Scaffold layout",
-        [PYTHON, "-u", "tools/checks/check_scaffold.py"],
+        "Naming lint",
+        [PYTHON, "-u", "tools/lint/check_naming.py"],
+    ),
+    (
+        "Contract tests",
+        [PYTHON, "-u", "-m", "unittest", "discover", "-s", "tests/contracts", "-p", "test_*.py", "-v"],
     ),
     (
         "Tooling smoke",
