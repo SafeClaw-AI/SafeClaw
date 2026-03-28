@@ -8,6 +8,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 CHECKS: list[tuple[str, list[str]]] = [
     (
+        "Ledger index manifest",
+        [PYTHON, "-u", "tools/checks/ledger_index_manifest.py"],
+    ),
+    (
         "Contract tests",
         [PYTHON, "-u", "-m", "unittest", "discover", "-s", "tests/contracts", "-p", "test_*.py", "-v"],
     ),
