@@ -17,6 +17,12 @@
 - `check_generated_sync.py`：生成产物同步检查
 - `selfcheck.py`：串起全部门禁的统一入口
 
+## 迁移期优先链路
+
+- `selfcheck.py` 当前会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- 这条 ledger policy chain 会显式前置在 `Contract tests` 之前，避免历史失败提前遮住迁移护栏
+
 ## 推荐顺序
 
 - 先运行 `python tools/codegen/regenerate_all.py`

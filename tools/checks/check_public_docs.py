@@ -21,6 +21,7 @@ DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-compliance-rebaseline-record-20260329_030242.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
+CHECKS_README_FILE = REPO_ROOT / "tools" / "checks" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 
@@ -94,6 +95,16 @@ REQUIRED_MARKERS = {
         "tools/checks/",
         "tools/codegen/",
         "selfcheck.py",
+    ],
+    CHECKS_README_FILE: [
+        "迁移期优先链路",
+        "ledger_index_manifest.py",
+        "check_consistency.py",
+        "check_versions.py",
+        "check_structure.py",
+        "check_scaffold.py",
+        "check_public_docs.py",
+        "Contract tests",
     ],
     TESTS_README_FILE: [
         "tests/contracts/",

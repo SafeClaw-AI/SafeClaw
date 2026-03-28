@@ -201,6 +201,7 @@
 | [x] | V4 reference 合规基线纠偏 | `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md` | 新增一份当前纠偏记录，明确旧 compliance audit / recheck 里哪些说法已经过期，后续仓库卫生整改继续只盯根台账、留痕路径与自动化迁移 | 避免后续按失真审计基线重复劳动 |
 | [x] | V4 public docs 消费 reference rebaseline | `docs/30-方案/21-V4-public-docs-reference-rebaseline-record-20260329_031215.md` | `check_public_docs.py` 已开始显式消费当前合规纠偏快照，并由 `test_public_docs_check.py` 锁住关键口径 | 防止后续再按过期合规基线推进 |
 | [x] | V4 selfcheck 前置 ledger policy chain | `docs/30-方案/22-V4-selfcheck-ledger-policy-chain-record-20260329_032241.md` | `selfcheck.py` 已把 ledger 迁移前的策略链显式前置，并由 `test_selfcheck.py` 锁住顺序 | 防止 broad contract tests 提前遮住 ledger 护栏 |
+| [x] | V4 tools checks README 锁定 ledger policy | `docs/30-方案/23-V4-tools-checks-readme-ledger-policy-record-20260329_033045.md` | `tools/checks/README.md` 已显式写出迁移期优先链路，并由 `check_public_docs.py` 与 `test_public_docs_check.py` 锁住 | 防止公开入口说明再次落后于真实门禁 |
 
 
 

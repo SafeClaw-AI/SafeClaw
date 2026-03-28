@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 03:22:41 +0800
+最后更新时间：2026-03-29 03:30:45 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1869,3 +1869,8 @@
 - 本轮完成：调整 `tools/checks/selfcheck.py` 顺序，把 `Cross-file consistency`、`Version consistency`、`Structure completeness`、`Scaffold layout`、`Public docs alignment` 这条 ledger policy chain 显式前置到 `Contract tests` 前；同时新增 `tests/contracts/test_selfcheck.py` 锁住顺序。
 - 验证：`python -m py_compile tools/checks/selfcheck.py tests/contracts/test_selfcheck.py`、`python -m unittest tests.contracts.test_selfcheck -v`。
 - 提交推送：本轮提交信息拟为 `test: front-load ledger policy in selfcheck`；最终 hash 以当前 `HEAD` 为准。
+### Round LI
+- 完成时间：2026-03-29 03:30:45 +0800
+- 本轮完成：给 `tools/checks/README.md` 补出迁移期优先链路；同时扩大 `check_public_docs.py` 对 `tools/checks/README.md` 的关键标记约束，并让 `tests/contracts/test_public_docs_check.py` 追加当前 public docs 全量基线测试。
+- 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `docs: lock ledger policy in checks readme`；最终 hash 以当前 `HEAD` 为准。
