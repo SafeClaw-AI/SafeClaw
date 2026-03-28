@@ -1788,3 +1788,9 @@
 - 本轮完成：做完 `Slice 167`，在 `check_tooling_smoke.py` 同步补上 root `service-retry --preflight --preflight-action ai-reason --json` 的 cmd/ps1 错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `aa59601 test: guard root service-retry preflight ai json`；本次 docs 收口计划消息 `docs: sync slice 167 progress artifacts`。
+
+### Round KT
+- 完成时间：2026-03-28 21:21:41 +0800
+- 本轮完成：做完 `Slice 168`，在 `check_tooling_smoke.py` 同步补上 root `service-recover --preflight --preflight-action ai-reason --json` 的 cmd/ps1 错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `1d35f2d test: guard root service-recover preflight ai json`；本次 docs 收口计划消息 `docs: sync slice 168 progress artifacts`。
