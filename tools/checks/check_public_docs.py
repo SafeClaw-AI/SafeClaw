@@ -12,6 +12,7 @@ CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
 SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
 DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
+DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
 MVP_PROGRESS_FILE = REPO_ROOT / "MVP_PROGRESS.md"
@@ -69,6 +70,13 @@ REQUIRED_MARKERS = {
         "DEVLOG.md",
         "V1_SCOPE.md",
         "V1_TASK_TRIAGE.md",
+        "02-V4-目录锁定清单.md",
+    ],
+    DIRECTORY_LOCK_FILE: [
+        "当前仓库的目录锁定依据",
+        "迁移前临时保留",
+        "docs/round_logs/",
+        "specs/spi/keystore/",
     ],
     TOOLS_README_FILE: [
         "tools/checks/",
