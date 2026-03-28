@@ -1750,3 +1750,9 @@
 - 本轮完成：做完 `Slice 160`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-reconcile --task-id task-readme-root-assumed-ps1 --decision executed --limit 1 --report --json` 的成功 JSON 断言；先补独立 executed-assumed 基座，再锁住 `steps=reconcile/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-assumed-ps1`、`decision=executed` 与 `limit=1`。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `67b64b4 test: guard root ps1 service-reconcile json`；本次 docs 收口计划消息 `docs: sync slice 160 progress artifacts`。
+
+### Round KM
+- 完成时间：2026-03-28 16:59:34 +0800
+- 本轮完成：做完 `Slice 161`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-failed-resume-cmd --limit 1 --json` 的错误 JSON 断言；先补独立 failed 基座，再锁住 `error.code=resume-target-not-hibernated`、`error.reason=resume_target_not_hibernated`、`failed_step=resume` 与 `error.details.message` 里的 hibernated 提示。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `a72d6a5 test: guard root cmd service-resume not-hibernated json`；本次 docs 收口计划消息 `docs: sync slice 161 progress artifacts`。
