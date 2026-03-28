@@ -1732,3 +1732,9 @@
 - 本轮完成：重试远端同步成功，`git -c http.version=HTTP/1.1 pull --rebase origin main` 返回 up to date，`git -c http.version=HTTP/1.1 push origin main` 已把 `8042b1c`、`bc67622`、`f33f6ce` 与 `9822a92` 推到远端。
 - 验证：`git status -sb`、`git -c http.version=HTTP/1.1 pull --rebase origin main`、`git -c http.version=HTTP/1.1 push origin main`。
 - 提交推送：本轮先完成同步恢复，随后补记 push 成功回执并再提交推送。
+
+### Round KJ
+- 完成时间：2026-03-28 16:08:21 +0800
+- 本轮完成：做完 `Slice 158`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-hibernated-cmd --limit 1 --report --json` 的成功 JSON 断言；先补独立 hibernated 基座，再锁住 `steps=resume/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-hibernated-cmd` 与 `limit=1`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `17e3977 test: guard root cmd service-resume json`；本次 docs 收口计划消息 `docs: sync slice 158 progress artifacts`。
