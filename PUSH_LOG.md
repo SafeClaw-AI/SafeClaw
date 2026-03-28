@@ -1,4 +1,4 @@
-﻿# 提交推送流水账
+# 提交推送流水账
 
 最后更新时间：2026-03-27 23:22:41 +0800
 
@@ -1768,3 +1768,8 @@
 - 本轮完成：做完 `Slice 163`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-missing-resume-ps1 --limit 1 --json` 的错误 JSON 断言；先补独立 service-run 基座，再锁住 `error.code=resume-target-missing`、`error.reason=hibernated_runtime_missing`、`failed_step=resume` 与 `error.details.message` 里的 missing 提示。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `bfa45a4 test: guard root ps1 service-resume missing json`；本次 docs 收口计划消息 `docs: sync slice 163 progress artifacts`。
+### Round KP
+- 完成时间：2026-03-28 17:51:03 +0800
+- 本轮完成：做完 `Slice 164`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-failed-resume-ps1 --limit 1 --json` 的错误 JSON 断言；先补独立 failed 基座，再锁住 `error.code=resume-target-not-hibernated`、`error.reason=resume_target_not_hibernated`、`failed_step=resume` 与 `error.details.message` 里的 hibernated 提示。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `4cb05b2 test: guard root ps1 service-resume not-hibernated json`；本次 docs 收口计划消息 `docs: sync slice 164 progress artifacts`。
