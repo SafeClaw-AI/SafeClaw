@@ -19,3 +19,9 @@
 这里的公开文档用于解释当前仓库状态，
 但涉及协议真源时，仍以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。
 目录结构是否允许调整，统一以 `docs/30-方案/02-V4-目录锁定清单.md` 为准。
+
+## 当前 selfcheck policy
+
+- `tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- `tests/contracts/` 与其他后续门禁会显式后置在这条 ledger policy chain 之后
