@@ -3,6 +3,13 @@
 > 说明：当前仓库的公开层以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。
 > 更早历史如有需要，可再基于 Git 提交记录补齐。
 
+## 2026-03-29
+
+### ledger-first policy chain 公开收口
+- 补充 `docs/DEVLOG.md`，显式说明当前公开门禁顺序已收口为 `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 先跑 `ledger_index_manifest.py`。
+- 继续明确后续顺序为 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`，然后才进入 `Contract tests`。
+- 这样即使后续维护者先看开发日志，也能先看到现行 ledger-first policy chain，而不是回退到旧的宽泛测试叙述。
+
 ## 2026-03-20
 
 ### 工程推进原则冻结
