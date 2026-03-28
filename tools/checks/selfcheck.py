@@ -6,42 +6,37 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
+LEDGER_POLICY_CHECKS: list[tuple[str, str]] = [
+    ("Ledger index manifest", "tools/checks/ledger_index_manifest.py"),
+    ("Ledger alignment", "tools/checks/check_ledger_alignment.py"),
+    ("Cross-file consistency", "tools/checks/check_consistency.py"),
+    ("Version consistency", "tools/checks/check_versions.py"),
+    ("Structure completeness", "tools/checks/check_structure.py"),
+    ("Scaffold layout", "tools/checks/check_scaffold.py"),
+    ("Public docs alignment", "tools/checks/check_public_docs.py"),
+]
+CONTRACT_TESTS_CHECK_NAME = "Contract tests"
+CONTRACT_TESTS_COMMAND = [
+    PYTHON,
+    "-u",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/contracts",
+    "-p",
+    "test_*.py",
+    "-v",
+]
 CHECKS: list[tuple[str, list[str]]] = [
-    (
-        "Ledger index manifest",
-        [PYTHON, "-u", "tools/checks/ledger_index_manifest.py"],
-    ),
-    (
-        "Ledger alignment",
-        [PYTHON, "-u", "tools/checks/check_ledger_alignment.py"],
-    ),
-    (
-        "Cross-file consistency",
-        [PYTHON, "-u", "tools/checks/check_consistency.py"],
-    ),
-    (
-        "Version consistency",
-        [PYTHON, "-u", "tools/checks/check_versions.py"],
-    ),
-    (
-        "Structure completeness",
-        [PYTHON, "-u", "tools/checks/check_structure.py"],
-    ),
-    (
-        "Scaffold layout",
-        [PYTHON, "-u", "tools/checks/check_scaffold.py"],
-    ),
-    (
-        "Public docs alignment",
-        [PYTHON, "-u", "tools/checks/check_public_docs.py"],
-    ),
+    *[(name, [PYTHON, "-u", script_path]) for name, script_path in LEDGER_POLICY_CHECKS],
     (
         "Naming lint",
         [PYTHON, "-u", "tools/lint/check_naming.py"],
     ),
     (
-        "Contract tests",
-        [PYTHON, "-u", "-m", "unittest", "discover", "-s", "tests/contracts", "-p", "test_*.py", "-v"],
+        CONTRACT_TESTS_CHECK_NAME,
+        CONTRACT_TESTS_COMMAND,
     ),
     (
         "Tooling smoke",
