@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-27 23:22:41 +0800
+最后更新时间：2026-03-29 02:12:27 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1817,3 +1817,20 @@
 - 本轮完成：做完 `Slice 172`，在 `specs/spi/` 新增 `keystore/`、`boot-integrity/`、`storage-encryption/` 三组安全抽象层预留接口；每组都补上 `interface.md`、软件基线 JSON 与硬件占位 JSON，只定义输入输出合同与未来模块边界，不实现任何运行时代码。
 - 验证：`git diff --check`、`python -m json.tool specs/spi/keystore/software-keystore.json`、`python -m json.tool specs/spi/keystore/hardware-keystore-placeholder.json`、`python -m json.tool specs/spi/boot-integrity/software-check.json`、`python -m json.tool specs/spi/boot-integrity/hardware-check-placeholder.json`、`python -m json.tool specs/spi/storage-encryption/software-encryption.json`、`python -m json.tool specs/spi/storage-encryption/hardware-encryption-placeholder.json`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_structure.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe -m pytest tests/contracts/test_protocol_invariants.py -q`。
 - 提交推送：代码提交 `2719d66 docs: add security abstraction interface placeholders`；本次 docs 收口计划消息 `docs: sync slice 172 progress artifacts`。
+### Round KY
+- 完成时间：2026-03-29 01:32:01 +0800
+- 本轮完成：把 `dev-plan` 也纳入 manifest 实际消费；`check_public_docs.py` 现在会通过统一 helper 读取三份主台账，公开文档门禁已不再只覆盖 `MVP_PROGRESS.md` 与 `PUSH_LOG.md`。
+- 验证：`python -m py_compile tools/checks/ledger_index_manifest.py tools/checks/check_public_docs.py`、`python -m unittest tests.contracts.test_ledger_index_manifest -v`、`python tools/checks/check_public_docs.py`。
+- 提交推送：代码提交 `ec3c602 test: route dev plan through ledger manifest`。
+
+### Round KZ
+- 完成时间：2026-03-29 02:05:43 +0800
+- 本轮完成：新增 `tools/checks/check_ledger_alignment.py` 独立检查器；把三份主台账的基线、内容与编码护栏从 `check_public_docs.py` 中解耦，并让 `selfcheck.py` 显式拥有 `Ledger alignment` 阶段。
+- 验证：`python -m py_compile tools/checks/check_ledger_alignment.py tools/checks/check_public_docs.py tools/checks/selfcheck.py`、`python -m unittest tests.contracts.test_ledger_index_manifest tests.contracts.test_ledger_alignment -v`、`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
+- 提交推送：代码提交 `b2980c1 test: add ledger alignment check`。
+
+### Round LA
+- 完成时间：2026-03-29 02:12:27 +0800
+- 本轮完成：补齐 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 与最近两刀实际状态的同步；把验证顺序、下一候选与台账门禁链路写回主台账，避免后续继续在过期状态上推进。
+- 验证：`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `docs: sync ledger tracker status`；最终 hash 以当前 `HEAD` 为准。

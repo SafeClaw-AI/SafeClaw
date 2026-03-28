@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 18:57:18 +0800
+最后更新时间：2026-03-29 02:12:27 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 167 刀已完成；这一轮把根入口 `service-retry --preflight --preflight-action ai-reason --json` 的阻断合同锁进 smoke
+当前阶段：已进入 M1b，前 172 刀已完成；最近两轮补上了台账 manifest / ledger alignment 门禁链路
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -192,6 +192,8 @@
 | [x] | M1b Slice 170: root service-resume preflight ai json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 同步补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-hibernated-cmd --limit 1 --report --preflight --preflight-action ai-reason --json` 与 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-resume --task-id task-readme-root-hibernated-ps1 --limit 1 --report --preflight --preflight-action ai-reason --json` 的错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段 | 防止 README 里组合动作复用 AI 离线门禁的 root `service-resume` JSON 合同静默漂移 |
 | [x] | M1b Slice 171: root service-reconcile preflight ai json 错误护栏 | M1b plan | 在 `check_tooling_smoke.py` 同步补上 `cmd /c safeclaw.cmd service-reconcile --task-id task-readme-root-assumed-cmd --decision executed --limit 1 --report --preflight --preflight-action ai-reason --json` 与 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-reconcile --task-id task-readme-root-assumed-ps1 --decision executed --limit 1 --report --preflight --preflight-action ai-reason --json` 的错误 JSON 断言；锁住 `error.code=preflight-blocked`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`error.requested_action=ai-reason` 与 `details.preflight_*` 镜像字段 | 防止 README 里组合动作复用 AI 离线门禁的 root `service-reconcile` JSON 合同静默漂移 |
 | [x] | M1b Slice 172: security abstraction spi placeholders | M1b plan | 在 `specs/spi/` 补上 `keystore/`、`boot-integrity/`、`storage-encryption/` 三组安全抽象层预留位；每组各自定义 `interface.md`、软件基线 JSON 与硬件占位 JSON，明确输入输出合同与未来模块边界，但不实现任何运行时代码 | 给后续 TPM / Secure Enclave / Intel SGX / AMD SEV / Cloud KMS 接入保留稳定落点，避免上层绑定具体实现 |
+| [x] | V4 台账兼容索引消费链 | `docs/30-方案/06-V4-ledger-compat-index-spec.md` `docs/30-方案/08-V4-ledger-index-manifest.json` | `ledger_index_manifest.py`、`check_public_docs.py`、`selfcheck.py` 已形成 manifest 读取与总入口门禁 | 为后续迁移三份主台账先补兼容层 |
+| [x] | V4 独立 ledger alignment 门禁 | `docs/30-方案/14-V4-ledger-alignment-check-record-20260329_020543.md` | `check_ledger_alignment.py` 已独立校验三份主台账，并接入 `selfcheck.py` | 形成第三个真实消费点，减少单脚本堆逻辑 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
