@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.checks.ledger_index_manifest import load_ledger_index_manifest
 README_FILE = REPO_ROOT / "README.md"
 SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
@@ -112,6 +117,27 @@ QUESTION_MARK_FORBIDDEN = {
     PUSH_LOG_FILE: True,
 }
 
+EXPECTED_LEDGER_BASELINE = {
+    "dev-plan": {
+        "legacy_path": "开发计划.md",
+        "target_path": "docs/records/开发计划.md",
+        "write_mode": "legacy-only",
+        "cutover_state": "legacy-only",
+    },
+    "mvp-progress": {
+        "legacy_path": "MVP_PROGRESS.md",
+        "target_path": "docs/records/MVP_PROGRESS.md",
+        "write_mode": "legacy-only",
+        "cutover_state": "legacy-only",
+    },
+    "push-log": {
+        "legacy_path": "PUSH_LOG.md",
+        "target_path": "docs/records/PUSH_LOG.md",
+        "write_mode": "legacy-only",
+        "cutover_state": "legacy-only",
+    },
+}
+
 
 def collect_errors() -> list[str]:
     repo_version = VERSION_FILE.read_text(encoding="utf-8").strip()
@@ -134,6 +160,18 @@ def collect_errors() -> list[str]:
             errors.append(
                 f"公开文档疑似编码损坏: {path.relative_to(REPO_ROOT).as_posix()} 含有意外占位符"
             )
+
+    manifest = load_ledger_index_manifest()
+    if manifest.manifest_id != "safeclaw-ledger-index":
+        errors.append(f"台账索引 manifest_id 异常: {manifest.manifest_id}")
+    for logical_id, expected in EXPECTED_LEDGER_BASELINE.items():
+        entry = manifest.require(logical_id)
+        for key, expected_value in expected.items():
+            actual_value = getattr(entry, key)
+            if actual_value != expected_value:
+                errors.append(
+                    f"台账索引基线不一致: {logical_id}.{key} -> {actual_value} != {expected_value}"
+                )
 
     return errors
 
