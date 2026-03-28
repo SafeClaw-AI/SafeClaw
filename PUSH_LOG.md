@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 03:02:42 +0800
+最后更新时间：2026-03-29 03:12:15 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1859,3 +1859,8 @@
 - 本轮完成：补一份 `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md` 当前合规纠偏记录；明确两份旧合规审计里“目录锁定清单缺失”和“公开文档门禁仍直接绑定根台账”这两类说法已经过期，但根目录三份台账与 `docs/round_logs/` 历史迁移仍然要整改。
 - 验证：`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
 - 提交推送：本轮提交信息拟为 `docs: rebaseline reference compliance status`；最终 hash 以当前 `HEAD` 为准。
+### Round LG
+- 完成时间：2026-03-29 03:12:15 +0800
+- 本轮完成：让 `check_public_docs.py` 开始显式消费 `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md`；同时补上 `docs/README.md` 索引与 `tests/contracts/test_public_docs_check.py`，把当前合规纠偏快照正式接进公开文档门禁。
+- 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `test: guard reference rebaseline in public docs`；最终 hash 以当前 `HEAD` 为准。

@@ -199,6 +199,7 @@
 | [x] | V4 ledger 文档映射一致性护栏 | `docs/30-方案/18-V4-ledger-doc-consistency-record-20260329_024250.md` | `check_consistency.py` 已开始读取 manifest，并锁住机读索引与 `06-V4-ledger-compat-index-spec.md` 映射不漂移 | 形成第六个真实消费点，先卡住文档与机读真源分叉 |
 | [x] | V4 ledger version / phase 护栏 | `docs/30-方案/19-V4-ledger-version-phase-record-20260329_024907.md` | `check_versions.py` 已开始读取 manifest，并锁住 `manifest_version` 与 `phase` 在 legacy-only 阶段的语义口径 | 形成第七个真实消费点，先卡住版本与阶段语义漂移 |
 | [x] | V4 reference 合规基线纠偏 | `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md` | 新增一份当前纠偏记录，明确旧 compliance audit / recheck 里哪些说法已经过期，后续仓库卫生整改继续只盯根台账、留痕路径与自动化迁移 | 避免后续按失真审计基线重复劳动 |
+| [x] | V4 public docs 消费 reference rebaseline | `docs/30-方案/21-V4-public-docs-reference-rebaseline-record-20260329_031215.md` | `check_public_docs.py` 已开始显式消费当前合规纠偏快照，并由 `test_public_docs_check.py` 锁住关键口径 | 防止后续再按过期合规基线推进 |
 
 
 

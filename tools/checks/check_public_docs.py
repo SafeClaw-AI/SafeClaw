@@ -19,6 +19,7 @@ CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
 SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
 DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
+REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-compliance-rebaseline-record-20260329_030242.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
@@ -78,6 +79,7 @@ REQUIRED_MARKERS = {
         "04-V4-repo-hygiene-migration-plan.md",
         "06-V4-ledger-compat-index-spec.md",
         "08-V4-ledger-index-manifest.json",
+        "20-V4-reference-compliance-rebaseline-record-20260329_030242.md",
     ],
     DIRECTORY_LOCK_FILE: [
         "当前仓库的目录锁定依据",
@@ -100,6 +102,28 @@ REQUIRED_MARKERS = {
     ],
 }
 
+def collect_reference_rebaseline_errors() -> list[str]:
+    if not REFERENCE_REBASELINE_FILE.exists():
+        return [f"缺少公开文档: {REFERENCE_REBASELINE_FILE.relative_to(REPO_ROOT).as_posix()}"]
+
+    text = REFERENCE_REBASELINE_FILE.read_text(encoding="utf-8")
+    errors: list[str] = []
+    required_markers = [
+        "已经过期的旧结论",
+        "目录锁定清单",
+        "公开文档门禁",
+        "docs/round_logs/",
+        "先止血、后迁移",
+    ]
+    for marker in required_markers:
+        if marker not in text:
+            errors.append(
+                f"公开文档缺少关键标记: {REFERENCE_REBASELINE_FILE.relative_to(REPO_ROOT).as_posix()} -> {marker}"
+            )
+
+    return errors
+
+
 def collect_errors() -> list[str]:
     repo_version = VERSION_FILE.read_text(encoding="utf-8").strip()
     errors: list[str] = []
@@ -117,6 +141,7 @@ def collect_errors() -> list[str]:
                     f"公开文档缺少关键标记: {path.relative_to(REPO_ROOT).as_posix()} -> {current_marker}"
                 )
 
+    errors.extend(collect_reference_rebaseline_errors())
     errors.extend(collect_ledger_errors())
 
     return errors
