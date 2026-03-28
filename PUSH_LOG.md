@@ -1756,3 +1756,9 @@
 - 本轮完成：做完 `Slice 161`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-failed-resume-cmd --limit 1 --json` 的错误 JSON 断言；先补独立 failed 基座，再锁住 `error.code=resume-target-not-hibernated`、`error.reason=resume_target_not_hibernated`、`failed_step=resume` 与 `error.details.message` 里的 hibernated 提示。
 - 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
 - 提交推送：代码提交 `a72d6a5 test: guard root cmd service-resume not-hibernated json`；本次 docs 收口计划消息 `docs: sync slice 161 progress artifacts`。
+
+### Round KN
+- 完成时间：2026-03-28 17:18:56 +0800
+- 本轮完成：做完 `Slice 162`，在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd service-resume --task-id task-readme-root-missing-resume-cmd --limit 1 --json` 的错误 JSON 断言；先补独立 service-run 基座，再锁住 `error.code=resume-target-missing`、`error.reason=hibernated_runtime_missing`、`failed_step=resume` 与 `error.details.message` 里的 missing 提示。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：代码提交 `35f9115 test: guard root cmd service-resume missing json`；本次 docs 收口计划消息 `docs: sync slice 162 progress artifacts`。
