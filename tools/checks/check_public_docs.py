@@ -73,6 +73,7 @@ REQUIRED_MARKERS = {
         "02-V4-目录锁定清单.md",
         "04-V4-repo-hygiene-migration-plan.md",
         "06-V4-ledger-compat-index-spec.md",
+        "08-V4-ledger-index-manifest.json",
     ],
     DIRECTORY_LOCK_FILE: [
         "当前仓库的目录锁定依据",
@@ -81,6 +82,7 @@ REQUIRED_MARKERS = {
         "specs/spi/keystore/",
         "04-V4-repo-hygiene-migration-plan.md",
         "06-V4-ledger-compat-index-spec.md",
+        "08-V4-ledger-index-manifest.json",
     ],
     TOOLS_README_FILE: [
         "tools/checks/",

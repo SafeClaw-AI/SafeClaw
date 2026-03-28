@@ -11,6 +11,7 @@
 - `docs/30-方案/02-V4-目录锁定清单.md`：当前目录锁定依据，后续目录变更先看这里
 - `docs/30-方案/04-V4-repo-hygiene-migration-plan.md`：仓库卫生整改的迁移真源，定义阶段、顺序与回滚思路
 - `docs/30-方案/06-V4-ledger-compat-index-spec.md`：台账兼容索引规则，定义新旧路径映射与读取优先级
+- `docs/30-方案/08-V4-ledger-index-manifest.json`：台账索引最小机读真源，供后续脚本读取
 
 ## 说明
 
