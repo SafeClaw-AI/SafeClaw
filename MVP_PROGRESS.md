@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 13:58:00 +0800
+最后更新时间：2026-03-28 14:21:36 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 154 刀已完成；这一轮把 `safeclaw.ps1 service-run --json` 成功合同锁进 smoke
+当前阶段：已进入 M1b，前 155 刀已完成；这一轮把 `safeclaw.ps1 service-retry --json` 成功合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -174,6 +174,7 @@
 | [x] | M1b Slice 152: root cmd preflight demo json allow 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action demo --json` 的成功 JSON 断言；锁住 `decision=allow`、`reason=current_mvp_action_is_local_only`、`permission_policy=confirm`、`target_scope=scope:target/mvp/output.txt` 与 `degradation_mode=local_only_ok` | 防止根入口 CMD 的 demo preflight allow JSON 合同静默漂移 |
 | [x] | M1b Slice 153: root ps1 preflight demo json allow 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 preflight --action demo --json` 的成功 JSON 断言；锁住 `decision=allow`、`reason=current_mvp_action_is_local_only`、`permission_policy=confirm`、`target_scope=scope:target/mvp/output.txt` 与 `degradation_mode=local_only_ok` | 防止根入口 PowerShell 的 demo preflight allow JSON 合同静默漂移 |
 | [x] | M1b Slice 154: root ps1 service-run json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-run --reset --task-id task-readme-root --limit 1 --report --json` 的成功 JSON 断言；锁住 `steps=run/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root`、`limit=1` 与 `run.source_hints.db=workspace` | 防止根入口 PowerShell 的 service-run 成功 JSON 合同静默漂移 |
+| [x] | M1b Slice 155: root ps1 service-retry json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-retry --task-id task-readme-root-failed-ps1 --limit 1 --report --json` 的成功 JSON 断言；先补独立 failed 基座，再锁住 `steps=retry/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root-failed-ps1` 与 `limit=1` | 防止根入口 PowerShell 的 service-retry 成功 JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
