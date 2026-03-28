@@ -10,7 +10,7 @@
 - `check_versions.py`：版本一致性检查
 - `check_structure.py`：结构完整性检查，并约束 ledger 目标路径不得提前落地
 - `check_public_docs.py`：公开文档对齐检查
-- `check_scaffold.py`：仓库骨架检查
+- `check_scaffold.py`：仓库骨架检查，并约束 legacy 阶段根台账文件仍须保留
 - `check_tooling_smoke.py`：工具烟测
 - `check_mvp_operator_flow.py`: practical MVP operator flow check covering `doctor / service-run / report / service-retry / service-recover`
 - `check_examples_smoke.py`：高层示例烟测，并要求覆盖 `safeclaw-sqlite/examples/*.rs` 全量示例

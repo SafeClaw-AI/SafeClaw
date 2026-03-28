@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.checks.ledger_index_manifest import load_ledger_index_manifest
+
 REQUIRED_DIRS = [
     "config/trusted_plugins",
     "generated/rust",
@@ -49,6 +55,24 @@ REQUIRED_FILES = [
     "tools/checks/README.md",
     "tools/lint/README.md",
 ]
+LEGACY_REQUIRED_STATES = {"legacy-only", "dual-readable"}
+
+
+def collect_ledger_scaffold_errors() -> list[str]:
+    manifest = load_ledger_index_manifest()
+    errors: list[str] = []
+
+    for entry in manifest.ledgers:
+        legacy_path = REPO_ROOT / entry.legacy_path
+        if entry.cutover_state in LEGACY_REQUIRED_STATES:
+            if legacy_path.parent != REPO_ROOT:
+                errors.append(f"legacy 阶段台账必须保留在根目录: {entry.logical_id} -> {entry.legacy_path}")
+            elif not legacy_path.exists():
+                errors.append(f"legacy 阶段缺少根台账文件: {entry.logical_id} -> {entry.legacy_path}")
+            elif not legacy_path.is_file():
+                errors.append(f"legacy 阶段台账路径不是文件: {entry.logical_id} -> {entry.legacy_path}")
+
+    return errors
 
 
 def collect_errors() -> list[str]:
@@ -68,6 +92,7 @@ def collect_errors() -> list[str]:
         elif not path.is_file():
             errors.append(f"骨架路径不是文件: {relpath}")
 
+    errors.extend(collect_ledger_scaffold_errors())
     return errors
 
 

@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-29 02:28:16 +0800
+最后更新时间：2026-03-29 02:34:58 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -1839,3 +1839,8 @@
 - 本轮完成：让 `check_structure.py` 也开始消费 ledger manifest；新增 `collect_ledger_path_policy_errors()`，锁住三份主台账的 `target_path` 必须落在 `docs/records/`，且在 `legacy-only` 阶段不得提前创建 `docs/records/` 或目标文件。
 - 验证：`python -m py_compile tools/checks/check_structure.py`、`python -m unittest tests.contracts.test_structure_check -v`、`python tools/checks/check_structure.py`、`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
 - 提交推送：本轮提交信息拟为 `test: guard ledger target paths in structure check`；最终 hash 以当前 `HEAD` 为准。
+### Round LC
+- 完成时间：2026-03-29 02:34:58 +0800
+- 本轮完成：让 `check_scaffold.py` 也开始消费 ledger manifest；新增 `collect_ledger_scaffold_errors()`，锁住三份主台账在 `legacy-only` / `dual-readable` 阶段仍须保留根文件，避免在正式切换前被提前搬走。
+- 验证：`python -m py_compile tools/checks/check_scaffold.py`、`python -m unittest tests.contracts.test_scaffold_check -v`、`python tools/checks/check_scaffold.py`、`python tools/checks/check_structure.py`、`python tools/checks/check_ledger_alignment.py`、`python tools/checks/check_public_docs.py`。
+- 提交推送：本轮提交信息拟为 `test: guard legacy ledger files in scaffold check`；最终 hash 以当前 `HEAD` 为准。
