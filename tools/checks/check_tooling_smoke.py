@@ -224014,6 +224014,41 @@ def collect_errors() -> list[str]:
 
 
     payload = load_json_payload(
+        run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "seed-failed", "--reset", "--task-id", "task-readme-root-failed-resume-cmd", "--json"]),
+        errors,
+        "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json",
+        0,
+    )
+    result = None if payload is None else extract_json_result(
+        payload,
+        errors,
+        "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json",
+        "seed-failed",
+    )
+    if result is not None:
+        prepared = result.get("prepared") or []
+        session = result.get("saved_session") or {}
+        source_hints = result.get("source_hints") or {}
+        if not prepared or prepared[0] != "seed-failed":
+            errors.append("safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing prepared seed-failed")
+        elif session.get("task_id") != "task-readme-root-failed-resume-cmd":
+            errors.append("safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing saved session task")
+        elif source_hints.get("db") != "workspace":
+            errors.append("safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing workspace db source")
+    assert_command_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "service-resume", "--task-id", "task-readme-root-failed-resume-cmd", "--limit", "1", "--json"],
+        errors,
+        "safeclaw-root-cmd-service-resume-not-hibernated-json",
+        "service-resume",
+        expected_exit=1,
+        expected_error_message_substring="failed step=resume",
+        expected_top_level_error_code="resume-target-not-hibernated",
+        expected_top_level_error_reason="resume_target_not_hibernated",
+        expected_failed_step="resume",
+        expected_code="resume-target-not-hibernated",
+        expected_details_message_substring="resume only works for hibernated tasks",
+    )
+    payload = load_json_payload(
         run_wrapper_command(["cmd", "/c", "safeclaw.cmd", "seed-hibernated", "--reset", "--task-id", "task-readme-root-hibernated-cmd", "--json"]),
         errors,
         "safeclaw-root-cmd-service-resume-seed-hibernated-json",
