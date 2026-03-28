@@ -37,12 +37,20 @@ class LedgerIndexManifestTest(unittest.TestCase):
         self.assertEqual(entry.cutover_state, "legacy-only")
 
     def test_resolve_existing_path_uses_legacy_baseline(self) -> None:
-        entry = self.manifest.require("mvp-progress")
-        resolved = entry.resolve_existing_path()
+        resolved = self.manifest.resolve_existing_path("mvp-progress")
         self.assertEqual(
             resolved.relative_to(REPO_ROOT).as_posix(),
             "MVP_PROGRESS.md",
         )
+
+    def test_read_resolved_text_supports_dev_plan(self) -> None:
+        resolved, text = self.manifest.read_resolved_text("dev-plan")
+        self.assertEqual(
+            resolved.relative_to(REPO_ROOT).as_posix(),
+            "开发计划.md",
+        )
+        self.assertIn("# 开发计划", text)
+        self.assertIn("当前主线", text)
 
     def test_conflict_policy_is_complete(self) -> None:
         self.assertEqual(self.manifest.conflict_policy["on_divergence"], "fail-fast")

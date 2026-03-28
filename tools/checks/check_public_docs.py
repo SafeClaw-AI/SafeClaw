@@ -106,6 +106,12 @@ QUESTION_MARK_FORBIDDEN = {
 }
 
 LEDGER_REQUIRED_MARKERS = {
+    "dev-plan": [
+        "# 开发计划",
+        "当前主线",
+        "## 三、下一候选",
+        "## 五、执行约束",
+    ],
     "mvp-progress": [
         "整体计划实现进展表",
         "当前阶段",
@@ -171,9 +177,7 @@ def collect_errors() -> list[str]:
                 )
 
     for logical_id, markers in LEDGER_REQUIRED_MARKERS.items():
-        entry = manifest.require(logical_id)
-        resolved_path = entry.resolve_existing_path()
-        text = resolved_path.read_text(encoding="utf-8")
+        resolved_path, text = manifest.read_resolved_text(logical_id)
         for marker in markers:
             if marker not in text:
                 errors.append(

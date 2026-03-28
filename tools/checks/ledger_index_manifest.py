@@ -58,6 +58,12 @@ class LedgerIndexManifest:
         except KeyError as exc:
             raise KeyError(f"缺少台账索引项: {logical_id}") from exc
 
+    def resolve_existing_path(self, logical_id: str) -> Path:
+        return self.require(logical_id).resolve_existing_path()
+
+    def read_resolved_text(self, logical_id: str, encoding: str = "utf-8") -> tuple[Path, str]:
+        resolved_path = self.resolve_existing_path(logical_id)
+        return resolved_path, resolved_path.read_text(encoding=encoding)
 
 def _require_string(payload: dict[str, Any], key: str) -> str:
     value = payload.get(key)
