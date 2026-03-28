@@ -20,6 +20,10 @@
 - `tools/checks/`：做一致性 / 版本 / 结构 / 文档 / 骨架 / 同步检查
 - `tools/lint/`：做稳定命名约束检查
 
+- `selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- `Contract tests` 会显式后置在这条 ledger policy chain 之后
+
 ## 当前目标
 
 当前不是为了堆测试数量，
