@@ -220393,6 +220393,28 @@ def collect_errors() -> list[str]:
 
 
 
+    assert_command_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "service-recover", "--task-id", "task-readme-root-uncertain", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        errors,
+        "safeclaw-root-cmd-service-recover-preflight-ai-json",
+        "service-recover",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
+        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_degradation_mode="provider_unavailable",
+        expected_top_level_error_requires_model=True,
+        expected_top_level_error_requires_sidecar=True,
+        expected_top_level_error_requested_action="ai-reason",
+        expected_failed_step="preflight",
+        expected_code="preflight-blocked",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
+        expect_top_level_error_summary_matches_preflight=True,
+    )
     result = assert_command_json_result(
 
 
@@ -224467,6 +224489,28 @@ def collect_errors() -> list[str]:
             errors.append("safeclaw-root-ps1-service-recover-seed-crash-json missing saved session task")
         elif source_hints.get("db") != "workspace":
             errors.append("safeclaw-root-ps1-service-recover-seed-crash-json missing workspace db source")
+    assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "service-recover", "--task-id", "task-readme-root-uncertain-ps1", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        errors,
+        "safeclaw-root-ps1-service-recover-preflight-ai-json",
+        "service-recover",
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
+        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_degradation_mode="provider_unavailable",
+        expected_top_level_error_requires_model=True,
+        expected_top_level_error_requires_sidecar=True,
+        expected_top_level_error_requested_action="ai-reason",
+        expected_failed_step="preflight",
+        expected_code="preflight-blocked",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
+        expect_top_level_error_summary_matches_preflight=True,
+    )
     result = assert_command_json_result(
         [
             "powershell.exe",
