@@ -1699,6 +1699,12 @@
 
 ### Round KD
 - 完成时间：2026-03-28 14:38:18 +0800
-- 本轮完成：同步 `Slice 156` 台账；新增时间戳记录 `docs/round_logs/20260328_143818_slice156.md`；`MVP_PROGRESS.md` 改到前 156 刀已完成；`开发计划.md` 基线改到 `530cf0f`，下一刀优先看 `safeclaw.ps1 doctor --json` 默认态。
+- 本轮完成：同步 `Slice 156` 台账；新增时间戳记录 `docs/round_logs/20260328_143818_slice156.md`；`MVP_PROGRESS.md` 改到前 156 刀已完成；`开发计划.md` 基线改到 `530cf0f`。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 156 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round KE
+- 完成时间：2026-03-28 14:38:18 +0800
+- 本轮完成：现场复核 `safeclaw.ps1 workspace --clear --json` 后的 `safeclaw.ps1 doctor --json` 默认态，确认这条合同已被现有 `safeclaw-root-ps1-doctor-json` 覆盖；把下一刀改回“先盘点真实空位”，不把标签命名差异误当成合同缺口。
+- 验证：`.\safeclaw.ps1 workspace --clear --json`、`.\safeclaw.ps1 doctor --json`。
+- 提交推送：并入本轮 docs 收口，一起提交。
