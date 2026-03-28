@@ -1666,3 +1666,15 @@
 - 本轮完成：同步 `Slice 153` 台账；新增时间戳记录 `docs/round_logs/20260328_133211_slice153.md`；`MVP_PROGRESS.md` 改到前 153 刀已完成；`开发计划.md` 基线改到 `9869989`，下一刀改为先现场盘点剩余根入口 JSON 缺口再编号。
 - 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
 - 提交推送：计划消息 `docs: sync slice 153 progress artifacts`；最终哈希以当时 `HEAD` 为准。
+
+### Round JY
+- 完成时间：2026-03-28 13:58:00 +0800
+- 本轮完成：做完 `Slice 154`，在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-run --reset --task-id task-readme-root --limit 1 --report --json` 的成功 JSON 断言；锁住 `steps=run/service-status/report`、`db=target/mvp/workspaces/readme-root/session.db`、`db_source=session`、`task_id=task-readme-root`、`limit=1` 与 `run.source_hints.db=workspace`。
+- 验证：`C:\Users\tianduan999\anaconda3\python.exe -m py_compile tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_tooling_smoke.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_mvp_operator_flow.py`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/selfcheck.py`。
+- 提交推送：`382c41f test: guard root ps1 service-run json`。
+
+### Round JZ
+- 完成时间：2026-03-28 13:58:00 +0800
+- 本轮完成：同步 `Slice 154` 台账；新增时间戳记录 `docs/round_logs/20260328_135800_slice154.md`；`MVP_PROGRESS.md` 改到前 154 刀已完成；`开发计划.md` 基线改到 `382c41f`，下一刀优先看 `safeclaw.ps1 service-retry --json`。
+- 验证：`git diff --check`、`C:\Users\tianduan999\anaconda3\python.exe tools/checks/check_public_docs.py`。
+- 提交推送：计划消息 `docs: sync slice 154 progress artifacts`；最终哈希以当时 `HEAD` 为准。
