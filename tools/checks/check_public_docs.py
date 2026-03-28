@@ -8,6 +8,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.ledger_index_manifest import load_ledger_index_manifest
+
 README_FILE = REPO_ROOT / "README.md"
 SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
@@ -20,8 +21,6 @@ DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
-MVP_PROGRESS_FILE = REPO_ROOT / "MVP_PROGRESS.md"
-PUSH_LOG_FILE = REPO_ROOT / "PUSH_LOG.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 
 REQUIRED_MARKERS = {
@@ -99,22 +98,25 @@ REQUIRED_MARKERS = {
         "tests/fixtures/",
         "合同测试",
     ],
-    MVP_PROGRESS_FILE: [
+}
+
+QUESTION_MARK_FORBIDDEN = {
+    "mvp-progress": True,
+    "push-log": True,
+}
+
+LEDGER_REQUIRED_MARKERS = {
+    "mvp-progress": [
         "整体计划实现进展表",
         "当前阶段",
         "当前预估",
         "## 进展",
     ],
-    PUSH_LOG_FILE: [
+    "push-log": [
         "提交推送流水账",
         "## 记录规则",
         "## 流水",
     ],
-}
-
-QUESTION_MARK_FORBIDDEN = {
-    MVP_PROGRESS_FILE: True,
-    PUSH_LOG_FILE: True,
 }
 
 EXPECTED_LEDGER_BASELINE = {
@@ -156,11 +158,6 @@ def collect_errors() -> list[str]:
                     f"公开文档缺少关键标记: {path.relative_to(REPO_ROOT).as_posix()} -> {current_marker}"
                 )
 
-        if QUESTION_MARK_FORBIDDEN.get(path) and ("?" in text or "�" in text):
-            errors.append(
-                f"公开文档疑似编码损坏: {path.relative_to(REPO_ROOT).as_posix()} 含有意外占位符"
-            )
-
     manifest = load_ledger_index_manifest()
     if manifest.manifest_id != "safeclaw-ledger-index":
         errors.append(f"台账索引 manifest_id 异常: {manifest.manifest_id}")
@@ -172,6 +169,20 @@ def collect_errors() -> list[str]:
                 errors.append(
                     f"台账索引基线不一致: {logical_id}.{key} -> {actual_value} != {expected_value}"
                 )
+
+    for logical_id, markers in LEDGER_REQUIRED_MARKERS.items():
+        entry = manifest.require(logical_id)
+        resolved_path = entry.resolve_existing_path()
+        text = resolved_path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append(
+                    f"台账缺少关键标记: {resolved_path.relative_to(REPO_ROOT).as_posix()} -> {marker}"
+                )
+        if QUESTION_MARK_FORBIDDEN.get(logical_id) and ("?" in text or "�" in text):
+            errors.append(
+                f"台账疑似编码损坏: {resolved_path.relative_to(REPO_ROOT).as_posix()} 含有意外占位符"
+            )
 
     return errors
 

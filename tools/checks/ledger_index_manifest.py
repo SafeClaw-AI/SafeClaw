@@ -22,6 +22,22 @@ class LedgerEntry:
     write_mode: str
     cutover_state: str
 
+    def path_for_slot(self, slot: str) -> Path:
+        if slot == "legacy_path":
+            return REPO_ROOT / self.legacy_path
+        if slot == "target_path":
+            return REPO_ROOT / self.target_path
+        raise KeyError(f"未知 path slot: {slot}")
+
+    def ordered_paths(self) -> tuple[Path, ...]:
+        return tuple(self.path_for_slot(slot) for slot in self.read_order)
+
+    def resolve_existing_path(self) -> Path:
+        for path in self.ordered_paths():
+            if path.exists():
+                return path
+        raise FileNotFoundError(f"台账索引未找到可读路径: {self.logical_id}")
+
 
 @dataclass(frozen=True)
 class LedgerIndexManifest:
@@ -124,9 +140,10 @@ def main() -> int:
         f"{LEDGER_INDEX_MANIFEST_FILE.relative_to(REPO_ROOT).as_posix()}"
     )
     for entry in manifest.ledgers:
+        resolved = entry.resolve_existing_path().relative_to(REPO_ROOT).as_posix()
         print(
             f"- {entry.logical_id}: {entry.legacy_path} -> {entry.target_path} "
-            f"[{entry.cutover_state}]"
+            f"[{entry.cutover_state}] resolved={resolved}"
         )
     return 0
 
