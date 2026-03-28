@@ -71,12 +71,14 @@ REQUIRED_MARKERS = {
         "V1_SCOPE.md",
         "V1_TASK_TRIAGE.md",
         "02-V4-目录锁定清单.md",
+        "04-V4-repo-hygiene-migration-plan.md",
     ],
     DIRECTORY_LOCK_FILE: [
         "当前仓库的目录锁定依据",
         "迁移前临时保留",
         "docs/round_logs/",
         "specs/spi/keystore/",
+        "04-V4-repo-hygiene-migration-plan.md",
     ],
     TOOLS_README_FILE: [
         "tools/checks/",
