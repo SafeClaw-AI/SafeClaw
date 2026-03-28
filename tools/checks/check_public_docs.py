@@ -42,6 +42,15 @@ REQUIRED_MARKERS = {
         "tests/contracts/",
         "tools/checks/",
         "tools/lint/",
+        "selfcheck.py",
+        "ledger_index_manifest.py",
+        "check_ledger_alignment.py",
+        "check_consistency.py",
+        "check_versions.py",
+        "check_structure.py",
+        "check_scaffold.py",
+        "check_public_docs.py",
+        "Contract tests",
     ],
     TRIAGE_FILE: [
         "specs/",
@@ -246,3 +255,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

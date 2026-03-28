@@ -72,3 +72,11 @@ SafeClaw 当前公开仓库的重点不是完整产品功能清单，
 - 一致性 / 版本 / 结构 / 命名门禁持续通过
 - README 与公开文档不互相矛盾
 - 后续 AI 可以基于公开协议稳定生成、审阅、扩展
+
+---
+
+## 当前 selfcheck policy
+
+- `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py`
+- 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- `Contract tests` 与其他后续门禁会显式后置在这条 ledger policy chain 之后
