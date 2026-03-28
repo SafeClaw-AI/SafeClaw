@@ -224141,6 +224141,37 @@ def collect_errors() -> list[str]:
         expected_steps=["resume", "service-status", "report"],
         expect_report_payload=True,
     )
+    result = assert_command_json_result(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "service-run", "--reset", "--task-id", "task-readme-root-missing-resume-ps1", "--limit", "1", "--report", "--json"],
+        errors,
+        "safeclaw-root-ps1-service-resume-missing-service-run-json",
+        "service-run",
+    )
+    assert_service_run_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-resume-missing-service-run-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-missing-resume-ps1",
+        expected_limit=1,
+        expected_steps=["run", "service-status", "report"],
+        expect_report_payload=True,
+        expected_run_db_source="workspace",
+    )
+    assert_command_json_error(
+        ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "service-resume", "--task-id", "task-readme-root-missing-resume-ps1", "--limit", "1", "--json"],
+        errors,
+        "safeclaw-root-ps1-service-resume-missing-json",
+        "service-resume",
+        expected_exit=1,
+        expected_error_message_substring="failed step=resume",
+        expected_top_level_error_code="resume-target-missing",
+        expected_top_level_error_reason="hibernated_runtime_missing",
+        expected_failed_step="resume",
+        expected_code="resume-target-missing",
+        expected_details_message_substring="resume requires a hibernated runtime for the selected task",
+    )
     payload = load_json_payload(
         run_wrapper_command(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "safeclaw.ps1", "seed-hibernated", "--reset", "--task-id", "task-readme-root-hibernated-ps1", "--json"]),
         errors,
