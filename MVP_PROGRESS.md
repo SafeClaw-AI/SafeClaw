@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-28 10:59:18 +0800
+最后更新时间：2026-03-28 12:10:39 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 151 刀已完成；这一轮把 `safeclaw.ps1 preflight --action ai-reason --json` provider-unavailable deny 合同锁进 smoke
+当前阶段：已进入 M1b，前 152 刀已完成；这一轮把 `safeclaw.cmd preflight --action demo --json` allow 合同锁进 smoke
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -171,6 +171,7 @@
 | [x] | M1b Slice 149: root ps1 service-status default json 成功护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 service-status --limit 5 --json` 的成功结果断言；锁住默认/无 current session 场景下的 `db=target\\mvp\\session.db`、`db_source=default`、`limit=5`、`runtime_profile.mode=local_mvp`、`model_provider/sidecar=not-configured` 与 `offline_gate=ERR_AI_PROVIDER_UNAVAILABLE` | 防止根入口 PowerShell 的 service-status 默认态 JSON 快照合同静默漂移 |
 | [x] | M1b Slice 150: root cmd preflight ai-reason json deny 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action ai-reason --json` 的失败 JSON 断言；锁住 `decision=deny`、`reason/error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`requires_model=true`、`requires_sidecar=true`、`permission_policy=not_evaluated` 与 `degradation_mode=provider_unavailable` | 防止根入口 CMD 的 ai-reason preflight deny JSON 合同静默漂移 |
 | [x] | M1b Slice 151: root ps1 preflight ai-reason json deny 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `powershell.exe -ExecutionPolicy Bypass -File safeclaw.ps1 preflight --action ai-reason --json` 的失败 JSON 断言；锁住 `decision=deny`、`reason/error_code=ERR_AI_PROVIDER_UNAVAILABLE`、`requires_model=true`、`requires_sidecar=true`、`permission_policy=not_evaluated` 与 `degradation_mode=provider_unavailable` | 防止根入口 PowerShell 的 ai-reason preflight deny JSON 合同静默漂移 |
+| [x] | M1b Slice 152: root cmd preflight demo json allow 护栏 | M1b plan | 在 `check_tooling_smoke.py` 补上 `cmd /c safeclaw.cmd preflight --action demo --json` 的成功 JSON 断言；锁住 `decision=allow`、`reason=current_mvp_action_is_local_only`、`permission_policy=confirm`、`target_scope=scope:target/mvp/output.txt` 与 `degradation_mode=local_only_ok` | 防止根入口 CMD 的 demo preflight allow JSON 合同静默漂移 |
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
