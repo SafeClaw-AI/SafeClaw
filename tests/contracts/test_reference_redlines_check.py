@@ -132,6 +132,8 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "return [] or []",
             "return {} if False else {}",
             "return False and True",
+            "return not True",
+            "return 1 == 0",
         ):
             self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
@@ -140,6 +142,8 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "return values or []",
             "return {'key': 'value'} if True else {}",
             "return True and 'value'",
+            "return not values",
+            "return 1 == 1",
         ):
             self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
@@ -1036,6 +1040,43 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
             "try:\n    work()\nexcept OSError:\n    fallback = {} if False else {}\n    return fallback\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
+    def test_value_error_cannot_directly_silently_fallback_with_static_compare(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return 1 == 0\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_static_unary_not(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return not True\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_assign_static_compare_then_return_same_name(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    fallback = 1 == 0\n    return fallback\n",
         )
         self.assertEqual(
             errors,

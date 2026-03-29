@@ -399,6 +399,48 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
             if isinstance(node.op, ast.Or) and bool(result):
                 return result
         return result
+    if isinstance(node, ast.UnaryOp):
+        operand_value = _try_evaluate_static_expression_value(node.operand)
+        if operand_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        if isinstance(node.op, ast.Not):
+            return not bool(operand_value)
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.Compare):
+        left_value = _try_evaluate_static_expression_value(node.left)
+        if left_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        current_left = left_value
+        for operator_node, comparator_node in zip(node.ops, node.comparators):
+            right_value = _try_evaluate_static_expression_value(comparator_node)
+            if right_value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            if isinstance(operator_node, ast.Eq):
+                comparison_result = current_left == right_value
+            elif isinstance(operator_node, ast.NotEq):
+                comparison_result = current_left != right_value
+            elif isinstance(operator_node, ast.Is):
+                comparison_result = current_left is right_value
+            elif isinstance(operator_node, ast.IsNot):
+                comparison_result = current_left is not right_value
+            elif isinstance(operator_node, ast.Lt):
+                comparison_result = current_left < right_value
+            elif isinstance(operator_node, ast.LtE):
+                comparison_result = current_left <= right_value
+            elif isinstance(operator_node, ast.Gt):
+                comparison_result = current_left > right_value
+            elif isinstance(operator_node, ast.GtE):
+                comparison_result = current_left >= right_value
+            elif isinstance(operator_node, ast.In):
+                comparison_result = current_left in right_value
+            elif isinstance(operator_node, ast.NotIn):
+                comparison_result = current_left not in right_value
+            else:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            if not comparison_result:
+                return False
+            current_left = right_value
+        return True
     if isinstance(node, ast.List):
         values = []
         for element in node.elts:

@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 07:32:07 +0800
+最后更新时间：2026-03-30 07:40:10 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 225 刀已完成；最近四十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 226 刀已完成；最近四十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -266,3 +266,4 @@
 | [x] | M1b Slice 223: empty fstring silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把空 `f-string` 语法别名也纳入 direct silent fallback，让 `return f""` 与两步 `fallback = f""; return fallback` 不再绕过门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 helper 稳定性合同与 2 条 direct / assignment 合同，并确认全仓零命中 | 把空字符串静默降级从普通字面量扩到 `f-string` 语法别名后，silent fallback 语义更完整，后续不容易靠换一层语法糖继续吞异常上下文 |
 | [x] | M1b Slice 224: static single-arg constructor alias gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增静态表达式求值与运行值判定，把 `bool(False)`、`dict([])`、`bytes([])`、`list(())` 这类“单参静态空值构造”也纳入 direct silent fallback；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 helper 稳定性合同与 3 条 direct / assignment 合同，并确认全仓零命中 | 把 silent fallback 从零参构造 / 字面量 / 两步返回，扩到一参静态空值构造 alias 后，后续不容易只靠包一层构造器就继续吞异常上下文 |
 | [x] | M1b Slice 225: static conditional alias gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把静态 `IfExp` / `BoolOp` 也纳入 direct silent fallback，让 `return "" if True else "fallback"`、`return [] or []` 与 `fallback = {} if False else {}; return fallback` 不再绕过门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 helper 稳定性合同与 3 条 direct / assignment 合同，并确认全仓 direct 静态条件表达式 silent fallback 为 `NO_HITS` | 把 silent fallback 从字面量 / 构造器 alias 继续扩到静态条件表达式后，后续不容易只靠条件语法糖继续吞异常上下文 |
+| [x] | M1b Slice 226: static boolean expression gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把静态 `Compare` / `UnaryOp(not)` 也纳入 direct silent fallback，让 `return 1 == 0`、`return not True` 与 `fallback = 1 == 0; return fallback` 不再绕过门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 helper 稳定性合同与 3 条 direct / assignment 合同，并确认 direct 静态布尔表达式 silent fallback 为 `NO_HITS` | 把 silent fallback 从条件表达式继续扩到静态布尔表达式后，后续不容易只靠比较或 `not` 语法糖继续吞异常上下文 |
