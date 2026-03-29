@@ -100,17 +100,23 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         broad_tuple_profile = _build_handler_exception_gate_profile(broad_tuple_handler)
 
         self.assertEqual(bare_profile.caught_types, {"<bare>"})
+        self.assertEqual(bare_profile.ordered_high_risk_exception_names, ())
         self.assertTrue(bare_profile.is_bare_handler)
+        self.assertFalse(bare_profile.uses_high_risk_exception_family)
         self.assertFalse(bare_profile.uses_multi_exception_family)
         self.assertFalse(bare_profile.uses_broad_exception_family)
 
         self.assertEqual(tuple_profile.caught_types, {"OSError", "ValueError"})
+        self.assertEqual(tuple_profile.ordered_high_risk_exception_names, ("OSError",))
         self.assertFalse(tuple_profile.is_bare_handler)
+        self.assertTrue(tuple_profile.uses_high_risk_exception_family)
         self.assertTrue(tuple_profile.uses_multi_exception_family)
         self.assertFalse(tuple_profile.uses_broad_exception_family)
 
         self.assertEqual(broad_tuple_profile.caught_types, {"Exception", "ValueError"})
+        self.assertEqual(broad_tuple_profile.ordered_high_risk_exception_names, ())
         self.assertFalse(broad_tuple_profile.is_bare_handler)
+        self.assertFalse(broad_tuple_profile.uses_high_risk_exception_family)
         self.assertTrue(broad_tuple_profile.uses_multi_exception_family)
         self.assertTrue(broad_tuple_profile.uses_broad_exception_family)
 
