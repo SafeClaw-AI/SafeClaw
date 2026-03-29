@@ -700,6 +700,31 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_value_error_cannot_directly_silently_fallback_to_empty_set_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return set()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_to_empty_frozenset_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return frozenset()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
