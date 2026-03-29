@@ -352,13 +352,30 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
     return False
 
 
+def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -> bool:
+    if len(body) != 2:
+        return False
+    assignment, return_statement = body
+    if not isinstance(assignment, ast.Assign) or len(assignment.targets) != 1:
+        return False
+    assignment_target = assignment.targets[0]
+    if not isinstance(assignment_target, ast.Name):
+        return False
+    if not isinstance(return_statement, ast.Return) or not isinstance(return_statement.value, ast.Name):
+        return False
+    if return_statement.value.id != assignment_target.id:
+        return False
+    return _is_direct_silent_fallback_return_value(assignment.value)
+
+
+
 def _is_direct_silent_fallback_return_handler(handler: ast.ExceptHandler) -> bool:
-    if len(handler.body) != 1:
-        return False
-    statement = handler.body[0]
-    if not isinstance(statement, ast.Return):
-        return False
-    return _is_direct_silent_fallback_return_value(statement.value)
+    if len(handler.body) == 1:
+        statement = handler.body[0]
+        if not isinstance(statement, ast.Return):
+            return False
+        return _is_direct_silent_fallback_return_value(statement.value)
+    return _is_assignment_then_same_name_return_silent_fallback(handler.body)
 
 
 def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
