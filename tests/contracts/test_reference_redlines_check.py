@@ -101,9 +101,30 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return list([1])").body[0].value))
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return path.as_posix()").body[0].value))
 
-    def test_direct_silent_fallback_return_value_helper_accepts_empty_f_string(self) -> None:
-        self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse("return f''").body[0].value))
-        self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse("return f'{name}'").body[0].value))
+    def test_direct_silent_fallback_return_value_helper_accepts_empty_aliases(self) -> None:
+        for source in (
+            "return f''",
+            "return bool(False)",
+            "return str('')",
+            "return bytes([])",
+            "return bytearray([])",
+            "return list(())",
+            "return dict([])",
+            "return tuple([])",
+            "return set(())",
+            "return frozenset([])",
+        ):
+            self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
+
+        for source in (
+            "return f'{name}'",
+            "return bool('value')",
+            "return str(b'')",
+            "return bytes([1])",
+            "return list([1])",
+            "return dict([('key', 'value')])",
+        ):
+            self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
     def test_handler_exception_gate_profile_is_stable(self) -> None:
         bare_handler = ast.parse(
@@ -930,6 +951,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             errors,
             [
                 f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_value_error_cannot_directly_silently_fallback_to_single_arg_empty_dict_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return dict([])\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_to_single_arg_empty_bytes_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return bytes([])\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_assign_single_arg_false_bool_then_return_same_name(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    fallback = bool(False)\n    return fallback\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
             ],
         )
 

@@ -336,22 +336,114 @@ def _is_silent_fallback_constructor_call(node: ast.expr | None) -> bool:
 
 
 
-def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
-    if node is None:
+_STATIC_VALUE_NOT_AVAILABLE = object()
+_ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES = {
+    "bool": False,
+    "str": "",
+    "bytes": b"",
+    "bytearray": bytearray(),
+    "list": [],
+    "dict": {},
+    "tuple": (),
+    "set": set(),
+    "frozenset": frozenset(),
+}
+_SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS = {
+    "bool": bool,
+    "str": str,
+    "bytes": bytes,
+    "bytearray": bytearray,
+    "list": list,
+    "dict": dict,
+    "tuple": tuple,
+    "set": set,
+    "frozenset": frozenset,
+}
+
+
+def _runtime_value_is_silent_fallback(value: object) -> bool:
+    if value is None or value is False:
         return True
-    if isinstance(node, ast.Constant):
-        return node.value in (None, False, "", b"")
-    if isinstance(node, ast.JoinedStr):
-        return not node.values
-    if isinstance(node, ast.List):
-        return not node.elts
-    if isinstance(node, ast.Dict):
-        return not node.keys
-    if isinstance(node, ast.Tuple):
-        return not node.elts
-    if _is_silent_fallback_constructor_call(node):
-        return True
+    if isinstance(value, (str, bytes, bytearray)):
+        return len(value) == 0
+    if isinstance(value, (list, tuple, dict, set, frozenset)):
+        return len(value) == 0
     return False
+
+
+def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
+    if node is None:
+        return None
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        if not node.values:
+            return ""
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.List):
+        values = []
+        for element in node.elts:
+            value = _try_evaluate_static_expression_value(element)
+            if value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            values.append(value)
+        return values
+    if isinstance(node, ast.Tuple):
+        values = []
+        for element in node.elts:
+            value = _try_evaluate_static_expression_value(element)
+            if value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            values.append(value)
+        return tuple(values)
+    if isinstance(node, ast.Set):
+        values = []
+        for element in node.elts:
+            value = _try_evaluate_static_expression_value(element)
+            if value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            values.append(value)
+        try:
+            return set(values)
+        except TypeError:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.Dict):
+        mapping: dict[object, object] = {}
+        for key_node, value_node in zip(node.keys, node.values):
+            key = _try_evaluate_static_expression_value(key_node)
+            value = _try_evaluate_static_expression_value(value_node)
+            if key is _STATIC_VALUE_NOT_AVAILABLE or value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            try:
+                mapping[key] = value
+            except TypeError:
+                return _STATIC_VALUE_NOT_AVAILABLE
+        return mapping
+    if not isinstance(node, ast.Call):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not isinstance(node.func, ast.Name):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not node.keywords and not node.args and node.func.id in _ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES:
+        return _ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES[node.func.id]
+    if node.keywords or len(node.args) != 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    constructor = _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
+    if constructor is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_value = _try_evaluate_static_expression_value(node.args[0])
+    if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        return constructor(argument_value)
+    except (TypeError, ValueError) as error:
+        if isinstance(error, (TypeError, ValueError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable constructor evaluation branch")
+
+
+
+def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
+    return _runtime_value_is_silent_fallback(_try_evaluate_static_expression_value(node))
 
 
 def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -> bool:
