@@ -1967,3 +1967,9 @@
 - 本轮完成：把 `tools/mvp/OPERATOR_PLAYBOOK.md` 的本机日用白名单路径与 `local-only` / `ai-reason` 边界锁成公开文档合同；同步更新 `check_public_docs.py` 与 `tests/contracts/test_public_docs_check.py`，防止“边开发边用”的最短路径在文档里静默漂移。
 - 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `docs: lock local mvp daily-use path`；最终 hash 以当前 `HEAD` 为准。
+
+### Round LZ
+- 完成时间：2026-03-29 22:30:18 +0800
+- 本轮完成：把根 `README.md` 与 `tools/mvp/OPERATOR_PLAYBOOK.md` 做成双向互链，并把 local-only MVP 的本机日用白名单路径接入 `check_public_docs.py` 与 `tests/contracts/test_public_docs_check.py`；防止“边开发边用”的根入口在公开文档里静默漂移。
+- 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `docs: link root readme to playbook`；最终 hash 以当前 `HEAD` 为准。

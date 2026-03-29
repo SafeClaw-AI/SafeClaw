@@ -8,6 +8,7 @@ The goal is to lock one path that can run, inspect, recover, and be verified rep
 ## Recommended Entry
 
 - Primary operator entry: `tools/mvp/safeclaw_mvp.cmd`
+- Root overview and onboarding entry: `README.md`
 - Start with `workspace --name demo`, then `doctor`
 - Prefer combo actions first: `service-run`, `service-retry`, `service-recover`
 - Use `report` when you need the detailed governance view

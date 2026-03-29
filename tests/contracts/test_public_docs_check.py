@@ -12,6 +12,7 @@ from tools.checks.check_public_docs import (  # noqa: E402
     LINT_README_FILE,
     MVP_README_FILE,
     OPERATOR_PLAYBOOK_FILE,
+    README_FILE,
     REQUIRED_MARKERS,
     collect_errors,
     collect_reference_rebaseline_errors,
@@ -21,6 +22,21 @@ from tools.checks.check_public_docs import (  # noqa: E402
 class PublicDocsCheckTest(unittest.TestCase):
     def test_newly_added_public_readmes_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
+            README_FILE: [
+                "specs/",
+                "tests/contracts/",
+                "tools/checks/",
+                "tools/mvp/OPERATOR_PLAYBOOK.md",
+                "workspace --name demo",
+                "service-run --reset --task-id task-demo --limit 1 --report",
+                "service-status --limit 5",
+                "verify --json",
+                "local-only",
+                "preflight --action ai-reason",
+                "0.1.1",
+                "OpenClaw",
+                "English Summary",
+            ],
             MVP_README_FILE: [
                 "tools/mvp/README.md",
                 ".github/workflows/contracts.yml",
@@ -34,6 +50,7 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "Contract tests",
             ],
             OPERATOR_PLAYBOOK_FILE: [
+                "README.md",
                 "workspace --name demo",
                 "doctor",
                 "service-run --report",

@@ -148,6 +148,7 @@ SafeClaw 还在很早期。
 - PowerShell 入口：`safeclaw.ps1`
 - 底层 wrapper：`tools/mvp/safeclaw_mvp.cmd`
 - 完整命令参考：`tools/mvp/README.md`
+- 本机日用白名单：`tools/mvp/OPERATOR_PLAYBOOK.md`
 
 ### 最短上手路径
 
@@ -158,6 +159,8 @@ safeclaw.cmd workspace --name demo
 safeclaw.cmd doctor
 safeclaw.cmd service-run --reset --task-id task-demo --limit 1 --report
 ```
+
+若你现在就想边开发边用，请把 `tools/mvp/OPERATOR_PLAYBOOK.md` 视为当前 **local-only** MVP 的本机日用白名单；最短稳定路径是 `workspace --name demo -> doctor -> service-run --report -> service-status --limit 5 -> verify --json`。
 
 如需显式确认当前动作在本地离线 MVP 中仍被允许，可先执行 `safeclaw.cmd preflight --action service-run`；若要验证“需要 AI 推理的动作在当前离线环境下会不会被拦”，可执行 `safeclaw.cmd preflight --action ai-reason`；若只想从治理视角直接看到这条离线阻断事实，也可执行 `safeclaw.cmd service-status`，现在会在顶层额外回显 `offline_gate` 摘要；常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断权限上下文；若要显式覆盖，可追加 `--scope demo.workspace`、`--write`、`--doctor-bypass`；若要让脚本在 `confirm/deny` 时直接 fail-closed，可再加 `--enforce-permission`；若要在组合动作里直接复用 AI 离线门禁合同，可对 `demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` 追加 `--preflight-action ai-reason`，此时阻断的组合动作 JSON 会在 `error.details.preflight.error_code` 稳定回显 `ERR_AI_PROVIDER_UNAVAILABLE`，并在顶层稳定回显 `error.code=preflight-blocked`、可选 `error.error_code=<preflight_error_code>`、可选 `error.degradation_mode=<degradation_mode>`、`error.requires_model=<requires_model>`、`error.requires_sidecar=<requires_sidecar>`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.summary=<preflight_summary>` 与 `error.requested_action=<preflight_requested_action>`；同时额外在浅层镜像 `error.details.preflight_requested_action` / `error.details.preflight_reason` / `error.details.preflight_summary` / `error.details.preflight_error_code`，减少脚本读取深度。
 如果要验证异常链，建议分别走 failed 与 uncertain 两条恢复路径：
