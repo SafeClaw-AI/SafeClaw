@@ -9,6 +9,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    CONTEXT_REQUIRED_EXCEPTION_TYPES,
+    SILENT_FALLBACK_EXCEPTION_TYPES,
+    SILENT_FALLBACK_EXCEPTION_TYPE_ORDER,
     TODO_METADATA_REQUIREMENTS,
     collect_empty_exception_errors_for_powershell_text,
     collect_empty_exception_errors_for_python_text,
@@ -26,6 +29,21 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             TODO_METADATA_REQUIREMENTS,
             ("owner", "due", "req"),
         )
+
+    def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
+        expected = (
+            "FileExistsError",
+            "KeyError",
+            "OSError",
+            "RuntimeError",
+            "SyntaxError",
+            "SystemError",
+            "json.JSONDecodeError",
+            "subprocess.TimeoutExpired",
+        )
+        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, expected)
+        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPES, set(expected))
+        self.assertEqual(CONTEXT_REQUIRED_EXCEPTION_TYPES, set(expected))
 
     def test_orphan_todo_is_blocked(self) -> None:
         errors = collect_todo_metadata_errors_for_text(

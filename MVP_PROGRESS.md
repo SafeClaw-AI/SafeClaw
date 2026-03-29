@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 03:19:52 +0800
+最后更新时间：2026-03-30 03:25:45 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 195 刀已完成；最近几轮继续沿 reference fail-closed 主线统一高风险静默降级真源
+当前阶段：已进入 M1b，前 196 刀已完成；最近几轮继续沿 reference fail-closed 主线统一高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -236,3 +236,4 @@
 | [x] | M1b Slice 193: timeout expired context gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 把 `subprocess.TimeoutExpired` 纳入单异常上下文红线，并在 `tests/contracts/test_reference_redlines_check.py` 新增未绑定失败 / 绑定并使用通过两条合同；同步确认 reference redlines 与主账门禁继续全绿 | 把 subprocess 超时场景的上下文要求从隐含约定收成 fail-closed 合同，以零运行时改动继续扩大长期护栏 |
 | [x] | M1b Slice 194: runtime silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 把 `SystemError` / `subprocess.TimeoutExpired` 纳入静默降级异常门禁，并让报错按真实命中异常动态生成；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐两条 direct fallback 合同并更新既有 `OSError` 口径 | 把运行时探活/超时异常的“直接降级成 None/False”收成更完整的 fail-closed 护栏，长期更稳 |
 | [x] | M1b Slice 195: unified high-risk silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 用统一真源收敛静默降级异常名单，并在 `tests/contracts/test_reference_redlines_check.py` 新增 `KeyError` / `RuntimeError` 两条 direct fallback 合同；同步确认 reference redlines 与主账门禁继续全绿 | 把“需要保留上下文”和“不能 direct fallback”的高风险异常名单收成同一真源，后续扩面更稳、更省维护成本 |
+| [x] | M1b Slice 196: high-risk exception truth-source alignment gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 让 `_handler_context_requirement()` 也复用统一高风险异常真源，并在 `tests/contracts/test_reference_redlines_check.py` 新增真源对齐稳定性合同；同步确认既有异常门禁继续全绿 | 把高风险异常的上下文提示、静默降级门禁与真源名单收成单一维护面，继续降低后续扩面的边际成本 |

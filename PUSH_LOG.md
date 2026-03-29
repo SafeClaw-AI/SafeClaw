@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 03:19:52 +0800
+最后更新时间：2026-03-30 03:25:45 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2058,3 +2058,9 @@
 - 本轮完成：把高风险静默降级异常名单收成统一真源：`SILENT_FALLBACK_EXCEPTION_TYPE_ORDER` 现在与单异常上下文红线对齐，`tests/contracts/test_reference_redlines_check.py` 也补上了 `KeyError` / `RuntimeError` 的 direct fallback 合同；当前基线继续零运行时改动全绿。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `refactor: unify high risk silent fallback gate`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MO
+- 完成时间：2026-03-30 03:25:45 +0800
+- 本轮完成：把高风险异常规则里的最后一层双写点收掉：`_handler_context_requirement()` 现在也复用统一真源生成提示，`tests/contracts/test_reference_redlines_check.py` 新增真源对齐稳定性合同；既有异常合同继续全绿。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `refactor: align high risk exception truth sources`；最终 hash 以当前 `HEAD` 为准。

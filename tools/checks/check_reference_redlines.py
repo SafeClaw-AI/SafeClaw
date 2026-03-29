@@ -161,29 +161,22 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
     return bool(caught_types & CONTEXT_REQUIRED_EXCEPTION_TYPES)
 
 
+def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
+    return [name for name in SILENT_FALLBACK_EXCEPTION_TYPE_ORDER if name in caught_types]
+
+
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
         return "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"
     if isinstance(handler.type, ast.Tuple):
         return "多异常 except 必须绑定 `as error` 以保留上下文"
     caught_types = set(_collect_exception_type_names(handler.type))
-    if "json.JSONDecodeError" in caught_types:
-        return "json.JSONDecodeError 必须绑定 `as error` 以保留上下文"
-    if "FileExistsError" in caught_types:
-        return "FileExistsError 必须绑定 `as error` 以保留上下文"
-    if "KeyError" in caught_types:
-        return "KeyError 必须绑定 `as error` 以保留上下文"
-    if "RuntimeError" in caught_types:
-        return "RuntimeError 必须绑定 `as error` 以保留上下文"
-    if "SyntaxError" in caught_types:
-        return "SyntaxError 必须绑定 `as error` 以保留上下文"
-    if "SystemError" in caught_types:
-        return "SystemError 必须绑定 `as error` 以保留上下文"
-    if "subprocess.TimeoutExpired" in caught_types:
-        return "subprocess.TimeoutExpired 必须绑定 `as error` 以保留上下文"
-    if "OSError" in caught_types:
-        return "OSError 必须绑定 `as error` 以保留上下文"
+    protected_types = _ordered_high_risk_exception_names(caught_types)
+    if protected_types:
+        return f"{protected_types[0]} 必须绑定 `as error` 以保留上下文"
     return "broad except 必须绑定 `as error` 以保留上下文"
+
+
 def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
     if node is None:
         return ["<bare>"]
@@ -201,7 +194,6 @@ def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
         return [node.attr]
     return []
 
-
 def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
     caught_types = set(_collect_exception_type_names(handler.type))
     if not (caught_types & SILENT_FALLBACK_EXCEPTION_TYPES):
@@ -218,7 +210,7 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
     caught_types = set(_collect_exception_type_names(handler.type))
-    protected_types = [name for name in SILENT_FALLBACK_EXCEPTION_TYPE_ORDER if name in caught_types]
+    protected_types = _ordered_high_risk_exception_names(caught_types)
     protected_text = " / ".join(protected_types or sorted(caught_types))
     return f"{protected_text} 不能直接静默降级为 None/False"
 
