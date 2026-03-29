@@ -94,13 +94,19 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         broad_tuple_handler = ast.parse(
             "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n"
         ).body[0].handlers[0]
+        high_risk_handler = ast.parse(
+            "try:\n    work()\nexcept OSError:\n    return None\n"
+        ).body[0].handlers[0]
 
         bare_profile = _build_handler_exception_gate_profile(bare_handler)
         tuple_profile = _build_handler_exception_gate_profile(tuple_handler)
         broad_tuple_profile = _build_handler_exception_gate_profile(broad_tuple_handler)
+        high_risk_profile = _build_handler_exception_gate_profile(high_risk_handler)
 
         self.assertEqual(bare_profile.caught_types, {"<bare>"})
         self.assertEqual(bare_profile.ordered_high_risk_exception_names, ())
+        self.assertEqual(bare_profile.context_requirement_message, BARE_CONTEXT_REQUIRED_MESSAGE)
+        self.assertEqual(bare_profile.silent_fallback_requirement_message, BARE_SILENT_FALLBACK_MESSAGE)
         self.assertTrue(bare_profile.is_bare_handler)
         self.assertFalse(bare_profile.uses_high_risk_exception_family)
         self.assertFalse(bare_profile.uses_multi_exception_family)
@@ -108,6 +114,8 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
 
         self.assertEqual(tuple_profile.caught_types, {"OSError", "ValueError"})
         self.assertEqual(tuple_profile.ordered_high_risk_exception_names, ("OSError",))
+        self.assertEqual(tuple_profile.context_requirement_message, MULTI_CONTEXT_REQUIRED_MESSAGE)
+        self.assertEqual(tuple_profile.silent_fallback_requirement_message, f"OSError {SILENT_FALLBACK_SUFFIX}")
         self.assertFalse(tuple_profile.is_bare_handler)
         self.assertTrue(tuple_profile.uses_high_risk_exception_family)
         self.assertTrue(tuple_profile.uses_multi_exception_family)
@@ -115,10 +123,21 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
 
         self.assertEqual(broad_tuple_profile.caught_types, {"Exception", "ValueError"})
         self.assertEqual(broad_tuple_profile.ordered_high_risk_exception_names, ())
+        self.assertEqual(broad_tuple_profile.context_requirement_message, BROAD_CONTEXT_REQUIRED_MESSAGE)
+        self.assertEqual(broad_tuple_profile.silent_fallback_requirement_message, BROAD_SILENT_FALLBACK_MESSAGE)
         self.assertFalse(broad_tuple_profile.is_bare_handler)
         self.assertFalse(broad_tuple_profile.uses_high_risk_exception_family)
         self.assertTrue(broad_tuple_profile.uses_multi_exception_family)
         self.assertTrue(broad_tuple_profile.uses_broad_exception_family)
+
+        self.assertEqual(high_risk_profile.caught_types, {"OSError"})
+        self.assertEqual(high_risk_profile.ordered_high_risk_exception_names, ("OSError",))
+        self.assertEqual(high_risk_profile.context_requirement_message, f"OSError {CONTEXT_REQUIRED_SUFFIX}")
+        self.assertEqual(high_risk_profile.silent_fallback_requirement_message, f"OSError {SILENT_FALLBACK_SUFFIX}")
+        self.assertFalse(high_risk_profile.is_bare_handler)
+        self.assertTrue(high_risk_profile.uses_high_risk_exception_family)
+        self.assertFalse(high_risk_profile.uses_multi_exception_family)
+        self.assertFalse(high_risk_profile.uses_broad_exception_family)
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
