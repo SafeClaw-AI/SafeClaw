@@ -134788,7 +134788,7 @@ def assert_use_json_result(
 
 
 
-    elif result.get("output_source") != "session":
+    elif result.get("output_source") != "task_scope":
 
 
 
@@ -134916,7 +134916,7 @@ def assert_use_json_result(
 
 
 
-        errors.append(f"{name} missing output_source=session")
+        errors.append(f"{name} missing output_source=task_scope")
 
 
 
@@ -605033,7 +605033,7 @@ def collect_errors() -> list[str]:
 
 
 
-    elif "source=index:1 db_source=session output_source=session owner_source=session" not in wrapper_use_output:
+    elif "source=index:1 db_source=session output_source=task_scope owner_source=session" not in wrapper_use_output:
 
 
 
@@ -610537,7 +610537,7 @@ def collect_errors() -> list[str]:
 
 
 
-            elif result.get("output_source") != "session":
+            elif result.get("output_source") != "task_scope":
 
 
 
@@ -610665,7 +610665,7 @@ def collect_errors() -> list[str]:
 
 
 
-                errors.append("mvp-wrapper-use-json 输出缺少 output_source=session")
+                errors.append("mvp-wrapper-use-json 输出缺少 output_source=task_scope")
 
 
 
