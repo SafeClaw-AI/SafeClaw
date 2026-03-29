@@ -878,10 +878,28 @@ def build_service_heartbeat_payload(
     interval_ms: int,
     event_driven: bool,
 ) -> dict[str, object]:
-    latest_updated_at = None if not rows else rows[0].get("updated_at")
-    latest_age_ms = None if not rows else rows[0].get("lease_age_ms")
-    freshness = "none" if not rows else str(rows[0].get("lease_freshness") or "unknown")
-    status, reason = describe_heartbeat_freshness(freshness)
+    if not rows:
+        return {
+            "interval_ms": interval_ms,
+            "event_driven": event_driven,
+            "latest_updated_at": None,
+            "latest_age_ms": None,
+            "latest_freshness": "none",
+            "status": "idle",
+            "reason": "no_recent_tasks",
+        }
+
+    active_row = next((row for row in rows if str(row.get("lease_state") or "") == "active"), None)
+    display_row = active_row if active_row is not None else rows[0]
+    latest_updated_at = display_row.get("updated_at")
+    latest_age_ms = display_row.get("lease_age_ms")
+    if active_row is None:
+        freshness = "none"
+        status = "idle"
+        reason = "no_active_lease_heartbeat"
+    else:
+        freshness = str(active_row.get("lease_freshness") or "unknown")
+        status, reason = describe_heartbeat_freshness(freshness)
     return {
         "interval_ms": interval_ms,
         "event_driven": event_driven,

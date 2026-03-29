@@ -1973,3 +1973,9 @@
 - 本轮完成：把根 `README.md` 与 `tools/mvp/OPERATOR_PLAYBOOK.md` 做成双向互链，并把 local-only MVP 的本机日用白名单路径接入 `check_public_docs.py` 与 `tests/contracts/test_public_docs_check.py`；防止“边开发边用”的根入口在公开文档里静默漂移。
 - 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `docs: link root readme to playbook`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MA
+- 完成时间：2026-03-29 22:40:06 +0800
+- 本轮完成：把 `service-status` 的顶层 heartbeat 改成“仅 active lease 才算真实心跳”；当最近记录只是历史已完成/已释放任务时，heartbeat 改回 `idle`，不再误报 `failed`；同步更新 `check_mvp_operator_flow.py`、`check_tooling_smoke.py` 与 `README.md`。
+- 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py tools/checks/check_tooling_smoke.py`、`python tools/checks/check_mvp_operator_flow.py`、`cmd /c safeclaw.cmd service-status --limit 1 --json`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: idle heartbeat without active lease`；最终 hash 以当前 `HEAD` 为准。

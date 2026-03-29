@@ -319635,7 +319635,7 @@ def collect_errors() -> list[str]:
 
 
 
-    elif "freshness=lost status=failed reason=recent_task_update_exceeded_grace_window" not in wrapper_service_status_output:
+    elif "freshness=none status=idle reason=no_active_lease_heartbeat" not in wrapper_service_status_output:
 
 
 
@@ -325523,7 +325523,7 @@ def collect_errors() -> list[str]:
 
 
 
-        expected_heartbeat_freshness="lost",
+        expected_heartbeat_freshness="none",
 
 
 
@@ -325651,7 +325651,7 @@ def collect_errors() -> list[str]:
 
 
 
-        expected_heartbeat_status="failed",
+        expected_heartbeat_status="idle",
 
 
 
@@ -326035,7 +326035,7 @@ def collect_errors() -> list[str]:
 
 
 
-        expected_heartbeat_reason="recent_task_update_exceeded_grace_window",
+        expected_heartbeat_reason="no_active_lease_heartbeat",
 
 
 
@@ -328106,11 +328106,11 @@ def collect_errors() -> list[str]:
         expected_lease_freshness="lost",
         expected_lease_owner_id="safeclaw-mvp",
         expected_lease_fencing_token=1,
-        expected_heartbeat_freshness="lost",
-        expected_heartbeat_status="failed",
+        expected_heartbeat_freshness="none",
+        expected_heartbeat_status="idle",
         expected_heartbeat_interval_ms=10000,
         expected_heartbeat_event_driven=True,
-        expected_heartbeat_reason="recent_task_update_exceeded_grace_window",
+        expected_heartbeat_reason="no_active_lease_heartbeat",
         expect_heartbeat_latest_updated_at_present=True,
         expect_heartbeat_latest_age_ms_present=True,
         expected_next_action="ok",
