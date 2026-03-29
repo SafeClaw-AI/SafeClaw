@@ -341,6 +341,8 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
         return True
     if isinstance(node, ast.Constant):
         return node.value in (None, False, "", b"")
+    if isinstance(node, ast.JoinedStr):
+        return not node.values
     if isinstance(node, ast.List):
         return not node.elts
     if isinstance(node, ast.Dict):

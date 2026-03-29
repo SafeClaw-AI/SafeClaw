@@ -1,6 +1,6 @@
-# 提交推送流水账
+﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 06:50:58 +0800
+最后更新时间：2026-03-30 07:14:05 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2195,3 +2195,8 @@
 - 本轮完成：把 `b''`、`bytes()`、`bytearray()` 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return b''`、`except TypeError: return bytes()`、`except ValueError: return bytearray()` 这类空字节串静默降级；当前全仓该形态仍为 0 命中，本轮属于零旧债扩面。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block empty bytes fallback`；最终 hash 以当前 HEAD 为准。
+### Round NP
+- 完成时间：2026-03-30 07:14:05 +0800
+- 本轮完成：把空 `f-string` 语法别名也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return f""` 与 `except TypeError: fallback = f""; return fallback` 这类空字符串静默降级绕行；当前全仓该形态仍为 0 命中，本轮属于零旧债扩面。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block empty fstring fallback`；最终 hash 以当前 HEAD 为准。

@@ -19,6 +19,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     _parse_python_text_for_reference_check,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
+    _is_direct_silent_fallback_return_value,
     _is_silent_fallback_constructor_call,
     BARE_CONTEXT_REQUIRED_MESSAGE,
     BARE_SILENT_FALLBACK_MESSAGE,
@@ -99,6 +100,10 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return bytes([1])").body[0].value))
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return list([1])").body[0].value))
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return path.as_posix()").body[0].value))
+
+    def test_direct_silent_fallback_return_value_helper_accepts_empty_f_string(self) -> None:
+        self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse("return f''").body[0].value))
+        self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse("return f'{name}'").body[0].value))
 
     def test_handler_exception_gate_profile_is_stable(self) -> None:
         bare_handler = ast.parse(
@@ -900,6 +905,31 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             errors,
             [
                 f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
+    def test_value_error_cannot_directly_silently_fallback_to_empty_f_string(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return f''\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_assign_empty_f_string_then_return_same_name(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    fallback = f''\n    return fallback\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
             ],
         )
 
