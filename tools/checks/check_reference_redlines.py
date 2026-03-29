@@ -167,10 +167,9 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
         return True
     if isinstance(handler.type, ast.Tuple):
         return True
-    if _is_broad_exception_handler_type(handler.type):
+    if _handler_uses_broad_exception_family(handler):
         return True
-    caught_types = set(_collect_exception_type_names(handler.type))
-    return bool(caught_types & CONTEXT_REQUIRED_EXCEPTION_TYPES)
+    return bool(_handler_caught_types(handler) & CONTEXT_REQUIRED_EXCEPTION_TYPES)
 
 
 def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
@@ -179,6 +178,14 @@ def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
 
 def _caught_types_include_broad_exception(caught_types: set[str]) -> bool:
     return bool(caught_types & BROAD_EXCEPTION_TYPE_NAMES)
+
+
+def _handler_caught_types(handler: ast.ExceptHandler) -> set[str]:
+    return set(_collect_exception_type_names(handler.type))
+
+
+def _handler_uses_broad_exception_family(handler: ast.ExceptHandler) -> bool:
+    return handler.type is not None and _caught_types_include_broad_exception(_handler_caught_types(handler))
 
 
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
@@ -228,10 +235,9 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
         return False
     if handler.type is None:
         return True
-    caught_types = set(_collect_exception_type_names(handler.type))
-    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
+    if _handler_uses_broad_exception_family(handler):
         return True
-    return bool(caught_types & SILENT_FALLBACK_EXCEPTION_TYPES)
+    return bool(_handler_caught_types(handler) & SILENT_FALLBACK_EXCEPTION_TYPES)
 
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:

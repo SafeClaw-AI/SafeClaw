@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import sys
 import unittest
 from pathlib import Path
@@ -9,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    _handler_uses_broad_exception_family,
     BARE_CONTEXT_REQUIRED_MESSAGE,
     BARE_SILENT_FALLBACK_MESSAGE,
     BROAD_CONTEXT_REQUIRED_MESSAGE,
@@ -49,6 +51,21 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(MULTI_CONTEXT_REQUIRED_MESSAGE, f"多异常 except {CONTEXT_REQUIRED_SUFFIX}")
         self.assertEqual(BARE_SILENT_FALLBACK_MESSAGE, f"裸 except {SILENT_FALLBACK_SUFFIX}")
         self.assertEqual(BROAD_SILENT_FALLBACK_MESSAGE, f"broad except {SILENT_FALLBACK_SUFFIX}")
+
+    def test_broad_exception_family_helper_is_stable(self) -> None:
+        broad_cases = [
+            "try:\n    work()\nexcept Exception:\n    return None\n",
+            "try:\n    work()\nexcept BaseException:\n    return None\n",
+            "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n",
+            "try:\n    work()\nexcept (BaseException, KeyError):\n    return None\n",
+        ]
+        for source in broad_cases:
+            handler = ast.parse(source).body[0].handlers[0]
+            self.assertTrue(_handler_uses_broad_exception_family(handler))
+        non_broad_handler = ast.parse(
+            "try:\n    work()\nexcept (OSError, ValueError):\n    return None\n"
+        ).body[0].handlers[0]
+        self.assertFalse(_handler_uses_broad_exception_family(non_broad_handler))
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (

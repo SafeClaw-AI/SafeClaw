@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 04:05:41 +0800
+最后更新时间：2026-03-30 04:11:05 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 200 刀已完成；最近十九轮继续沿 reference fail-closed 主线收口 broad exception family、消息真源与高风险异常真源
+当前阶段：已进入 M1b，前 201 刀已完成；最近二十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -241,3 +241,4 @@
 | [x] | M1b Slice 198: tuple broad fallback fail-closed gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把 tuple 里的 broad family 也纳入 direct fallback 判定，确保 except (Exception, ValueError) / except (BaseException, KeyError) 这类 direct return None/False 也会被 fail-closed 拦下；同步在 tests/contracts/test_reference_redlines_check.py 补齐 2 条 tuple-broad 合同 | 把 broad exception family 的静默降级门禁从单异常形态扩到 tuple 变体，继续降低后续异常治理的漏网边角 |
 | [x] | M1b Slice 199: broad tuple context gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：让 tuple 里的 broad family 也按 broad except 语义返回缺少上下文提示，确保 except (Exception, ValueError) / except (BaseException, KeyError) 这类未绑定 as error 的形态不再回落到“多异常 except”文案；同步在 tests/contracts/test_reference_redlines_check.py 补齐 2 条 tuple-broad 上下文合同 | 把 broad exception family 的上下文门禁从单异常形态扩到 tuple 变体，继续降低后续异常治理的语义漂移 |
 | [x] | M1b Slice 200: exception message truth source gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把异常上下文 / 静默降级的核心提示文案收成常量真源，并让 `_handler_context_requirement()` / `_silent_fallback_requirement()` 统一复用；同步在 tests/contracts/test_reference_redlines_check.py 补齐 1 条消息真源稳定性合同 | 把 reference redlines 的提示文案从多处手写收成单点维护面，后续继续扩异常门禁时更稳，也更不容易再漂移 |
+| [x] | M1b Slice 201: broad family helper truth source gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把 handler 的 caught_types 解析与 broad family 识别收成 `_handler_caught_types()` / `_handler_uses_broad_exception_family()` 两个 helper 真源，并让上下文/静默降级两条门禁统一复用；同步在 tests/contracts/test_reference_redlines_check.py 补齐 1 条 helper 稳定性合同 | 把 broad family 的识别逻辑从多处重复条件收成单点维护面，后续继续补门禁时更稳、更不容易漏改 |
