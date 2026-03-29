@@ -441,6 +441,23 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
                 return False
             current_left = right_value
         return True
+    if isinstance(node, ast.BinOp):
+        left_value = _try_evaluate_static_expression_value(node.left)
+        right_value = _try_evaluate_static_expression_value(node.right)
+        if left_value is _STATIC_VALUE_NOT_AVAILABLE or right_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            if isinstance(node.op, ast.Add):
+                return left_value + right_value
+            if isinstance(node.op, ast.Mult):
+                return left_value * right_value
+            if isinstance(node.op, ast.BitOr):
+                return left_value | right_value
+        except (TypeError, ValueError) as error:
+            if isinstance(error, (TypeError, ValueError)):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            raise AssertionError("unreachable binary evaluation branch")
+        return _STATIC_VALUE_NOT_AVAILABLE
     if isinstance(node, ast.List):
         values = []
         for element in node.elts:

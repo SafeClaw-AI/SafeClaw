@@ -134,6 +134,9 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "return False and True",
             "return not True",
             "return 1 == 0",
+            "return '' + ''",
+            "return [] + []",
+            "return {} | {}",
         ):
             self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
@@ -144,6 +147,9 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "return True and 'value'",
             "return not values",
             "return 1 == 1",
+            "return prefix + ''",
+            "return [1] + []",
+            "return mapping | {}",
         ):
             self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
@@ -1077,6 +1083,43 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
             "try:\n    work()\nexcept OSError:\n    fallback = 1 == 0\n    return fallback\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
+    def test_value_error_cannot_directly_silently_fallback_with_static_binop_add(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return '' + ''\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_static_binop_bitor(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return {} | {}\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_assign_static_binop_add_then_return_same_name(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    fallback = [] + []\n    return fallback\n",
         )
         self.assertEqual(
             errors,
