@@ -1961,3 +1961,9 @@
 - 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“`SyntaxError` 必须绑定 `as error` 并保留上下文”门禁；同步补合同测试，并把公开 README 口径对齐到 `OSError / json.JSONDecodeError / FileExistsError / KeyError / RuntimeError / SyntaxError` 六类单异常上下文护栏。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check tests.contracts.test_public_docs_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_public_docs.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `test: require syntax error context`；最终 hash 以当前 `HEAD` 为准。
+
+### Round LY
+- 完成时间：2026-03-29 22:24:15 +0800
+- 本轮完成：把 `tools/mvp/OPERATOR_PLAYBOOK.md` 的本机日用白名单路径与 `local-only` / `ai-reason` 边界锁成公开文档合同；同步更新 `check_public_docs.py` 与 `tests/contracts/test_public_docs_check.py`，防止“边开发边用”的最短路径在文档里静默漂移。
+- 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `docs: lock local mvp daily-use path`；最终 hash 以当前 `HEAD` 为准。

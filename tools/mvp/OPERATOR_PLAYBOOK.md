@@ -12,6 +12,13 @@ The goal is to lock one path that can run, inspect, recover, and be verified rep
 - Prefer combo actions first: `service-run`, `service-retry`, `service-recover`
 - Use `report` when you need the detailed governance view
 
+## Daily-Use Guardrails
+
+- Current wrapper is **local-only** and can already be used before any model provider or sidecar is wired
+- Treat `workspace --name demo -> doctor -> service-run --report -> service-status --limit 5 -> verify --json` as the daily-use white path
+- Treat `service-retry --report` as the first recovery action for failed tasks
+- Treat `service-recover --report` as the first recovery action for uncertain tasks
+- Use `preflight --action ai-reason` only to confirm that AI-backed paths stay blocked in the current local-only MVP
 
 ## Main Path
 
