@@ -18,6 +18,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     BROAD_EXCEPTION_TYPE_NAMES,
     BROAD_SILENT_FALLBACK_MESSAGE,
     CONTEXT_REQUIRED_EXCEPTION_TYPES,
+    HIGH_RISK_EXCEPTION_TYPES,
     CONTEXT_REQUIRED_SUFFIX,
     MULTI_CONTEXT_REQUIRED_MESSAGE,
     SILENT_FALLBACK_SUFFIX,
@@ -94,6 +95,9 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "subprocess.TimeoutExpired",
         )
         self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, expected)
+        self.assertEqual(HIGH_RISK_EXCEPTION_TYPES, set(expected))
+        self.assertIs(SILENT_FALLBACK_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
+        self.assertIs(CONTEXT_REQUIRED_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
         self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPES, set(expected))
         self.assertEqual(CONTEXT_REQUIRED_EXCEPTION_TYPES, set(expected))
 

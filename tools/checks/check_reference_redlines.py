@@ -30,8 +30,9 @@ SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = (
     "json.JSONDecodeError",
     "subprocess.TimeoutExpired",
 )
-SILENT_FALLBACK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
-CONTEXT_REQUIRED_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
+HIGH_RISK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
+SILENT_FALLBACK_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
+CONTEXT_REQUIRED_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
 CONTEXT_REQUIRED_SUFFIX = "\u5fc5\u987b\u7ed1\u5b9a `as error` \u4ee5\u4fdd\u7559\u4e0a\u4e0b\u6587"
 SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False"
 BARE_CONTEXT_REQUIRED_MESSAGE = "\u88f8 except \u4e0d\u5141\u8bb8\uff1b\u5fc5\u987b\u663e\u5f0f\u6355\u83b7\u5f02\u5e38\u7c7b\u578b\u5e76\u7ed1\u5b9a `as error`"
@@ -165,7 +166,7 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
         return True
     if _handler_uses_broad_exception_family(handler):
         return True
-    return bool(_handler_caught_types(handler) & CONTEXT_REQUIRED_EXCEPTION_TYPES)
+    return bool(_handler_caught_types(handler) & HIGH_RISK_EXCEPTION_TYPES)
 
 
 def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
@@ -233,7 +234,7 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
         return True
     if _handler_uses_broad_exception_family(handler):
         return True
-    return bool(_handler_caught_types(handler) & SILENT_FALLBACK_EXCEPTION_TYPES)
+    return bool(_handler_caught_types(handler) & HIGH_RISK_EXCEPTION_TYPES)
 
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
