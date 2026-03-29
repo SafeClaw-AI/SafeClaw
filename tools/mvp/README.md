@@ -176,3 +176,9 @@ tools\mvp\safeclaw_mvp.cmd retry --db target\demo\session.db --output target\dem
 tools\mvp\safeclaw_mvp.cmd doctor --db target\demo\session.db --output target\demo\output.txt
 tools\mvp\safeclaw_mvp.cmd service-run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
 ```
+
+## ?? ledger-first policy
+
+- `tools/mvp/README.md` ????? MVP ?????????????????????????? ledger policy chain ??
+- `tools/checks/selfcheck.py` ? `.github/workflows/contracts.yml` ??? `ledger_index_manifest.py`
+- ????? `check_ledger_alignment.py`?`check_consistency.py`?`check_versions.py`?`check_structure.py`?`check_scaffold.py`?`check_public_docs.py`?????? `Contract tests`
