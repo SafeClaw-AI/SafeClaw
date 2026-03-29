@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.checks.check_versions import (  # noqa: E402
     LEDGER_SLICE_A_PHASE,
+    collect_errors,
     collect_ledger_version_errors,
 )
 
@@ -20,6 +21,9 @@ class VersionCheckTest(unittest.TestCase):
 
     def test_ledger_version_policy_passes_current_baseline(self) -> None:
         self.assertEqual(collect_ledger_version_errors(), [])
+
+    def test_version_consistency_passes_current_baseline(self) -> None:
+        self.assertEqual(collect_errors(), [])
 
 
 if __name__ == "__main__":

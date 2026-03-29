@@ -1915,3 +1915,9 @@
 - 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“高风险 `OSError/json.JSONDecodeError` 不能直接 `return None/False` 静默降级”门禁；同步补合同测试，并把 `tools/checks/mvp_state_guard.py` 的进程探活修成 `EPERM` 仍判活。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tools/checks/mvp_state_guard.py tests/contracts/test_reference_redlines_check.py tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_reference_redlines_check tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_reference_redlines.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `test: gate silent exception fallback`；最终 hash 以当前 `HEAD` 为准。
+
+### Round LR
+- 完成时间：2026-03-29 19:59:15 +0800
+- 本轮完成：先在 `test_version_check.py` 补齐 `collect_errors()` 当前基线合同，再把 `specs/spi/*` 这 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`，并执行 `tools/codegen/regenerate_all.py` 同步 `generated/` 索引；至此长期卡在 `check_versions.py` 的历史总阻塞已解除，静默 `selfcheck` 恢复全绿。
+- 验证：`python -m unittest tests.contracts.test_version_check tests.contracts.test_specs_contracts tests.contracts.test_generated_indexes -v`、`python tools/checks/check_versions.py`、`python tools/checks/check_tooling_smoke.py`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_examples_smoke.py`、`python tools/checks/check_generated_sync.py`、`python tools/checks/selfcheck.py *> target/mvp/selfcheck-20260329-195318.log`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `test: baseline spi spec metadata`；最终 hash 以当前 `HEAD` 为准。

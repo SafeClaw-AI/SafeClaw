@@ -1,4 +1,4 @@
-# 整体计划实现进展表
+﻿# 整体计划实现进展表
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
@@ -212,3 +212,5 @@
 | [ ] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 心跳 / sidecar / 预算 / 并发 / 离线降级其余部分仍需集中实现或收口 | 当前主线 |
 | [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | provider sidecar / permission gateway / preflight / memory / scheduler 等待推进 | 未开始系统收口 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
+
+| [x] | M1b Slice 173: spi version metadata baseline | M1b plan | 在 `tests/contracts/test_version_check.py` 补齐完整版本合同，并把 `specs/spi/` 下 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`；随后执行 `python tools/codegen/regenerate_all.py` 同步 `generated/` 索引，最终让静默 `selfcheck` 恢复全绿 | 清掉长期卡在 `check_versions.py` 的历史总阻塞，避免之后每轮都被同一批 `spi` 占位文件拖住 |
