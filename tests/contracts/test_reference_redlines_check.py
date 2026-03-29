@@ -15,6 +15,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     collect_errors,
     collect_todo_metadata_errors_for_text,
     collect_uncontextualized_exception_errors_for_python_text,
+    collect_unused_bound_exception_context_errors_for_python_text,
 )
 
 
@@ -81,6 +82,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             collect_uncontextualized_exception_errors_for_python_text(
                 Path("sample.py"),
                 "try:\n    work()\nexcept (OSError, ValueError) as error:\n    raise RuntimeError(f'load failed: {error}')\n",
+            ),
+            [],
+        )
+
+    def test_bound_exception_context_must_be_meaningfully_used(self) -> None:
+        errors = collect_unused_bound_exception_context_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (OSError, ValueError) as error:\n    _ = error\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常上下文未真正使用: sample.py:3 -> 绑定了 `as error` 后，异常上下文不能只做占位赋值"],
+        )
+
+    def test_meaningfully_used_exception_context_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept (OSError, ValueError) as error:\n    return False, str(error)\n",
             ),
             [],
         )

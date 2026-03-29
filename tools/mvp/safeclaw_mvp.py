@@ -807,8 +807,11 @@ def load_heartbeat_config() -> dict[str, object]:
     try:
         payload = json.loads(HEARTBEAT_CONFIG_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        _ = error
-        return {"interval_ms": DEFAULT_HEARTBEAT_INTERVAL_MS, "event_driven": True}
+        return {
+            "interval_ms": DEFAULT_HEARTBEAT_INTERVAL_MS,
+            "event_driven": True,
+            "fallback_reason": f"heartbeat-config:{error.__class__.__name__}",
+        }
 
     interval_ms = payload.get("default_interval_ms")
     if not isinstance(interval_ms, int) or interval_ms <= 0:

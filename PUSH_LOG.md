@@ -1904,3 +1904,8 @@
 - 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“多异常 `except` / broad `Exception` 必须显式绑定 `as error`”门禁；同步补合同测试，并修平 `tools/mvp/safeclaw_mvp.py` 中 `load_heartbeat_config()` 的当前唯一命中点。
 - 验证：`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`。
 - 提交推送：本轮提交信息拟为 `test: require exception context binding`；最终 hash 以当前 `HEAD` 为准。
+### Round LP
+- 完成时间：2026-03-29 12:39:04 +0800
+- 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“绑定了 `as error` 的异常上下文必须真正使用，不能只做 `_ = error` 占位赋值”门禁；同步补合同测试，并把 `tools/mvp/safeclaw_mvp.py` 的 `load_heartbeat_config()` 改成显式回传 `fallback_reason`。
+- 验证：`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`。
+- 提交推送：本轮提交信息拟为 `test: require exception context usage`；最终 hash 以当前 `HEAD` 为准。

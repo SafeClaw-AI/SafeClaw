@@ -174,6 +174,52 @@ def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: 
     return errors
 
 
+def _is_placeholder_error_assignment(statement: ast.stmt, error_name: str) -> bool:
+    if not isinstance(statement, ast.Assign):
+        return False
+    if len(statement.targets) != 1:
+        return False
+    target = statement.targets[0]
+    if not isinstance(target, ast.Name) or target.id != "_":
+        return False
+    return isinstance(statement.value, ast.Name) and statement.value.id == error_name
+
+
+def _collect_meaningful_error_usage_count(body: list[ast.stmt], error_name: str) -> int:
+    count = 0
+    for statement in body:
+        if _is_placeholder_error_assignment(statement, error_name):
+            continue
+        for node in ast.walk(statement):
+            if isinstance(node, ast.Name) and node.id == error_name and isinstance(node.ctx, ast.Load):
+                count += 1
+    return count
+
+
+def collect_unused_bound_exception_context_errors_for_python_text(path: Path, text: str) -> list[str]:
+    relpath = path.as_posix()
+    try:
+        tree = ast.parse(text, filename=relpath)
+    except SyntaxError as error:
+        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+
+    errors: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            if not _handler_requires_bound_error(handler):
+                continue
+            if handler.name is None:
+                continue
+            if _collect_meaningful_error_usage_count(handler.body, handler.name) > 0:
+                continue
+            errors.append(
+                f"异常上下文未真正使用: {relpath}:{handler.lineno} -> 绑定了 `as error` 后，异常上下文不能只做占位赋值"
+            )
+    return errors
+
+
 def collect_todo_metadata_errors() -> list[str]:
     errors: list[str] = []
     for path in iter_reference_redline_files():
@@ -211,11 +257,24 @@ def collect_uncontextualized_exception_errors() -> list[str]:
     return errors
 
 
+def collect_unused_bound_exception_context_errors() -> list[str]:
+    errors: list[str] = []
+    for path in iter_reference_redline_files():
+        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        errors.extend(
+            collect_unused_bound_exception_context_errors_for_python_text(path.relative_to(REPO_ROOT), text)
+        )
+    return errors
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     errors.extend(collect_todo_metadata_errors())
     errors.extend(collect_empty_exception_errors())
     errors.extend(collect_uncontextualized_exception_errors())
+    errors.extend(collect_unused_bound_exception_context_errors())
     return errors
 
 
