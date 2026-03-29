@@ -103,11 +103,16 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         high_risk_handler = ast.parse(
             "try:\n    work()\nexcept OSError:\n    return None\n"
         ).body[0].handlers[0]
+        value_error_handler = ast.parse(
+            "try:\n    work()\nexcept ValueError:\n    return None\n"
+        ).body[0].handlers[0]
+
 
         bare_profile = _build_handler_exception_gate_profile(bare_handler)
         tuple_profile = _build_handler_exception_gate_profile(tuple_handler)
         broad_tuple_profile = _build_handler_exception_gate_profile(broad_tuple_handler)
         high_risk_profile = _build_handler_exception_gate_profile(high_risk_handler)
+        value_error_profile = _build_handler_exception_gate_profile(value_error_handler)
 
         self.assertEqual(bare_profile.caught_types, {"<bare>"})
         self.assertEqual(bare_profile.ordered_high_risk_exception_names, ())
@@ -123,7 +128,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(tuple_profile.caught_types, {"OSError", "ValueError"})
         self.assertEqual(tuple_profile.ordered_high_risk_exception_names, ("OSError",))
         self.assertEqual(tuple_profile.context_requirement_message, MULTI_CONTEXT_REQUIRED_MESSAGE)
-        self.assertEqual(tuple_profile.silent_fallback_requirement_message, f"OSError {SILENT_FALLBACK_SUFFIX}")
+        self.assertEqual(tuple_profile.silent_fallback_requirement_message, f"OSError / ValueError {SILENT_FALLBACK_SUFFIX}")
         self.assertTrue(tuple_profile.requires_bound_error)
         self.assertTrue(tuple_profile.is_direct_silent_fallback)
         self.assertFalse(tuple_profile.is_bare_handler)
@@ -152,6 +157,16 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertTrue(high_risk_profile.uses_high_risk_exception_family)
         self.assertFalse(high_risk_profile.uses_multi_exception_family)
         self.assertFalse(high_risk_profile.uses_broad_exception_family)
+
+        self.assertEqual(value_error_profile.caught_types, {"ValueError"})
+        self.assertEqual(value_error_profile.ordered_high_risk_exception_names, ())
+        self.assertEqual(value_error_profile.silent_fallback_requirement_message, f"ValueError {SILENT_FALLBACK_SUFFIX}")
+        self.assertFalse(value_error_profile.requires_bound_error)
+        self.assertTrue(value_error_profile.is_direct_silent_fallback)
+        self.assertFalse(value_error_profile.is_bare_handler)
+        self.assertFalse(value_error_profile.uses_high_risk_exception_family)
+        self.assertFalse(value_error_profile.uses_multi_exception_family)
+        self.assertFalse(value_error_profile.uses_broad_exception_family)
 
     def test_iter_exception_handler_gate_profiles_is_stable(self) -> None:
         tree = ast.parse(
@@ -240,7 +255,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             self.assertEqual(seen, [(expected_relpath, "print('ok')\n")])
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
-        expected = (
+        context_required_expected = (
             "FileExistsError",
             "KeyError",
             "OSError",
@@ -250,12 +265,13 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "json.JSONDecodeError",
             "subprocess.TimeoutExpired",
         )
-        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, expected)
-        self.assertEqual(HIGH_RISK_EXCEPTION_TYPES, set(expected))
-        self.assertIs(SILENT_FALLBACK_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
+        silent_fallback_expected = context_required_expected + ("ValueError",)
+        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, silent_fallback_expected)
+        self.assertEqual(HIGH_RISK_EXCEPTION_TYPES, set(context_required_expected))
         self.assertIs(CONTEXT_REQUIRED_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
-        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPES, set(expected))
-        self.assertEqual(CONTEXT_REQUIRED_EXCEPTION_TYPES, set(expected))
+        self.assertEqual(CONTEXT_REQUIRED_EXCEPTION_TYPES, set(context_required_expected))
+        self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPES, set(silent_fallback_expected))
+        self.assertNotEqual(SILENT_FALLBACK_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
 
     def test_orphan_todo_is_blocked(self) -> None:
         errors = collect_todo_metadata_errors_for_text(
@@ -670,6 +686,34 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [
                 "异常降级缺少上下文: sample.py:3 -> KeyError 不能直接静默降级为 None/False",
             ],
+        )
+
+    def test_value_error_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> ValueError 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_value_error_without_direct_none_false_fallback_passes(self) -> None:
+        self.assertEqual(
+            collect_silent_fallback_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept ValueError:\n    return 'fallback'\n",
+            ),
+            [],
+        )
+        self.assertEqual(
+            collect_uncontextualized_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept ValueError:\n    return 'fallback'\n",
+            ),
+            [],
         )
 
     def test_runtime_error_cannot_directly_silently_fallback(self) -> None:

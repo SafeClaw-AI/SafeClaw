@@ -21,7 +21,7 @@ PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
 BROAD_EXCEPTION_TYPE_NAMES = {"BaseException", "Exception"}
-SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = (
+CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER = (
     "FileExistsError",
     "KeyError",
     "OSError",
@@ -31,9 +31,12 @@ SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = (
     "json.JSONDecodeError",
     "subprocess.TimeoutExpired",
 )
-HIGH_RISK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
-SILENT_FALLBACK_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
+SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER + (
+    "ValueError",
+)
+HIGH_RISK_EXCEPTION_TYPES = set(CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
+SILENT_FALLBACK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_SUFFIX = "\u5fc5\u987b\u7ed1\u5b9a `as error` \u4ee5\u4fdd\u7559\u4e0a\u4e0b\u6587"
 SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False"
 BARE_CONTEXT_REQUIRED_MESSAGE = "\u88f8 except \u4e0d\u5141\u8bb8\uff1b\u5fc5\u987b\u663e\u5f0f\u6355\u83b7\u5f02\u5e38\u7c7b\u578b\u5e76\u7ed1\u5b9a `as error`"
@@ -180,6 +183,10 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
 
 
 def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
+    return [name for name in CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER if name in caught_types]
+
+
+def _ordered_silent_fallback_exception_names(caught_types: set[str]) -> list[str]:
     return [name for name in SILENT_FALLBACK_EXCEPTION_TYPE_ORDER if name in caught_types]
 
 
@@ -219,8 +226,14 @@ class HandlerExceptionGateProfile(NamedTuple):
 def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> HandlerExceptionGateProfile:
     caught_types = _handler_caught_types(handler)
     ordered_high_risk_exception_names = tuple(_ordered_high_risk_exception_names(caught_types))
+    ordered_silent_fallback_exception_names = tuple(
+        _ordered_silent_fallback_exception_names(caught_types)
+    )
     is_bare_handler = handler.type is None
     uses_high_risk_exception_family = bool(caught_types & HIGH_RISK_EXCEPTION_TYPES)
+    uses_silent_fallback_exception_family = bool(
+        caught_types & SILENT_FALLBACK_EXCEPTION_TYPES
+    )
     uses_multi_exception_family = isinstance(handler.type, ast.Tuple)
     uses_broad_exception_family = (
         not is_bare_handler and _caught_types_include_broad_exception(caught_types)
@@ -240,7 +253,9 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
         silent_fallback_requirement_message = BROAD_SILENT_FALLBACK_MESSAGE
     elif uses_multi_exception_family:
         context_requirement_message = MULTI_CONTEXT_REQUIRED_MESSAGE
-        protected_text = " / ".join(ordered_high_risk_exception_names or sorted(caught_types))
+        protected_text = " / ".join(
+            ordered_silent_fallback_exception_names or sorted(caught_types)
+        )
         silent_fallback_requirement_message = f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
     else:
         primary_high_risk_exception_name = next(iter(ordered_high_risk_exception_names), None)
@@ -249,7 +264,9 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
             if primary_high_risk_exception_name
             else BROAD_CONTEXT_REQUIRED_MESSAGE
         )
-        protected_text = " / ".join(ordered_high_risk_exception_names or sorted(caught_types))
+        protected_text = " / ".join(
+            ordered_silent_fallback_exception_names or sorted(caught_types)
+        )
         silent_fallback_requirement_message = f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
 
     is_direct_silent_fallback = False
@@ -257,7 +274,7 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
         is_direct_silent_fallback = (
             is_bare_handler
             or uses_broad_exception_family
-            or uses_high_risk_exception_family
+            or uses_silent_fallback_exception_family
         )
 
     return HandlerExceptionGateProfile(

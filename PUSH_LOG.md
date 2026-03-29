@@ -2145,3 +2145,8 @@
 - 本轮完成：新增 `_iter_reference_redline_scan_texts()` 与 `ReferenceRedlineScanText`，把顶层 reference 扫描器共有的“筛后缀 / 读文件 / 转相对路径”收成单一真源；现在 `collect_todo_metadata_errors()`、`collect_empty_exception_errors()` 与 `_collect_python_reference_redline_errors()` 都统一复用这一入口。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
 - 提交推送：本轮提交信息拟为 refactor: unify reference scan text helper；最终 hash 以当前 HEAD 为准。
+### Round NF
+- 完成时间：2026-03-30 05:44:42 +0800
+- 本轮完成：把 `SILENT_FALLBACK_EXCEPTION_TYPE_ORDER` 与 `CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER` 正式拆分，并把 `ValueError` 只纳入“直接静默降级”名单；`tools/mvp/safeclaw_mvp.py` 的 3 个 `ValueError -> return None` 真实命中点也已同步收平。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py tools/mvp/safeclaw_mvp.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
+- 提交推送：本轮提交信息拟为 feat: block valueerror silent fallback；最终 hash 以当前 HEAD 为准。

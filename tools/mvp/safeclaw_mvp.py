@@ -831,9 +831,13 @@ def parse_iso_timestamp_ms(value: object) -> int | None:
     text = str(value).strip()
     if not text:
         return None
+    parse_error: ValueError | None = None
     try:
         timestamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
+    except ValueError as error:
+        parse_error = error
+        timestamp = None
+    if parse_error is not None or timestamp is None:
         return None
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
@@ -1752,9 +1756,13 @@ def infer_preflight_permission_context(requested_action: str) -> dict[str, objec
     mapped_action = PREFLIGHT_TEMPLATE_ACTION_MAP.get(requested_action.strip())
     if mapped_action is None:
         return None
+    prepare_error: ValueError | None = None
     try:
         prepared = prepare_args(mapped_action, [mapped_action], load_session())
-    except ValueError:
+    except ValueError as error:
+        prepare_error = error
+        prepared = None
+    if prepare_error is not None or prepared is None:
         return None
     output = get_flag(prepared, "--output")
     if output is None:
@@ -3331,13 +3339,13 @@ def default_output_for_db(db_arg: str) -> str:
 
 
 def get_flag(args: list[str], flag: str) -> str | None:
-    try:
-        index = args.index(flag)
-    except ValueError:
-        return None
-    if index + 1 >= len(args):
-        return None
-    return args[index + 1]
+    for index, current_arg in enumerate(args):
+        if current_arg != flag:
+            continue
+        if index + 1 >= len(args):
+            return None
+        return args[index + 1]
+    return None
 
 
 def require_flag(args: list[str], flag: str) -> str:
