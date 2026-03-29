@@ -170,6 +170,10 @@ def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
     return [name for name in SILENT_FALLBACK_EXCEPTION_TYPE_ORDER if name in caught_types]
 
 
+def _caught_types_include_broad_exception(caught_types: set[str]) -> bool:
+    return bool(caught_types & BROAD_EXCEPTION_TYPE_NAMES)
+
+
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
         return "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"
@@ -215,18 +219,18 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
         return False
     if handler.type is None:
         return True
-    if _is_broad_exception_handler_type(handler.type):
-        return True
     caught_types = set(_collect_exception_type_names(handler.type))
+    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
+        return True
     return bool(caught_types & SILENT_FALLBACK_EXCEPTION_TYPES)
 
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
         return "裸 except 不能直接静默降级为 None/False"
-    if _is_broad_exception_handler_type(handler.type):
-        return "broad except 不能直接静默降级为 None/False"
     caught_types = set(_collect_exception_type_names(handler.type))
+    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
+        return "broad except 不能直接静默降级为 None/False"
     protected_types = _ordered_high_risk_exception_names(caught_types)
     protected_text = " / ".join(protected_types or sorted(caught_types))
     return f"{protected_text} 不能直接静默降级为 None/False"

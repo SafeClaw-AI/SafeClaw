@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 03:39:19 +0800
+最后更新时间：2026-03-30 03:50:42 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2070,3 +2070,8 @@
 - 本轮完成：把 BaseException 纳入 broad except 语义，并把 except: / except Exception / except BaseException 的 direct return None/False 一并收成 fail-closed 门禁；tests/contracts/test_reference_redlines_check.py 已补齐 5 条行为合同和 1 条真源稳定性合同。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
 - 提交推送：本轮提交信息拟为 test: fail closed broad exception family；最终 hash 以当前 HEAD 为准。
+### Round MQ
+- 完成时间：2026-03-30 03:50:42 +0800
+- 本轮完成：把 tuple broad handler 的 direct fallback 漏口补齐；现在 except (Exception, ValueError) / except (BaseException, KeyError) 这类 return None/False 也会被 reference redlines 按 broad except 语义 fail-closed 拦下。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
+- 提交推送：本轮提交信息拟为 test: close tuple broad fallback gap；最终 hash 以当前 HEAD 为准。

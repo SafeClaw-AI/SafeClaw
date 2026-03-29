@@ -384,6 +384,30 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_tuple_with_exception_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_tuple_with_base_exception_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (BaseException, KeyError):\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False",
+            ],
+        )
+
     def test_system_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
