@@ -9,6 +9,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    BROAD_EXCEPTION_TYPE_NAMES,
     CONTEXT_REQUIRED_EXCEPTION_TYPES,
     SILENT_FALLBACK_EXCEPTION_TYPES,
     SILENT_FALLBACK_EXCEPTION_TYPE_ORDER,
@@ -29,6 +30,9 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             TODO_METADATA_REQUIREMENTS,
             ("owner", "due", "req"),
         )
+
+    def test_broad_exception_truth_source_is_stable(self) -> None:
+        self.assertEqual(BROAD_EXCEPTION_TYPE_NAMES, {"BaseException", "Exception"})
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
@@ -130,6 +134,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             collect_unused_bound_exception_context_errors_for_python_text(
                 Path("sample.py"),
                 "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError(f'wrapped exception: {error}')\n",
+            ),
+            [],
+        )
+
+    def test_base_exception_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept BaseException:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> broad except 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_base_exception_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept BaseException as error:\n    raise RuntimeError(f'wrapped base exception: {error}')\n",
             ),
             [],
         )
@@ -323,6 +346,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
                 "try:\n    work()\nexcept OSError as error:\n    return error.errno == 1\n",
             ),
             [],
+        )
+
+    def test_bare_except_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> 裸 except 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_exception_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept Exception:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_base_exception_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept BaseException:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False",
+            ],
         )
 
     def test_system_error_cannot_directly_silently_fallback(self) -> None:

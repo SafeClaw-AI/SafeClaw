@@ -19,6 +19,7 @@ TODO_LINE_PATTERN = re.compile(r"^\s*(?:(?:#|//|/\*+|\*|;|REM\b)\s*)?TODO\b", re
 PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
+BROAD_EXCEPTION_TYPE_NAMES = {"BaseException", "Exception"}
 SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = (
     "FileExistsError",
     "KeyError",
@@ -150,12 +151,16 @@ def collect_empty_exception_errors_for_powershell_text(path: Path, text: str) ->
     return errors
 
 
+def _is_broad_exception_handler_type(handler_type: ast.expr | None) -> bool:
+    return isinstance(handler_type, ast.Name) and handler_type.id in BROAD_EXCEPTION_TYPE_NAMES
+
+
 def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
     if handler.type is None:
         return True
     if isinstance(handler.type, ast.Tuple):
         return True
-    if isinstance(handler.type, ast.Name) and handler.type.id == "Exception":
+    if _is_broad_exception_handler_type(handler.type):
         return True
     caught_types = set(_collect_exception_type_names(handler.type))
     return bool(caught_types & CONTEXT_REQUIRED_EXCEPTION_TYPES)
@@ -194,10 +199,7 @@ def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
         return [node.attr]
     return []
 
-def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
-    caught_types = set(_collect_exception_type_names(handler.type))
-    if not (caught_types & SILENT_FALLBACK_EXCEPTION_TYPES):
-        return False
+def _is_direct_none_false_return_handler(handler: ast.ExceptHandler) -> bool:
     if len(handler.body) != 1:
         return False
     statement = handler.body[0]
@@ -208,7 +210,22 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
     return statement.value.value in (None, False)
 
 
+def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
+    if not _is_direct_none_false_return_handler(handler):
+        return False
+    if handler.type is None:
+        return True
+    if _is_broad_exception_handler_type(handler.type):
+        return True
+    caught_types = set(_collect_exception_type_names(handler.type))
+    return bool(caught_types & SILENT_FALLBACK_EXCEPTION_TYPES)
+
+
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
+    if handler.type is None:
+        return "裸 except 不能直接静默降级为 None/False"
+    if _is_broad_exception_handler_type(handler.type):
+        return "broad except 不能直接静默降级为 None/False"
     caught_types = set(_collect_exception_type_names(handler.type))
     protected_types = _ordered_high_risk_exception_names(caught_types)
     protected_text = " / ".join(protected_types or sorted(caught_types))
