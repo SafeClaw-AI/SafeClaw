@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import errno
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import tools.checks.mvp_state_guard as mvp_state_guard  # noqa: E402
 from tools.checks.mvp_state_guard import (  # noqa: E402
     WINDOWS_STILL_ACTIVE,
     _process_is_running,
@@ -52,6 +55,31 @@ class MvpStateGuardTest(unittest.TestCase):
             kernel32.GetExitCodeProcess.side_effect = fill_exit_code
             self.assertTrue(_process_is_running_with_winapi(1234))
             kernel32.CloseHandle.assert_called_once_with(1)
+
+    def test_acquire_lock_recovers_stale_holder_file(self) -> None:
+        target_root = REPO_ROOT / "target"
+        target_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=target_root) as temp_dir:
+            repo_root = Path(temp_dir)
+            state_root = repo_root / "target" / "mvp"
+            lock_file = state_root / ".wrapper-check.lock"
+            state_root.mkdir(parents=True, exist_ok=True)
+            lock_file.write_text("check_tooling_smoke pid=999999", encoding="utf-8")
+            with patch.object(mvp_state_guard, "REPO_ROOT", repo_root), patch.object(
+                mvp_state_guard,
+                "STATE_ROOT",
+                state_root,
+            ), patch.object(mvp_state_guard, "LOCK_FILE", lock_file), patch.object(
+                mvp_state_guard,
+                "_process_is_running",
+                return_value=False,
+            ):
+                with mvp_state_guard.acquire_mvp_state_lock("test_mvp_state_guard"):
+                    self.assertTrue(lock_file.exists())
+                    holder = lock_file.read_text(encoding="utf-8").strip()
+                    self.assertIn("test_mvp_state_guard", holder)
+                    self.assertIn(f"pid={os.getpid()}", holder)
+                self.assertFalse(lock_file.exists())
 
 
 if __name__ == "__main__":

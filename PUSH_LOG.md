@@ -2016,3 +2016,9 @@
 - 本轮完成：把 Windows 下 stale `.wrapper-check.lock` 的自恢复收成稳态；`tools/checks/mvp_state_guard.py` 现在在 Windows 上改用 WinAPI 探活陈旧 pid，不再因 `os.kill(pid, 0)` 抛 `WinError 87` 而卡死；同步补上 `tests/contracts/test_mvp_state_guard.py` 的 Windows 回归，并确认 `operator-flow` 与 `tooling smoke` 继续全绿。
 - 验证：`python -m py_compile tools/checks/mvp_state_guard.py tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `fix: recover stale mvp lock on windows`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MH
+- 完成时间：2026-03-30 02:09:26 +0800
+- 本轮完成：把 `acquire_mvp_state_lock()` 的 stale-lock 自恢复补成端到端合同；`tests/contracts/test_mvp_state_guard.py` 现在会真实构造陈旧 `.wrapper-check.lock`，锁住“旧锁被回收、当前 holder 写入、退出后释放”整条闭环；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿。
+- 验证：`python -m py_compile tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `test: cover stale mvp lock recovery`；最终 hash 以当前 `HEAD` 为准。
