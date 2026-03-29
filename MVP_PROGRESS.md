@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 06:45:46 +0800
+最后更新时间：2026-03-30 06:50:58 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 220 刀已完成；最近三十九轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 221 刀已完成；最近四十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -261,3 +261,4 @@
 | [x] | M1b Slice 218: implicit none silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `except ...: return` 的隐式 `None` 也纳入 direct silent fallback；同步把 `tools/mvp/safeclaw_mvp.py` 里 `repair_invalid_workspace()` / `repair_invalid_session()` 的两个 `OSError` 真实命中改写为 `try/except/else`，并在 `tests/contracts/test_reference_redlines_check.py` 补齐 `OSError` / `ValueError` 隐式返回必败合同 | 把“显式 return None”与“隐式 bare return”统一收进同一条 fail-closed 真源后，silent fallback 语义闭环才算完整，也顺手清掉了仓内仅剩的 2 个真实命中 |
 | [x] | M1b Slice 219: bool constructor silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `_is_empty_fallback_constructor_call()` 更名为 `_is_silent_fallback_constructor_call()`，并把 `bool()` 一并纳入无参 silent fallback constructor 真源；同步在 `tests/contracts/test_reference_redlines_check.py` 把 helper 稳定性合同升级为 silent fallback constructor 口径，并补齐 `ValueError -> return bool()` 必败合同，确认全仓零命中 | 把与 `False` 语义等价的 `bool()` 一并收进构造调用门禁后，“布尔静默降级”才不再留下调用形态漏口；同时 helper 命名也与真实职责重新对齐，长期更稳 |
 | [x] | M1b Slice 220: assignment-return silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_is_assignment_then_same_name_return_silent_fallback()`，让 `fallback = 空值; return fallback` 这类两步静默降级也纳入 direct silent fallback；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `OSError -> fallback=None -> return fallback` 与 `TypeError -> fallback=list() -> return fallback` 两条合同，并确认全仓零命中 | 把只比“直接 return 空值”多绕一步的静默降级也收进同一条 fail-closed 真源后，silent fallback 家族更难被轻微改写绕过，长期稳定性更高 |
+| [x] | M1b Slice 221: annassign return silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `_is_assignment_then_same_name_return_silent_fallback()` 扩到同时支持 `Assign` 与 `AnnAssign`，让 `fallback: T = 空值; return fallback` 这类带类型标注的两步静默降级也纳入 direct silent fallback；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `OSError` / `TypeError` 两条 `AnnAssign` 合同，并确认全仓零命中 | 把“同名变量两步返回”从未标注赋值扩到带类型标注赋值后，这条绕行写法才算真正闭环，后续不容易靠加一个类型注解就绕过门禁 |

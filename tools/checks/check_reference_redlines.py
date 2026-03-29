@@ -356,16 +356,23 @@ def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -
     if len(body) != 2:
         return False
     assignment, return_statement = body
-    if not isinstance(assignment, ast.Assign) or len(assignment.targets) != 1:
-        return False
-    assignment_target = assignment.targets[0]
-    if not isinstance(assignment_target, ast.Name):
+    assignment_target: ast.Name | None = None
+    assignment_value: ast.expr | None = None
+    if isinstance(assignment, ast.Assign) and len(assignment.targets) == 1:
+        if isinstance(assignment.targets[0], ast.Name):
+            assignment_target = assignment.targets[0]
+            assignment_value = assignment.value
+    elif isinstance(assignment, ast.AnnAssign):
+        if isinstance(assignment.target, ast.Name):
+            assignment_target = assignment.target
+            assignment_value = assignment.value
+    if assignment_target is None:
         return False
     if not isinstance(return_statement, ast.Return) or not isinstance(return_statement.value, ast.Name):
         return False
     if return_statement.value.id != assignment_target.id:
         return False
-    return _is_direct_silent_fallback_return_value(assignment.value)
+    return _is_direct_silent_fallback_return_value(assignment_value)
 
 
 
