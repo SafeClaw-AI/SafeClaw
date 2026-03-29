@@ -81,6 +81,50 @@ class MvpStateGuardTest(unittest.TestCase):
                     self.assertIn(f"pid={os.getpid()}", holder)
                 self.assertFalse(lock_file.exists())
 
+    def test_acquire_lock_reuses_existing_lock_env_without_rewriting_file(self) -> None:
+        target_root = REPO_ROOT / "target"
+        target_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=target_root) as temp_dir:
+            repo_root = Path(temp_dir)
+            state_root = repo_root / "target" / "mvp"
+            lock_file = state_root / ".wrapper-check.lock"
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop(mvp_state_guard.LOCK_ENV, None)
+                with patch.object(mvp_state_guard, "REPO_ROOT", repo_root), patch.object(
+                    mvp_state_guard,
+                    "STATE_ROOT",
+                    state_root,
+                ), patch.object(mvp_state_guard, "LOCK_FILE", lock_file):
+                    with mvp_state_guard.acquire_mvp_state_lock("outer_lock_check"):
+                        self.assertTrue(lock_file.exists())
+                        outer_holder = lock_file.read_text(encoding="utf-8").strip()
+                        self.assertIn("outer_lock_check", outer_holder)
+                        self.assertEqual(
+                            os.environ.get(mvp_state_guard.LOCK_ENV),
+                            "outer_lock_check",
+                        )
+                        with mvp_state_guard.acquire_mvp_state_lock("inner_lock_check"):
+                            self.assertTrue(lock_file.exists())
+                            self.assertEqual(
+                                lock_file.read_text(encoding="utf-8").strip(),
+                                outer_holder,
+                            )
+                            self.assertEqual(
+                                os.environ.get(mvp_state_guard.LOCK_ENV),
+                                "outer_lock_check",
+                            )
+                            self.assertEqual(list(state_root.iterdir()), [lock_file])
+                        self.assertEqual(
+                            lock_file.read_text(encoding="utf-8").strip(),
+                            outer_holder,
+                        )
+                        self.assertEqual(
+                            os.environ.get(mvp_state_guard.LOCK_ENV),
+                            "outer_lock_check",
+                        )
+                    self.assertFalse(lock_file.exists())
+                    self.assertNotIn(mvp_state_guard.LOCK_ENV, os.environ)
+
 
 if __name__ == "__main__":
     unittest.main()

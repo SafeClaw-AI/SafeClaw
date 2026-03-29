@@ -1,13 +1,13 @@
-﻿# 整体计划实现进展表
+# 整体计划实现进展表
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-29 21:29:17 +0800
+最后更新时间：2026-03-30 02:35:17 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 176 刀已完成；最近几轮继续补齐 reference 异常红线与 spi metadata 历史阻塞
+当前阶段：已进入 M1b，前 190 刀已完成；最近几轮继续把 session/use 真源对齐与验证链稳态一起收口
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
-- 当前主线（M1b 生存层补完）：约 0.1 天
+- 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
 - 下一阶段（M2 首轮价值层）：约 1 ~ 2 周
 
 ## 进展
@@ -230,3 +230,4 @@
 | [x] | M1b Slice 187: use owner alignment gate | M1b plan | 调整 `tools/mvp/safeclaw_mvp.py` 的 `use` 语义：未显式传 `--owner-id` 时，优先从目标任务最新 lease 恢复 `owner_id`，不再沿用旧 remembered session；同步在 `check_mvp_operator_flow.py` 新增 `owner-a/owner-b` 切换场景，并锁住 `service-status.current_session.owner_id` | 把 remembered session 的任务身份 / output / owner 三类上下文重新绑回目标任务真源，防止切任务后仍携带旧 owner |
 | [x] | M1b Slice 188: windows stale-lock recovery gate | M1b plan | 调整 `tools/checks/mvp_state_guard.py`：Windows 下改用 WinAPI 探活陈旧 pid，不再依赖 `os.kill(pid, 0)`；同步在 `tests/contracts/test_mvp_state_guard.py` 锁住 `invalid parameter -> false` 与 `STILL_ACTIVE -> true` 两条回归，并确认 `check_mvp_operator_flow.py` / `check_tooling_smoke.py` 继续全绿 | 把 broad validation 链上的假锁阻塞收成稳态，避免下一轮推进被陈旧 `.wrapper-check.lock` 打断 |
 | [x] | M1b Slice 189: stale-lock e2e contract gate | M1b plan | 在 `tests/contracts/test_mvp_state_guard.py` 新增真实 stale `.wrapper-check.lock` 端到端回归，锁住 `acquire_mvp_state_lock()` 会清理陈旧 pid 锁、写入当前 holder，并在退出时释放文件；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿 | 把 `Slice 188` 的 Windows 假锁恢复从 helper 级提升到 contextmanager 级合同，降低验证链回退风险 |
+| [x] | M1b Slice 190: nested mvp lock reuse contract gate | M1b plan | 在 `tests/contracts/test_mvp_state_guard.py` 新增嵌套 `acquire_mvp_state_lock()` 回归，锁住已有 `LOCK_ENV` 时内层复用外层锁、不重写 holder 文件、退出后恢复环境变量；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿 | 把验证链里“嵌套检查不争锁”的隐含约定收成端到端合同，降低后续门禁互相踩锁风险 |

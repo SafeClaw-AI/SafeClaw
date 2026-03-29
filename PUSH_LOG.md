@@ -1,6 +1,6 @@
-﻿# 提交推送流水账
+# 提交推送流水账
 
-最后更新时间：2026-03-29 21:29:17 +0800
+最后更新时间：2026-03-30 02:35:17 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2022,3 +2022,9 @@
 - 本轮完成：把 `acquire_mvp_state_lock()` 的 stale-lock 自恢复补成端到端合同；`tests/contracts/test_mvp_state_guard.py` 现在会真实构造陈旧 `.wrapper-check.lock`，锁住“旧锁被回收、当前 holder 写入、退出后释放”整条闭环；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿。
 - 验证：`python -m py_compile tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `test: cover stale mvp lock recovery`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MI
+- 完成时间：2026-03-30 02:35:17 +0800
+- 本轮完成：把 `acquire_mvp_state_lock()` 的 `LOCK_ENV` 嵌套复用语义补成端到端合同；`tests/contracts/test_mvp_state_guard.py` 现在会锁住“内层复用外层锁、不重写 holder 文件、退出后恢复环境变量”的整条闭环；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿。
+- 验证：`python -m py_compile tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `test: cover nested mvp lock reuse`；最终 hash 以当前 `HEAD` 为准。
