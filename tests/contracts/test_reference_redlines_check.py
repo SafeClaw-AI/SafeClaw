@@ -230,6 +230,24 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_timeout_expired_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "import subprocess\ntry:\n    work()\nexcept subprocess.TimeoutExpired:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:4 -> subprocess.TimeoutExpired 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_timeout_expired_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "import subprocess\ntry:\n    work()\nexcept subprocess.TimeoutExpired as error:\n    raise RuntimeError(f'timeout: {error}')\n",
+            ),
+            [],
+        )
     def test_syntax_error_without_bound_context_is_blocked(self) -> None:
         errors = collect_uncontextualized_exception_errors_for_python_text(
             Path("sample.py"),
