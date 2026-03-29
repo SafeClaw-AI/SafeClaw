@@ -2010,3 +2010,9 @@
 - 本轮完成：继续收紧 `session/use` 的当前上下文语义；当 `use` 切到目标任务时，remembered session 的 `owner_id` 现在会优先跟随目标任务最新 lease 的 owner 恢复，不再沿用旧任务残留 owner；同步把 owner-alignment 场景锁进 `check_mvp_operator_flow.py`，并确认 broad smoke 继续全绿。
 - 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `fix: align use owner with target task`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MG
+- 完成时间：2026-03-30 01:55:09 +0800
+- 本轮完成：把 Windows 下 stale `.wrapper-check.lock` 的自恢复收成稳态；`tools/checks/mvp_state_guard.py` 现在在 Windows 上改用 WinAPI 探活陈旧 pid，不再因 `os.kill(pid, 0)` 抛 `WinError 87` 而卡死；同步补上 `tests/contracts/test_mvp_state_guard.py` 的 Windows 回归，并确认 `operator-flow` 与 `tooling smoke` 继续全绿。
+- 验证：`python -m py_compile tools/checks/mvp_state_guard.py tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: recover stale mvp lock on windows`；最终 hash 以当前 `HEAD` 为准。

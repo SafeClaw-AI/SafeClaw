@@ -4,6 +4,13 @@ import errno
 import os
 import re
 import sys
+
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+else:
+    ctypes = None
+    wintypes = None
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -12,6 +19,10 @@ STATE_ROOT = REPO_ROOT / "target" / "mvp"
 LOCK_FILE = STATE_ROOT / ".wrapper-check.lock"
 LOCK_ENV = "SAFECLAW_MVP_CHECK_LOCK_HELD"
 PID_PATTERN = re.compile(r"pid=(\d+)")
+WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+WINDOWS_ERROR_ACCESS_DENIED = 5
+WINDOWS_STILL_ACTIVE = 259
+WINDOWS_KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True) if ctypes is not None else None
 
 
 def _holder_pid(holder: str) -> int | None:
@@ -21,12 +32,35 @@ def _holder_pid(holder: str) -> int | None:
     return int(match.group(1))
 
 
-def _process_is_running(pid: int) -> bool:
+def _process_is_running_with_signal(pid: int) -> bool:
     try:
         os.kill(pid, 0)
     except OSError as error:
         return error.errno == errno.EPERM
+    except SystemError:
+        return False
     return True
+
+
+def _process_is_running_with_winapi(pid: int) -> bool:
+    if WINDOWS_KERNEL32 is None or wintypes is None or ctypes is None:
+        return _process_is_running_with_signal(pid)
+    handle = WINDOWS_KERNEL32.OpenProcess(WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return ctypes.get_last_error() == WINDOWS_ERROR_ACCESS_DENIED
+    try:
+        exit_code = wintypes.DWORD()
+        if not WINDOWS_KERNEL32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return ctypes.get_last_error() == WINDOWS_ERROR_ACCESS_DENIED
+        return int(exit_code.value) == WINDOWS_STILL_ACTIVE
+    finally:
+        WINDOWS_KERNEL32.CloseHandle(handle)
+
+
+def _process_is_running(pid: int) -> bool:
+    if os.name == "nt":
+        return _process_is_running_with_winapi(pid)
+    return _process_is_running_with_signal(pid)
 
 
 @contextmanager
