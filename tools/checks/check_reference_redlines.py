@@ -325,14 +325,14 @@ def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
         return [node.attr]
     return []
 
-def _is_empty_fallback_constructor_call(node: ast.expr | None) -> bool:
+def _is_silent_fallback_constructor_call(node: ast.expr | None) -> bool:
     if not isinstance(node, ast.Call):
         return False
     if node.args or node.keywords:
         return False
     if not isinstance(node.func, ast.Name):
         return False
-    return node.func.id in {"str", "list", "dict", "tuple", "set", "frozenset"}
+    return node.func.id in {"bool", "str", "list", "dict", "tuple", "set", "frozenset"}
 
 
 
@@ -347,7 +347,7 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
         return not node.keys
     if isinstance(node, ast.Tuple):
         return not node.elts
-    if _is_empty_fallback_constructor_call(node):
+    if _is_silent_fallback_constructor_call(node):
         return True
     return False
 

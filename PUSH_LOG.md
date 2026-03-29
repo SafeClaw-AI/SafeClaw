@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 06:35:14 +0800
+最后更新时间：2026-03-30 06:39:58 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2175,3 +2175,8 @@
 - 本轮完成：把 `except ...: return` 的隐式 `None` 也纳入 direct silent fallback，并把 `tools/mvp/safeclaw_mvp.py` 里 `repair_invalid_workspace()` / `repair_invalid_session()` 的 2 个 `OSError` 真实命中改写为 `try/except/else`；当前全仓隐式 bare return 命中已清零。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tools/mvp/safeclaw_mvp.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block implicit none fallback`；最终 hash 以当前 HEAD 为准。
+### Round NL
+- 完成时间：2026-03-30 06:39:58 +0800
+- 本轮完成：把 `bool()` 也纳入无参 silent fallback constructor 真源，并把 helper 重命名为 `_is_silent_fallback_constructor_call()`；当前全仓 `except ...: return bool()` 命中仍为 0，本轮属于零旧债扩面。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block bool constructor fallback`；最终 hash 以当前 HEAD 为准。
