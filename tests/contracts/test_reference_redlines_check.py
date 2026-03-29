@@ -330,6 +330,30 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
                 "异常降级缺少上下文: sample.py:4 -> subprocess.TimeoutExpired 不能直接静默降级为 None/False",
             ],
         )
+
+    def test_key_error_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    mapping['missing']\nexcept KeyError:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> KeyError 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_runtime_error_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept RuntimeError:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> RuntimeError 不能直接静默降级为 None/False",
+            ],
+        )
     def test_non_empty_exception_handling_passes(self) -> None:
         self.assertEqual(
             collect_empty_exception_errors_for_python_text(

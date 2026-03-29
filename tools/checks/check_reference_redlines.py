@@ -19,8 +19,18 @@ TODO_LINE_PATTERN = re.compile(r"^\s*(?:(?:#|//|/\*+|\*|;|REM\b)\s*)?TODO\b", re
 PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
-SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired"}
-CONTEXT_REQUIRED_EXCEPTION_TYPES = {"FileExistsError", "KeyError", "OSError", "RuntimeError", "SyntaxError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired"}
+SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = (
+    "FileExistsError",
+    "KeyError",
+    "OSError",
+    "RuntimeError",
+    "SyntaxError",
+    "SystemError",
+    "json.JSONDecodeError",
+    "subprocess.TimeoutExpired",
+)
+SILENT_FALLBACK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
+CONTEXT_REQUIRED_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
 REFERENCE_REDLINE_SCAN_DIRS = (
     "tools",
     "tests",
@@ -208,11 +218,7 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
     caught_types = set(_collect_exception_type_names(handler.type))
-    protected_types = [
-        name
-        for name in ("OSError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired")
-        if name in caught_types
-    ]
+    protected_types = [name for name in SILENT_FALLBACK_EXCEPTION_TYPE_ORDER if name in caught_types]
     protected_text = " / ".join(protected_types or sorted(caught_types))
     return f"{protected_text} 不能直接静默降级为 None/False"
 
