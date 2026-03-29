@@ -13,6 +13,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     collect_empty_exception_errors_for_powershell_text,
     collect_empty_exception_errors_for_python_text,
     collect_errors,
+    collect_silent_fallback_exception_errors_for_python_text,
     collect_todo_metadata_errors_for_text,
     collect_uncontextualized_exception_errors_for_python_text,
     collect_unused_bound_exception_context_errors_for_python_text,
@@ -101,6 +102,27 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             collect_unused_bound_exception_context_errors_for_python_text(
                 Path("sample.py"),
                 "try:\n    work()\nexcept (OSError, ValueError) as error:\n    return False, str(error)\n",
+            ),
+            [],
+        )
+
+    def test_risky_exception_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> OSError / json.JSONDecodeError 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_risky_exception_contextual_fallback_passes(self) -> None:
+        self.assertEqual(
+            collect_silent_fallback_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept OSError as error:\n    return error.errno == 1\n",
             ),
             [],
         )

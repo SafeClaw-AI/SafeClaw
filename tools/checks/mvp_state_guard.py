@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import re
 import sys
@@ -23,8 +24,8 @@ def _holder_pid(holder: str) -> int | None:
 def _process_is_running(pid: int) -> bool:
     try:
         os.kill(pid, 0)
-    except OSError:
-        return False
+    except OSError as error:
+        return error.errno == errno.EPERM
     return True
 
 

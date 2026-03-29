@@ -1,4 +1,4 @@
-# 提交推送流水账
+﻿# 提交推送流水账
 
 最后更新时间：2026-03-29 03:55:18 +0800
 
@@ -1909,3 +1909,9 @@
 - 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“绑定了 `as error` 的异常上下文必须真正使用，不能只做 `_ = error` 占位赋值”门禁；同步补合同测试，并把 `tools/mvp/safeclaw_mvp.py` 的 `load_heartbeat_config()` 改成显式回传 `fallback_reason`。
 - 验证：`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`。
 - 提交推送：本轮提交信息拟为 `test: require exception context usage`；最终 hash 以当前 `HEAD` 为准。
+
+### Round LQ
+- 完成时间：2026-03-29 19:30:55 +0800
+- 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“高风险 `OSError/json.JSONDecodeError` 不能直接 `return None/False` 静默降级”门禁；同步补合同测试，并把 `tools/checks/mvp_state_guard.py` 的进程探活修成 `EPERM` 仍判活。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tools/checks/mvp_state_guard.py tests/contracts/test_reference_redlines_check.py tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_reference_redlines_check tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_reference_redlines.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `test: gate silent exception fallback`；最终 hash 以当前 `HEAD` 为准。

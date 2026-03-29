@@ -19,6 +19,7 @@ TODO_LINE_PATTERN = re.compile(r"^\s*(?:(?:#|//|/\*+|\*|;|REM\b)\s*)?TODO\b", re
 PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
+SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "json.JSONDecodeError"}
 REFERENCE_REDLINE_SCAN_DIRS = (
     "tools",
     "tests",
@@ -152,6 +153,38 @@ def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     return "broad except 必须绑定 `as error` 以保留上下文"
 
 
+def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
+    if node is None:
+        return ["<bare>"]
+    if isinstance(node, ast.Tuple):
+        names: list[str] = []
+        for element in node.elts:
+            names.extend(_collect_exception_type_names(element))
+        return names
+    if isinstance(node, ast.Name):
+        return [node.id]
+    if isinstance(node, ast.Attribute):
+        parent_names = _collect_exception_type_names(node.value)
+        if len(parent_names) == 1:
+            return [f"{parent_names[0]}.{node.attr}"]
+        return [node.attr]
+    return []
+
+
+def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
+    caught_types = set(_collect_exception_type_names(handler.type))
+    if not (caught_types & SILENT_FALLBACK_EXCEPTION_TYPES):
+        return False
+    if len(handler.body) != 1:
+        return False
+    statement = handler.body[0]
+    if not isinstance(statement, ast.Return):
+        return False
+    if not isinstance(statement.value, ast.Constant):
+        return False
+    return statement.value.value in (None, False)
+
+
 def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
     relpath = path.as_posix()
     try:
@@ -220,6 +253,26 @@ def collect_unused_bound_exception_context_errors_for_python_text(path: Path, te
     return errors
 
 
+def collect_silent_fallback_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
+    relpath = path.as_posix()
+    try:
+        tree = ast.parse(text, filename=relpath)
+    except SyntaxError as error:
+        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+
+    errors: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            if not _is_direct_silent_fallback_handler(handler):
+                continue
+            errors.append(
+                f"异常降级缺少上下文: {relpath}:{handler.lineno} -> OSError / json.JSONDecodeError 不能直接静默降级为 None/False"
+            )
+    return errors
+
+
 def collect_todo_metadata_errors() -> list[str]:
     errors: list[str] = []
     for path in iter_reference_redline_files():
@@ -269,12 +322,25 @@ def collect_unused_bound_exception_context_errors() -> list[str]:
     return errors
 
 
+def collect_silent_fallback_exception_errors() -> list[str]:
+    errors: list[str] = []
+    for path in iter_reference_redline_files():
+        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        errors.extend(
+            collect_silent_fallback_exception_errors_for_python_text(path.relative_to(REPO_ROOT), text)
+        )
+    return errors
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     errors.extend(collect_todo_metadata_errors())
     errors.extend(collect_empty_exception_errors())
     errors.extend(collect_uncontextualized_exception_errors())
     errors.extend(collect_unused_bound_exception_context_errors())
+    errors.extend(collect_silent_fallback_exception_errors())
     return errors
 
 

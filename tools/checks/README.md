@@ -11,7 +11,7 @@
 - `check_structure.py`：结构完整性检查，并约束 ledger 目标路径不得提前落地
 - `check_public_docs.py`：公开文档对齐检查
 - `check_scaffold.py`：仓库骨架检查，并把 `docs/reference/` + `docs/30-方案/02-V4-目录锁定清单.md` 落成 fail-closed 根目录/命名护栏；legacy 阶段根台账文件仍须保留
-- `check_reference_redlines.py`：把 `docs/reference/01` 中已机器化的红线直接落成代码门禁；当前先拦无主 TODO、空异常处理，以及多异常 `except` 必须绑定 `as error`
+- `check_reference_redlines.py`：把 `docs/reference/01` 中已机器化的红线直接落成代码门禁；当前先拦无主 TODO、空异常处理、多异常 `except` 必须绑定并真正使用 `as error`，以及高风险 `OSError/json.JSONDecodeError` 不能直接静默降级为 `None/False`
 - `check_tooling_smoke.py`：工具烟测
 - `check_mvp_operator_flow.py`: practical MVP operator flow check covering `doctor / service-run / report / service-retry / service-recover`
 - `check_examples_smoke.py`：高层示例烟测，并要求覆盖 `safeclaw-sqlite/examples/*.rs` 全量示例
@@ -23,7 +23,7 @@
 - `selfcheck.py` 当前会先跑 `ledger_index_manifest.py`
 - 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
 - 其中 `check_scaffold.py` 会直接把 `docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md` 转成 fail-closed 校验，并拦截 `最终版`、`临时版`、`new2`、`test1` 这类禁词路径
-- 这条 ledger policy chain 之后，会继续跑 `check_reference_redlines.py`，把无主 TODO、空异常处理与多异常 `except` 上下文绑定挡在 `Naming lint` 和 `Contract tests` 之前
+- 这条 ledger policy chain 之后，会继续跑 `check_reference_redlines.py`，把无主 TODO、空异常处理、异常上下文绑定/使用，以及高风险 I/O/JSON 静默降级挡在 `Naming lint` 和 `Contract tests` 之前
 - 这条 ledger policy chain 会显式前置在 `Contract tests` 之前，避免历史失败提前遮住迁移护栏
 
 ## 推荐顺序
