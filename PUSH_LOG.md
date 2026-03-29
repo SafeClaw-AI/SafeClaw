@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 04:35:09 +0800
+最后更新时间：2026-03-30 04:41:48 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2105,3 +2105,8 @@
 - 本轮完成：把 `SILENT_FALLBACK_EXCEPTION_TYPES` 与 `CONTEXT_REQUIRED_EXCEPTION_TYPES` 统一挂到 `HIGH_RISK_EXCEPTION_TYPES` 单一集合真源上，并让 `_handler_requires_bound_error()` / `_is_direct_silent_fallback_handler()` 直接围绕它判断；现在高风险异常名单已从“值相等”推进到“同体真源”。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、git diff --check。
 - 提交推送：本轮提交信息拟为 refactor: unify high risk exception set source；最终 hash 以当前 HEAD 为准。
+### Round MX
+- 完成时间：2026-03-30 04:41:48 +0800
+- 本轮完成：新增 `HandlerExceptionGateProfile` 与 `_build_handler_exception_gate_profile()`，把 `caught_types` / bare / multi / broad 四类 handler 画像收成单一真源；现在上下文门禁与静默降级门禁都围绕同一份 profile 工作。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、git diff --check。
+- 提交推送：本轮提交信息拟为 refactor: unify handler exception gate profile；最终 hash 以当前 HEAD 为准。

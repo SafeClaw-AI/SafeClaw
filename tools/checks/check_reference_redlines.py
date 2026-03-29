@@ -4,6 +4,7 @@ import ast
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -160,13 +161,14 @@ def collect_empty_exception_errors_for_powershell_text(path: Path, text: str) ->
 
 
 def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
-    if handler.type is None:
+    profile = _build_handler_exception_gate_profile(handler)
+    if profile.is_bare_handler:
         return True
-    if isinstance(handler.type, ast.Tuple):
+    if profile.uses_multi_exception_family:
         return True
-    if _handler_uses_broad_exception_family(handler):
+    if profile.uses_broad_exception_family:
         return True
-    return bool(_handler_caught_types(handler) & HIGH_RISK_EXCEPTION_TYPES)
+    return bool(profile.caught_types & HIGH_RISK_EXCEPTION_TYPES)
 
 
 def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
@@ -181,19 +183,41 @@ def _handler_caught_types(handler: ast.ExceptHandler) -> set[str]:
     return set(_collect_exception_type_names(handler.type))
 
 
+class HandlerExceptionGateProfile(NamedTuple):
+    caught_types: set[str]
+    is_bare_handler: bool
+    uses_multi_exception_family: bool
+    uses_broad_exception_family: bool
+
+
+def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> HandlerExceptionGateProfile:
+    caught_types = _handler_caught_types(handler)
+    is_bare_handler = handler.type is None
+    uses_multi_exception_family = isinstance(handler.type, ast.Tuple)
+    uses_broad_exception_family = (
+        not is_bare_handler and _caught_types_include_broad_exception(caught_types)
+    )
+    return HandlerExceptionGateProfile(
+        caught_types=caught_types,
+        is_bare_handler=is_bare_handler,
+        uses_multi_exception_family=uses_multi_exception_family,
+        uses_broad_exception_family=uses_broad_exception_family,
+    )
+
+
 def _handler_uses_broad_exception_family(handler: ast.ExceptHandler) -> bool:
-    return handler.type is not None and _caught_types_include_broad_exception(_handler_caught_types(handler))
+    return _build_handler_exception_gate_profile(handler).uses_broad_exception_family
 
 
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
-    if handler.type is None:
+    profile = _build_handler_exception_gate_profile(handler)
+    if profile.is_bare_handler:
         return BARE_CONTEXT_REQUIRED_MESSAGE
-    caught_types = _handler_caught_types(handler)
-    if _handler_uses_broad_exception_family(handler):
+    if profile.uses_broad_exception_family:
         return BROAD_CONTEXT_REQUIRED_MESSAGE
-    if isinstance(handler.type, ast.Tuple):
+    if profile.uses_multi_exception_family:
         return MULTI_CONTEXT_REQUIRED_MESSAGE
-    protected_types = _ordered_high_risk_exception_names(caught_types)
+    protected_types = _ordered_high_risk_exception_names(profile.caught_types)
     if protected_types:
         return f"{protected_types[0]} {CONTEXT_REQUIRED_SUFFIX}"
     return BROAD_CONTEXT_REQUIRED_MESSAGE
@@ -230,21 +254,22 @@ def _is_direct_none_false_return_handler(handler: ast.ExceptHandler) -> bool:
 def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
     if not _is_direct_none_false_return_handler(handler):
         return False
-    if handler.type is None:
+    profile = _build_handler_exception_gate_profile(handler)
+    if profile.is_bare_handler:
         return True
-    if _handler_uses_broad_exception_family(handler):
+    if profile.uses_broad_exception_family:
         return True
-    return bool(_handler_caught_types(handler) & HIGH_RISK_EXCEPTION_TYPES)
+    return bool(profile.caught_types & HIGH_RISK_EXCEPTION_TYPES)
 
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
-    if handler.type is None:
+    profile = _build_handler_exception_gate_profile(handler)
+    if profile.is_bare_handler:
         return BARE_SILENT_FALLBACK_MESSAGE
-    caught_types = _handler_caught_types(handler)
-    if _handler_uses_broad_exception_family(handler):
+    if profile.uses_broad_exception_family:
         return BROAD_SILENT_FALLBACK_MESSAGE
-    protected_types = _ordered_high_risk_exception_names(caught_types)
-    protected_text = " / ".join(protected_types or sorted(caught_types))
+    protected_types = _ordered_high_risk_exception_names(profile.caught_types)
+    protected_text = " / ".join(protected_types or sorted(profile.caught_types))
     return f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
 
 

@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    _build_handler_exception_gate_profile,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
     BARE_CONTEXT_REQUIRED_MESSAGE,
@@ -82,6 +83,36 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(_handler_caught_types(timeout_handler), {"subprocess.TimeoutExpired"})
         self.assertEqual(_handler_caught_types(tuple_handler), {"OSError", "ValueError"})
         self.assertEqual(_handler_caught_types(broad_tuple_handler), {"Exception", "ValueError"})
+
+    def test_handler_exception_gate_profile_is_stable(self) -> None:
+        bare_handler = ast.parse(
+            "try:\n    work()\nexcept:\n    return None\n"
+        ).body[0].handlers[0]
+        tuple_handler = ast.parse(
+            "try:\n    work()\nexcept (OSError, ValueError):\n    return None\n"
+        ).body[0].handlers[0]
+        broad_tuple_handler = ast.parse(
+            "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n"
+        ).body[0].handlers[0]
+
+        bare_profile = _build_handler_exception_gate_profile(bare_handler)
+        tuple_profile = _build_handler_exception_gate_profile(tuple_handler)
+        broad_tuple_profile = _build_handler_exception_gate_profile(broad_tuple_handler)
+
+        self.assertEqual(bare_profile.caught_types, {"<bare>"})
+        self.assertTrue(bare_profile.is_bare_handler)
+        self.assertFalse(bare_profile.uses_multi_exception_family)
+        self.assertFalse(bare_profile.uses_broad_exception_family)
+
+        self.assertEqual(tuple_profile.caught_types, {"OSError", "ValueError"})
+        self.assertFalse(tuple_profile.is_bare_handler)
+        self.assertTrue(tuple_profile.uses_multi_exception_family)
+        self.assertFalse(tuple_profile.uses_broad_exception_family)
+
+        self.assertEqual(broad_tuple_profile.caught_types, {"Exception", "ValueError"})
+        self.assertFalse(broad_tuple_profile.is_bare_handler)
+        self.assertTrue(broad_tuple_profile.uses_multi_exception_family)
+        self.assertTrue(broad_tuple_profile.uses_broad_exception_family)
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
