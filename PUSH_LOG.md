@@ -1979,3 +1979,10 @@
 - 本轮完成：把 `service-status` 的顶层 heartbeat 改成“仅 active lease 才算真实心跳”；当最近记录只是历史已完成/已释放任务时，heartbeat 改回 `idle`，不再误报 `failed`；同步更新 `check_mvp_operator_flow.py`、`check_tooling_smoke.py` 与 `README.md`。
 - 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py tools/checks/check_tooling_smoke.py`、`python tools/checks/check_mvp_operator_flow.py`、`cmd /c safeclaw.cmd service-status --limit 1 --json`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `fix: idle heartbeat without active lease`；最终 hash 以当前 `HEAD` 为准。
+
+
+### Round MB
+- 完成时间：2026-03-29 23:48:02 +0800
+- 本轮完成：继续收紧 `service-status` 的顶层 heartbeat 语义；当最近记录只是历史已完成/已释放任务且不存在 active lease 时，除了 `status=idle` 外，`latest_updated_at` / `latest_age_ms` 也一并清空为 `none`，只把历史年龄留在 `recent_tasks[*].lease_age_ms` / `recent_tasks[*].lease_freshness`；同步更新 `check_mvp_operator_flow.py`、`check_tooling_smoke.py` 与 `README.md`。
+- 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py tools/checks/check_tooling_smoke.py`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`cmd /c safeclaw.cmd service-status --limit 1 --json`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: clear idle heartbeat timestamps`；最终 hash 以当前 `HEAD` 为准。

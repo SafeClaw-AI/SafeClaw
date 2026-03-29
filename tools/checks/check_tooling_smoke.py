@@ -53375,6 +53375,7 @@ def assert_service_status_json_result(
 
 
     expect_heartbeat_latest_updated_at_present: bool = False,
+    expect_heartbeat_latest_updated_at_absent: bool = False,
 
 
 
@@ -53503,6 +53504,7 @@ def assert_service_status_json_result(
 
 
     expect_heartbeat_latest_age_ms_present: bool = False,
+    expect_heartbeat_latest_age_ms_absent: bool = False,
 
 
 
@@ -61951,6 +61953,8 @@ def assert_service_status_json_result(
 
 
         errors.append(f"{name} missing heartbeat.latest_updated_at")
+    elif expect_heartbeat_latest_updated_at_absent and heartbeat.get("latest_updated_at") is not None:
+        errors.append(f"{name} expected heartbeat.latest_updated_at=None")
 
 
 
@@ -62207,6 +62211,8 @@ def assert_service_status_json_result(
 
 
         errors.append(f"{name} missing heartbeat.latest_age_ms int")
+    elif expect_heartbeat_latest_age_ms_absent and heartbeat.get("latest_age_ms") is not None:
+        errors.append(f"{name} expected heartbeat.latest_age_ms=None")
 
 
 
@@ -319123,7 +319129,7 @@ def collect_errors() -> list[str]:
 
 
 
-    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true latest_updated_at=" not in wrapper_service_status_output:
+    elif "[mvp-wrapper] service heartbeat => interval_ms=10000 event_driven=true latest_updated_at=none age_ms=none freshness=none status=idle reason=no_active_lease_heartbeat" not in wrapper_service_status_output:
 
 
 
@@ -326163,7 +326169,7 @@ def collect_errors() -> list[str]:
 
 
 
-        expect_heartbeat_latest_updated_at_present=True,
+        expect_heartbeat_latest_updated_at_absent=True,
 
 
 
@@ -326291,7 +326297,7 @@ def collect_errors() -> list[str]:
 
 
 
-        expect_heartbeat_latest_age_ms_present=True,
+        expect_heartbeat_latest_age_ms_absent=True,
 
 
 
@@ -328111,8 +328117,8 @@ def collect_errors() -> list[str]:
         expected_heartbeat_interval_ms=10000,
         expected_heartbeat_event_driven=True,
         expected_heartbeat_reason="no_active_lease_heartbeat",
-        expect_heartbeat_latest_updated_at_present=True,
-        expect_heartbeat_latest_age_ms_present=True,
+        expect_heartbeat_latest_updated_at_absent=True,
+        expect_heartbeat_latest_age_ms_absent=True,
         expected_next_action="ok",
         expected_next_command='safeclaw.cmd report --db "target/mvp/service-status.db" --task-id "task-wrapper-service-status"',
         expected_next_reason="execution_already_confirmed",

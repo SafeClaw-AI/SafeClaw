@@ -890,14 +890,15 @@ def build_service_heartbeat_payload(
         }
 
     active_row = next((row for row in rows if str(row.get("lease_state") or "") == "active"), None)
-    display_row = active_row if active_row is not None else rows[0]
-    latest_updated_at = display_row.get("updated_at")
-    latest_age_ms = display_row.get("lease_age_ms")
     if active_row is None:
+        latest_updated_at = None
+        latest_age_ms = None
         freshness = "none"
         status = "idle"
         reason = "no_active_lease_heartbeat"
     else:
+        latest_updated_at = active_row.get("updated_at")
+        latest_age_ms = active_row.get("lease_age_ms")
         freshness = str(active_row.get("lease_freshness") or "unknown")
         status, reason = describe_heartbeat_freshness(freshness)
     return {

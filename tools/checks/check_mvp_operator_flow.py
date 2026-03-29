@@ -286,10 +286,8 @@ def assert_service_combo(
     expect_equal(errors, label, "service_status.offline_gate.requires_sidecar", ((status.get("offline_gate") or {}).get("requires_sidecar")), True)
     expect_equal(errors, label, "service_status.offline_gate.next_command", ((status.get("offline_gate") or {}).get("next_command")), "safeclaw.cmd preflight --action ai-reason")
     expect_equal(errors, label, "service_status.offline_gate.error_code", ((status.get("offline_gate") or {}).get("error_code")), "ERR_AI_PROVIDER_UNAVAILABLE")
-    if not (status.get("heartbeat") or {}).get("latest_updated_at"):
-        append_error(errors, label, "service_status.heartbeat.latest_updated_at missing")
-    if not isinstance((status.get("heartbeat") or {}).get("latest_age_ms"), int):
-        append_error(errors, label, "service_status.heartbeat.latest_age_ms missing int")
+    expect_equal(errors, label, "service_status.heartbeat.latest_updated_at", ((status.get("heartbeat") or {}).get("latest_updated_at")), None)
+    expect_equal(errors, label, "service_status.heartbeat.latest_age_ms", ((status.get("heartbeat") or {}).get("latest_age_ms")), None)
     if not (status.get("runtime_profile") or {}).get("detail"):
         append_error(errors, label, "service_status.runtime_profile.detail missing")
     if not (status.get("model_provider") or {}).get("detail"):
