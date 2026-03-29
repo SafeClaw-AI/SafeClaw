@@ -19,6 +19,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     _parse_python_text_for_reference_check,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
+    _is_empty_fallback_constructor_call,
     BARE_CONTEXT_REQUIRED_MESSAGE,
     BARE_SILENT_FALLBACK_MESSAGE,
     BROAD_CONTEXT_REQUIRED_MESSAGE,
@@ -89,6 +90,15 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(_handler_caught_types(timeout_handler), {"subprocess.TimeoutExpired"})
         self.assertEqual(_handler_caught_types(tuple_handler), {"OSError", "ValueError"})
         self.assertEqual(_handler_caught_types(broad_tuple_handler), {"Exception", "ValueError"})
+
+    def test_empty_fallback_constructor_call_helper_is_stable(self) -> None:
+        for source in ("return str()", "return list()", "return dict()", "return tuple()", "return set()", "return frozenset()"):
+            node = ast.parse(source).body[0].value
+            self.assertTrue(_is_empty_fallback_constructor_call(node))
+
+        self.assertFalse(_is_empty_fallback_constructor_call(ast.parse("return bytes()").body[0].value))
+        self.assertFalse(_is_empty_fallback_constructor_call(ast.parse("return list([1])").body[0].value))
+        self.assertFalse(_is_empty_fallback_constructor_call(ast.parse("return path.as_posix()").body[0].value))
 
     def test_handler_exception_gate_profile_is_stable(self) -> None:
         bare_handler = ast.parse(
@@ -724,6 +734,54 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+
+    def test_value_error_cannot_directly_silently_fallback_to_empty_str_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return str()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_to_empty_list_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return list()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_value_error_cannot_directly_silently_fallback_to_empty_dict_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return dict()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_to_empty_tuple_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return tuple()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
 
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
