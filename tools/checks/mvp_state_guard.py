@@ -41,9 +41,10 @@ def acquire_mvp_state_lock(check_name: str):
         try:
             fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             break
-        except FileExistsError:
+        except FileExistsError as error:
             holder = "unknown"
             holder_pid: int | None = None
+            create_error_detail = f" create_error={error.errno or error.__class__.__name__}"
             try:
                 holder = LOCK_FILE.read_text(encoding="utf-8").strip() or holder
                 holder_pid = _holder_pid(holder)
@@ -59,7 +60,7 @@ def acquire_mvp_state_lock(check_name: str):
                         f"failed to remove stale MVP state lock: {LOCK_FILE.relative_to(REPO_ROOT).as_posix()} error={error}"
                     ) from error
             raise RuntimeError(
-                f"another MVP state check is already running; lock={LOCK_FILE.relative_to(REPO_ROOT).as_posix()} holder={holder}"
+                f"another MVP state check is already running; lock={LOCK_FILE.relative_to(REPO_ROOT).as_posix()} holder={holder}{create_error_detail}"
             )
     try:
         os.environ[LOCK_ENV] = check_name

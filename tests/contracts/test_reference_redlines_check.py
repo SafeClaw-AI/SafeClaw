@@ -106,6 +106,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_file_exists_error_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept FileExistsError:\n    raise RuntimeError('busy')\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> FileExistsError 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_file_exists_error_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept FileExistsError as error:\n    raise RuntimeError(f'busy: {error}')\n",
+            ),
+            [],
+        )
+
     def test_bound_exception_context_must_be_meaningfully_used(self) -> None:
         errors = collect_unused_bound_exception_context_errors_for_python_text(
             Path("sample.py"),
