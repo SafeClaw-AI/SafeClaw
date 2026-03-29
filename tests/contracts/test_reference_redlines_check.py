@@ -126,6 +126,23 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         ):
             self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
 
+    def test_direct_silent_fallback_return_value_helper_accepts_static_expression_aliases(self) -> None:
+        for source in (
+            "return '' if True else 'fallback'",
+            "return [] or []",
+            "return {} if False else {}",
+            "return False and True",
+        ):
+            self.assertTrue(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
+
+        for source in (
+            "return '' if flag else 'fallback'",
+            "return values or []",
+            "return {'key': 'value'} if True else {}",
+            "return True and 'value'",
+        ):
+            self.assertFalse(_is_direct_silent_fallback_return_value(ast.parse(source).body[0].value))
+
     def test_handler_exception_gate_profile_is_stable(self) -> None:
         bare_handler = ast.parse(
             "try:\n    work()\nexcept:\n    return None\n"
@@ -982,6 +999,43 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
             "try:\n    work()\nexcept OSError:\n    fallback = bool(False)\n    return fallback\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
+    def test_value_error_cannot_directly_silently_fallback_with_static_if_expression(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return '' if True else 'fallback'\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_static_boolop(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return [] or []\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_assign_static_if_expression_then_return_same_name(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    fallback = {} if False else {}\n    return fallback\n",
         )
         self.assertEqual(
             errors,

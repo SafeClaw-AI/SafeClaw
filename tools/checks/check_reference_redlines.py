@@ -380,6 +380,25 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         if not node.values:
             return ""
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.IfExp):
+        test_value = _try_evaluate_static_expression_value(node.test)
+        if test_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        selected_branch = node.body if bool(test_value) else node.orelse
+        return _try_evaluate_static_expression_value(selected_branch)
+    if isinstance(node, ast.BoolOp):
+        if not node.values:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        result = _STATIC_VALUE_NOT_AVAILABLE
+        for value_node in node.values:
+            result = _try_evaluate_static_expression_value(value_node)
+            if result is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            if isinstance(node.op, ast.And) and not bool(result):
+                return result
+            if isinstance(node.op, ast.Or) and bool(result):
+                return result
+        return result
     if isinstance(node, ast.List):
         values = []
         for element in node.elts:
