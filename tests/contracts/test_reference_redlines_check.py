@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    _handler_caught_types,
     _handler_uses_broad_exception_family,
     BARE_CONTEXT_REQUIRED_MESSAGE,
     BARE_SILENT_FALLBACK_MESSAGE,
@@ -66,6 +67,20 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "try:\n    work()\nexcept (OSError, ValueError):\n    return None\n"
         ).body[0].handlers[0]
         self.assertFalse(_handler_uses_broad_exception_family(non_broad_handler))
+
+    def test_handler_caught_types_helper_is_stable(self) -> None:
+        timeout_handler = ast.parse(
+            "try:\n    work()\nexcept subprocess.TimeoutExpired:\n    return None\n"
+        ).body[0].handlers[0]
+        tuple_handler = ast.parse(
+            "try:\n    work()\nexcept (OSError, ValueError):\n    return None\n"
+        ).body[0].handlers[0]
+        broad_tuple_handler = ast.parse(
+            "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n"
+        ).body[0].handlers[0]
+        self.assertEqual(_handler_caught_types(timeout_handler), {"subprocess.TimeoutExpired"})
+        self.assertEqual(_handler_caught_types(tuple_handler), {"OSError", "ValueError"})
+        self.assertEqual(_handler_caught_types(broad_tuple_handler), {"Exception", "ValueError"})
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
