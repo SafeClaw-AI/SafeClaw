@@ -9,8 +9,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
+    BARE_CONTEXT_REQUIRED_MESSAGE,
+    BARE_SILENT_FALLBACK_MESSAGE,
+    BROAD_CONTEXT_REQUIRED_MESSAGE,
     BROAD_EXCEPTION_TYPE_NAMES,
+    BROAD_SILENT_FALLBACK_MESSAGE,
     CONTEXT_REQUIRED_EXCEPTION_TYPES,
+    CONTEXT_REQUIRED_SUFFIX,
+    MULTI_CONTEXT_REQUIRED_MESSAGE,
+    SILENT_FALLBACK_SUFFIX,
     SILENT_FALLBACK_EXCEPTION_TYPES,
     SILENT_FALLBACK_EXCEPTION_TYPE_ORDER,
     TODO_METADATA_REQUIREMENTS,
@@ -33,6 +40,15 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
 
     def test_broad_exception_truth_source_is_stable(self) -> None:
         self.assertEqual(BROAD_EXCEPTION_TYPE_NAMES, {"BaseException", "Exception"})
+
+    def test_exception_message_truth_sources_are_stable(self) -> None:
+        self.assertEqual(CONTEXT_REQUIRED_SUFFIX, "必须绑定 `as error` 以保留上下文")
+        self.assertEqual(SILENT_FALLBACK_SUFFIX, "不能直接静默降级为 None/False")
+        self.assertEqual(BARE_CONTEXT_REQUIRED_MESSAGE, "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`")
+        self.assertEqual(BROAD_CONTEXT_REQUIRED_MESSAGE, f"broad except {CONTEXT_REQUIRED_SUFFIX}")
+        self.assertEqual(MULTI_CONTEXT_REQUIRED_MESSAGE, f"多异常 except {CONTEXT_REQUIRED_SUFFIX}")
+        self.assertEqual(BARE_SILENT_FALLBACK_MESSAGE, f"裸 except {SILENT_FALLBACK_SUFFIX}")
+        self.assertEqual(BROAD_SILENT_FALLBACK_MESSAGE, f"broad except {SILENT_FALLBACK_SUFFIX}")
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
