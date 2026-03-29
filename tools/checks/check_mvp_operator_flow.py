@@ -44,6 +44,11 @@ QUARANTINE_B_OUTPUT = "target/mvp/operator-flow-quarantine-b.txt"
 HIBERNATED_TASK = "task-operator-flow-hibernated"
 HIBERNATED_DB = "target/mvp/operator-flow-hibernated.db"
 HIBERNATED_OUTPUT = "target/mvp/operator-flow-hibernated.txt"
+SESSION_PRIORITY_A_TASK = "task-operator-flow-session-priority-a"
+SESSION_PRIORITY_B_TASK = "task-operator-flow-session-priority-b"
+SESSION_PRIORITY_DB = "target/mvp/operator-flow-session-priority.db"
+SESSION_PRIORITY_A_OUTPUT = "target/mvp/operator-flow-session-priority-a.txt"
+SESSION_PRIORITY_B_OUTPUT = "target/mvp/operator-flow-session-priority-b.txt"
 
 
 def reset_operator_flow_state() -> None:
@@ -85,6 +90,11 @@ def reset_operator_flow_state() -> None:
         "operator-flow-hibernated.db-shm",
         "operator-flow-hibernated.db-wal",
         "operator-flow-hibernated.txt",
+        "operator-flow-session-priority.db",
+        "operator-flow-session-priority.db-shm",
+        "operator-flow-session-priority.db-wal",
+        "operator-flow-session-priority-a.txt",
+        "operator-flow-session-priority-b.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -1094,6 +1104,114 @@ def _main() -> int:
         expected_output_source="session",
         expected_owner_source="session",
     )
+
+    seed_crash_session_priority_a = run_json(
+        [
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            SESSION_PRIORITY_A_TASK,
+            "--db",
+            SESSION_PRIORITY_DB,
+            "--output",
+            SESSION_PRIORITY_A_OUTPUT,
+        ],
+        "operator-flow/seed-crash-session-priority-a",
+        errors,
+    )
+    if seed_crash_session_priority_a is not None:
+        expect_equal(errors, "operator-flow/seed-crash-session-priority-a", "action", seed_crash_session_priority_a.get("action"), "seed-crash")
+        assert_session_fields((seed_crash_session_priority_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-session-priority-a", "remembered_session", SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT)
+    wait_for_session(SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT, errors, "operator-flow/seed-crash-session-priority-a")
+
+    seed_failed_session_priority_b = run_json(
+        [
+            "seed-failed",
+            "--task-id",
+            SESSION_PRIORITY_B_TASK,
+            "--db",
+            SESSION_PRIORITY_DB,
+            "--output",
+            SESSION_PRIORITY_B_OUTPUT,
+        ],
+        "operator-flow/seed-failed-session-priority-b",
+        errors,
+    )
+    if seed_failed_session_priority_b is not None:
+        expect_equal(errors, "operator-flow/seed-failed-session-priority-b", "action", seed_failed_session_priority_b.get("action"), "seed-failed")
+        assert_session_fields((seed_failed_session_priority_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-session-priority-b", "remembered_session", SESSION_PRIORITY_B_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_B_OUTPUT)
+
+    with sqlite3.connect(REPO_ROOT / SESSION_PRIORITY_DB) as connection:
+        connection.execute(
+            "UPDATE task_snapshots SET updated_at = ?1 WHERE task_id = ?2",
+            (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 5)), SESSION_PRIORITY_B_TASK),
+        )
+        connection.commit()
+
+    use_session_priority_a = run_json(
+        [
+            "use",
+            "--db",
+            SESSION_PRIORITY_DB,
+            "--task-id",
+            SESSION_PRIORITY_A_TASK,
+        ],
+        "operator-flow/use-session-priority-a",
+        errors,
+    )
+    if use_session_priority_a is not None:
+        expect_equal(errors, "operator-flow/use-session-priority-a", "action", use_session_priority_a.get("action"), "use")
+        use_session_priority_result = use_session_priority_a.get("result") or {}
+        expect_equal(errors, "operator-flow/use-session-priority-a", "result.task_id", use_session_priority_result.get("task_id"), SESSION_PRIORITY_A_TASK)
+        expect_equal(errors, "operator-flow/use-session-priority-a", "result.db", use_session_priority_result.get("db"), SESSION_PRIORITY_DB)
+    session_priority_status = run_json(
+        [
+            "service-status",
+            "--db",
+            SESSION_PRIORITY_DB,
+            "--limit",
+            "2",
+        ],
+        "operator-flow/service-status-session-priority",
+        errors,
+    )
+    if session_priority_status is not None:
+        result = session_priority_status.get("result") or {}
+        coordination = result.get("coordination") or {}
+        current_session = result.get("current_session") or {}
+        recent_tasks = result.get("recent_tasks") or []
+        expect_equal(errors, "operator-flow/service-status-session-priority", "result.db", result.get("db"), SESSION_PRIORITY_DB)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "result.db_source", result.get("db_source"), "flag")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "result.limit", result.get("limit"), 2)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "current_session.task_id", current_session.get("task_id"), SESSION_PRIORITY_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.status", coordination.get("status"), "ready")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.reason", coordination.get("reason"), "uncertain_state_ready_for_recover")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.summary", coordination.get("summary"), "recover_now")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.task_id", coordination.get("task_id"), SESSION_PRIORITY_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.target_scope", coordination.get("target_scope"), f"scope:{SESSION_PRIORITY_A_OUTPUT}")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_action", coordination.get("next_action"), "recover")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_task_id", coordination.get("next_task_id"), SESSION_PRIORITY_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_blocker", coordination.get("next_blocker"), "none")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
+        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
+        if len(recent_tasks) < 2:
+            append_error(errors, "operator-flow/service-status-session-priority", f"expected at least 2 recent tasks, got {len(recent_tasks)!r}")
+        else:
+            recent_newer = recent_tasks[0]
+            recent_current = recent_tasks[1]
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].task_id", recent_newer.get("task_id"), SESSION_PRIORITY_B_TASK)
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].current", recent_newer.get("current"), False)
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].next_action", recent_newer.get("next_action"), "retry")
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].coordination_summary", recent_newer.get("coordination_summary"), "retry_now")
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].task_id", recent_current.get("task_id"), SESSION_PRIORITY_A_TASK)
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].current", recent_current.get("current"), True)
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].next_action", recent_current.get("next_action"), "recover")
+            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].coordination_summary", recent_current.get("coordination_summary"), "recover_now")
 
     forget_after = run_json(["forget"], "operator-flow/forget-after", errors)
     if forget_after is not None:

@@ -698,7 +698,9 @@ def build_service_coordination_payload(rows: list[dict[str, object]]) -> dict[st
             "scope_quarantine_task_id": "",
             "scope_quarantine_count": 0,
         }
-    row = rows[0]
+    row = next((candidate for candidate in rows if bool(candidate.get("current"))), None)
+    if row is None:
+        row = rows[0]
     return {
         "status": str(row.get("coordination_status") or "inspect"),
         "reason": str(row.get("coordination_reason") or "manual_inspection_required"),
