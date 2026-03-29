@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 04:55:12 +0800
+最后更新时间：2026-03-30 05:03:44 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2125,3 +2125,8 @@
 - 本轮完成：把 `requires_bound_error` 与 `is_direct_silent_fallback` 也并入 `HandlerExceptionGateProfile`，让最后两段门禁布尔判定从消费点现算推进到画像真源内建；现在 `_handler_requires_bound_error()` 与 `_is_direct_silent_fallback_handler()` 都已退化成纯透传 helper。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、git diff --check。
 - 提交推送：本轮提交信息拟为 refactor: enrich handler gate bool profile；最终 hash 以当前 HEAD 为准。
+### Round NB
+- 完成时间：2026-03-30 05:03:44 +0800
+- 本轮完成：新增 `_iter_exception_handler_gate_profiles()`，把“遍历 handler + 构建 `HandlerExceptionGateProfile`”收成单一入口；现在缺少上下文、绑定未使用、静默降级三条扫描主循环都统一复用同一份 handler/profile 迭代流。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
+- 提交推送：本轮提交信息拟为 refactor: unify handler profile iterator；最终 hash 以当前 HEAD 为准。

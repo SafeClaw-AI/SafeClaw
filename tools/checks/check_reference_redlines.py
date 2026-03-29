@@ -251,6 +251,14 @@ def _handler_uses_broad_exception_family(handler: ast.ExceptHandler) -> bool:
     return _build_handler_exception_gate_profile(handler).uses_broad_exception_family
 
 
+def _iter_exception_handler_gate_profiles(tree: ast.AST):
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            yield handler, _build_handler_exception_gate_profile(handler)
+
+
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     return _build_handler_exception_gate_profile(handler).context_requirement_message
 
@@ -299,17 +307,14 @@ def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: 
         return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
 
     errors: list[str] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Try):
+    for handler, profile in _iter_exception_handler_gate_profiles(tree):
+        if not profile.requires_bound_error:
             continue
-        for handler in node.handlers:
-            if not _handler_requires_bound_error(handler):
-                continue
-            if handler.name is not None:
-                continue
-            errors.append(
-                f"异常处理缺少上下文: {relpath}:{handler.lineno} -> {_handler_context_requirement(handler)}"
-            )
+        if handler.name is not None:
+            continue
+        errors.append(
+            f"异常处理缺少上下文: {relpath}:{handler.lineno} -> {profile.context_requirement_message}"
+        )
     return errors
 
 
@@ -343,19 +348,16 @@ def collect_unused_bound_exception_context_errors_for_python_text(path: Path, te
         return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
 
     errors: list[str] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Try):
+    for handler, profile in _iter_exception_handler_gate_profiles(tree):
+        if not profile.requires_bound_error:
             continue
-        for handler in node.handlers:
-            if not _handler_requires_bound_error(handler):
-                continue
-            if handler.name is None:
-                continue
-            if _collect_meaningful_error_usage_count(handler.body, handler.name) > 0:
-                continue
-            errors.append(
-                f"异常上下文未真正使用: {relpath}:{handler.lineno} -> 绑定了 `as error` 后，异常上下文不能只做占位赋值"
-            )
+        if handler.name is None:
+            continue
+        if _collect_meaningful_error_usage_count(handler.body, handler.name) > 0:
+            continue
+        errors.append(
+            f"异常上下文未真正使用: {relpath}:{handler.lineno} -> 绑定了 `as error` 后，异常上下文不能只做占位赋值"
+        )
     return errors
 
 
@@ -367,15 +369,12 @@ def collect_silent_fallback_exception_errors_for_python_text(path: Path, text: s
         return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
 
     errors: list[str] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Try):
+    for handler, profile in _iter_exception_handler_gate_profiles(tree):
+        if not profile.is_direct_silent_fallback:
             continue
-        for handler in node.handlers:
-            if not _is_direct_silent_fallback_handler(handler):
-                continue
-            errors.append(
-                f"异常降级缺少上下文: {relpath}:{handler.lineno} -> {_silent_fallback_requirement(handler)}"
-            )
+        errors.append(
+            f"异常降级缺少上下文: {relpath}:{handler.lineno} -> {profile.silent_fallback_requirement_message}"
+        )
     return errors
 
 

@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
     _build_handler_exception_gate_profile,
+    _iter_exception_handler_gate_profiles,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
     BARE_CONTEXT_REQUIRED_MESSAGE,
@@ -146,6 +147,29 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertTrue(high_risk_profile.uses_high_risk_exception_family)
         self.assertFalse(high_risk_profile.uses_multi_exception_family)
         self.assertFalse(high_risk_profile.uses_broad_exception_family)
+
+    def test_iter_exception_handler_gate_profiles_is_stable(self) -> None:
+        tree = ast.parse(
+            "try:\n    work()\nexcept OSError:\n    return None\nexcept Exception:\n    return None\n"
+        )
+
+        profiles = list(_iter_exception_handler_gate_profiles(tree))
+
+        self.assertEqual(len(profiles), 2)
+        first_handler, first_profile = profiles[0]
+        second_handler, second_profile = profiles[1]
+
+        self.assertEqual(first_handler.lineno, 3)
+        self.assertEqual(first_profile.caught_types, {"OSError"})
+        self.assertEqual(first_profile.context_requirement_message, f"OSError {CONTEXT_REQUIRED_SUFFIX}")
+        self.assertTrue(first_profile.requires_bound_error)
+        self.assertTrue(first_profile.is_direct_silent_fallback)
+
+        self.assertEqual(second_handler.lineno, 5)
+        self.assertEqual(second_profile.caught_types, {"Exception"})
+        self.assertEqual(second_profile.context_requirement_message, BROAD_CONTEXT_REQUIRED_MESSAGE)
+        self.assertTrue(second_profile.requires_bound_error)
+        self.assertTrue(second_profile.is_direct_silent_fallback)
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
