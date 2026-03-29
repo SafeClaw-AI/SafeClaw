@@ -1889,3 +1889,8 @@
 - 本轮完成：对齐根 `README.md` 与 `tools/mvp/OPERATOR_PLAYBOOK.md` 的 selfcheck 入口说明；明确 `verify` 只跑 practical operator flow，而 `tools/checks/selfcheck.py` 会先跑 ledger-first policy chain；同时扩大 `check_public_docs.py` 把这两处入口说明锁住。
 - 验证：`python -m py_compile tools/checks/check_public_docs.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_public_docs_check -v`、`python tools/checks/check_public_docs.py`。
 - 提交推送：本轮提交信息拟为 `docs: align operator entries with ledger policy`；最终 hash 以当前 `HEAD` 为准。
+### Round LM
+- 完成时间：2026-03-29 11:47:47 +0800
+- 本轮完成：把 `docs/reference/` 的可机器化规则下沉进 `tools/checks/check_scaffold.py`，让目录锁定清单、reference 真源存在性、根目录白名单与禁词命名都变成 fail-closed 门禁；同步补 `tests/contracts/test_scaffold_check.py`、更新 `tools/checks/README.md` / `tools/README.md`，并扩大 `check_public_docs.py` 锁住新口径。
+- 验证：`python -m py_compile tools/checks/check_scaffold.py tools/checks/check_public_docs.py tests/contracts/test_scaffold_check.py tests/contracts/test_public_docs_check.py`、`python -m unittest tests.contracts.test_scaffold_check tests.contracts.test_public_docs_check -v`、`python tools/checks/check_scaffold.py`、`python tools/checks/check_public_docs.py`；补充尝试 `python tools/checks/selfcheck.py`，仍被既有 `specs/spi/*` 占位 JSON 缺少 `version` 的历史问题阻断在 `check_versions.py`。
+- 提交推送：本轮提交信息拟为 `test: harden reference guardrails`；最终 hash 以当前 `HEAD` 为准。

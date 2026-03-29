@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -56,6 +57,162 @@ REQUIRED_FILES = [
     "tools/lint/README.md",
 ]
 LEGACY_REQUIRED_STATES = {"legacy-only", "dual-readable"}
+DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
+REFERENCE_REQUIRED_FILES = [
+    REPO_ROOT / "docs" / "reference" / "01-反屎山AI研发执行总纲（Codex专用浓缩对照版）.md",
+    REPO_ROOT / "docs" / "reference" / "02-仓库卫生与命名规范.md",
+]
+ROOT_DIRECTORY_SECTION_TITLES = (
+    "一、长期保留的根目录",
+    "二、迁移前临时保留的根目录",
+)
+ROOT_FILE_SECTION_TITLES = (
+    "三、长期保留的根文件",
+    "四、迁移前临时保留的根文件",
+)
+DIRECTORY_LOCK_REQUIRED_MARKERS = (
+    "docs/reference/02-仓库卫生与命名规范.md",
+    "docs/reference/",
+    "高优先级参考规范",
+)
+FORBIDDEN_NAME_TOKENS = ("最终版", "临时版", "new2", "test1")
+ALLOWED_HIDDEN_ROOT_ENTRIES = {".github", ".gitignore"}
+IGNORED_RUNTIME_DIR_NAMES = {"__pycache__"}
+
+
+def normalize_locked_entry(entry: str) -> str:
+    return entry.rstrip("/")
+
+
+def extract_markdown_section_body(markdown_text: str, heading: str) -> str | None:
+    pattern = re.compile(
+        rf"^### {re.escape(heading)}\s*$\r?\n(?P<body>.*?)(?=^### |^## |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(markdown_text)
+    if match is None:
+        return None
+    return match.group("body")
+
+
+def extract_locked_entries(markdown_text: str, headings: tuple[str, ...]) -> set[str]:
+    entries: set[str] = set()
+    for heading in headings:
+        body = extract_markdown_section_body(markdown_text, heading)
+        if body is None:
+            continue
+        for entry in re.findall(r"`([^`]+)`", body):
+            entries.add(normalize_locked_entry(entry))
+    return entries
+
+
+def load_locked_root_entries() -> tuple[set[str], set[str]]:
+    if not DIRECTORY_LOCK_FILE.exists():
+        return set(), set()
+
+    markdown_text = DIRECTORY_LOCK_FILE.read_text(encoding="utf-8")
+    root_dirs = extract_locked_entries(markdown_text, ROOT_DIRECTORY_SECTION_TITLES)
+    root_files = extract_locked_entries(markdown_text, ROOT_FILE_SECTION_TITLES)
+    return root_dirs, root_files
+
+
+def iter_governed_root_entries() -> list[Path]:
+    entries: list[Path] = []
+    for path in REPO_ROOT.iterdir():
+        if path.name in IGNORED_RUNTIME_DIR_NAMES:
+            continue
+        if path.name.startswith(".") and path.name not in ALLOWED_HIDDEN_ROOT_ENTRIES:
+            continue
+        entries.append(path)
+    return entries
+
+
+def iter_governed_repo_paths() -> list[Path]:
+    paths: list[Path] = []
+    for path in REPO_ROOT.rglob("*"):
+        rel_parts = path.relative_to(REPO_ROOT).parts
+        if any(part in IGNORED_RUNTIME_DIR_NAMES for part in rel_parts):
+            continue
+        hidden_parts = [
+            part
+            for part in rel_parts
+            if part.startswith(".") and part not in ALLOWED_HIDDEN_ROOT_ENTRIES
+        ]
+        if hidden_parts:
+            continue
+        paths.append(path)
+    return paths
+
+
+def collect_reference_file_errors() -> list[str]:
+    errors: list[str] = []
+    for path in REFERENCE_REQUIRED_FILES:
+        if not path.exists():
+            errors.append(f"缺少 reference 真源文件: {path.relative_to(REPO_ROOT).as_posix()}")
+    return errors
+
+
+def collect_directory_lock_errors() -> list[str]:
+    if not DIRECTORY_LOCK_FILE.exists():
+        return [f"缺少目录锁定清单: {DIRECTORY_LOCK_FILE.relative_to(REPO_ROOT).as_posix()}"]
+
+    text = DIRECTORY_LOCK_FILE.read_text(encoding="utf-8")
+    errors: list[str] = []
+    for marker in DIRECTORY_LOCK_REQUIRED_MARKERS:
+        if marker not in text:
+            errors.append(f"目录锁定清单缺少关键标记: {DIRECTORY_LOCK_FILE.relative_to(REPO_ROOT).as_posix()} -> {marker}")
+    return errors
+
+
+def collect_root_layout_errors() -> list[str]:
+    locked_root_dirs, locked_root_files = load_locked_root_entries()
+    errors: list[str] = []
+
+    if not locked_root_dirs:
+        errors.append("目录锁定清单未声明根目录白名单")
+    if not locked_root_files:
+        errors.append("目录锁定清单未声明根文件白名单")
+
+    for path in iter_governed_root_entries():
+        display_name = f"{path.name}/" if path.is_dir() else path.name
+        if path.is_dir() and path.name not in locked_root_dirs:
+            errors.append(f"根目录存在未锁定目录: {display_name}")
+        if path.is_file() and path.name not in locked_root_files:
+            errors.append(f"根目录存在未锁定文件: {display_name}")
+
+    return errors
+
+
+def collect_forbidden_name_errors() -> list[str]:
+    errors: list[str] = []
+    seen: set[str] = set()
+
+    for path in iter_governed_repo_paths():
+        relpath = path.relative_to(REPO_ROOT).as_posix()
+        for part in path.relative_to(REPO_ROOT).parts:
+            lowered_part = part.lower()
+            matched_token = next(
+                (token for token in FORBIDDEN_NAME_TOKENS if token.lower() in lowered_part),
+                None,
+            )
+            if matched_token is None:
+                continue
+            message = f"路径命名触发 reference 禁词: {relpath} -> {matched_token}"
+            if message not in seen:
+                seen.add(message)
+                errors.append(message)
+            break
+
+    return errors
+
+
+def collect_reference_guardrail_errors() -> list[str]:
+    errors: list[str] = []
+    errors.extend(collect_reference_file_errors())
+    errors.extend(collect_directory_lock_errors())
+    errors.extend(collect_root_layout_errors())
+    errors.extend(collect_forbidden_name_errors())
+    return errors
 
 
 def collect_ledger_scaffold_errors() -> list[str]:
@@ -77,6 +234,7 @@ def collect_ledger_scaffold_errors() -> list[str]:
 
 def collect_errors() -> list[str]:
     errors: list[str] = []
+    errors.extend(collect_reference_guardrail_errors())
 
     for relpath in REQUIRED_DIRS:
         path = REPO_ROOT / relpath

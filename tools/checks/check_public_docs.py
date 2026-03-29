@@ -191,6 +191,8 @@ REQUIRED_MARKERS = {
         "tools/codegen/",
         "selfcheck.py",
         "Current selfcheck policy",
+        "docs/reference/",
+        "02-V4-目录锁定清单.md",
         "ledger_index_manifest.py",
         "check_ledger_alignment.py",
         "check_consistency.py",
@@ -202,6 +204,8 @@ REQUIRED_MARKERS = {
     ],
     CHECKS_README_FILE: [
         "迁移期优先链路",
+        "docs/reference/",
+        "02-V4-目录锁定清单.md",
         "ledger_index_manifest.py",
         "check_consistency.py",
         "check_versions.py",
