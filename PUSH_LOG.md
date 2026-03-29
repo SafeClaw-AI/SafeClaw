@@ -2004,3 +2004,9 @@
 - 本轮完成：补齐 `Slice 185` 的 broad smoke 债务；把 `tools/checks/check_tooling_smoke.py` 中 `use` 的 `output_source` 合同从旧 `session` 同步到真实 `task_scope`，并清理 5 处改行的换行风格，让 `git diff --check` 重新全绿。
 - 验证：`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `test: sync use output source smoke`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MF
+- 完成时间：2026-03-30 01:40:51 +0800
+- 本轮完成：继续收紧 `session/use` 的当前上下文语义；当 `use` 切到目标任务时，remembered session 的 `owner_id` 现在会优先跟随目标任务最新 lease 的 owner 恢复，不再沿用旧任务残留 owner；同步把 owner-alignment 场景锁进 `check_mvp_operator_flow.py`，并确认 broad smoke 继续全绿。
+- 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: align use owner with target task`；最终 hash 以当前 `HEAD` 为准。

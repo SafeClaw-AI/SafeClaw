@@ -51,6 +51,13 @@ SESSION_PRIORITY_B_TASK = "task-operator-flow-session-priority-b"
 SESSION_PRIORITY_DB = "target/mvp/operator-flow-session-priority.db"
 SESSION_PRIORITY_A_OUTPUT = "target/mvp/operator-flow-session-priority-a.txt"
 SESSION_PRIORITY_B_OUTPUT = "target/mvp/operator-flow-session-priority-b.txt"
+OWNER_ALIGNMENT_A_TASK = "task-operator-flow-owner-alignment-a"
+OWNER_ALIGNMENT_B_TASK = "task-operator-flow-owner-alignment-b"
+OWNER_ALIGNMENT_DB = "target/mvp/operator-flow-owner-alignment.db"
+OWNER_ALIGNMENT_A_OUTPUT = "target/mvp/operator-flow-owner-alignment-a.txt"
+OWNER_ALIGNMENT_B_OUTPUT = "target/mvp/operator-flow-owner-alignment-b.txt"
+OWNER_ALIGNMENT_A_OWNER = "safeclaw-owner-a"
+OWNER_ALIGNMENT_B_OWNER = "safeclaw-owner-b"
 
 
 def reset_operator_flow_state() -> None:
@@ -97,6 +104,11 @@ def reset_operator_flow_state() -> None:
         "operator-flow-session-priority.db-wal",
         "operator-flow-session-priority-a.txt",
         "operator-flow-session-priority-b.txt",
+        "operator-flow-owner-alignment.db",
+        "operator-flow-owner-alignment.db-shm",
+        "operator-flow-owner-alignment.db-wal",
+        "operator-flow-owner-alignment-a.txt",
+        "operator-flow-owner-alignment-b.txt",
     ]:
         path = state_root / relative_path
         if path.is_dir():
@@ -144,7 +156,15 @@ def load_json(args: list[str]) -> tuple[int, str, dict[str, Any] | None]:
     return completed.returncode, output, payload
 
 
-def wait_for_session(task_id: str, db: str, output: str, errors: list[str], label: str) -> None:
+def wait_for_session(
+    task_id: str,
+    db: str,
+    output: str,
+    errors: list[str],
+    label: str,
+    *,
+    owner_id: str | None = None,
+) -> None:
     last_observed: dict[str, Any] | None = None
     for _ in range(12):
         exit_code, raw_output, payload = load_json(["session"])
@@ -152,7 +172,7 @@ def wait_for_session(task_id: str, db: str, output: str, errors: list[str], labe
             result = payload.get("result")
             if isinstance(result, dict):
                 last_observed = result
-                if result.get("task_id") == task_id and result.get("db") == db and result.get("output") == output:
+                if result.get("task_id") == task_id and result.get("db") == db and result.get("output") == output and (owner_id is None or result.get("owner_id") == owner_id):
                     return
         time.sleep(0.1)
     append_error(errors, label, f"session did not converge to {task_id!r}; last={last_observed!r}")
@@ -189,6 +209,8 @@ def assert_session_fields(
     task_id: str,
     db: str,
     output: str,
+    *,
+    owner_id: str = OWNER_ID,
 ) -> None:
     if payload is None:
         append_error(errors, label, f"{field} missing")
@@ -197,7 +219,7 @@ def assert_session_fields(
     expect_equal(errors, label, f"{field}.effect_id", payload.get("effect_id"), f"effect-{task_id}")
     expect_equal(errors, label, f"{field}.db", payload.get("db"), db)
     expect_equal(errors, label, f"{field}.output", payload.get("output"), output)
-    expect_equal(errors, label, f"{field}.owner_id", payload.get("owner_id"), OWNER_ID)
+    expect_equal(errors, label, f"{field}.owner_id", payload.get("owner_id"), owner_id)
 
 
 
@@ -1175,6 +1197,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.output", use_session_priority_result.get("output"), SESSION_PRIORITY_A_OUTPUT)
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.output_source", use_session_priority_result.get("output_source"), "task_scope")
     wait_for_session(SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT, errors, "operator-flow/use-session-priority-a")
+
     session_priority_status = run_json(
         [
             "service-status",
@@ -1225,6 +1248,118 @@ def _main() -> int:
             expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].next_action", recent_current.get("next_action"), "recover")
             expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].coordination_summary", recent_current.get("coordination_summary"), "recover_now")
 
+    seed_crash_owner_alignment_a = run_json(
+        [
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            OWNER_ALIGNMENT_A_TASK,
+            "--db",
+            OWNER_ALIGNMENT_DB,
+            "--output",
+            OWNER_ALIGNMENT_A_OUTPUT,
+            "--owner-id",
+            OWNER_ALIGNMENT_A_OWNER,
+        ],
+        "operator-flow/seed-crash-owner-alignment-a",
+        errors,
+    )
+    if seed_crash_owner_alignment_a is not None:
+        expect_equal(errors, "operator-flow/seed-crash-owner-alignment-a", "action", seed_crash_owner_alignment_a.get("action"), "seed-crash")
+        assert_session_fields(
+            (seed_crash_owner_alignment_a.get("result") or {}).get("remembered_session"),
+            errors,
+            "operator-flow/seed-crash-owner-alignment-a",
+            "remembered_session",
+            OWNER_ALIGNMENT_A_TASK,
+            OWNER_ALIGNMENT_DB,
+            OWNER_ALIGNMENT_A_OUTPUT,
+            owner_id=OWNER_ALIGNMENT_A_OWNER,
+        )
+    wait_for_session(
+        OWNER_ALIGNMENT_A_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_A_OUTPUT,
+        errors,
+        "operator-flow/seed-crash-owner-alignment-a",
+        owner_id=OWNER_ALIGNMENT_A_OWNER,
+    )
+
+    seed_failed_owner_alignment_b = run_json(
+        [
+            "seed-failed",
+            "--task-id",
+            OWNER_ALIGNMENT_B_TASK,
+            "--db",
+            OWNER_ALIGNMENT_DB,
+            "--output",
+            OWNER_ALIGNMENT_B_OUTPUT,
+            "--owner-id",
+            OWNER_ALIGNMENT_B_OWNER,
+        ],
+        "operator-flow/seed-failed-owner-alignment-b",
+        errors,
+    )
+    if seed_failed_owner_alignment_b is not None:
+        expect_equal(errors, "operator-flow/seed-failed-owner-alignment-b", "action", seed_failed_owner_alignment_b.get("action"), "seed-failed")
+        assert_session_fields(
+            (seed_failed_owner_alignment_b.get("result") or {}).get("remembered_session"),
+            errors,
+            "operator-flow/seed-failed-owner-alignment-b",
+            "remembered_session",
+            OWNER_ALIGNMENT_B_TASK,
+            OWNER_ALIGNMENT_DB,
+            OWNER_ALIGNMENT_B_OUTPUT,
+            owner_id=OWNER_ALIGNMENT_B_OWNER,
+        )
+
+    use_owner_alignment_a = run_json(
+        [
+            "use",
+            "--db",
+            OWNER_ALIGNMENT_DB,
+            "--task-id",
+            OWNER_ALIGNMENT_A_TASK,
+        ],
+        "operator-flow/use-owner-alignment-a",
+        errors,
+    )
+    if use_owner_alignment_a is not None:
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "action", use_owner_alignment_a.get("action"), "use")
+        use_owner_alignment_result = use_owner_alignment_a.get("result") or {}
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.task_id", use_owner_alignment_result.get("task_id"), OWNER_ALIGNMENT_A_TASK)
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.db", use_owner_alignment_result.get("db"), OWNER_ALIGNMENT_DB)
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.output", use_owner_alignment_result.get("output"), OWNER_ALIGNMENT_A_OUTPUT)
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.output_source", use_owner_alignment_result.get("output_source"), "task_scope")
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id", use_owner_alignment_result.get("owner_id"), OWNER_ALIGNMENT_A_OWNER)
+        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id_source", use_owner_alignment_result.get("owner_id_source"), "task_owner")
+    wait_for_session(
+        OWNER_ALIGNMENT_A_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_A_OUTPUT,
+        errors,
+        "operator-flow/use-owner-alignment-a",
+        owner_id=OWNER_ALIGNMENT_A_OWNER,
+    )
+
+    owner_alignment_status = run_json(
+        [
+            "service-status",
+            "--db",
+            OWNER_ALIGNMENT_DB,
+            "--limit",
+            "2",
+        ],
+        "operator-flow/service-status-owner-alignment",
+        errors,
+    )
+    if owner_alignment_status is not None:
+        result = owner_alignment_status.get("result") or {}
+        current_session = result.get("current_session") or {}
+        expect_equal(errors, "operator-flow/service-status-owner-alignment", "result.db", result.get("db"), OWNER_ALIGNMENT_DB)
+        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.task_id", current_session.get("task_id"), OWNER_ALIGNMENT_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.output", current_session.get("output"), OWNER_ALIGNMENT_A_OUTPUT)
+        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.owner_id", current_session.get("owner_id"), OWNER_ALIGNMENT_A_OWNER)
     forget_after = run_json(["forget"], "operator-flow/forget-after", errors)
     if forget_after is not None:
         expect_equal(errors, "operator-flow/forget-after", "action", forget_after.get("action"), "forget")

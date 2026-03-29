@@ -2068,6 +2068,25 @@ def resolve_owner_id_selection(
     return DEFAULT_OWNER_ID, "default"
 
 
+def resolve_activate_owner_id_selection(
+    args: list[str],
+    session: dict[str, str] | None,
+    db: str,
+    target: dict[str, object],
+) -> tuple[str, str]:
+    owner_id_flag = get_flag(args, "--owner-id")
+    if owner_id_flag is not None:
+        return owner_id_flag, "flag"
+    target_owner_id = str(target.get("lease_owner_id") or "").strip()
+    if target_owner_id:
+        if matches_session_db(session, db) and session.get("owner_id") == target_owner_id:
+            return session["owner_id"], "session"
+        return target_owner_id, "task_owner"
+    if matches_session_db(session, db) and session.get("task_id") == str(target.get("task_id") or ""):
+        return session["owner_id"], "session"
+    return DEFAULT_OWNER_ID, "default"
+
+
 def resolve_source_hint(
     flag_present: bool,
     *,
@@ -2683,7 +2702,7 @@ def activate_session(args: list[str]) -> int:
 
     output, output_source = resolve_activate_output_selection(args, session, db, target)
 
-    owner_id, owner_id_source = resolve_owner_id_selection(args, session, db)
+    owner_id, owner_id_source = resolve_activate_owner_id_selection(args, session, db, target)
 
     selected_session = {
         "task_id": target["task_id"],
@@ -3096,10 +3115,19 @@ def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
                     ),
                     ''
                 ) AS effect_id,
-                COALESCE(orchestrator_tasks.target_scope, '') AS target_scope
+                COALESCE(orchestrator_tasks.target_scope, '') AS target_scope,
+                COALESCE(latest_lease.owner_id, '') AS lease_owner_id
             FROM task_snapshots
             LEFT JOIN orchestrator_tasks
               ON orchestrator_tasks.task_id = task_snapshots.task_id
+            LEFT JOIN orchestrator_leases AS latest_lease
+              ON latest_lease.lease_id = (
+                  SELECT lease_view.lease_id
+                  FROM orchestrator_leases AS lease_view
+                  WHERE lease_view.task_id = task_snapshots.task_id
+                  ORDER BY lease_view.fencing_token DESC, lease_view.rowid DESC
+                  LIMIT 1
+              )
             WHERE task_snapshots.task_id = ?1
             LIMIT 1
             """,
@@ -3114,6 +3142,7 @@ def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
         "updated_at": row[3],
         "effect_id": row[4] or f"effect-{row[0]}",
         "target_scope": row[5] or "",
+        "lease_owner_id": row[6] or "",
     }
 
 
