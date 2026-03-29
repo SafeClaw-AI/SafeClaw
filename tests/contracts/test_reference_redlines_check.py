@@ -106,6 +106,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_os_error_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    raise RuntimeError('io failed')\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> OSError 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_os_error_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept OSError as error:\n    raise RuntimeError(f'io failed: {error}')\n",
+            ),
+            [],
+        )
+
     def test_file_exists_error_without_bound_context_is_blocked(self) -> None:
         errors = collect_uncontextualized_exception_errors_for_python_text(
             Path("sample.py"),
