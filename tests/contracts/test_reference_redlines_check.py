@@ -15,6 +15,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     _build_handler_exception_gate_profile,
     _collect_python_reference_redline_errors,
     _iter_exception_handler_gate_profiles,
+    _iter_reference_redline_scan_texts,
     _parse_python_text_for_reference_check,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
@@ -192,6 +193,30 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(invalid.relpath, "sample.py")
         self.assertIsNone(invalid.tree)
         self.assertEqual(invalid.syntax_error_message, "无法解析 Python 文件: sample.py:1 -> invalid syntax")
+
+    def test_iter_reference_redline_scan_texts_is_stable(self) -> None:
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT) as temp_dir:
+            temp_root = Path(temp_dir)
+            python_file = temp_root / "sample.py"
+            powershell_file = temp_root / "sample.ps1"
+            cmd_file = temp_root / "sample.cmd"
+            python_file.write_text("print('ok')\n", encoding="utf-8")
+            powershell_file.write_text("Write-Host 'ok'\n", encoding="utf-8")
+            cmd_file.write_text("echo ok\n", encoding="utf-8")
+
+            with patch(
+                "tools.checks.check_reference_redlines.iter_reference_redline_files",
+                return_value=[python_file, powershell_file, cmd_file],
+            ):
+                scan_texts = _iter_reference_redline_scan_texts({".py", ".ps1"})
+
+            self.assertEqual(
+                [(item.relpath.as_posix(), item.suffix, item.text) for item in scan_texts],
+                [
+                    (python_file.relative_to(REPO_ROOT).as_posix(), ".py", "print('ok')\n"),
+                    (powershell_file.relative_to(REPO_ROOT).as_posix(), ".ps1", "Write-Host 'ok'\n"),
+                ],
+            )
 
     def test_collect_python_reference_redline_errors_is_stable(self) -> None:
         with tempfile.TemporaryDirectory(dir=REPO_ROOT) as temp_dir:

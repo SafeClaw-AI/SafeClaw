@@ -197,6 +197,12 @@ class PythonTextParseResult(NamedTuple):
     syntax_error_message: str | None
 
 
+class ReferenceRedlineScanText(NamedTuple):
+    relpath: Path
+    suffix: str
+    text: str
+
+
 class HandlerExceptionGateProfile(NamedTuple):
     caught_types: set[str]
     ordered_high_risk_exception_names: tuple[str, ...]
@@ -405,38 +411,55 @@ def collect_silent_fallback_exception_errors_for_python_text(path: Path, text: s
     return errors
 
 
+def _iter_reference_redline_scan_texts(scan_suffixes: set[str]) -> list[ReferenceRedlineScanText]:
+    scan_texts: list[ReferenceRedlineScanText] = []
+    for path in iter_reference_redline_files():
+        suffix = path.suffix.lower()
+        if suffix not in scan_suffixes:
+            continue
+        scan_texts.append(
+            ReferenceRedlineScanText(
+                relpath=path.relative_to(REPO_ROOT),
+                suffix=suffix,
+                text=path.read_text(encoding="utf-8"),
+            )
+        )
+    return scan_texts
+
+
 def collect_todo_metadata_errors() -> list[str]:
     errors: list[str] = []
-    for path in iter_reference_redline_files():
-        if path.suffix.lower() not in TODO_SCAN_SUFFIXES:
-            continue
-        text = path.read_text(encoding="utf-8")
-        errors.extend(collect_todo_metadata_errors_for_text(path.relative_to(REPO_ROOT), text))
+    for scan_text in _iter_reference_redline_scan_texts(TODO_SCAN_SUFFIXES):
+        errors.extend(collect_todo_metadata_errors_for_text(scan_text.relpath, scan_text.text))
     return errors
 
 
 def _collect_python_reference_redline_errors(collector) -> list[str]:
     errors: list[str] = []
-    for path in iter_reference_redline_files():
-        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
-            continue
-        text = path.read_text(encoding="utf-8")
-        errors.extend(collector(path.relative_to(REPO_ROOT), text))
+    for scan_text in _iter_reference_redline_scan_texts(PYTHON_SCAN_SUFFIXES):
+        errors.extend(collector(scan_text.relpath, scan_text.text))
     return errors
 
 
 def collect_empty_exception_errors() -> list[str]:
     errors: list[str] = []
-    for path in iter_reference_redline_files():
-        suffix = path.suffix.lower()
-        if suffix not in (PYTHON_SCAN_SUFFIXES | POWERSHELL_SCAN_SUFFIXES):
-            continue
-        text = path.read_text(encoding="utf-8")
-        relpath = path.relative_to(REPO_ROOT)
-        if suffix in PYTHON_SCAN_SUFFIXES:
-            errors.extend(collect_empty_exception_errors_for_python_text(relpath, text))
-        if suffix in POWERSHELL_SCAN_SUFFIXES:
-            errors.extend(collect_empty_exception_errors_for_powershell_text(relpath, text))
+    for scan_text in _iter_reference_redline_scan_texts(
+        PYTHON_SCAN_SUFFIXES | POWERSHELL_SCAN_SUFFIXES
+    ):
+        if scan_text.suffix in PYTHON_SCAN_SUFFIXES:
+            errors.extend(
+                collect_empty_exception_errors_for_python_text(
+                    scan_text.relpath,
+                    scan_text.text,
+                )
+            )
+        if scan_text.suffix in POWERSHELL_SCAN_SUFFIXES:
+            errors.extend(
+                collect_empty_exception_errors_for_powershell_text(
+                    scan_text.relpath,
+                    scan_text.text,
+                )
+            )
     return errors
 
 

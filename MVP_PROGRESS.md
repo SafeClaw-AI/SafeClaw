@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 05:16:05 +0800
+最后更新时间：2026-03-30 05:20:54 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 211 刀已完成；最近三十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 212 刀已完成；最近三十一轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -252,3 +252,4 @@
 | [x] | M1b Slice 209: handler profile iterator gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_iter_exception_handler_gate_profiles()`，统一承载“遍历 handler + 构建 `HandlerExceptionGateProfile`”入口，并让三条扫描主循环统一复用；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 iterator 稳定性合同 | 把“画像内容”与“画像遍历入口”一起收成单一真源，后续继续补 broad / multi-exception 家族门禁时更稳、更不容易再漂移 |
 | [x] | M1b Slice 210: python parse truth source gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_parse_python_text_for_reference_check()` 与 `PythonTextParseResult`，统一承载 `path.as_posix()`、`ast.parse()` 与 `SyntaxError` 人话化；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 parse helper 稳定性合同 | 把四处重复的 Python 解析骨架继续压成单一真源，后续继续补 Python 规则时更稳、更不容易再漂移 |
 | [x] | M1b Slice 211: python file scan truth source gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_collect_python_reference_redline_errors()`，统一承载三条顶层 Python 文件扫描器里重复的“筛 `.py` / 读文件 / 转相对路径 / 调 collector”骨架；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 Python file-scan helper 稳定性合同 | 把三条顶层 Python 文件扫描骨架继续压成单一真源，后续继续补 Python 规则时更稳、更不容易再漂移 |
+| [x] | M1b Slice 212: reference scan text truth source gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_iter_reference_redline_scan_texts()` 与 `ReferenceRedlineScanText`，统一承载顶层 reference 扫描器共有的“筛后缀 / 读文件 / 转相对路径”骨架，并让 `collect_todo_metadata_errors()`、`collect_empty_exception_errors()` 与 `_collect_python_reference_redline_errors()` 统一复用；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 reference scan-text helper 稳定性合同 | 把顶层 reference 文件文本扫描骨架继续压成单一真源，后续继续补 TODO / empty-exception / Python 规则时更稳、更不容易再漂移 |
