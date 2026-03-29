@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 06:03:02 +0800
+最后更新时间：2026-03-30 06:10:55 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 214 刀已完成；最近三十三轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 215 刀已完成；最近三十四轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -255,3 +255,4 @@
 | [x] | M1b Slice 212: reference scan text truth source gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_iter_reference_redline_scan_texts()` 与 `ReferenceRedlineScanText`，统一承载顶层 reference 扫描器共有的“筛后缀 / 读文件 / 转相对路径”骨架，并让 `collect_todo_metadata_errors()`、`collect_empty_exception_errors()` 与 `_collect_python_reference_redline_errors()` 统一复用；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 reference scan-text helper 稳定性合同 | 把顶层 reference 文件文本扫描骨架继续压成单一真源，后续继续补 TODO / empty-exception / Python 规则时更稳、更不容易再漂移 |
 | [x] | M1b Slice 213: valueerror silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `SILENT_FALLBACK_EXCEPTION_TYPE_ORDER` 与 `CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER` 正式拆分，并把 `ValueError` 只纳入“直接静默降级”名单；同步收平 `tools/mvp/safeclaw_mvp.py` 的 3 个真实命中点，并在 `tests/contracts/test_reference_redlines_check.py` 补齐名单拆分与 `ValueError` 静默降级合同 | 把“上下文强绑定红线”与“静默降级阻断红线”拆成两个真源后，后续继续扩降级面时更稳，更不容易把高噪音异常一并拉进来 |
 | [x] | M1b Slice 214: typeerror silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `TypeError` 纳入 `SILENT_FALLBACK_EXCEPTION_TYPE_ORDER`，继续扩大 direct `None/False` 静默降级红线；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `TypeError` direct fallback 合同与零命中稳定性断言 | 把输入/调用边界上最常见的 `ValueError / TypeError` 静默降级一起收进 future fail-closed 真源后，后续继续扩降级面时更稳，更不容易漏掉相邻异常族 |
+| [x] | M1b Slice 215: empty fallback silent gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct 静默降级从 `None/False` 扩到空字符串 / 空容器，并让 `_is_direct_silent_fallback_return_value()` / `_is_direct_silent_fallback_return_handler()` 统一识别 `""`、`[]`、`{}`、`()`；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `ValueError -> return ""` 与 `TypeError -> return []` 合同，并确认全仓零命中 | 把 direct silent fallback 的危险形态在零旧债时一次收进 future fail-closed 真源后，后续继续扩异常治理时更稳，更不容易漏掉“看似有返回、实则吞上下文”的空值降级 |

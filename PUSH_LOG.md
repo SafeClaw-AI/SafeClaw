@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 06:03:02 +0800
+最后更新时间：2026-03-30 06:10:55 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2155,3 +2155,8 @@
 - 本轮完成：把 `TypeError` 纳入 `SILENT_FALLBACK_EXCEPTION_TYPE_ORDER`，继续扩大 direct `None/False` 静默降级红线；当前全仓 `TypeError` catch 命中为 0，本轮属于零旧债扩面。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
 - 提交推送：本轮提交信息拟为 feat: block typeerror silent fallback；最终 hash 以当前 HEAD 为准。
+### Round NH
+- 完成时间：2026-03-30 06:10:55 +0800
+- 本轮完成：把 direct 静默降级从 `None/False` 扩到空字符串 / 空容器，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return ''`、`except TypeError: return []/{}/()` 这类 direct silent fallback；当前全仓该形态仍为 0 命中，本轮属于零旧债扩面。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block empty silent fallback`；最终 hash 以当前 HEAD 为准。

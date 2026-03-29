@@ -39,7 +39,7 @@ HIGH_RISK_EXCEPTION_TYPES = set(CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
 SILENT_FALLBACK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_SUFFIX = "\u5fc5\u987b\u7ed1\u5b9a `as error` \u4ee5\u4fdd\u7559\u4e0a\u4e0b\u6587"
-SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False"
+SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False/\u7a7a\u5b57\u7b26\u4e32/\u7a7a\u5bb9\u5668"
 BARE_CONTEXT_REQUIRED_MESSAGE = "\u88f8 except \u4e0d\u5141\u8bb8\uff1b\u5fc5\u987b\u663e\u5f0f\u6355\u83b7\u5f02\u5e38\u7c7b\u578b\u5e76\u7ed1\u5b9a `as error`"
 BROAD_CONTEXT_REQUIRED_MESSAGE = f"broad except {CONTEXT_REQUIRED_SUFFIX}"
 MULTI_CONTEXT_REQUIRED_MESSAGE = f"\u591a\u5f02\u5e38 except {CONTEXT_REQUIRED_SUFFIX}"
@@ -271,7 +271,7 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
         silent_fallback_requirement_message = f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
 
     is_direct_silent_fallback = False
-    if _is_direct_none_false_return_handler(handler):
+    if _is_direct_silent_fallback_return_handler(handler):
         is_direct_silent_fallback = (
             is_bare_handler
             or uses_broad_exception_family
@@ -325,15 +325,25 @@ def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
         return [node.attr]
     return []
 
-def _is_direct_none_false_return_handler(handler: ast.ExceptHandler) -> bool:
+def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
+    if isinstance(node, ast.Constant):
+        return node.value in (None, False, "")
+    if isinstance(node, ast.List):
+        return not node.elts
+    if isinstance(node, ast.Dict):
+        return not node.keys
+    if isinstance(node, ast.Tuple):
+        return not node.elts
+    return False
+
+
+def _is_direct_silent_fallback_return_handler(handler: ast.ExceptHandler) -> bool:
     if len(handler.body) != 1:
         return False
     statement = handler.body[0]
     if not isinstance(statement, ast.Return):
         return False
-    if not isinstance(statement.value, ast.Constant):
-        return False
-    return statement.value.value in (None, False)
+    return _is_direct_silent_fallback_return_value(statement.value)
 
 
 def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
