@@ -415,6 +415,16 @@ def collect_todo_metadata_errors() -> list[str]:
     return errors
 
 
+def _collect_python_reference_redline_errors(collector) -> list[str]:
+    errors: list[str] = []
+    for path in iter_reference_redline_files():
+        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        errors.extend(collector(path.relative_to(REPO_ROOT), text))
+    return errors
+
+
 def collect_empty_exception_errors() -> list[str]:
     errors: list[str] = []
     for path in iter_reference_redline_files():
@@ -431,39 +441,21 @@ def collect_empty_exception_errors() -> list[str]:
 
 
 def collect_uncontextualized_exception_errors() -> list[str]:
-    errors: list[str] = []
-    for path in iter_reference_redline_files():
-        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
-            continue
-        text = path.read_text(encoding="utf-8")
-        errors.extend(
-            collect_uncontextualized_exception_errors_for_python_text(path.relative_to(REPO_ROOT), text)
-        )
-    return errors
+    return _collect_python_reference_redline_errors(
+        collect_uncontextualized_exception_errors_for_python_text
+    )
 
 
 def collect_unused_bound_exception_context_errors() -> list[str]:
-    errors: list[str] = []
-    for path in iter_reference_redline_files():
-        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
-            continue
-        text = path.read_text(encoding="utf-8")
-        errors.extend(
-            collect_unused_bound_exception_context_errors_for_python_text(path.relative_to(REPO_ROOT), text)
-        )
-    return errors
+    return _collect_python_reference_redline_errors(
+        collect_unused_bound_exception_context_errors_for_python_text
+    )
 
 
 def collect_silent_fallback_exception_errors() -> list[str]:
-    errors: list[str] = []
-    for path in iter_reference_redline_files():
-        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
-            continue
-        text = path.read_text(encoding="utf-8")
-        errors.extend(
-            collect_silent_fallback_exception_errors_for_python_text(path.relative_to(REPO_ROOT), text)
-        )
-    return errors
+    return _collect_python_reference_redline_errors(
+        collect_silent_fallback_exception_errors_for_python_text
+    )
 
 
 def collect_errors() -> list[str]:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import ast
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -11,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.checks.check_reference_redlines import (  # noqa: E402
     _build_handler_exception_gate_profile,
+    _collect_python_reference_redline_errors,
     _iter_exception_handler_gate_profiles,
     _parse_python_text_for_reference_check,
     _handler_caught_types,
@@ -189,6 +192,27 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(invalid.relpath, "sample.py")
         self.assertIsNone(invalid.tree)
         self.assertEqual(invalid.syntax_error_message, "无法解析 Python 文件: sample.py:1 -> invalid syntax")
+
+    def test_collect_python_reference_redline_errors_is_stable(self) -> None:
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT) as temp_dir:
+            temp_root = Path(temp_dir)
+            python_file = temp_root / "sample.py"
+            powershell_file = temp_root / "sample.ps1"
+            python_file.write_text("print('ok')\n", encoding="utf-8")
+            powershell_file.write_text("Write-Host 'ok'\n", encoding="utf-8")
+
+            seen: list[tuple[str, str]] = []
+
+            def collector(path: Path, text: str) -> list[str]:
+                seen.append((path.as_posix(), text))
+                return [f"hit:{path.as_posix()}"]
+
+            with patch("tools.checks.check_reference_redlines.iter_reference_redline_files", return_value=[python_file, powershell_file]):
+                errors = _collect_python_reference_redline_errors(collector)
+
+            expected_relpath = python_file.relative_to(REPO_ROOT).as_posix()
+            self.assertEqual(errors, [f"hit:{expected_relpath}"])
+            self.assertEqual(seen, [(expected_relpath, "print('ok')\n")])
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (
