@@ -55,7 +55,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
 
     def test_exception_message_truth_sources_are_stable(self) -> None:
         self.assertEqual(CONTEXT_REQUIRED_SUFFIX, "必须绑定 `as error` 以保留上下文")
-        self.assertEqual(SILENT_FALLBACK_SUFFIX, "不能直接静默降级为 None/False/空字符串/空容器")
+        self.assertEqual(SILENT_FALLBACK_SUFFIX, "不能直接静默降级为 None/False/空字符串/空字节串/空容器")
         self.assertEqual(BARE_CONTEXT_REQUIRED_MESSAGE, "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`")
         self.assertEqual(BROAD_CONTEXT_REQUIRED_MESSAGE, f"broad except {CONTEXT_REQUIRED_SUFFIX}")
         self.assertEqual(MULTI_CONTEXT_REQUIRED_MESSAGE, f"多异常 except {CONTEXT_REQUIRED_SUFFIX}")
@@ -92,11 +92,11 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(_handler_caught_types(broad_tuple_handler), {"Exception", "ValueError"})
 
     def test_silent_fallback_constructor_call_helper_is_stable(self) -> None:
-        for source in ("return bool()", "return str()", "return list()", "return dict()", "return tuple()", "return set()", "return frozenset()"):
+        for source in ("return bool()", "return str()", "return bytes()", "return bytearray()", "return list()", "return dict()", "return tuple()", "return set()", "return frozenset()"):
             node = ast.parse(source).body[0].value
             self.assertTrue(_is_silent_fallback_constructor_call(node))
 
-        self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return bytes()").body[0].value))
+        self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return bytes([1])").body[0].value))
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return list([1])").body[0].value))
         self.assertFalse(_is_silent_fallback_constructor_call(ast.parse("return path.as_posix()").body[0].value))
 
@@ -589,7 +589,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> OSError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> OSError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -610,7 +610,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> 裸 except 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> 裸 except 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -622,7 +622,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -634,7 +634,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -646,7 +646,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -658,7 +658,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> broad except 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -670,7 +670,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> SystemError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> SystemError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -682,7 +682,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:4 -> subprocess.TimeoutExpired 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:4 -> subprocess.TimeoutExpired 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -694,7 +694,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> ValueError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> ValueError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -706,7 +706,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> TypeError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> TypeError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -867,6 +867,43 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_value_error_cannot_directly_silently_fallback_to_empty_bytes_literal(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return b''\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_to_empty_bytes_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return bytes()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_value_error_cannot_directly_silently_fallback_to_empty_bytearray_call(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return bytearray()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
@@ -875,9 +912,10 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> KeyError 不能直接静默降级为 None/False/空字符串/空容器",
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> KeyError {SILENT_FALLBACK_SUFFIX}",
             ],
         )
+
 
     def test_type_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
@@ -887,7 +925,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> TypeError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> TypeError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -915,7 +953,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> ValueError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> ValueError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
 
@@ -943,7 +981,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> RuntimeError 不能直接静默降级为 None/False/空字符串/空容器",
+                "异常降级缺少上下文: sample.py:3 -> RuntimeError 不能直接静默降级为 None/False/空字符串/空字节串/空容器",
             ],
         )
     def test_non_empty_exception_handling_passes(self) -> None:

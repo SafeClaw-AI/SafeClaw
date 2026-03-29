@@ -2190,3 +2190,8 @@
 - 本轮完成：把 `fallback: T = 空值; return fallback` 这类 `AnnAssign` 两步静默降级也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except OSError: fallback: object = None; return fallback` 与 `except TypeError: fallback: list[str] = []; return fallback`；当前全仓该形态仍为 0 命中，本轮属于零旧债扩面。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block annassign return fallback`；最终 hash 以当前 HEAD 为准。
+### Round NO
+- 完成时间：2026-03-30 07:05:11 +0800
+- 本轮完成：把 `b''`、`bytes()`、`bytearray()` 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return b''`、`except TypeError: return bytes()`、`except ValueError: return bytearray()` 这类空字节串静默降级；当前全仓该形态仍为 0 命中，本轮属于零旧债扩面。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block empty bytes fallback`；最终 hash 以当前 HEAD 为准。

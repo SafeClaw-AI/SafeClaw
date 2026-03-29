@@ -39,7 +39,7 @@ HIGH_RISK_EXCEPTION_TYPES = set(CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_EXCEPTION_TYPES = HIGH_RISK_EXCEPTION_TYPES
 SILENT_FALLBACK_EXCEPTION_TYPES = set(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER)
 CONTEXT_REQUIRED_SUFFIX = "\u5fc5\u987b\u7ed1\u5b9a `as error` \u4ee5\u4fdd\u7559\u4e0a\u4e0b\u6587"
-SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False/\u7a7a\u5b57\u7b26\u4e32/\u7a7a\u5bb9\u5668"
+SILENT_FALLBACK_SUFFIX = "\u4e0d\u80fd\u76f4\u63a5\u9759\u9ed8\u964d\u7ea7\u4e3a None/False/\u7a7a\u5b57\u7b26\u4e32/\u7a7a\u5b57\u8282\u4e32/\u7a7a\u5bb9\u5668"
 BARE_CONTEXT_REQUIRED_MESSAGE = "\u88f8 except \u4e0d\u5141\u8bb8\uff1b\u5fc5\u987b\u663e\u5f0f\u6355\u83b7\u5f02\u5e38\u7c7b\u578b\u5e76\u7ed1\u5b9a `as error`"
 BROAD_CONTEXT_REQUIRED_MESSAGE = f"broad except {CONTEXT_REQUIRED_SUFFIX}"
 MULTI_CONTEXT_REQUIRED_MESSAGE = f"\u591a\u5f02\u5e38 except {CONTEXT_REQUIRED_SUFFIX}"
@@ -332,7 +332,7 @@ def _is_silent_fallback_constructor_call(node: ast.expr | None) -> bool:
         return False
     if not isinstance(node.func, ast.Name):
         return False
-    return node.func.id in {"bool", "str", "list", "dict", "tuple", "set", "frozenset"}
+    return node.func.id in {"bool", "str", "bytes", "bytearray", "list", "dict", "tuple", "set", "frozenset"}
 
 
 
@@ -340,7 +340,7 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
     if node is None:
         return True
     if isinstance(node, ast.Constant):
-        return node.value in (None, False, "")
+        return node.value in (None, False, "", b"")
     if isinstance(node, ast.List):
         return not node.elts
     if isinstance(node, ast.Dict):
