@@ -12,6 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 from tools.checks.check_reference_redlines import (  # noqa: E402
     _build_handler_exception_gate_profile,
     _iter_exception_handler_gate_profiles,
+    _parse_python_text_for_reference_check,
     _handler_caught_types,
     _handler_uses_broad_exception_family,
     BARE_CONTEXT_REQUIRED_MESSAGE,
@@ -170,6 +171,24 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(second_profile.context_requirement_message, BROAD_CONTEXT_REQUIRED_MESSAGE)
         self.assertTrue(second_profile.requires_bound_error)
         self.assertTrue(second_profile.is_direct_silent_fallback)
+
+    def test_parse_python_text_for_reference_check_is_stable(self) -> None:
+        valid = _parse_python_text_for_reference_check(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    return None\n",
+        )
+        invalid = _parse_python_text_for_reference_check(
+            Path("sample.py"),
+            "def broken(:\n    pass\n",
+        )
+
+        self.assertEqual(valid.relpath, "sample.py")
+        self.assertIsInstance(valid.tree, ast.Module)
+        self.assertIsNone(valid.syntax_error_message)
+
+        self.assertEqual(invalid.relpath, "sample.py")
+        self.assertIsNone(invalid.tree)
+        self.assertEqual(invalid.syntax_error_message, "无法解析 Python 文件: sample.py:1 -> invalid syntax")
 
     def test_high_risk_exception_truth_sources_are_aligned(self) -> None:
         expected = (

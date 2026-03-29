@@ -121,12 +121,27 @@ def _is_empty_python_except_body(body: list[ast.stmt]) -> bool:
     return True
 
 
-def collect_empty_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
+def _parse_python_text_for_reference_check(path: Path, text: str) -> PythonTextParseResult:
     relpath = path.as_posix()
     try:
         tree = ast.parse(text, filename=relpath)
     except SyntaxError as error:
-        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+        return PythonTextParseResult(
+            relpath=relpath,
+            tree=None,
+            syntax_error_message=f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}",
+        )
+    return PythonTextParseResult(relpath=relpath, tree=tree, syntax_error_message=None)
+
+
+def collect_empty_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
+    parsed = _parse_python_text_for_reference_check(path, text)
+    if parsed.syntax_error_message is not None:
+        return [parsed.syntax_error_message]
+
+    relpath = parsed.relpath
+    tree = parsed.tree
+    assert tree is not None
 
     errors: list[str] = []
     for node in ast.walk(tree):
@@ -174,6 +189,12 @@ def _caught_types_include_broad_exception(caught_types: set[str]) -> bool:
 
 def _handler_caught_types(handler: ast.ExceptHandler) -> set[str]:
     return set(_collect_exception_type_names(handler.type))
+
+
+class PythonTextParseResult(NamedTuple):
+    relpath: str
+    tree: ast.Module | None
+    syntax_error_message: str | None
 
 
 class HandlerExceptionGateProfile(NamedTuple):
@@ -300,11 +321,13 @@ def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
 
 
 def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
-    relpath = path.as_posix()
-    try:
-        tree = ast.parse(text, filename=relpath)
-    except SyntaxError as error:
-        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+    parsed = _parse_python_text_for_reference_check(path, text)
+    if parsed.syntax_error_message is not None:
+        return [parsed.syntax_error_message]
+
+    relpath = parsed.relpath
+    tree = parsed.tree
+    assert tree is not None
 
     errors: list[str] = []
     for handler, profile in _iter_exception_handler_gate_profiles(tree):
@@ -341,11 +364,13 @@ def _collect_meaningful_error_usage_count(body: list[ast.stmt], error_name: str)
 
 
 def collect_unused_bound_exception_context_errors_for_python_text(path: Path, text: str) -> list[str]:
-    relpath = path.as_posix()
-    try:
-        tree = ast.parse(text, filename=relpath)
-    except SyntaxError as error:
-        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+    parsed = _parse_python_text_for_reference_check(path, text)
+    if parsed.syntax_error_message is not None:
+        return [parsed.syntax_error_message]
+
+    relpath = parsed.relpath
+    tree = parsed.tree
+    assert tree is not None
 
     errors: list[str] = []
     for handler, profile in _iter_exception_handler_gate_profiles(tree):
@@ -362,11 +387,13 @@ def collect_unused_bound_exception_context_errors_for_python_text(path: Path, te
 
 
 def collect_silent_fallback_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
-    relpath = path.as_posix()
-    try:
-        tree = ast.parse(text, filename=relpath)
-    except SyntaxError as error:
-        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+    parsed = _parse_python_text_for_reference_check(path, text)
+    if parsed.syntax_error_message is not None:
+        return [parsed.syntax_error_message]
+
+    relpath = parsed.relpath
+    tree = parsed.tree
+    assert tree is not None
 
     errors: list[str] = []
     for handler, profile in _iter_exception_handler_gate_profiles(tree):

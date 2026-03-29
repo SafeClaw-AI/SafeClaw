@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 05:03:44 +0800
+最后更新时间：2026-03-30 05:11:15 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 209 刀已完成；最近二十八轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 210 刀已完成；最近二十九轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -250,3 +250,4 @@
 | [x] | M1b Slice 207: handler gate message profile gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `context_requirement_message` 与 `silent_fallback_requirement_message` 也并入 `HandlerExceptionGateProfile`，并让 `_handler_context_requirement()` / `_silent_fallback_requirement()` 退化成纯透传 helper；同步在 `tests/contracts/test_reference_redlines_check.py` 扩充 handler profile 稳定性合同 | 把“画像 → 门禁文案”从消费点现算继续压成“画像真源内建”，后续继续补 broad / multi-exception 家族门禁时更稳、更不容易再漂移 |
 | [x] | M1b Slice 208: handler gate bool profile gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `requires_bound_error` 与 `is_direct_silent_fallback` 也并入 `HandlerExceptionGateProfile`，并让 `_handler_requires_bound_error()` / `_is_direct_silent_fallback_handler()` 退化成纯透传 helper；同步在 `tests/contracts/test_reference_redlines_check.py` 扩充 handler profile 稳定性合同 | 把最后两段门禁布尔判定从消费点现算继续压成“画像真源内建”，后续继续补 broad / multi-exception 家族门禁时更稳、更不容易再漂移 |
 | [x] | M1b Slice 209: handler profile iterator gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_iter_exception_handler_gate_profiles()`，统一承载“遍历 handler + 构建 `HandlerExceptionGateProfile`”入口，并让三条扫描主循环统一复用；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 iterator 稳定性合同 | 把“画像内容”与“画像遍历入口”一起收成单一真源，后续继续补 broad / multi-exception 家族门禁时更稳、更不容易再漂移 |
+| [x] | M1b Slice 210: python parse truth source gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 `_parse_python_text_for_reference_check()` 与 `PythonTextParseResult`，统一承载 `path.as_posix()`、`ast.parse()` 与 `SyntaxError` 人话化；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 parse helper 稳定性合同 | 把四处重复的 Python 解析骨架继续压成单一真源，后续继续补 Python 规则时更稳、更不容易再漂移 |
