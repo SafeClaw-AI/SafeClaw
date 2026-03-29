@@ -37,7 +37,11 @@ def _process_is_running_with_signal(pid: int) -> bool:
         os.kill(pid, 0)
     except OSError as error:
         return error.errno == errno.EPERM
-    except SystemError:
+    except SystemError as error:
+        print(
+            f"[mvp-state-guard] os.kill probe failed pid={pid}: {error}",
+            file=sys.stderr,
+        )
         return False
     return True
 

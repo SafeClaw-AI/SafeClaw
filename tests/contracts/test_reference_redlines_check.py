@@ -211,6 +211,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_system_error_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept SystemError:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> SystemError 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_system_error_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept SystemError as error:\n    raise RuntimeError(f'signal probe failed: {error}')\n",
+            ),
+            [],
+        )
+
     def test_syntax_error_without_bound_context_is_blocked(self) -> None:
         errors = collect_uncontextualized_exception_errors_for_python_text(
             Path("sample.py"),

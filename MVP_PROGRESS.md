@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 02:49:00 +0800
+最后更新时间：2026-03-30 02:59:40 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 191 刀已完成；最近几轮继续把验证链稳态与 reference fail-closed 门禁一起收口
+当前阶段：已进入 M1b，前 192 刀已完成；最近几轮继续沿 reference fail-closed 主线收静默吞异常与上下文门禁
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -232,3 +232,4 @@
 | [x] | M1b Slice 189: stale-lock e2e contract gate | M1b plan | 在 `tests/contracts/test_mvp_state_guard.py` 新增真实 stale `.wrapper-check.lock` 端到端回归，锁住 `acquire_mvp_state_lock()` 会清理陈旧 pid 锁、写入当前 holder，并在退出时释放文件；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿 | 把 `Slice 188` 的 Windows 假锁恢复从 helper 级提升到 contextmanager 级合同，降低验证链回退风险 |
 | [x] | M1b Slice 190: nested mvp lock reuse contract gate | M1b plan | 在 `tests/contracts/test_mvp_state_guard.py` 新增嵌套 `acquire_mvp_state_lock()` 回归，锁住已有 `LOCK_ENV` 时内层复用外层锁、不重写 holder 文件、退出后恢复环境变量；同步确认 `operator-flow` 与 `tooling smoke` 继续全绿 | 把验证链里“嵌套检查不争锁”的隐含约定收成端到端合同，降低后续门禁互相踩锁风险 |
 | [x] | M1b Slice 191: bare except and broad exception context gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 的裸 `except:` 报错文案，并在 `tests/contracts/test_reference_redlines_check.py` 新增裸 `except:` / `except Exception:` / `except Exception as error` 三条合同；同步确认 reference redlines 与主账门禁继续全绿 | 把“宽泛异常必须保留上下文”的隐含规则收成明确 fail-closed 合同，降低未来异常兜底 silently 漂移风险 |
+| [x] | M1b Slice 192: system error context gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 把 `SystemError` 纳入单异常上下文红线，并修平 `tools/checks/mvp_state_guard.py` 的唯一命中点：改为绑定 `as error` 且把 pid / error 打到 `stderr`；同步在 `tests/contracts/test_reference_redlines_check.py` 与 `tests/contracts/test_mvp_state_guard.py` 补齐回归 | 把底层探活链路的 `SystemError` 从“无上下文静默 false”收成 fail-closed 可排障合同，长期更稳 |

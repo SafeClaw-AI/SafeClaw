@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 02:49:00 +0800
+最后更新时间：2026-03-30 02:59:40 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2034,3 +2034,9 @@
 - 本轮完成：把 `check_reference_redlines.py` 里“裸 `except:` / `except Exception:` 必须保留上下文”的隐含规则补成明确合同；现在裸 `except:` 会给出更可执行的红线提示，同时 `tests/contracts/test_reference_redlines_check.py` 已锁住裸 `except:`、未绑定的 `except Exception:` 和合规 `except Exception as error` 三条路径。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `test: lock broad exception context gate`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MK
+- 完成时间：2026-03-30 02:59:40 +0800
+- 本轮完成：把 `SystemError` 纳入 reference 异常上下文红线，并修平 `tools/checks/mvp_state_guard.py` 的唯一真实命中；`_process_is_running_with_signal()` 现在会保留 pid / error 上下文后再返回 `False`，同时 `tests/contracts/test_reference_redlines_check.py` 与 `tests/contracts/test_mvp_state_guard.py` 已补齐回归。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py tools/checks/mvp_state_guard.py tests/contracts/test_mvp_state_guard.py`、`python -m unittest tests.contracts.test_reference_redlines_check tests.contracts.test_mvp_state_guard -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: require system error context`；最终 hash 以当前 `HEAD` 为准。

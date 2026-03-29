@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import io
 import os
 import sys
 import tempfile
@@ -35,6 +36,16 @@ class MvpStateGuardTest(unittest.TestCase):
             side_effect=OSError(errno.ESRCH, "no such process"),
         ):
             self.assertFalse(_process_is_running_with_signal(1234))
+
+    def test_system_error_returns_false_with_context_log(self) -> None:
+        stderr = io.StringIO()
+        with patch(
+            "tools.checks.mvp_state_guard.os.kill",
+            side_effect=SystemError("invalid parameter"),
+        ), patch("tools.checks.mvp_state_guard.sys.stderr", stderr):
+            self.assertFalse(_process_is_running_with_signal(1234))
+        self.assertIn("os.kill probe failed pid=1234", stderr.getvalue())
+        self.assertIn("invalid parameter", stderr.getvalue())
 
     def test_windows_invalid_parameter_returns_false(self) -> None:
         with patch("tools.checks.mvp_state_guard.WINDOWS_KERNEL32") as kernel32, patch(
