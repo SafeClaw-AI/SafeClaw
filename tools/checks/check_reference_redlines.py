@@ -161,14 +161,7 @@ def collect_empty_exception_errors_for_powershell_text(path: Path, text: str) ->
 
 
 def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
-    profile = _build_handler_exception_gate_profile(handler)
-    if profile.is_bare_handler:
-        return True
-    if profile.uses_multi_exception_family:
-        return True
-    if profile.uses_broad_exception_family:
-        return True
-    return profile.uses_high_risk_exception_family
+    return _build_handler_exception_gate_profile(handler).requires_bound_error
 
 
 def _ordered_high_risk_exception_names(caught_types: set[str]) -> list[str]:
@@ -188,6 +181,8 @@ class HandlerExceptionGateProfile(NamedTuple):
     ordered_high_risk_exception_names: tuple[str, ...]
     context_requirement_message: str
     silent_fallback_requirement_message: str
+    requires_bound_error: bool
+    is_direct_silent_fallback: bool
     is_bare_handler: bool
     uses_high_risk_exception_family: bool
     uses_multi_exception_family: bool
@@ -202,6 +197,12 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
     uses_multi_exception_family = isinstance(handler.type, ast.Tuple)
     uses_broad_exception_family = (
         not is_bare_handler and _caught_types_include_broad_exception(caught_types)
+    )
+    requires_bound_error = (
+        is_bare_handler
+        or uses_multi_exception_family
+        or uses_broad_exception_family
+        or uses_high_risk_exception_family
     )
 
     if is_bare_handler:
@@ -224,11 +225,21 @@ def _build_handler_exception_gate_profile(handler: ast.ExceptHandler) -> Handler
         protected_text = " / ".join(ordered_high_risk_exception_names or sorted(caught_types))
         silent_fallback_requirement_message = f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
 
+    is_direct_silent_fallback = False
+    if _is_direct_none_false_return_handler(handler):
+        is_direct_silent_fallback = (
+            is_bare_handler
+            or uses_broad_exception_family
+            or uses_high_risk_exception_family
+        )
+
     return HandlerExceptionGateProfile(
         caught_types=caught_types,
         ordered_high_risk_exception_names=ordered_high_risk_exception_names,
         context_requirement_message=context_requirement_message,
         silent_fallback_requirement_message=silent_fallback_requirement_message,
+        requires_bound_error=requires_bound_error,
+        is_direct_silent_fallback=is_direct_silent_fallback,
         is_bare_handler=is_bare_handler,
         uses_high_risk_exception_family=uses_high_risk_exception_family,
         uses_multi_exception_family=uses_multi_exception_family,
@@ -273,14 +284,7 @@ def _is_direct_none_false_return_handler(handler: ast.ExceptHandler) -> bool:
 
 
 def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
-    if not _is_direct_none_false_return_handler(handler):
-        return False
-    profile = _build_handler_exception_gate_profile(handler)
-    if profile.is_bare_handler:
-        return True
-    if profile.uses_broad_exception_family:
-        return True
-    return profile.uses_high_risk_exception_family
+    return _build_handler_exception_gate_profile(handler).is_direct_silent_fallback
 
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:

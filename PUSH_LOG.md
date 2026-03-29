@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 04:50:38 +0800
+最后更新时间：2026-03-30 04:55:12 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2120,3 +2120,8 @@
 - 本轮完成：把 `context_requirement_message` 与 `silent_fallback_requirement_message` 也并入 `HandlerExceptionGateProfile`，让“画像 → 门禁文案”从消费点现算推进到画像真源内建；现在 `_handler_context_requirement()` 与 `_silent_fallback_requirement()` 都已退化成纯透传 helper。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、git diff --check。
 - 提交推送：本轮提交信息拟为 refactor: enrich handler gate message profile；最终 hash 以当前 HEAD 为准。
+### Round NA
+- 完成时间：2026-03-30 04:55:12 +0800
+- 本轮完成：把 `requires_bound_error` 与 `is_direct_silent_fallback` 也并入 `HandlerExceptionGateProfile`，让最后两段门禁布尔判定从消费点现算推进到画像真源内建；现在 `_handler_requires_bound_error()` 与 `_is_direct_silent_fallback_handler()` 都已退化成纯透传 helper。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、git diff --check。
+- 提交推送：本轮提交信息拟为 refactor: enrich handler gate bool profile；最终 hash 以当前 HEAD 为准。
