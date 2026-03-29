@@ -22,6 +22,7 @@ class ContractsWorkflowTest(unittest.TestCase):
             'Run structure completeness check',
             'Run scaffold layout check',
             'Run public docs alignment check',
+            'Run reference redline check',
             'Run naming lint',
             'Run contract tests',
         ]

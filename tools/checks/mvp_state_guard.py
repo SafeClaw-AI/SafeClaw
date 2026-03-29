@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -45,14 +46,17 @@ def acquire_mvp_state_lock(check_name: str):
             try:
                 holder = LOCK_FILE.read_text(encoding="utf-8").strip() or holder
                 holder_pid = _holder_pid(holder)
-            except OSError:
-                pass
+            except OSError as error:
+                holder = f"{holder} unreadable={error.__class__.__name__}"
+                holder_pid = None
             if holder_pid is not None and not _process_is_running(holder_pid):
                 try:
                     LOCK_FILE.unlink(missing_ok=True)
                     continue
-                except OSError:
-                    pass
+                except OSError as error:
+                    raise RuntimeError(
+                        f"failed to remove stale MVP state lock: {LOCK_FILE.relative_to(REPO_ROOT).as_posix()} error={error}"
+                    ) from error
             raise RuntimeError(
                 f"another MVP state check is already running; lock={LOCK_FILE.relative_to(REPO_ROOT).as_posix()} holder={holder}"
             )
@@ -69,5 +73,8 @@ def acquire_mvp_state_lock(check_name: str):
             os.close(fd)
         try:
             LOCK_FILE.unlink(missing_ok=True)
-        except OSError:
-            pass
+        except OSError as error:
+            print(
+                f"[mvp-state-guard] failed to release lock {LOCK_FILE.relative_to(REPO_ROOT).as_posix()}: {error}",
+                file=sys.stderr,
+            )

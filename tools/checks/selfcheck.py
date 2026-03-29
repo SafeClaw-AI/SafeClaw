@@ -31,6 +31,10 @@ CONTRACT_TESTS_COMMAND = [
 CHECKS: list[tuple[str, list[str]]] = [
     *[(name, [PYTHON, "-u", script_path]) for name, script_path in LEDGER_POLICY_CHECKS],
     (
+        "Reference redlines",
+        [PYTHON, "-u", "tools/checks/check_reference_redlines.py"],
+    ),
+    (
         "Naming lint",
         [PYTHON, "-u", "tools/lint/check_naming.py"],
     ),

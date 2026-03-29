@@ -200,6 +200,7 @@ REQUIRED_MARKERS = {
         "check_structure.py",
         "check_scaffold.py",
         "check_public_docs.py",
+        "check_reference_redlines.py",
         "Contract tests",
     ],
     CHECKS_README_FILE: [
@@ -212,6 +213,7 @@ REQUIRED_MARKERS = {
         "check_structure.py",
         "check_scaffold.py",
         "check_public_docs.py",
+        "check_reference_redlines.py",
         "Contract tests",
     ],
     TESTS_README_FILE: [
