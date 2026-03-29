@@ -294,7 +294,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                "异常降级缺少上下文: sample.py:3 -> OSError / json.JSONDecodeError 不能直接静默降级为 None/False",
+                "异常降级缺少上下文: sample.py:3 -> OSError 不能直接静默降级为 None/False",
             ],
         )
 
@@ -307,6 +307,29 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_system_error_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept SystemError:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> SystemError 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_timeout_expired_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "import subprocess\ntry:\n    work()\nexcept subprocess.TimeoutExpired:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:4 -> subprocess.TimeoutExpired 不能直接静默降级为 None/False",
+            ],
+        )
     def test_non_empty_exception_handling_passes(self) -> None:
         self.assertEqual(
             collect_empty_exception_errors_for_python_text(

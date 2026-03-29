@@ -19,7 +19,7 @@ TODO_LINE_PATTERN = re.compile(r"^\s*(?:(?:#|//|/\*+|\*|;|REM\b)\s*)?TODO\b", re
 PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
-SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "json.JSONDecodeError"}
+SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired"}
 CONTEXT_REQUIRED_EXCEPTION_TYPES = {"FileExistsError", "KeyError", "OSError", "RuntimeError", "SyntaxError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired"}
 REFERENCE_REDLINE_SCAN_DIRS = (
     "tools",
@@ -206,6 +206,17 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
     return statement.value.value in (None, False)
 
 
+def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
+    caught_types = set(_collect_exception_type_names(handler.type))
+    protected_types = [
+        name
+        for name in ("OSError", "SystemError", "json.JSONDecodeError", "subprocess.TimeoutExpired")
+        if name in caught_types
+    ]
+    protected_text = " / ".join(protected_types or sorted(caught_types))
+    return f"{protected_text} 不能直接静默降级为 None/False"
+
+
 def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
     relpath = path.as_posix()
     try:
@@ -289,7 +300,7 @@ def collect_silent_fallback_exception_errors_for_python_text(path: Path, text: s
             if not _is_direct_silent_fallback_handler(handler):
                 continue
             errors.append(
-                f"异常降级缺少上下文: {relpath}:{handler.lineno} -> OSError / json.JSONDecodeError 不能直接静默降级为 None/False"
+                f"异常降级缺少上下文: {relpath}:{handler.lineno} -> {_silent_fallback_requirement(handler)}"
             )
     return errors
 
