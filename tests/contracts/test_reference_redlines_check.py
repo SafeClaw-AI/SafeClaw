@@ -14,6 +14,7 @@ from tools.checks.check_reference_redlines import (  # noqa: E402
     collect_empty_exception_errors_for_python_text,
     collect_errors,
     collect_todo_metadata_errors_for_text,
+    collect_uncontextualized_exception_errors_for_python_text,
 )
 
 
@@ -63,6 +64,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         self.assertEqual(
             errors,
             ["空异常处理违规: sample.ps1:1 -> catch 块不能为空或只含注释"],
+        )
+
+    def test_uncontextualized_multi_exception_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (OSError, ValueError):\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> 多异常 except 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_contextualized_multi_exception_passes(self) -> None:
+        self.assertEqual(
+            collect_uncontextualized_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept (OSError, ValueError) as error:\n    raise RuntimeError(f'load failed: {error}')\n",
+            ),
+            [],
         )
 
     def test_non_empty_exception_handling_passes(self) -> None:

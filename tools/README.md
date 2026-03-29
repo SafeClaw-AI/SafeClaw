@@ -20,5 +20,5 @@
 - `tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
 - 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
 - 其中 `check_scaffold.py` 会把 `docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md` 转成硬门禁，不再依赖人工提醒
-- 在这条 ledger policy chain 之后，会继续跑 `check_reference_redlines.py`，直接拦截无主 TODO 与空异常处理
+- 在这条 ledger policy chain 之后，会继续跑 `check_reference_redlines.py`，直接拦截无主 TODO、空异常处理，以及多异常 `except` 未绑定上下文
 - 这条 ledger policy chain 会显式前置在 `Contract tests` 之前

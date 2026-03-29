@@ -1899,3 +1899,8 @@
 - 本轮完成：新增 `tools/checks/check_reference_redlines.py`，把 `docs/reference/01` 中的“无主 TODO”与“空异常处理（第一阶段：pass-only / 空 catch）”落成硬门禁；同步修平 `tools/checks/mvp_state_guard.py` 里的 `except ...: pass` 旧债，并把新门禁接进 `selfcheck`、CI、`tools/checks/README.md`、`tools/README.md` 与 public docs 合同。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tools/checks/selfcheck.py tools/checks/check_public_docs.py tools/checks/mvp_state_guard.py tests/contracts/test_reference_redlines_check.py tests/contracts/test_selfcheck.py tests/contracts/test_contracts_workflow.py`、`python -m unittest tests.contracts.test_reference_redlines_check tests.contracts.test_selfcheck tests.contracts.test_contracts_workflow tests.contracts.test_public_docs_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_public_docs.py`；补充尝试 `python tools/checks/selfcheck.py`，仍被既有 `specs/spi/*` 占位 JSON 缺少 `version` 的历史问题阻断在 `check_versions.py`。
 - 提交推送：本轮提交信息拟为 `test: gate todo and empty exception redlines`；最终 hash 以当前 `HEAD` 为准。
+### Round LO
+- 完成时间：2026-03-29 12:32:11 +0800
+- 本轮完成：继续扩大 `check_reference_redlines.py` 的异常红线覆盖，新增“多异常 `except` / broad `Exception` 必须显式绑定 `as error`”门禁；同步补合同测试，并修平 `tools/mvp/safeclaw_mvp.py` 中 `load_heartbeat_config()` 的当前唯一命中点。
+- 验证：`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`。
+- 提交推送：本轮提交信息拟为 `test: require exception context binding`；最终 hash 以当前 `HEAD` 为准。

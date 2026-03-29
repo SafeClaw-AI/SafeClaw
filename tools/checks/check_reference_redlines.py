@@ -138,6 +138,42 @@ def collect_empty_exception_errors_for_powershell_text(path: Path, text: str) ->
     return errors
 
 
+def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
+    if handler.type is None:
+        return True
+    if isinstance(handler.type, ast.Tuple):
+        return True
+    return isinstance(handler.type, ast.Name) and handler.type.id == "Exception"
+
+
+def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
+    if isinstance(handler.type, ast.Tuple):
+        return "多异常 except 必须绑定 `as error` 以保留上下文"
+    return "broad except 必须绑定 `as error` 以保留上下文"
+
+
+def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: str) -> list[str]:
+    relpath = path.as_posix()
+    try:
+        tree = ast.parse(text, filename=relpath)
+    except SyntaxError as error:
+        return [f"无法解析 Python 文件: {relpath}:{error.lineno} -> {error.msg}"]
+
+    errors: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            if not _handler_requires_bound_error(handler):
+                continue
+            if handler.name is not None:
+                continue
+            errors.append(
+                f"异常处理缺少上下文: {relpath}:{handler.lineno} -> {_handler_context_requirement(handler)}"
+            )
+    return errors
+
+
 def collect_todo_metadata_errors() -> list[str]:
     errors: list[str] = []
     for path in iter_reference_redline_files():
@@ -163,10 +199,23 @@ def collect_empty_exception_errors() -> list[str]:
     return errors
 
 
+def collect_uncontextualized_exception_errors() -> list[str]:
+    errors: list[str] = []
+    for path in iter_reference_redline_files():
+        if path.suffix.lower() not in PYTHON_SCAN_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        errors.extend(
+            collect_uncontextualized_exception_errors_for_python_text(path.relative_to(REPO_ROOT), text)
+        )
+    return errors
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     errors.extend(collect_todo_metadata_errors())
     errors.extend(collect_empty_exception_errors())
+    errors.extend(collect_uncontextualized_exception_errors())
     return errors
 
 
