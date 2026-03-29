@@ -265,7 +265,7 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "json.JSONDecodeError",
             "subprocess.TimeoutExpired",
         )
-        silent_fallback_expected = context_required_expected + ("ValueError",)
+        silent_fallback_expected = context_required_expected + ("ValueError", "TypeError")
         self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, silent_fallback_expected)
         self.assertEqual(HIGH_RISK_EXCEPTION_TYPES, set(context_required_expected))
         self.assertIs(CONTEXT_REQUIRED_EXCEPTION_TYPES, HIGH_RISK_EXCEPTION_TYPES)
@@ -686,6 +686,34 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [
                 "异常降级缺少上下文: sample.py:3 -> KeyError 不能直接静默降级为 None/False",
             ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    return False\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "异常降级缺少上下文: sample.py:3 -> TypeError 不能直接静默降级为 None/False",
+            ],
+        )
+
+    def test_type_error_without_direct_none_false_fallback_passes(self) -> None:
+        self.assertEqual(
+            collect_silent_fallback_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept TypeError:\n    return 'fallback'\n",
+            ),
+            [],
+        )
+        self.assertEqual(
+            collect_uncontextualized_exception_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept TypeError:\n    return 'fallback'\n",
+            ),
+            [],
         )
 
     def test_value_error_cannot_directly_silently_fallback(self) -> None:
