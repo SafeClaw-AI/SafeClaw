@@ -7678,7 +7678,7 @@ def load_json_payload(
 
 
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
 
 
 
@@ -7806,7 +7806,7 @@ def load_json_payload(
 
 
 
-        errors.append(f"{name} 输出不是合法 JSON")
+        errors.append(f"{name} 输出不是合法 JSON: {error}")
 
 
 
@@ -148862,7 +148862,7 @@ def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str
 
 
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
 
 
 
@@ -148990,7 +148990,7 @@ def load_json_file_payload(path: Path, errors: list[str], name: str) -> dict[str
 
 
 
-        errors.append(f"{name} 输出不是合法 JSON")
+        errors.append(f"{name} 输出不是合法 JSON: {error}")
 
 
 

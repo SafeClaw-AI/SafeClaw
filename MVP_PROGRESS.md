@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-29 02:49:07 +0800
+最后更新时间：2026-03-29 20:56:58 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 172 刀已完成；最近六轮补上了台账 manifest / versions / consistency / structure / scaffold / ledger alignment 门禁链路
+当前阶段：已进入 M1b，前 174 刀已完成；最近几轮继续补齐 reference 异常红线与 spi metadata 历史阻塞
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.1 天
@@ -214,3 +214,4 @@
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
 
 | [x] | M1b Slice 173: spi version metadata baseline | M1b plan | 在 `tests/contracts/test_version_check.py` 补齐完整版本合同，并把 `specs/spi/` 下 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`；随后执行 `python tools/codegen/regenerate_all.py` 同步 `generated/` 索引，最终让静默 `selfcheck` 恢复全绿 | 清掉长期卡在 `check_versions.py` 的历史总阻塞，避免之后每轮都被同一批 `spi` 占位文件拖住 |
+| [x] | M1b Slice 174: json decode error context gate | M1b plan | 在 `tests/contracts/test_reference_redlines_check.py` 补齐 `json.JSONDecodeError` 裸抓失败 / 绑定并使用通过合同，并把 `check_reference_redlines.py` 扩到 `json.JSONDecodeError` 必须绑定并保留上下文；同步修平 `check_mvp_operator_flow.py` 与 `check_tooling_smoke.py` 的 3 个真实命中点 | 防止 JSON 解析失败时异常上下文被直接丢掉，让 reference 红线继续向 fail-closed 推进 |

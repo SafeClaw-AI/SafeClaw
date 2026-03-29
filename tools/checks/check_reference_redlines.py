@@ -20,6 +20,7 @@ PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
 SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "json.JSONDecodeError"}
+CONTEXT_REQUIRED_EXCEPTION_TYPES = {"json.JSONDecodeError"}
 REFERENCE_REDLINE_SCAN_DIRS = (
     "tools",
     "tests",
@@ -144,12 +145,18 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
         return True
     if isinstance(handler.type, ast.Tuple):
         return True
-    return isinstance(handler.type, ast.Name) and handler.type.id == "Exception"
+    if isinstance(handler.type, ast.Name) and handler.type.id == "Exception":
+        return True
+    caught_types = set(_collect_exception_type_names(handler.type))
+    return bool(caught_types & CONTEXT_REQUIRED_EXCEPTION_TYPES)
 
 
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     if isinstance(handler.type, ast.Tuple):
         return "多异常 except 必须绑定 `as error` 以保留上下文"
+    caught_types = set(_collect_exception_type_names(handler.type))
+    if "json.JSONDecodeError" in caught_types:
+        return "json.JSONDecodeError 必须绑定 `as error` 以保留上下文"
     return "broad except 必须绑定 `as error` 以保留上下文"
 
 

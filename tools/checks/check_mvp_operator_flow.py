@@ -124,8 +124,9 @@ def load_json(args: list[str]) -> tuple[int, str, dict[str, Any] | None]:
         return completed.returncode, output, None
     try:
         payload = json.loads(output)
-    except json.JSONDecodeError:
-        return completed.returncode, output, None
+    except json.JSONDecodeError as error:
+        detail = f"invalid json: {error}"
+        return completed.returncode, f"{output}\n{detail}".strip(), None
     if not isinstance(payload, dict):
         return completed.returncode, output, None
     return completed.returncode, output, payload

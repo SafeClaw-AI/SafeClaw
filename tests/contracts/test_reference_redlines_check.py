@@ -87,6 +87,25 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_json_decode_error_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "import json\ntry:\n    json.loads('{')\nexcept json.JSONDecodeError:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:4 -> json.JSONDecodeError 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_json_decode_error_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "import json\ntry:\n    json.loads('{')\nexcept json.JSONDecodeError as error:\n    raise RuntimeError(f'invalid json: {error}')\n",
+            ),
+            [],
+        )
+
     def test_bound_exception_context_must_be_meaningfully_used(self) -> None:
         errors = collect_unused_bound_exception_context_errors_for_python_text(
             Path("sample.py"),
