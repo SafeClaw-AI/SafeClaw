@@ -2025,6 +2025,36 @@ def resolve_output_selection(
     return default_output_for_db(db), "default"
 
 
+def extract_output_path_from_target_scope(target_scope: object) -> str | None:
+    if not isinstance(target_scope, str):
+        return None
+    normalized_scope = target_scope.strip()
+    if not normalized_scope.startswith("scope:"):
+        return None
+    output_path = normalized_scope[len("scope:") :].strip()
+    return output_path or None
+
+
+def resolve_activate_output_selection(
+    args: list[str],
+    session: dict[str, str] | None,
+    db: str,
+    target: dict[str, object],
+) -> tuple[str, str]:
+    output_flag = get_flag(args, "--output")
+    if output_flag is not None:
+        return output_flag, "flag"
+    target_output = extract_output_path_from_target_scope(target.get("target_scope"))
+    if target_output is not None:
+        return target_output, "task_scope"
+    workspace = load_workspace()
+    if matches_session_db(session, db) and session.get("task_id") == str(target.get("task_id") or ""):
+        return session["output"], "session"
+    if matches_workspace_db(workspace, db):
+        return workspace["output"], "workspace"
+    return default_output_for_db(db), "default"
+
+
 def resolve_owner_id_selection(
     args: list[str],
     session: dict[str, str] | None,
@@ -2651,7 +2681,7 @@ def activate_session(args: list[str]) -> int:
             )
         source = f"task:{task_id}"
 
-    output, output_source = resolve_output_selection(args, session, db)
+    output, output_source = resolve_activate_output_selection(args, session, db, target)
 
     owner_id, owner_id_source = resolve_owner_id_selection(args, session, db)
 
@@ -3052,10 +3082,10 @@ def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
         row = connection.execute(
             """
             SELECT
-                task_id,
-                worker_state,
-                effect_status,
-                updated_at,
+                task_snapshots.task_id,
+                task_snapshots.worker_state,
+                task_snapshots.effect_status,
+                task_snapshots.updated_at,
                 COALESCE(
                     (
                         SELECT effect_id
@@ -3065,9 +3095,12 @@ def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
                         LIMIT 1
                     ),
                     ''
-                ) AS effect_id
+                ) AS effect_id,
+                COALESCE(orchestrator_tasks.target_scope, '') AS target_scope
             FROM task_snapshots
-            WHERE task_id = ?1
+            LEFT JOIN orchestrator_tasks
+              ON orchestrator_tasks.task_id = task_snapshots.task_id
+            WHERE task_snapshots.task_id = ?1
             LIMIT 1
             """,
             (task_id,),
@@ -3080,6 +3113,7 @@ def lookup_task_entry(db_path: Path, task_id: str) -> dict[str, str] | None:
         "effect_status": row[2],
         "updated_at": row[3],
         "effect_id": row[4] or f"effect-{row[0]}",
+        "target_scope": row[5] or "",
     }
 
 

@@ -36,11 +36,13 @@ CONTENDED_B_TASK = "task-operator-flow-contended-b"
 CONTENDED_DB = "target/mvp/operator-flow-contended.db"
 CONTENDED_A_OUTPUT = "target/mvp/operator-flow-contended-a.txt"
 CONTENDED_B_OUTPUT = "target/mvp/operator-flow-contended-b.txt"
+CONTENDED_SHARED_OUTPUT = "target/mvp/operator-flow-contended-shared.txt"
 QUARANTINE_A_TASK = "task-operator-flow-quarantine-a"
 QUARANTINE_B_TASK = "task-operator-flow-quarantine-b"
 QUARANTINE_DB = "target/mvp/operator-flow-quarantine.db"
 QUARANTINE_A_OUTPUT = "target/mvp/operator-flow-quarantine-a.txt"
 QUARANTINE_B_OUTPUT = "target/mvp/operator-flow-quarantine-b.txt"
+QUARANTINE_SHARED_OUTPUT = "target/mvp/operator-flow-quarantine-shared.txt"
 HIBERNATED_TASK = "task-operator-flow-hibernated"
 HIBERNATED_DB = "target/mvp/operator-flow-hibernated.db"
 HIBERNATED_OUTPUT = "target/mvp/operator-flow-hibernated.txt"
@@ -757,7 +759,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/seed-failed-contended-b", "action", seed_failed_contended_b.get("action"), "seed-failed")
         assert_session_fields((seed_failed_contended_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-b", "remembered_session", CONTENDED_B_TASK, CONTENDED_DB, CONTENDED_B_OUTPUT)
 
-    contended_scope = "scope:target/mvp/operator-flow-contended-shared.txt"
+    contended_scope = f"scope:{CONTENDED_SHARED_OUTPUT}"
     with sqlite3.connect(REPO_ROOT / CONTENDED_DB) as connection:
         connection.execute(
             "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
@@ -803,6 +805,9 @@ def _main() -> int:
         use_contended_result = use_contended.get("result") or {}
         expect_equal(errors, "operator-flow/use-contended", "result.task_id", use_contended_result.get("task_id"), CONTENDED_A_TASK)
         expect_equal(errors, "operator-flow/use-contended", "result.db", use_contended_result.get("db"), CONTENDED_DB)
+        expect_equal(errors, "operator-flow/use-contended", "result.output", use_contended_result.get("output"), CONTENDED_SHARED_OUTPUT)
+        expect_equal(errors, "operator-flow/use-contended", "result.output_source", use_contended_result.get("output_source"), "task_scope")
+    wait_for_session(CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_SHARED_OUTPUT, errors, "operator-flow/use-contended")
 
     contended_status = run_json(
         [
@@ -899,7 +904,7 @@ def _main() -> int:
     with sqlite3.connect(REPO_ROOT / QUARANTINE_DB) as connection:
         connection.execute(
             "UPDATE orchestrator_tasks SET target_scope = ?1 WHERE task_id IN (?2, ?3)",
-            ("scope:target/mvp/operator-flow-quarantine-shared.txt", QUARANTINE_A_TASK, QUARANTINE_B_TASK),
+            (f"scope:{QUARANTINE_SHARED_OUTPUT}", QUARANTINE_A_TASK, QUARANTINE_B_TASK),
         )
         connection.execute(
             "UPDATE task_snapshots SET effect_status = ?1 WHERE task_id = ?2",
@@ -935,6 +940,9 @@ def _main() -> int:
         use_quarantine_result = use_quarantine.get("result") or {}
         expect_equal(errors, "operator-flow/use-quarantine", "result.task_id", use_quarantine_result.get("task_id"), QUARANTINE_B_TASK)
         expect_equal(errors, "operator-flow/use-quarantine", "result.db", use_quarantine_result.get("db"), QUARANTINE_DB)
+        expect_equal(errors, "operator-flow/use-quarantine", "result.output", use_quarantine_result.get("output"), QUARANTINE_SHARED_OUTPUT)
+        expect_equal(errors, "operator-flow/use-quarantine", "result.output_source", use_quarantine_result.get("output_source"), "task_scope")
+    wait_for_session(QUARANTINE_B_TASK, QUARANTINE_DB, QUARANTINE_SHARED_OUTPUT, errors, "operator-flow/use-quarantine")
 
     quarantine_status = run_json(
         [
@@ -960,7 +968,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.reason", coordination.get("reason"), "peer_executed_assumed_scope_quarantine")
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.summary", coordination.get("summary"), "wait_for_scope_reconcile")
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.task_id", coordination.get("task_id"), QUARANTINE_B_TASK)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.target_scope", coordination.get("target_scope"), "scope:target/mvp/operator-flow-quarantine-shared.txt")
+        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.target_scope", coordination.get("target_scope"), f"scope:{QUARANTINE_SHARED_OUTPUT}")
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_action", coordination.get("next_action"), "inspect")
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_task_id", coordination.get("next_task_id"), QUARANTINE_A_TASK)
         expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_blocker", coordination.get("next_blocker"), "scope_quarantine")
@@ -1164,6 +1172,9 @@ def _main() -> int:
         use_session_priority_result = use_session_priority_a.get("result") or {}
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.task_id", use_session_priority_result.get("task_id"), SESSION_PRIORITY_A_TASK)
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.db", use_session_priority_result.get("db"), SESSION_PRIORITY_DB)
+        expect_equal(errors, "operator-flow/use-session-priority-a", "result.output", use_session_priority_result.get("output"), SESSION_PRIORITY_A_OUTPUT)
+        expect_equal(errors, "operator-flow/use-session-priority-a", "result.output_source", use_session_priority_result.get("output_source"), "task_scope")
+    wait_for_session(SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT, errors, "operator-flow/use-session-priority-a")
     session_priority_status = run_json(
         [
             "service-status",
@@ -1184,6 +1195,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/service-status-session-priority", "result.db_source", result.get("db_source"), "flag")
         expect_equal(errors, "operator-flow/service-status-session-priority", "result.limit", result.get("limit"), 2)
         expect_equal(errors, "operator-flow/service-status-session-priority", "current_session.task_id", current_session.get("task_id"), SESSION_PRIORITY_A_TASK)
+        expect_equal(errors, "operator-flow/service-status-session-priority", "current_session.output", current_session.get("output"), SESSION_PRIORITY_A_OUTPUT)
         expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.status", coordination.get("status"), "ready")
         expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.reason", coordination.get("reason"), "uncertain_state_ready_for_recover")
         expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.summary", coordination.get("summary"), "recover_now")

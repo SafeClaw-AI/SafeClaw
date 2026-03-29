@@ -1992,3 +1992,9 @@
 - 本轮完成：继续收紧 `service-status` 顶层治理摘要；当 remembered session 命中的当前任务仍在 recent window 内时，顶层 `coordination` 现在会优先跟随当前任务，不再被更新更近的历史行抢走摘要；同步补上 `check_mvp_operator_flow.py` 的 session-priority 场景，并更新 `README.md`。
 - 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_tooling_smoke.py`、`cmd /c safeclaw.cmd service-status --limit 2 --json`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `fix: prefer current task coordination`；最终 hash 以当前 `HEAD` 为准。
+
+### Round MD
+- 完成时间：2026-03-30 00:51:37 +0800
+- 本轮完成：继续收紧 `session/use` 的当前上下文语义；当 `use` 切到目标任务时，remembered session 的 `output` 现在会优先跟随目标任务 `target_scope` 恢复，不再沿用旧任务残留 output；同步把 contended / quarantine / session-priority 三类 `use` output 对齐场景锁进 `check_mvp_operator_flow.py`。
+- 验证：`python -m py_compile tools/mvp/safeclaw_mvp.py tools/checks/check_mvp_operator_flow.py`、`python tools/checks/check_mvp_operator_flow.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `fix: align use output with target task`；最终 hash 以当前 `HEAD` 为准。
