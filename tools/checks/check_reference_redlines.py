@@ -177,9 +177,11 @@ def _caught_types_include_broad_exception(caught_types: set[str]) -> bool:
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
         return "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"
+    caught_types = set(_collect_exception_type_names(handler.type))
+    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
+        return "broad except 必须绑定 `as error` 以保留上下文"
     if isinstance(handler.type, ast.Tuple):
         return "多异常 except 必须绑定 `as error` 以保留上下文"
-    caught_types = set(_collect_exception_type_names(handler.type))
     protected_types = _ordered_high_risk_exception_names(caught_types)
     if protected_types:
         return f"{protected_types[0]} 必须绑定 `as error` 以保留上下文"

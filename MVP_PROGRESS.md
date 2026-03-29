@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 03:50:42 +0800
+最后更新时间：2026-03-30 03:58:45 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 198 刀已完成；最近十七轮继续沿 reference fail-closed 主线收口 broad exception family 与高风险异常真源
+当前阶段：已进入 M1b，前 199 刀已完成；最近十八轮继续沿 reference fail-closed 主线收口 broad exception family 与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -239,3 +239,4 @@
 | [x] | M1b Slice 196: high-risk exception truth-source alignment gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py` 让 `_handler_context_requirement()` 也复用统一高风险异常真源，并在 `tests/contracts/test_reference_redlines_check.py` 新增真源对齐稳定性合同；同步确认既有异常门禁继续全绿 | 把高风险异常的上下文提示、静默降级门禁与真源名单收成单一维护面，继续降低后续扩面的边际成本 |
 | [x] | M1b Slice 197: broad exception family fail-closed gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `BaseException` 纳入 broad except 语义，并把 `except:` / `except Exception` / `except BaseException` 的 direct `return None/False` 收成 fail-closed 门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 5 条新合同与 `BROAD_EXCEPTION_TYPE_NAMES` 稳定性断言 | 把“广义兜底异常家族”的上下文要求与静默降级要求统一成同一语义面，后续继续扩异常门禁时更稳、更省维护成本 |
 | [x] | M1b Slice 198: tuple broad fallback fail-closed gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把 tuple 里的 broad family 也纳入 direct fallback 判定，确保 except (Exception, ValueError) / except (BaseException, KeyError) 这类 direct return None/False 也会被 fail-closed 拦下；同步在 tests/contracts/test_reference_redlines_check.py 补齐 2 条 tuple-broad 合同 | 把 broad exception family 的静默降级门禁从单异常形态扩到 tuple 变体，继续降低后续异常治理的漏网边角 |
+| [x] | M1b Slice 199: broad tuple context gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：让 tuple 里的 broad family 也按 broad except 语义返回缺少上下文提示，确保 except (Exception, ValueError) / except (BaseException, KeyError) 这类未绑定 as error 的形态不再回落到“多异常 except”文案；同步在 tests/contracts/test_reference_redlines_check.py 补齐 2 条 tuple-broad 上下文合同 | 把 broad exception family 的上下文门禁从单异常形态扩到 tuple 变体，继续降低后续异常治理的语义漂移 |

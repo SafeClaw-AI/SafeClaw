@@ -157,6 +157,26 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_tuple_with_exception_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (Exception, ValueError):\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> broad except 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_tuple_with_base_exception_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept (BaseException, KeyError):\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> broad except 必须绑定 `as error` 以保留上下文"],
+        )
+
     def test_json_decode_error_without_bound_context_is_blocked(self) -> None:
         errors = collect_uncontextualized_exception_errors_for_python_text(
             Path("sample.py"),
