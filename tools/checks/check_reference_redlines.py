@@ -158,10 +158,6 @@ def collect_empty_exception_errors_for_powershell_text(path: Path, text: str) ->
     return errors
 
 
-def _is_broad_exception_handler_type(handler_type: ast.expr | None) -> bool:
-    return isinstance(handler_type, ast.Name) and handler_type.id in BROAD_EXCEPTION_TYPE_NAMES
-
-
 def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
     if handler.type is None:
         return True
@@ -190,16 +186,16 @@ def _handler_uses_broad_exception_family(handler: ast.ExceptHandler) -> bool:
 
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
-        return "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"
-    caught_types = set(_collect_exception_type_names(handler.type))
-    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
-        return "broad except 必须绑定 `as error` 以保留上下文"
+        return BARE_CONTEXT_REQUIRED_MESSAGE
+    caught_types = _handler_caught_types(handler)
+    if _handler_uses_broad_exception_family(handler):
+        return BROAD_CONTEXT_REQUIRED_MESSAGE
     if isinstance(handler.type, ast.Tuple):
-        return "多异常 except 必须绑定 `as error` 以保留上下文"
+        return MULTI_CONTEXT_REQUIRED_MESSAGE
     protected_types = _ordered_high_risk_exception_names(caught_types)
     if protected_types:
-        return f"{protected_types[0]} 必须绑定 `as error` 以保留上下文"
-    return "broad except 必须绑定 `as error` 以保留上下文"
+        return f"{protected_types[0]} {CONTEXT_REQUIRED_SUFFIX}"
+    return BROAD_CONTEXT_REQUIRED_MESSAGE
 
 
 def _collect_exception_type_names(node: ast.expr | None) -> list[str]:
@@ -242,13 +238,13 @@ def _is_direct_silent_fallback_handler(handler: ast.ExceptHandler) -> bool:
 
 def _silent_fallback_requirement(handler: ast.ExceptHandler) -> str:
     if handler.type is None:
-        return "裸 except 不能直接静默降级为 None/False"
-    caught_types = set(_collect_exception_type_names(handler.type))
-    if _is_broad_exception_handler_type(handler.type) or _caught_types_include_broad_exception(caught_types):
-        return "broad except 不能直接静默降级为 None/False"
+        return BARE_SILENT_FALLBACK_MESSAGE
+    caught_types = _handler_caught_types(handler)
+    if _handler_uses_broad_exception_family(handler):
+        return BROAD_SILENT_FALLBACK_MESSAGE
     protected_types = _ordered_high_risk_exception_names(caught_types)
     protected_text = " / ".join(protected_types or sorted(caught_types))
-    return f"{protected_text} 不能直接静默降级为 None/False"
+    return f"{protected_text} {SILENT_FALLBACK_SUFFIX}"
 
 
 def collect_uncontextualized_exception_errors_for_python_text(path: Path, text: str) -> list[str]:

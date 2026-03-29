@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 04:16:58 +0800
+最后更新时间：2026-03-30 04:27:35 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 202 刀已完成；最近二十一轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 203 刀已完成；最近二十二轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -243,3 +243,4 @@
 | [x] | M1b Slice 200: exception message truth source gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把异常上下文 / 静默降级的核心提示文案收成常量真源，并让 `_handler_context_requirement()` / `_silent_fallback_requirement()` 统一复用；同步在 tests/contracts/test_reference_redlines_check.py 补齐 1 条消息真源稳定性合同 | 把 reference redlines 的提示文案从多处手写收成单点维护面，后续继续扩异常门禁时更稳，也更不容易再漂移 |
 | [x] | M1b Slice 201: broad family helper truth source gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：把 handler 的 caught_types 解析与 broad family 识别收成 `_handler_caught_types()` / `_handler_uses_broad_exception_family()` 两个 helper 真源，并让上下文/静默降级两条门禁统一复用；同步在 tests/contracts/test_reference_redlines_check.py 补齐 1 条 helper 稳定性合同 | 把 broad family 的识别逻辑从多处重复条件收成单点维护面，后续继续补门禁时更稳、更不容易漏改 |
 | [x] | M1b Slice 202: handler caught types truth source gate | M1b plan | 调整 tools/checks/check_reference_redlines.py：让 `_handler_context_requirement()` / `_silent_fallback_requirement()` 也统一复用 `_handler_caught_types()`，不再手写 `set(_collect_exception_type_names(...))`；同步在 tests/contracts/test_reference_redlines_check.py 补齐 1 条 `_handler_caught_types()` 稳定性合同 | 把异常 caught_types 解析彻底收成单点真源，后续继续扩异常门禁时更稳、更不容易漏改 |
+| [x] | M1b Slice 203: handler caught types usage unification gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `_handler_context_requirement()` / `_silent_fallback_requirement()` 里残留的 caught_types 直连解析统一切到 `_handler_caught_types()`，并删除 `_is_broad_exception_handler_type()` 这层一次性分支；同步确认既有 `_handler_caught_types()` 稳定性合同继续覆盖 attribute / tuple / broad tuple 解析口径 | 把 caught_types helper 从“已有真源”推进到“关键消费点全面复用”，后续继续补 broad / multi-exception 家族门禁时更稳、更不容易再漂移 |
