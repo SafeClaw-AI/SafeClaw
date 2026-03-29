@@ -152,6 +152,8 @@ def _handler_requires_bound_error(handler: ast.ExceptHandler) -> bool:
 
 
 def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
+    if handler.type is None:
+        return "裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"
     if isinstance(handler.type, ast.Tuple):
         return "多异常 except 必须绑定 `as error` 以保留上下文"
     caught_types = set(_collect_exception_type_names(handler.type))

@@ -87,6 +87,35 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             [],
         )
 
+    def test_bare_except_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> 裸 except 不允许；必须显式捕获异常类型并绑定 `as error`"],
+        )
+
+    def test_exception_without_bound_context_is_blocked(self) -> None:
+        errors = collect_uncontextualized_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept Exception:\n    return None\n",
+        )
+        self.assertEqual(
+            errors,
+            ["异常处理缺少上下文: sample.py:3 -> broad except 必须绑定 `as error` 以保留上下文"],
+        )
+
+    def test_exception_with_contextual_usage_passes(self) -> None:
+        self.assertEqual(
+            collect_unused_bound_exception_context_errors_for_python_text(
+                Path("sample.py"),
+                "try:\n    work()\nexcept Exception as error:\n    raise RuntimeError(f'wrapped exception: {error}')\n",
+            ),
+            [],
+        )
+
     def test_json_decode_error_without_bound_context_is_blocked(self) -> None:
         errors = collect_uncontextualized_exception_errors_for_python_text(
             Path("sample.py"),
