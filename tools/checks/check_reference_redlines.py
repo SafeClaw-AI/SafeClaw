@@ -20,7 +20,7 @@ PYTHON_SCAN_SUFFIXES = {".py"}
 POWERSHELL_SCAN_SUFFIXES = {".ps1"}
 TODO_SCAN_SUFFIXES = {".py", ".ps1", ".cmd", ".rs"}
 SILENT_FALLBACK_EXCEPTION_TYPES = {"OSError", "json.JSONDecodeError"}
-CONTEXT_REQUIRED_EXCEPTION_TYPES = {"FileExistsError", "KeyError", "OSError", "json.JSONDecodeError"}
+CONTEXT_REQUIRED_EXCEPTION_TYPES = {"FileExistsError", "KeyError", "OSError", "RuntimeError", "json.JSONDecodeError"}
 REFERENCE_REDLINE_SCAN_DIRS = (
     "tools",
     "tests",
@@ -161,6 +161,8 @@ def _handler_context_requirement(handler: ast.ExceptHandler) -> str:
         return "FileExistsError 必须绑定 `as error` 以保留上下文"
     if "KeyError" in caught_types:
         return "KeyError 必须绑定 `as error` 以保留上下文"
+    if "RuntimeError" in caught_types:
+        return "RuntimeError 必须绑定 `as error` 以保留上下文"
     if "OSError" in caught_types:
         return "OSError 必须绑定 `as error` 以保留上下文"
     return "broad except 必须绑定 `as error` 以保留上下文"
