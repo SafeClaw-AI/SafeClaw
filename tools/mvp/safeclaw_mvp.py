@@ -2368,12 +2368,12 @@ def repair_invalid_workspace(reason: str) -> None:
             f"failed to drop invalid {render_repo_path(WORKSPACE_FILE)} reason={reason} error={error}",
             file=sys.stderr,
         )
-        return
-    print(
-        "[mvp-wrapper] workspace repair => "
-        f"dropped invalid {render_repo_path(WORKSPACE_FILE)} reason={reason}",
-        file=sys.stderr,
-    )
+    else:
+        print(
+            "[mvp-wrapper] workspace repair => "
+            f"dropped invalid {render_repo_path(WORKSPACE_FILE)} reason={reason}",
+            file=sys.stderr,
+        )
 
 
 def build_workspace_status_payload(workspace: dict[str, str] | None) -> dict[str, object]:
@@ -2767,12 +2767,12 @@ def repair_invalid_session(reason: str) -> None:
             f"failed to drop invalid {render_repo_path(SESSION_FILE)} reason={reason} error={error}",
             file=sys.stderr,
         )
-        return
-    print(
-        "[mvp-wrapper] session repair => "
-        f"dropped invalid {render_repo_path(SESSION_FILE)} reason={reason}",
-        file=sys.stderr,
-    )
+    else:
+        print(
+            "[mvp-wrapper] session repair => "
+            f"dropped invalid {render_repo_path(SESSION_FILE)} reason={reason}",
+            file=sys.stderr,
+        )
 
 
 def classify_orchestrator_lease_state(

@@ -337,6 +337,8 @@ def _is_empty_fallback_constructor_call(node: ast.expr | None) -> bool:
 
 
 def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
+    if node is None:
+        return True
     if isinstance(node, ast.Constant):
         return node.value in (None, False, "")
     if isinstance(node, ast.List):

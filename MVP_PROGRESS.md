@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 06:29:30 +0800
+最后更新时间：2026-03-30 06:35:14 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 217 刀已完成；最近三十六轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 218 刀已完成；最近三十七轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -258,3 +258,4 @@
 | [x] | M1b Slice 215: empty fallback silent gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct 静默降级从 `None/False` 扩到空字符串 / 空容器，并让 `_is_direct_silent_fallback_return_value()` / `_is_direct_silent_fallback_return_handler()` 统一识别 `""`、`[]`、`{}`、`()`；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `ValueError -> return ""` 与 `TypeError -> return []` 合同，并确认全仓零命中 | 把 direct silent fallback 的危险形态在零旧债时一次收进 future fail-closed 真源后，后续继续扩异常治理时更稳，更不容易漏掉“看似有返回、实则吞上下文”的空值降级 |
 | [x] | M1b Slice 216: empty container call silent gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：补齐“空容器”语义漏口，让 `_is_direct_silent_fallback_return_value()` 通过 `_is_empty_container_constructor_call()` 一并识别 `set()` / `frozenset()`；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 `ValueError -> return set()` 与 `TypeError -> return frozenset()` 合同，并确认全仓零命中 | 把 Python 里无法用字面量表达的空集合容器也收进同一条 future fail-closed 真源后，“空容器”语义才算闭环，后续继续扩 silent fallback 时更稳、更不容易留下语义假空洞 |
 | [x] | M1b Slice 217: empty constructor call silent gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把“无参空值构造调用”收成 `_is_empty_fallback_constructor_call()` 真源，并让 `_is_direct_silent_fallback_return_value()` 一并识别 `str()` / `list()` / `dict()` / `tuple()`；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 1 条 helper 稳定性合同与 4 条 direct fallback 合同，并确认全仓零命中 | 把“空字符串 / 空容器”从字面量与个别调用扩到整组无参空值构造调用后，这条 silent fallback 语义才真正闭环，后续继续扩异常治理时更稳、更不容易留下实现漏口 |
+| [x] | M1b Slice 218: implicit none silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `except ...: return` 的隐式 `None` 也纳入 direct silent fallback；同步把 `tools/mvp/safeclaw_mvp.py` 里 `repair_invalid_workspace()` / `repair_invalid_session()` 的两个 `OSError` 真实命中改写为 `try/except/else`，并在 `tests/contracts/test_reference_redlines_check.py` 补齐 `OSError` / `ValueError` 隐式返回必败合同 | 把“显式 return None”与“隐式 bare return”统一收进同一条 fail-closed 真源后，silent fallback 语义闭环才算完整，也顺手清掉了仓内仅剩的 2 个真实命中 |
