@@ -588,6 +588,62 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
                     return resolved_value
             return resolved_value
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.UnaryOp):
+        operand_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.operand,
+            known_name_values,
+        )
+        if operand_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        if isinstance(node.op, ast.Not):
+            return not bool(operand_value)
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.Compare):
+        left_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.left,
+            known_name_values,
+        )
+        if left_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        current_left = left_value
+        for operator_node, comparator_node in zip(node.ops, node.comparators):
+            right_value = _try_resolve_known_name_silent_fallback_runtime_value(
+                comparator_node,
+                known_name_values,
+            )
+            if right_value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            try:
+                if isinstance(operator_node, ast.Eq):
+                    comparison_result = current_left == right_value
+                elif isinstance(operator_node, ast.NotEq):
+                    comparison_result = current_left != right_value
+                elif isinstance(operator_node, ast.Is):
+                    comparison_result = current_left is right_value
+                elif isinstance(operator_node, ast.IsNot):
+                    comparison_result = current_left is not right_value
+                elif isinstance(operator_node, ast.Lt):
+                    comparison_result = current_left < right_value
+                elif isinstance(operator_node, ast.LtE):
+                    comparison_result = current_left <= right_value
+                elif isinstance(operator_node, ast.Gt):
+                    comparison_result = current_left > right_value
+                elif isinstance(operator_node, ast.GtE):
+                    comparison_result = current_left >= right_value
+                elif isinstance(operator_node, ast.In):
+                    comparison_result = current_left in right_value
+                elif isinstance(operator_node, ast.NotIn):
+                    comparison_result = current_left not in right_value
+                else:
+                    return _STATIC_VALUE_NOT_AVAILABLE
+            except TypeError as error:
+                if isinstance(error, TypeError):
+                    return _STATIC_VALUE_NOT_AVAILABLE
+                raise AssertionError("unreachable known-name compare evaluation branch")
+            if not comparison_result:
+                return False
+            current_left = right_value
+        return True
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
