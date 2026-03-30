@@ -2406,3 +2406,9 @@
 - 本轮完成：Connected `map()` to the shared empty-iterator silent-fallback gate in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return list(map(str, ()))`, `except TypeError: payload = []; return tuple(map(str, payload))`, and `except OSError: payload = []; items = map(str, payload); return set(items)`.
 - 验证：`python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - 提交推送：本轮提交信息拟为 `feat: block empty map fallback`；最终 hash 以当前 HEAD 为准.
+
+### Round PB
+- Time: 2026-03-30 19:42:22 +0800
+- Done: Connected empty `sorted()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return sorted(())`, `except TypeError: payload = []; return sorted(payload)`, and `except OSError: payload = []; items = sorted(payload); return tuple(items)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty sorted fallback`; final hash follows HEAD.

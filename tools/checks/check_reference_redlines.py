@@ -533,6 +533,18 @@ def _try_evaluate_statically_empty_map_call_value(node: ast.Call, resolve_value)
 
 
 
+def _try_evaluate_statically_empty_sorted_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "sorted" or node.keywords or len(node.args) != 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_value = resolve_value(node.args[0])
+    if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if _runtime_value_is_statically_empty_iterable(iterable_value):
+        return []
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_comprehension_value(
     node: ast.ListComp | ast.SetComp | ast.DictComp,
     resolve_value,
@@ -876,6 +888,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_map_value
+    empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_sorted_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_sorted_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1275,6 +1293,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_map_value
+    empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_sorted_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_sorted_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
