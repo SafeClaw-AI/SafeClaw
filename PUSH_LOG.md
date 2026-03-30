@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 11:40:30 +0800
+最后更新时间：2026-03-30 11:47:25 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2343,3 +2343,9 @@
 - 本轮完成：把 `difference/intersection/union` 这组 zero-arg set algebra method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return set().difference()`、`except TypeError: payload = set(); return payload.union()` 与 `except OSError: payload = frozenset(); return set(payload.intersection())` 这类空集合代数方法绕行；定向扫描 except handler 内的 set algebra method return 为 `NO_RETURN_SET_ALGEBRA_METHOD_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block set algebra fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round OQ
+- 完成时间：2026-03-30 11:47:25 +0800
+- 本轮完成：把 `update/difference_update/intersection_update` 这组 zero-arg collection update mutator method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return {}.update()`、`except TypeError: payload = set(); return payload.difference_update()` 与 `except OSError: payload = set(); return bool(payload.intersection_update())` 这类更新型 mutator 绕行；定向扫描 except handler 内的 update mutator method return 为 `NO_RETURN_UPDATE_MUTATOR_METHOD_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block update mutator fallback`；最终 hash 以当前 HEAD 为准。

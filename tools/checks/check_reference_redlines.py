@@ -398,6 +398,9 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "difference": (set, frozenset),
     "intersection": (set, frozenset),
     "union": (set, frozenset),
+    "update": (dict, set),
+    "difference_update": (set,),
+    "intersection_update": (set,),
 }
 
 

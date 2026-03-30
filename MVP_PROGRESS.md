@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 11:40:30 +0800
+最后更新时间：2026-03-30 11:47:25 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 240 刀已完成；最近五十三轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 241 刀已完成；最近五十四轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -290,3 +290,4 @@
 | [x] | M1b Slice 247: text rsplit method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `rsplit()` 这组 zero-arg text split method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return ''.rsplit()`、`return payload.rsplit()` 与 `return tuple(payload.rsplit())` 这类 text rsplit method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 text rsplit method 必败合同，并确认 except handler 内的 text rsplit method return 为 `NO_RETURN_TEXT_RSPLIT_METHOD_HITS` | 把 silent fallback 从 `split()` 家族继续扩到 `rsplit()` 后，后续不容易只靠一层反向分割继续吞异常上下文 |
 | [x] | M1b Slice 248: mutator method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `clear/reverse/sort` 这组 zero-arg mutator method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return [].clear()`、`return payload.reverse()` 与 `return bool(values.sort())` 这类 mutator method 语法糖也纳入门禁；同步新增运行值复制 helper，避免求值期反写 alias 真源；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 mutator method 必败合同，确认 except handler 内的 mutator method return 为 `NO_RETURN_MUTATOR_METHOD_HITS` | 把 silent fallback 从 text split/conversion family 继续扩到 `None` 返回 mutator 方法后，后续不容易只靠一层 `.clear()/.reverse()/.sort()` 继续吞异常上下文 |
 | [x] | M1b Slice 249: set algebra method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `difference/intersection/union` 这组 zero-arg set algebra method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return set().difference()`、`return payload.union()` 与 `return set(payload.intersection())` 这类 set algebra 语法糖也纳入门禁；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 set algebra method 必败合同，确认 except handler 内的 set algebra method return 为 `NO_RETURN_SET_ALGEBRA_METHOD_HITS` | 把 silent fallback 从 mutator/文本家族继续扩到 zero-arg set algebra family 后，后续不容易只靠一层 `.difference()/.intersection()/.union()` 继续吞异常上下文 |
+| [x] | M1b Slice 250: update mutator method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `update/difference_update/intersection_update` 这组 zero-arg collection update mutator method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return {}.update()`、`return payload.difference_update()` 与 `return bool(payload.intersection_update())` 这类 update mutator 语法糖也纳入门禁；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 update mutator method 必败合同，确认 except handler 内的 update mutator method return 为 `NO_RETURN_UPDATE_MUTATOR_METHOD_HITS` | 把 silent fallback 从 set algebra / mutator family 继续扩到 zero-arg update mutator family 后，后续不容易只靠一层 `.update()/.difference_update()/.intersection_update()` 继续吞异常上下文 |
