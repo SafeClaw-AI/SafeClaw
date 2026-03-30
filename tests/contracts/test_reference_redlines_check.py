@@ -2730,6 +2730,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_value_error_cannot_directly_silently_fallback_with_any_on_empty_list(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return any([])\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_any_on_known_empty_iterable_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    payload = []\n    return any(payload)\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_return_bool_wrapped_any_on_known_empty_iterable_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    payload = []\n    flag = any(payload)\n    return bool(flag)\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
