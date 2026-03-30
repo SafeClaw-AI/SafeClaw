@@ -436,6 +436,11 @@ def _runtime_value_is_statically_empty_iterable(value: object) -> bool:
 
 
 
+def _runtime_value_is_trackable_silent_fallback_assignment_value(value: object) -> bool:
+    return _runtime_value_is_silent_fallback(value) or value is _STATIC_EMPTY_ITERATOR_VALUE
+
+
+
 def _try_evaluate_statically_empty_zip_call_value(node: ast.Call, resolve_value) -> object:
     if not isinstance(node.func, ast.Name) or node.func.id != "zip" or node.keywords:
         return _STATIC_VALUE_NOT_AVAILABLE
@@ -1250,7 +1255,7 @@ def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -
             assignment_value,
             known_name_values,
         )
-        if not _runtime_value_is_silent_fallback(runtime_value):
+        if not _runtime_value_is_trackable_silent_fallback_assignment_value(runtime_value):
             return False
         for assignment_target_name in assignment_target_names:
             known_name_values[assignment_target_name] = runtime_value
