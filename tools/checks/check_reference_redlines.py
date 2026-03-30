@@ -658,6 +658,35 @@ def _try_evaluate_statically_empty_dict_view_method_value(node: ast.Call, resolv
 
 
 
+def _try_evaluate_statically_empty_dict_get_method_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr != "get"
+        or node.keywords
+        or len(node.args) not in (1, 2)
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(base_value, dict) or len(base_value) != 0:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    key_value = resolve_value(node.args[0])
+    if key_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        hash(key_value)
+    except TypeError as error:
+        if isinstance(error, TypeError):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable dict.get key hashability branch")
+    if len(node.args) == 1:
+        return None
+    default_value = resolve_value(node.args[1])
+    if default_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return default_value
+
+
+
 def _try_evaluate_statically_empty_comprehension_value(
     node: ast.ListComp | ast.SetComp | ast.DictComp,
     resolve_value,
@@ -1043,6 +1072,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_dict_view_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_view_value
+    empty_dict_get_value = _try_evaluate_statically_empty_dict_get_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_dict_get_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_get_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1505,6 +1540,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_dict_view_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_view_value
+    empty_dict_get_value = _try_evaluate_statically_empty_dict_get_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_dict_get_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_get_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
