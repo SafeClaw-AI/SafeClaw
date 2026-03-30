@@ -365,8 +365,8 @@ _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS = {
     "bytes": {"source": bytes},
     "bytearray": {"source": bytearray},
 }
-_STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE = object()
-_EMPTY_GENERATOR_EXPRESSION_CONSUMING_CONSTRUCTOR_VALUES = {
+_STATIC_EMPTY_ITERATOR_VALUE = object()
+_EMPTY_ITERATOR_CONSUMING_CONSTRUCTOR_VALUES = {
     "bytes": b"",
     "bytearray": bytearray(),
     "list": [],
@@ -428,9 +428,30 @@ def _runtime_value_is_silent_fallback(value: object) -> bool:
 
 
 def _runtime_value_is_statically_empty_iterable(value: object) -> bool:
+    if value is _STATIC_EMPTY_ITERATOR_VALUE:
+        return True
     if isinstance(value, (str, bytes, bytearray, list, tuple, dict, set, frozenset, range)):
         return len(value) == 0
     return False
+
+
+
+def _try_evaluate_statically_empty_zip_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "zip" or node.keywords:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not node.args:
+        return _STATIC_EMPTY_ITERATOR_VALUE
+    saw_unavailable = False
+    for argument_node in node.args:
+        argument_value = resolve_value(argument_node)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+            saw_unavailable = True
+            continue
+        if _runtime_value_is_statically_empty_iterable(argument_value):
+            return _STATIC_EMPTY_ITERATOR_VALUE
+    if saw_unavailable:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return _STATIC_VALUE_NOT_AVAILABLE
 
 
 
@@ -461,18 +482,18 @@ def _try_evaluate_statically_empty_generator_expression_value(
         if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
             continue
         if _runtime_value_is_statically_empty_iterable(iterable_value):
-            return _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE
+            return _STATIC_EMPTY_ITERATOR_VALUE
     return _STATIC_VALUE_NOT_AVAILABLE
 
 
 
-def _try_resolve_empty_generator_expression_consuming_constructor_value(
+def _try_resolve_empty_iterator_consuming_constructor_value(
     constructor_name: str,
     argument_value: object,
 ) -> object:
-    if argument_value is not _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE:
+    if argument_value is not _STATIC_EMPTY_ITERATOR_VALUE:
         return _STATIC_VALUE_NOT_AVAILABLE
-    return _EMPTY_GENERATOR_EXPRESSION_CONSUMING_CONSTRUCTOR_VALUES.get(
+    return _EMPTY_ITERATOR_CONSUMING_CONSTRUCTOR_VALUES.get(
         constructor_name,
         _STATIC_VALUE_NOT_AVAILABLE,
     )
@@ -747,6 +768,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
+    empty_zip_value = _try_evaluate_statically_empty_zip_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_zip_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_zip_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -767,7 +794,7 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         if constructor is None:
             return _STATIC_VALUE_NOT_AVAILABLE
         argument_value = _try_evaluate_static_expression_value(keyword.value)
-        generator_expression_value = _try_resolve_empty_generator_expression_consuming_constructor_value(
+        generator_expression_value = _try_resolve_empty_iterator_consuming_constructor_value(
             node.func.id,
             argument_value,
         )
@@ -775,7 +802,7 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
             return generator_expression_value
         if (
             argument_value is _STATIC_VALUE_NOT_AVAILABLE
-            or argument_value is _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE
+            or argument_value is _STATIC_EMPTY_ITERATOR_VALUE
         ):
             return _STATIC_VALUE_NOT_AVAILABLE
         try:
@@ -790,7 +817,7 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     if constructor is None:
         return _STATIC_VALUE_NOT_AVAILABLE
     argument_value = _try_evaluate_static_expression_value(node.args[0])
-    generator_expression_value = _try_resolve_empty_generator_expression_consuming_constructor_value(
+    generator_expression_value = _try_resolve_empty_iterator_consuming_constructor_value(
         node.func.id,
         argument_value,
     )
@@ -798,7 +825,7 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         return generator_expression_value
     if (
         argument_value is _STATIC_VALUE_NOT_AVAILABLE
-        or argument_value is _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE
+        or argument_value is _STATIC_EMPTY_ITERATOR_VALUE
     ):
         return _STATIC_VALUE_NOT_AVAILABLE
     try:
@@ -1101,6 +1128,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
+    empty_zip_value = _try_evaluate_statically_empty_zip_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_zip_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_zip_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
@@ -1125,7 +1161,7 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
             keyword.value,
             known_name_values,
         )
-        generator_expression_value = _try_resolve_empty_generator_expression_consuming_constructor_value(
+        generator_expression_value = _try_resolve_empty_iterator_consuming_constructor_value(
             node.func.id,
             argument_value,
         )
@@ -1133,7 +1169,7 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
             return generator_expression_value
         if (
             argument_value is _STATIC_VALUE_NOT_AVAILABLE
-            or argument_value is _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE
+            or argument_value is _STATIC_EMPTY_ITERATOR_VALUE
         ):
             return _STATIC_VALUE_NOT_AVAILABLE
         try:
@@ -1148,7 +1184,7 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         node.args[0],
         known_name_values,
     )
-    generator_expression_value = _try_resolve_empty_generator_expression_consuming_constructor_value(
+    generator_expression_value = _try_resolve_empty_iterator_consuming_constructor_value(
         node.func.id,
         argument_value,
     )
@@ -1156,7 +1192,7 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return generator_expression_value
     if (
         argument_value is _STATIC_VALUE_NOT_AVAILABLE
-        or argument_value is _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE
+        or argument_value is _STATIC_EMPTY_ITERATOR_VALUE
     ):
         return _STATIC_VALUE_NOT_AVAILABLE
     constructor = _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
