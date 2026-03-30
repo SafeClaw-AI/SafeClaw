@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 18:10:33 +0800
+最后更新时间：2026-03-30 18:19:55 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 253 刀已完成；最近六十六轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 254 刀已完成；最近六十七轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -295,3 +295,4 @@
 | [x] | M1b Slice 252: static empty comprehension silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：新增 comprehension 空 iterable helper，把 `ListComp/SetComp/DictComp` 接入静态求值与 known-name 运行值解析；当任一 generator 的 `iter` 可静态判空时，直接把结果视为 `[]/set()/{}`，从而阻断 `return [item for item in []]`、`return {item for item in payload}` 与 `return dict({key: value for key, value in pairs})` 这类推导式 silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 empty comprehension 必败合同 | 把 silent fallback 从零参方法家族切到表达式级空推导式缺口后，后续不容易只靠一层 comprehension 语法糖继续吞异常上下文 |
 
 | [x] | M1b Slice 253: empty generator expression consuming constructor silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 `GeneratorExp` 的空 iterable 静态判定接入静态求值与 known-name 运行值解析，但只在 `list/tuple/dict/set/frozenset` 这组 consuming constructor 消费空 generator expression 时把结果折叠为 `[]/()/ {}/set()/frozenset()`；从而阻断 `return list(item for item in ())`、`return tuple(item for item in payload)` 与 `return dict((key, value) for key, value in pairs)` 这类 generator expression silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 empty generator expression 必败合同 | 把 silent fallback 从 comprehension 表达式继续扩到 generator expression 被 consuming constructor 包装的缺口后，后续不容易只靠一层 generator 语法糖继续吞异常上下文 |
+| [x] | M1b Slice 254: bytes bytearray generator expression consuming constructor silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把空 `GeneratorExp` 被 `bytes/bytearray` 消费的场景也接入 generator 哨兵折叠，让 `bytes(item for item in ())`、`bytearray(item for item in payload)` 与 `bytes(source=(item for item in payload))` 在空 generator expression 可静态判空时直接折叠为 `b""/bytearray()`，从而阻断这组字节构造器 silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条必败合同 | 把 generator expression consuming constructor 家族从容器类继续扩到字节构造器后，后续不容易只靠一层 `bytes/bytearray` 继续吞异常上下文 |

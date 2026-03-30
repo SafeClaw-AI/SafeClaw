@@ -367,6 +367,8 @@ _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS = {
 }
 _STATIC_EMPTY_GENERATOR_EXPRESSION_VALUE = object()
 _EMPTY_GENERATOR_EXPRESSION_CONSUMING_CONSTRUCTOR_VALUES = {
+    "bytes": b"",
+    "bytearray": bytearray(),
     "list": [],
     "dict": {},
     "tuple": (),
