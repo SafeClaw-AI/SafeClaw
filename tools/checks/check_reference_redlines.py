@@ -567,6 +567,30 @@ def _try_evaluate_statically_empty_join_method_value(node: ast.Call, resolve_val
 
 
 
+def _try_evaluate_statically_empty_dict_fromkeys_call_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr != "fromkeys"
+        or not isinstance(node.func.value, ast.Name)
+        or node.func.value.id != "dict"
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_node: ast.expr | None = None
+    if not node.keywords and len(node.args) in (1, 2):
+        iterable_node = node.args[0]
+    elif len(node.args) == 1 and len(node.keywords) == 1 and node.keywords[0].arg == "value":
+        iterable_node = node.args[0]
+    else:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_value = resolve_value(iterable_node)
+    if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if _runtime_value_is_statically_empty_iterable(iterable_value):
+        return {}
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_comprehension_value(
     node: ast.ListComp | ast.SetComp | ast.DictComp,
     resolve_value,
@@ -922,6 +946,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_join_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_join_value
+    empty_dict_fromkeys_value = _try_evaluate_statically_empty_dict_fromkeys_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_dict_fromkeys_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_fromkeys_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1339,6 +1369,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_join_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_join_value
+    empty_dict_fromkeys_value = _try_evaluate_statically_empty_dict_fromkeys_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_dict_fromkeys_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_fromkeys_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
