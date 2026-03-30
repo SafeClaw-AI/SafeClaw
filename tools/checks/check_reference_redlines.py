@@ -658,13 +658,17 @@ def _try_evaluate_statically_empty_dict_view_method_value(node: ast.Call, resolv
 
 
 
-def _try_evaluate_statically_empty_dict_get_method_value(node: ast.Call, resolve_value) -> object:
+def _try_evaluate_statically_empty_dict_default_method_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
-        or node.func.attr != "get"
+        or node.func.attr not in {"get", "pop", "setdefault"}
         or node.keywords
-        or len(node.args) not in (1, 2)
     ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if node.func.attr == "pop":
+        if len(node.args) != 2:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    elif len(node.args) not in (1, 2):
         return _STATIC_VALUE_NOT_AVAILABLE
     base_value = resolve_value(node.func.value)
     if base_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(base_value, dict) or len(base_value) != 0:
@@ -677,34 +681,30 @@ def _try_evaluate_statically_empty_dict_get_method_value(node: ast.Call, resolve
     except TypeError as error:
         if isinstance(error, TypeError):
             return _STATIC_VALUE_NOT_AVAILABLE
-        raise AssertionError("unreachable dict.get key hashability branch")
+        raise AssertionError("unreachable dict default-method key hashability branch")
     if len(node.args) == 1:
-        return None
+        if node.func.attr in {"get", "setdefault"}:
+            return None
+        return _STATIC_VALUE_NOT_AVAILABLE
     default_value = resolve_value(node.args[1])
     if default_value is _STATIC_VALUE_NOT_AVAILABLE:
         return _STATIC_VALUE_NOT_AVAILABLE
     return default_value
+
+
+
+def _try_evaluate_statically_empty_dict_get_method_value(node: ast.Call, resolve_value) -> object:
+    return _try_evaluate_statically_empty_dict_default_method_value(node, resolve_value)
 
 
 
 def _try_evaluate_statically_empty_dict_pop_method_value(node: ast.Call, resolve_value) -> object:
-    if (
-        not isinstance(node.func, ast.Attribute)
-        or node.func.attr != "pop"
-        or node.keywords
-        or len(node.args) != 2
-    ):
-        return _STATIC_VALUE_NOT_AVAILABLE
-    base_value = resolve_value(node.func.value)
-    if base_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(base_value, dict) or len(base_value) != 0:
-        return _STATIC_VALUE_NOT_AVAILABLE
-    key_value = resolve_value(node.args[0])
-    if key_value is _STATIC_VALUE_NOT_AVAILABLE:
-        return _STATIC_VALUE_NOT_AVAILABLE
-    default_value = resolve_value(node.args[1])
-    if default_value is _STATIC_VALUE_NOT_AVAILABLE:
-        return _STATIC_VALUE_NOT_AVAILABLE
-    return default_value
+    return _try_evaluate_statically_empty_dict_default_method_value(node, resolve_value)
+
+
+
+def _try_evaluate_statically_empty_dict_setdefault_method_value(node: ast.Call, resolve_value) -> object:
+    return _try_evaluate_statically_empty_dict_default_method_value(node, resolve_value)
 
 
 
@@ -1105,6 +1105,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_dict_pop_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_pop_value
+    empty_dict_setdefault_value = _try_evaluate_statically_empty_dict_setdefault_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_dict_setdefault_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_setdefault_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1585,6 +1591,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_dict_pop_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_pop_value
+    empty_dict_setdefault_value = _try_evaluate_statically_empty_dict_setdefault_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_dict_setdefault_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_dict_setdefault_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
