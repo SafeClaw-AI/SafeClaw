@@ -2225,3 +2225,8 @@
 - 本轮完成：把多步 `Assign` / `AnnAssign` assignment chain 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = []; alias = fallback; return alias`、`except TypeError: fallback = bool(False); alias: object = fallback; return alias` 与 `except OSError: empty = "" + ""; fallback = empty; return fallback` 这类多步中转绕行；定向扫描多步 assignment chain silent fallback 为 `NO_ASSIGN_CHAIN_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block assignment chain fallback`；最终 hash 以当前 HEAD 为准。
+### Round NV
+- 完成时间：2026-03-30 08:14:16 +0800
+- 本轮完成：把多目标 `Assign` assignment 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = alias = []; return alias`、`except TypeError: primary = alias = bool(False); return primary` 与 `except OSError: empty = fallback = '' + ''; alias = empty; return alias` 这类多目标赋值绕行；定向扫描 multi-target assignment silent fallback 为 `NO_MULTI_TARGET_ASSIGN_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block multi-target assignment fallback`；最终 hash 以当前 HEAD 为准。

@@ -525,13 +525,18 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
 
 
 
-def _extract_simple_name_assignment_target_and_value(statement: ast.stmt) -> tuple[str, ast.expr | None] | None:
-    if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
-        if isinstance(statement.targets[0], ast.Name):
-            return statement.targets[0].id, statement.value
+def _extract_simple_name_assignment_target_names_and_value(statement: ast.stmt) -> tuple[list[str], ast.expr | None] | None:
+    if isinstance(statement, ast.Assign):
+        target_names: list[str] = []
+        for target in statement.targets:
+            if not isinstance(target, ast.Name):
+                return None
+            target_names.append(target.id)
+        if target_names:
+            return target_names, statement.value
     elif isinstance(statement, ast.AnnAssign):
         if isinstance(statement.target, ast.Name) and statement.value is not None:
-            return statement.target.id, statement.value
+            return [statement.target.id], statement.value
     return None
 
 
@@ -544,15 +549,15 @@ def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -
         return False
     silent_fallback_names: set[str] = set()
     for statement in body[:-1]:
-        assignment_info = _extract_simple_name_assignment_target_and_value(statement)
+        assignment_info = _extract_simple_name_assignment_target_names_and_value(statement)
         if assignment_info is None:
             return False
-        assignment_target_name, assignment_value = assignment_info
+        assignment_target_names, assignment_value = assignment_info
         if _is_direct_silent_fallback_return_value(assignment_value):
-            silent_fallback_names.add(assignment_target_name)
+            silent_fallback_names.update(assignment_target_names)
             continue
         if isinstance(assignment_value, ast.Name) and assignment_value.id in silent_fallback_names:
-            silent_fallback_names.add(assignment_target_name)
+            silent_fallback_names.update(assignment_target_names)
             continue
         return False
     return return_statement.value.id in silent_fallback_names

@@ -1166,6 +1166,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
         )
 
 
+    def test_value_error_cannot_multi_assign_empty_list_then_return_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    fallback = alias = []\n    return alias\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_multi_assign_false_bool_then_return_primary(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    primary = alias = bool(False)\n    return primary\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_multi_assign_binop_then_alias_chain_return_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    empty = fallback = '' + ''\n    alias = empty\n    return alias\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
