@@ -375,6 +375,16 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "casefold": (str,),
     "split": (str, bytes, bytearray),
     "splitlines": (str, bytes, bytearray),
+    "isalnum": (str, bytes, bytearray),
+    "isalpha": (str, bytes, bytearray),
+    "isdecimal": (str,),
+    "isdigit": (str, bytes, bytearray),
+    "isidentifier": (str,),
+    "islower": (str, bytes, bytearray),
+    "isnumeric": (str,),
+    "isspace": (str, bytes, bytearray),
+    "istitle": (str, bytes, bytearray),
+    "isupper": (str, bytes, bytearray),
 }
 
 

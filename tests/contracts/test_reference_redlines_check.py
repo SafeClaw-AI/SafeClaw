@@ -1718,6 +1718,43 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+
+    def test_value_error_cannot_directly_silently_fallback_with_isalnum_method_on_empty_string(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return ''.isalnum()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_isdigit_method_on_known_empty_bytes(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    payload = b''\n    return payload.isdigit()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_return_constructor_wrapped_isidentifier_method_on_known_empty_string(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    name = '' + ''\n    return bool(name.isidentifier())\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
