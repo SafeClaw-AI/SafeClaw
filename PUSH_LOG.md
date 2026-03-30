@@ -2424,3 +2424,9 @@
 - Done: Connected empty `dict.fromkeys()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return dict.fromkeys(())`, `except TypeError: payload = []; return dict.fromkeys(payload)`, and `except OSError: payload = []; mapping = dict.fromkeys(payload); return dict(mapping)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty fromkeys fallback`; final hash follows HEAD.
+
+### Round PE
+- Time: 2026-03-30 20:19:49 +0800
+- Done: Connected empty `range()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, and aligned empty `range` values with the shared empty-container semantic, blocking `except ValueError: return range(0)`, `except TypeError: items = range(0); return items`, and `except OSError: items = range(0); return list(items)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty range fallback`; final hash follows HEAD.

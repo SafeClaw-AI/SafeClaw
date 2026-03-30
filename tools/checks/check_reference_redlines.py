@@ -421,7 +421,7 @@ def _runtime_value_is_silent_fallback(value: object) -> bool:
         return True
     if isinstance(value, (str, bytes, bytearray)):
         return len(value) == 0
-    if isinstance(value, (list, tuple, dict, set, frozenset)):
+    if isinstance(value, (list, tuple, dict, set, frozenset, range)):
         return len(value) == 0
     return False
 
@@ -587,6 +587,27 @@ def _try_evaluate_statically_empty_dict_fromkeys_call_value(node: ast.Call, reso
         return _STATIC_VALUE_NOT_AVAILABLE
     if _runtime_value_is_statically_empty_iterable(iterable_value):
         return {}
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
+def _try_evaluate_statically_empty_range_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "range" or node.keywords or not (1 <= len(node.args) <= 3):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    arguments: list[int] = []
+    for argument_node in node.args:
+        argument_value = resolve_value(argument_node)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(argument_value, int):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        arguments.append(argument_value)
+    try:
+        range_value = range(*arguments)
+    except (TypeError, ValueError) as error:
+        if isinstance(error, (TypeError, ValueError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable range evaluation branch")
+    if len(range_value) == 0:
+        return range_value
     return _STATIC_VALUE_NOT_AVAILABLE
 
 
@@ -952,6 +973,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_dict_fromkeys_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_fromkeys_value
+    empty_range_value = _try_evaluate_statically_empty_range_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_range_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_range_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1378,6 +1405,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_dict_fromkeys_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_dict_fromkeys_value
+    empty_range_value = _try_evaluate_statically_empty_range_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_range_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_range_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
