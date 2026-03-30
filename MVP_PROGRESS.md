@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 10:19:50 +0800
+最后更新时间：2026-03-30 10:33:27 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 233 刀已完成；最近四十六轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 234 刀已完成；最近四十七轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -283,3 +283,4 @@
 | [x] | M1b Slice 240: fstring expression silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `JoinedStr` / `f-string` 表达式求值，既支持 direct return，也支持 constructor 包装场景，让 `return f"{''}"`、`return f"{empty}"` 与 `return str(f"{empty}")` 这类 f-string 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 f-string expression 必败合同，并确认 except handler 内的 direct / constructor-wrapped f-string return 为 `NO_RETURN_FSTRING_HITS` | 把 silent fallback 从 `NamedExpr` 海象表达式继续扩到 `f-string` 表达式后，后续不容易只靠一层格式化字符串继续吞异常上下文 |
 | [x] | M1b Slice 241: copy method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `copy()` 零参方法求值，既支持 direct return，也支持 constructor 包装场景，让 `return [].copy()`、`return mapping.copy()` 与 `return list(values.copy())` 这类 zero-arg method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 `copy()` method 必败合同，并确认 except handler 内的 direct / constructor-wrapped `copy()` return 为 `NO_RETURN_COPY_METHOD_HITS` | 把 silent fallback 从 `f-string` 表达式继续扩到 empty-preserving 零参方法后，后续不容易只靠一层 `copy()` 继续吞异常上下文 |
 | [x] | M1b Slice 242: zero-arg text method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `strip/lstrip/rstrip/lower/upper/casefold` 这组 zero-arg text method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return .strip()`、`return empty.lower()` 与 `return bytes(payload.rstrip())` 这类 zero-arg text method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 zero-arg text method 必败合同，并确认 except handler 内的 zero-arg text method return 为 `NO_RETURN_ZERO_ARG_TEXT_METHOD_HITS` | 把 silent fallback 从 `copy()` 零参方法继续扩到 empty-preserving 文本方法后，后续不容易只靠一层 `strip/lower/rstrip` 继续吞异常上下文 |
+| [x] | M1b Slice 243: text split method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `split/splitlines` 这组 zero-arg text split method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return ''.split()`、`return empty.splitlines()` 与 `return tuple(payload.splitlines())` 这类 text split method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 text split method 必败合同，并确认 except handler 内的 text split method return 为 `NO_RETURN_TEXT_SPLIT_METHOD_HITS` | 把 silent fallback 从 empty-preserving 文本方法继续扩到 split-family 零参方法后，后续不容易只靠一层 `split()/splitlines()` 继续吞异常上下文 |

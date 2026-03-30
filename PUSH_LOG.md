@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 10:19:50 +0800
+最后更新时间：2026-03-30 10:33:27 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2301,3 +2301,9 @@
 - 本轮完成：把 `strip/lower/rstrip` 这组 zero-arg text method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return .strip()`、`except TypeError: empty = "" + ""; return empty.lower()` 与 `except OSError: payload = b""; return bytes(payload.rstrip())` 这类 empty-preserving 文本方法绕行；定向扫描 except handler 内的 zero-arg text method return 为 `NO_RETURN_ZERO_ARG_TEXT_METHOD_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block text method fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round OJ
+- 完成时间：2026-03-30 10:33:27 +0800
+- 本轮完成：把 `split()/splitlines()` 这组 zero-arg text split method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return ''.split()`、`except TypeError: empty = "" + ""; return empty.splitlines()` 与 `except OSError: payload = b""; return tuple(payload.splitlines())` 这类 split-family 文本方法绕行；定向扫描 except handler 内的 text split method return 为 `NO_RETURN_TEXT_SPLIT_METHOD_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block split method fallback`；最终 hash 以当前 HEAD 为准。

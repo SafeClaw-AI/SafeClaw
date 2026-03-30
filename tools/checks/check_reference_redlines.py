@@ -373,6 +373,8 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "lower": (str, bytes, bytearray),
     "upper": (str, bytes, bytearray),
     "casefold": (str,),
+    "split": (str, bytes, bytearray),
+    "splitlines": (str, bytes, bytearray),
 }
 
 
