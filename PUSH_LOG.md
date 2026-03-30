@@ -2235,3 +2235,8 @@
 - 本轮完成：把单参 return call 包装也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = []; return list(fallback)`、`except TypeError: fallback = bool(False); return bool(fallback)` 与 `except OSError: empty = '' + ''; alias = empty; return str(alias)` 这类单参 constructor 包装绕行；定向扫描 single-arg return call silent fallback 为 `NO_SINGLE_ARG_RETURN_CALL_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block single-arg return call fallback`；最终 hash 以当前 HEAD 为准。
+### Round NX
+- 完成时间：2026-03-30 08:27:49 +0800
+- 本轮完成：把 nested return call 包装也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = []; return list(list(fallback))`、`except TypeError: fallback = bool(False); return bool(bool(fallback))` 与 `except OSError: empty = '' + ''; alias = empty; return str(str(alias))` 这类嵌套 constructor 包装绕行；定向扫描 nested return call silent fallback 为 `NO_NESTED_RETURN_CALL_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block nested return call fallback`；最终 hash 以当前 HEAD 为准。

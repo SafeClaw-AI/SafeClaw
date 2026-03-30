@@ -556,9 +556,10 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return _STATIC_VALUE_NOT_AVAILABLE
     if node.keywords or len(node.args) != 1:
         return _STATIC_VALUE_NOT_AVAILABLE
-    if not isinstance(node.args[0], ast.Name):
-        return _STATIC_VALUE_NOT_AVAILABLE
-    argument_value = known_name_values.get(node.args[0].id, _STATIC_VALUE_NOT_AVAILABLE)
+    argument_value = _try_resolve_known_name_silent_fallback_runtime_value(
+        node.args[0],
+        known_name_values,
+    )
     if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
         return _STATIC_VALUE_NOT_AVAILABLE
     constructor = _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
