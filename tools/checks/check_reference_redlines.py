@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple
 
@@ -376,6 +377,69 @@ def _runtime_value_is_silent_fallback(value: object) -> bool:
     return False
 
 
+
+def _try_unpack_runtime_sequence_values(value: object) -> object:
+    try:
+        return list(value)
+    except TypeError as error:
+        if isinstance(error, TypeError):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable sequence unpack evaluation branch")
+
+
+
+def _try_collect_sequence_literal_values(elements: list[ast.expr], resolve_value) -> object:
+    values: list[object] = []
+    for element in elements:
+        if isinstance(element, ast.Starred):
+            unpacked_value = resolve_value(element.value)
+            if unpacked_value is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            unpacked_values = _try_unpack_runtime_sequence_values(unpacked_value)
+            if unpacked_values is _STATIC_VALUE_NOT_AVAILABLE:
+                return _STATIC_VALUE_NOT_AVAILABLE
+            values.extend(unpacked_values)
+            continue
+        value = resolve_value(element)
+        if value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        values.append(value)
+    return values
+
+
+
+def _try_collect_dict_literal_mapping_value(
+    key_nodes: list[ast.expr | None],
+    value_nodes: list[ast.expr],
+    resolve_value,
+) -> object:
+    mapping: dict[object, object] = {}
+    for key_node, value_node in zip(key_nodes, value_nodes):
+        value = resolve_value(value_node)
+        if value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        if key_node is None:
+            if not isinstance(value, Mapping):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            try:
+                mapping.update(value)
+            except (TypeError, ValueError) as error:
+                if isinstance(error, (TypeError, ValueError)):
+                    return _STATIC_VALUE_NOT_AVAILABLE
+                raise AssertionError("unreachable dict unpack evaluation branch")
+            continue
+        key = resolve_value(key_node)
+        if key is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            mapping[key] = value
+        except TypeError as error:
+            if isinstance(error, TypeError):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            raise AssertionError("unreachable dict literal key evaluation branch")
+    return mapping
+
+
 def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     if node is None:
         return None
@@ -464,44 +528,38 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
             raise AssertionError("unreachable binary evaluation branch")
         return _STATIC_VALUE_NOT_AVAILABLE
     if isinstance(node, ast.List):
-        values = []
-        for element in node.elts:
-            value = _try_evaluate_static_expression_value(element)
-            if value is _STATIC_VALUE_NOT_AVAILABLE:
-                return _STATIC_VALUE_NOT_AVAILABLE
-            values.append(value)
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            _try_evaluate_static_expression_value,
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
         return values
     if isinstance(node, ast.Tuple):
-        values = []
-        for element in node.elts:
-            value = _try_evaluate_static_expression_value(element)
-            if value is _STATIC_VALUE_NOT_AVAILABLE:
-                return _STATIC_VALUE_NOT_AVAILABLE
-            values.append(value)
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            _try_evaluate_static_expression_value,
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
         return tuple(values)
     if isinstance(node, ast.Set):
-        values = []
-        for element in node.elts:
-            value = _try_evaluate_static_expression_value(element)
-            if value is _STATIC_VALUE_NOT_AVAILABLE:
-                return _STATIC_VALUE_NOT_AVAILABLE
-            values.append(value)
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            _try_evaluate_static_expression_value,
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
         try:
             return set(values)
         except TypeError:
             return _STATIC_VALUE_NOT_AVAILABLE
     if isinstance(node, ast.Dict):
-        mapping: dict[object, object] = {}
-        for key_node, value_node in zip(node.keys, node.values):
-            key = _try_evaluate_static_expression_value(key_node)
-            value = _try_evaluate_static_expression_value(value_node)
-            if key is _STATIC_VALUE_NOT_AVAILABLE or value is _STATIC_VALUE_NOT_AVAILABLE:
-                return _STATIC_VALUE_NOT_AVAILABLE
-            try:
-                mapping[key] = value
-            except TypeError:
-                return _STATIC_VALUE_NOT_AVAILABLE
-        return mapping
+        return _try_collect_dict_literal_mapping_value(
+            node.keys,
+            node.values,
+            _try_evaluate_static_expression_value,
+        )
     if isinstance(node, ast.Subscript):
         base_value = _try_evaluate_static_expression_value(node.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -636,6 +694,51 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return static_value
     if isinstance(node, ast.Name):
         return known_name_values.get(node.id, _STATIC_VALUE_NOT_AVAILABLE)
+    if isinstance(node, ast.List):
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return values
+    if isinstance(node, ast.Tuple):
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return tuple(values)
+    if isinstance(node, ast.Set):
+        values = _try_collect_sequence_literal_values(
+            node.elts,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
+        if values is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            return set(values)
+        except TypeError:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.Dict):
+        return _try_collect_dict_literal_mapping_value(
+            node.keys,
+            node.values,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
     if isinstance(node, ast.IfExp):
         test_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.test,

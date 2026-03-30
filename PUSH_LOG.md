@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 09:20:52 +0800
+最后更新时间：2026-03-30 09:42:38 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2271,3 +2271,9 @@
 - 本轮完成：把 `Subscript` 包装也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return [][:]`、`except TypeError: empty = "" + ""; return empty[:]` 与 `except OSError: payload = b""; return payload[:]` 这类切片语法糖绕行；定向扫描 except handler 内的 Subscript silent fallback 为 `NO_RETURN_SUBSCRIPT_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block subscript fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round OE
+- 完成时间：2026-03-30 09:42:38 +0800
+- 本轮完成：把 unpack literal 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return [*[]]`、`except TypeError: empty = "" + ""; return [*empty]`、`except OSError: return {**{}}` 与 `except RuntimeError: mapping = {}; return {**mapping}` 这类展开语法糖绕行；定向扫描 except handler 内的 unpack literal silent fallback 为 `NO_UNPACK_LITERAL_RETURN_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block unpack literal fallback`；最终 hash 以当前 HEAD 为准。
