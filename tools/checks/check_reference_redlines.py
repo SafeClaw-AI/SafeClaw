@@ -550,6 +550,18 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return static_value
     if isinstance(node, ast.Name):
         return known_name_values.get(node.id, _STATIC_VALUE_NOT_AVAILABLE)
+    if isinstance(node, ast.IfExp):
+        test_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.test,
+            known_name_values,
+        )
+        if test_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        selected_branch = node.body if bool(test_value) else node.orelse
+        return _try_resolve_known_name_silent_fallback_runtime_value(
+            selected_branch,
+            known_name_values,
+        )
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
