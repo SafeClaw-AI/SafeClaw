@@ -391,6 +391,7 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "expandtabs": (str, bytes, bytearray),
     "encode": (str,),
     "decode": (bytes, bytearray),
+    "rsplit": (str, bytes, bytearray),
 }
 
 

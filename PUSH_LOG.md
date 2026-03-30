@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 11:12:13 +0800
+最后更新时间：2026-03-30 11:21:47 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2325,3 +2325,9 @@
 - 本轮完成：把 `encode/decode` 这组 zero-arg text conversion method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return ''.encode()`、`except TypeError: payload = b""; return payload.decode()` 与 `except OSError: name = "" + ""; return bytearray(name.encode())` 这类文本/字节转换方法绕行；定向扫描 except handler 内的 text conversion method return 为 `NO_RETURN_TEXT_CONVERSION_METHOD_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block text conversion fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round ON
+- 完成时间：2026-03-30 11:21:47 +0800
+- 本轮完成：把 `rsplit()` 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return ''.rsplit()`、`except TypeError: payload = b""; return payload.rsplit()` 与 `except OSError: payload = bytearray(); return tuple(payload.rsplit())` 这类反向分割方法绕行；定向扫描 except handler 内的 text rsplit method return 为 `NO_RETURN_TEXT_RSPLIT_METHOD_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block text rsplit fallback`；最终 hash 以当前 HEAD 为准。
