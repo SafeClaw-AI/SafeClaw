@@ -389,6 +389,8 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "swapcase": (str, bytes, bytearray),
     "title": (str, bytes, bytearray),
     "expandtabs": (str, bytes, bytearray),
+    "encode": (str,),
+    "decode": (bytes, bytearray),
 }
 
 
