@@ -2412,3 +2412,9 @@
 - Done: Connected empty `sorted()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return sorted(())`, `except TypeError: payload = []; return sorted(payload)`, and `except OSError: payload = []; items = sorted(payload); return tuple(items)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty sorted fallback`; final hash follows HEAD.
+
+### Round PC
+- Time: 2026-03-30 19:55:46 +0800
+- Done: Connected empty `join()` method evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return ''.join(())`, `except TypeError: separator = b''; payload = []; return separator.join(payload)`, and `except OSError: separator = bytearray(); payload = []; joined = separator.join(payload); return bytes(joined)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty join fallback`; final hash follows HEAD.
