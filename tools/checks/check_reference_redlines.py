@@ -541,26 +541,64 @@ def _extract_simple_name_assignment_target_names_and_value(statement: ast.stmt) 
 
 
 
+def _try_resolve_known_name_silent_fallback_runtime_value(
+    node: ast.expr | None,
+    known_name_values: dict[str, object],
+) -> object:
+    static_value = _try_evaluate_static_expression_value(node)
+    if static_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return static_value
+    if isinstance(node, ast.Name):
+        return known_name_values.get(node.id, _STATIC_VALUE_NOT_AVAILABLE)
+    if not isinstance(node, ast.Call):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not isinstance(node.func, ast.Name):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if node.keywords or len(node.args) != 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not isinstance(node.args[0], ast.Name):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_value = known_name_values.get(node.args[0].id, _STATIC_VALUE_NOT_AVAILABLE)
+    if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    constructor = _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
+    if constructor is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        return constructor(argument_value)
+    except (TypeError, ValueError) as error:
+        if isinstance(error, (TypeError, ValueError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable known-name constructor evaluation branch")
+
+
+
 def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -> bool:
     if len(body) < 2:
         return False
     return_statement = body[-1]
-    if not isinstance(return_statement, ast.Return) or not isinstance(return_statement.value, ast.Name):
+    if not isinstance(return_statement, ast.Return):
         return False
-    silent_fallback_names: set[str] = set()
+    known_name_values: dict[str, object] = {}
     for statement in body[:-1]:
         assignment_info = _extract_simple_name_assignment_target_names_and_value(statement)
         if assignment_info is None:
             return False
         assignment_target_names, assignment_value = assignment_info
-        if _is_direct_silent_fallback_return_value(assignment_value):
-            silent_fallback_names.update(assignment_target_names)
-            continue
-        if isinstance(assignment_value, ast.Name) and assignment_value.id in silent_fallback_names:
-            silent_fallback_names.update(assignment_target_names)
-            continue
-        return False
-    return return_statement.value.id in silent_fallback_names
+        runtime_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            assignment_value,
+            known_name_values,
+        )
+        if not _runtime_value_is_silent_fallback(runtime_value):
+            return False
+        for assignment_target_name in assignment_target_names:
+            known_name_values[assignment_target_name] = runtime_value
+    return _runtime_value_is_silent_fallback(
+        _try_resolve_known_name_silent_fallback_runtime_value(
+            return_statement.value,
+            known_name_values,
+        )
+    )
 
 
 
