@@ -2260,3 +2260,8 @@
 - 本轮完成：把 `return constructor(binop)` 包装也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = []; return list(fallback + [])`、`except TypeError: fallback = bool(False); return bool(fallback | False)` 与 `except OSError: empty = "" + ""; alias = empty; return str(alias + "")` 这类参数层 BinOp 绕行；定向扫描 return call + BinOp silent fallback 为 `NO_RETURN_CALL_BINOP_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block return call binop fallback`；最终 hash 以当前 HEAD 为准。
+### Round OC
+- 完成时间：2026-03-30 09:06:16 +0800
+- 本轮完成：把 `str(object=...)` / `bytes(source=...)` / `bytearray(source=...)` 关键字构造包装也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return str(object="")`、`except TypeError: return bytes(source=b"")` 与 `except OSError: empty = "" + ""; alias = empty; return str(object=alias)` 这类关键字参数绕行；定向扫描关键字构造 return silent fallback 为 `NO_KEYWORD_CTOR_RETURN_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block keyword constructor fallback`；最终 hash 以当前 HEAD 为准。

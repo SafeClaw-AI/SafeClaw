@@ -359,6 +359,11 @@ _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS = {
     "set": set,
     "frozenset": frozenset,
 }
+_SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS = {
+    "str": {"object": str},
+    "bytes": {"source": bytes},
+    "bytearray": {"source": bytearray},
+}
 
 
 def _runtime_value_is_silent_fallback(value: object) -> bool:
@@ -503,6 +508,25 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         return _STATIC_VALUE_NOT_AVAILABLE
     if not node.keywords and not node.args and node.func.id in _ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES:
         return _ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES[node.func.id]
+    if len(node.keywords) == 1 and not node.args:
+        keyword = node.keywords[0]
+        if keyword.arg is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        constructor_map = _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
+        if constructor_map is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        constructor = constructor_map.get(keyword.arg)
+        if constructor is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        argument_value = _try_evaluate_static_expression_value(keyword.value)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            return constructor(argument_value)
+        except (TypeError, ValueError) as error:
+            if isinstance(error, (TypeError, ValueError)):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            raise AssertionError("unreachable keyword constructor evaluation branch")
     if node.keywords or len(node.args) != 1:
         return _STATIC_VALUE_NOT_AVAILABLE
     constructor = _SINGLE_ARG_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
@@ -671,6 +695,28 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
         return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.keywords) == 1 and not node.args:
+        keyword = node.keywords[0]
+        if keyword.arg is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        constructor_map = _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS.get(node.func.id)
+        if constructor_map is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        constructor = constructor_map.get(keyword.arg)
+        if constructor is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        argument_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            keyword.value,
+            known_name_values,
+        )
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            return constructor(argument_value)
+        except (TypeError, ValueError) as error:
+            if isinstance(error, (TypeError, ValueError)):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            raise AssertionError("unreachable known-name keyword constructor evaluation branch")
     if node.keywords or len(node.args) != 1:
         return _STATIC_VALUE_NOT_AVAILABLE
     argument_value = _try_resolve_known_name_silent_fallback_runtime_value(
