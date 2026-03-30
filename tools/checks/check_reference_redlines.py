@@ -562,6 +562,32 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
             selected_branch,
             known_name_values,
         )
+    if isinstance(node, ast.BoolOp):
+        if isinstance(node.op, ast.Or):
+            resolved_value: object = _STATIC_VALUE_NOT_AVAILABLE
+            for value_node in node.values:
+                resolved_value = _try_resolve_known_name_silent_fallback_runtime_value(
+                    value_node,
+                    known_name_values,
+                )
+                if resolved_value is _STATIC_VALUE_NOT_AVAILABLE:
+                    return _STATIC_VALUE_NOT_AVAILABLE
+                if bool(resolved_value):
+                    return resolved_value
+            return resolved_value
+        if isinstance(node.op, ast.And):
+            resolved_value: object = _STATIC_VALUE_NOT_AVAILABLE
+            for value_node in node.values:
+                resolved_value = _try_resolve_known_name_silent_fallback_runtime_value(
+                    value_node,
+                    known_name_values,
+                )
+                if resolved_value is _STATIC_VALUE_NOT_AVAILABLE:
+                    return _STATIC_VALUE_NOT_AVAILABLE
+                if not bool(resolved_value):
+                    return resolved_value
+            return resolved_value
+        return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
