@@ -449,6 +449,8 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         if not node.values:
             return ""
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.NamedExpr):
+        return _try_evaluate_static_expression_value(node.value)
     if isinstance(node, ast.IfExp):
         test_value = _try_evaluate_static_expression_value(node.test)
         if test_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -694,6 +696,11 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return static_value
     if isinstance(node, ast.Name):
         return known_name_values.get(node.id, _STATIC_VALUE_NOT_AVAILABLE)
+    if isinstance(node, ast.NamedExpr):
+        return _try_resolve_known_name_silent_fallback_runtime_value(
+            node.value,
+            known_name_values,
+        )
     if isinstance(node, ast.List):
         values = _try_collect_sequence_literal_values(
             node.elts,
