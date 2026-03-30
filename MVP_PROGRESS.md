@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 11:21:47 +0800
+最后更新时间：2026-03-30 11:30:08 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 238 刀已完成；最近五十一轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 239 刀已完成；最近五十二轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -288,3 +288,4 @@
 | [x] | M1b Slice 245: text transform method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `capitalize/swapcase/title/expandtabs` 这组 zero-arg text transform method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return ''.capitalize()`、`return payload.expandtabs()` 与 `return bytearray(payload.title())` 这类 text transform method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 text transform method 必败合同，并确认 except handler 内的 text transform method return 为 `NO_RETURN_TEXT_TRANSFORM_METHOD_HITS` | 把 silent fallback 从 `False` 型谓词方法继续扩到 empty-preserving 文本变换方法后，后续不容易只靠一层 `.capitalize()/.title()/.expandtabs()` 继续吞异常上下文 |
 | [x] | M1b Slice 246: text conversion method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `encode/decode` 这组 zero-arg text conversion method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return ''.encode()`、`return payload.decode()` 与 `return bytearray(name.encode())` 这类 text conversion method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 text conversion method 必败合同，并确认 except handler 内的 text conversion method return 为 `NO_RETURN_TEXT_CONVERSION_METHOD_HITS` | 把 silent fallback 从文本变换方法继续扩到文本/字节转换方法后，后续不容易只靠一层 `.encode()/.decode()` 继续吞异常上下文 |
 | [x] | M1b Slice 247: text rsplit method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `rsplit()` 这组 zero-arg text split method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return ''.rsplit()`、`return payload.rsplit()` 与 `return tuple(payload.rsplit())` 这类 text rsplit method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 text rsplit method 必败合同，并确认 except handler 内的 text rsplit method return 为 `NO_RETURN_TEXT_RSPLIT_METHOD_HITS` | 把 silent fallback 从 `split()` 家族继续扩到 `rsplit()` 后，后续不容易只靠一层反向分割继续吞异常上下文 |
+| [x] | M1b Slice 248: mutator method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源继续扩到 `clear/reverse/sort` 这组 zero-arg mutator method 求值，既支持 direct return，也支持 constructor 包装场景，让 `return [].clear()`、`return payload.reverse()` 与 `return bool(values.sort())` 这类 mutator method 语法糖也纳入门禁；同步新增运行值复制 helper，避免求值期反写 alias 真源；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 mutator method 必败合同，确认 except handler 内的 mutator method return 为 `NO_RETURN_MUTATOR_METHOD_HITS` | 把 silent fallback 从 text split/conversion family 继续扩到 `None` 返回 mutator 方法后，后续不容易只靠一层 `.clear()/.reverse()/.sort()` 继续吞异常上下文 |

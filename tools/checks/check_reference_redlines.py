@@ -392,6 +392,9 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "encode": (str,),
     "decode": (bytes, bytearray),
     "rsplit": (str, bytes, bytearray),
+    "clear": (list, dict, set, bytearray),
+    "reverse": (list, bytearray),
+    "sort": (list,),
 }
 
 
@@ -435,11 +438,29 @@ def _try_evaluate_joined_string_value(node: ast.JoinedStr, resolve_value) -> obj
 
 
 
+def _copy_runtime_value_for_zero_arg_method_evaluation(value: object) -> object:
+    if isinstance(value, list):
+        return list(value)
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, set):
+        return set(value)
+    if isinstance(value, frozenset):
+        return frozenset(value)
+    if isinstance(value, tuple):
+        return tuple(value)
+    if isinstance(value, bytearray):
+        return bytearray(value)
+    return value
+
+
+
 def _try_call_zero_arg_silent_fallback_method(base_value: object, method_name: str) -> object:
     owner_types = _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS.get(method_name)
     if owner_types is None or not isinstance(base_value, owner_types):
         return _STATIC_VALUE_NOT_AVAILABLE
-    method = getattr(base_value, method_name, None)
+    evaluation_base_value = _copy_runtime_value_for_zero_arg_method_evaluation(base_value)
+    method = getattr(evaluation_base_value, method_name, None)
     if method is None:
         return _STATIC_VALUE_NOT_AVAILABLE
     try:
