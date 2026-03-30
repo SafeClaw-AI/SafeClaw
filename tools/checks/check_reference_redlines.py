@@ -502,6 +502,14 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
             except TypeError:
                 return _STATIC_VALUE_NOT_AVAILABLE
         return mapping
+    if isinstance(node, ast.Subscript):
+        base_value = _try_evaluate_static_expression_value(node.value)
+        if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        subscript_key_value = _try_evaluate_static_subscript_key_value(node.slice)
+        if subscript_key_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
@@ -541,6 +549,60 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         if isinstance(error, (TypeError, ValueError)):
             return _STATIC_VALUE_NOT_AVAILABLE
         raise AssertionError("unreachable constructor evaluation branch")
+
+
+
+def _try_evaluate_static_subscript_key_value(node: ast.expr) -> object:
+    if isinstance(node, ast.Slice):
+        lower_value = _try_evaluate_static_expression_value(node.lower)
+        upper_value = _try_evaluate_static_expression_value(node.upper)
+        step_value = _try_evaluate_static_expression_value(node.step)
+        if (
+            lower_value is _STATIC_VALUE_NOT_AVAILABLE
+            or upper_value is _STATIC_VALUE_NOT_AVAILABLE
+            or step_value is _STATIC_VALUE_NOT_AVAILABLE
+        ):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return slice(lower_value, upper_value, step_value)
+    return _try_evaluate_static_expression_value(node)
+
+
+
+def _try_apply_subscript_to_runtime_value(base_value: object, subscript_key_value: object) -> object:
+    try:
+        return base_value[subscript_key_value]
+    except (TypeError, ValueError, IndexError, KeyError) as error:
+        if isinstance(error, (TypeError, ValueError, IndexError, KeyError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable subscript evaluation branch")
+
+
+
+def _try_resolve_known_name_subscript_key_value(
+    node: ast.expr,
+    known_name_values: dict[str, object],
+) -> object:
+    if isinstance(node, ast.Slice):
+        lower_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.lower,
+            known_name_values,
+        )
+        upper_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.upper,
+            known_name_values,
+        )
+        step_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.step,
+            known_name_values,
+        )
+        if (
+            lower_value is _STATIC_VALUE_NOT_AVAILABLE
+            or upper_value is _STATIC_VALUE_NOT_AVAILABLE
+            or step_value is _STATIC_VALUE_NOT_AVAILABLE
+        ):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return slice(lower_value, upper_value, step_value)
+    return _try_resolve_known_name_silent_fallback_runtime_value(node, known_name_values)
 
 
 
@@ -691,6 +753,20 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
                 return _STATIC_VALUE_NOT_AVAILABLE
             raise AssertionError("unreachable known-name binop evaluation branch")
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node, ast.Subscript):
+        base_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.value,
+            known_name_values,
+        )
+        if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        subscript_key_value = _try_resolve_known_name_subscript_key_value(
+            node.slice,
+            known_name_values,
+        )
+        if subscript_key_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):

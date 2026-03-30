@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 07:46:58 +0800
+最后更新时间：2026-03-30 09:20:52 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 227 刀已完成；最近四十轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源与高风险异常真源
+当前阶段：已进入 M1b，前 228 刀已完成；最近四十一轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -277,3 +277,4 @@
 | [x] | M1b Slice 234: return-call unary/compare silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把运行值解析 helper 扩到 `UnaryOp` / `Compare` 递归求值，让 `return bool(fallback == [1])`、`return bool(not not fallback)` 与 `return bool(alias != "")` 这类 `return constructor(unary/compare)` 静默降级也纳入 direct silent fallback；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 return-call-unary/compare 必败合同，并确认全仓 return call + UnaryOp/Compare silent fallback 为 `NO_RETURN_CALL_UNARY_OR_COMPARE_HITS` | 把 silent fallback 从 `return constructor(boolop)` 扩到 `return constructor(unary/compare)` 后，后续不容易只靠在参数层包一层比较或 `not` 继续吞异常上下文 |
 | [x] | M1b Slice 235: return-call binop silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把运行值解析 helper 扩到 `BinOp` 递归求值，让 `return list(fallback + [])`、`return bool(fallback | False)` 与 `return str(alias + "")` 这类 `return constructor(binop)` 静默降级也纳入 direct silent fallback；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 return-call-binop 必败合同，并确认全仓 return call + BinOp silent fallback 为 `NO_RETURN_CALL_BINOP_HITS` | 把 silent fallback 从 `return constructor(unary/compare)` 扩到 `return constructor(binop)` 后，后续不容易只靠在参数层包一层拼接、并集或重复运算继续吞异常上下文 |
 | [x] | M1b Slice 236: keyword constructor silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `str(object=...)`、`bytes(source=...)` 与 `bytearray(source=...)` 这类单关键字构造调用，让 direct 静态空值与已知 silent fallback 名字的关键字包装也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 keyword constructor 必败合同，并确认全仓关键字构造 return silent fallback 为 `NO_KEYWORD_CTOR_RETURN_HITS` | 把 silent fallback 从 `return constructor(binop)` 扩到合法关键字构造包装后，后续不容易只靠 `object=` / `source=` 这类关键字参数继续吞异常上下文 |
+| [x] | M1b Slice 237: subscript silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `Subscript` 运行值求值，既支持 direct 静态切片，也支持 assignment chain 传播后的已知 silent fallback 名字切片，让 `return [][:]`、`return empty[:]` 与 `return payload[:]` 这类 `Subscript` 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 subscript 必败合同，并确认 except handler 内的 Subscript silent fallback 为 `NO_RETURN_SUBSCRIPT_HITS` | 把 silent fallback 从关键字构造包装继续扩到 `Subscript` 语法糖后，后续不容易只靠包一层切片继续吞异常上下文 |
