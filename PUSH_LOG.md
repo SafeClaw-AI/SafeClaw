@@ -1,6 +1,6 @@
-﻿# 提交推送流水账
+# 提交推送流水账
 
-最后更新时间：2026-03-30 11:54:28 +0800
+最后更新时间：2026-03-30 12:11:05 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2355,3 +2355,9 @@
 - 本轮完成：把 `format/hex` 这组 zero-arg render method 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return ''.format()`、`except TypeError: payload = b""; return payload.hex()` 与 `except OSError: payload = bytearray(); return str(payload.hex())` 这类空字符串渲染绕行；定向扫描 except handler 内的 render method return 为 `NO_RETURN_RENDER_METHOD_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block render method fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round OS
+- 完成时间：2026-03-30 12:11:05 +0800
+- 本轮完成：把 `ListComp/SetComp/DictComp` 这组三类空 comprehension 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return [item for item in []]`、`except TypeError: payload = set(); return {item for item in payload}` 与 `except OSError: pairs = []; return dict({key: value for key, value in pairs})` 这类推导式空容器绕行；实现方式是新增 comprehension 空 iterable helper，并把静态求值与 known-name 运行值解析同时接到同一条真源上。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block empty comprehension fallback`；最终 hash 以当前 HEAD 为准。

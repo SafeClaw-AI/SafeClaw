@@ -417,6 +417,31 @@ def _runtime_value_is_silent_fallback(value: object) -> bool:
 
 
 
+def _runtime_value_is_empty_iterable_for_comprehension(value: object) -> bool:
+    if isinstance(value, (str, bytes, bytearray, list, tuple, dict, set, frozenset, range)):
+        return len(value) == 0
+    return False
+
+
+
+def _try_evaluate_statically_empty_comprehension_value(
+    node: ast.ListComp | ast.SetComp | ast.DictComp,
+    resolve_value,
+) -> object:
+    for generator in node.generators:
+        iterable_value = resolve_value(generator.iter)
+        if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+            continue
+        if _runtime_value_is_empty_iterable_for_comprehension(iterable_value):
+            if isinstance(node, ast.ListComp):
+                return []
+            if isinstance(node, ast.SetComp):
+                return set()
+            return {}
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_joined_string_value(node: ast.JoinedStr, resolve_value) -> object:
     values: list[str] = []
     for value_node in node.values:
@@ -665,6 +690,11 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
             node.values,
             _try_evaluate_static_expression_value,
         )
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        return _try_evaluate_statically_empty_comprehension_value(
+            node,
+            _try_evaluate_static_expression_value,
+        )
     if isinstance(node, ast.Subscript):
         base_value = _try_evaluate_static_expression_value(node.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -857,6 +887,14 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return _try_collect_dict_literal_mapping_value(
             node.keys,
             node.values,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        return _try_evaluate_statically_empty_comprehension_value(
+            node,
             lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
                 expression,
                 known_name_values,
