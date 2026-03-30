@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-30 18:27:50 +0800
+最后更新时间：2026-03-30 18:35:41 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2379,3 +2379,8 @@
 - 本轮完成：把空迭代器真源从 generator expression 抽象成通用哨兵，并把 `zip()` 接入静态求值与 known-name 运行值解析；`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return list(zip())`、`except TypeError: payload = []; return tuple(zip(payload, [1]))` 与 `except OSError: keys = []; values = []; return dict(zip(keys, values))` 这类 `zip()` 空迭代器绕行。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block empty zip fallback`；最终 hash 以当前 HEAD 为准。
+### Round OW
+- 完成时间：2026-03-30 18:35:41 +0800
+- 本轮完成：沿通用空迭代器哨兵把 iter() 接入 direct silent fallback，	ools/checks/check_reference_redlines.py 现在会阻断 except ValueError: return list(iter(()))、except TypeError: payload = []; return tuple(iter(payload)) 与 except OSError: payload = []; return bytes(iter(payload)) 这类 iter() 空迭代器绕行。
+- 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
+- 提交推送：本轮提交信息拟为 eat: block empty iter fallback；最终 hash 以当前 HEAD 为准。
