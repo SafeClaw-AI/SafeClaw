@@ -378,6 +378,35 @@ def _runtime_value_is_silent_fallback(value: object) -> bool:
 
 
 
+def _try_evaluate_joined_string_value(node: ast.JoinedStr, resolve_value) -> object:
+    values: list[str] = []
+    for value_node in node.values:
+        if isinstance(value_node, ast.Constant):
+            if not isinstance(value_node.value, str):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            values.append(value_node.value)
+            continue
+        if not isinstance(value_node, ast.FormattedValue):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        if value_node.format_spec is not None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        resolved_value = resolve_value(value_node.value)
+        if resolved_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        if value_node.conversion in (-1, 115):
+            values.append(str(resolved_value))
+            continue
+        if value_node.conversion == 114:
+            values.append(repr(resolved_value))
+            continue
+        if value_node.conversion == 97:
+            values.append(ascii(resolved_value))
+            continue
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return "".join(values)
+
+
+
 def _try_unpack_runtime_sequence_values(value: object) -> object:
     try:
         return list(value)
@@ -446,9 +475,10 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     if isinstance(node, ast.Constant):
         return node.value
     if isinstance(node, ast.JoinedStr):
-        if not node.values:
-            return ""
-        return _STATIC_VALUE_NOT_AVAILABLE
+        return _try_evaluate_joined_string_value(
+            node,
+            _try_evaluate_static_expression_value,
+        )
     if isinstance(node, ast.NamedExpr):
         return _try_evaluate_static_expression_value(node.value)
     if isinstance(node, ast.IfExp):
@@ -696,6 +726,14 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return static_value
     if isinstance(node, ast.Name):
         return known_name_values.get(node.id, _STATIC_VALUE_NOT_AVAILABLE)
+    if isinstance(node, ast.JoinedStr):
+        return _try_evaluate_joined_string_value(
+            node,
+            lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+                expression,
+                known_name_values,
+            ),
+        )
     if isinstance(node, ast.NamedExpr):
         return _try_resolve_known_name_silent_fallback_runtime_value(
             node.value,

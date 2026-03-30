@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 09:52:50 +0800
+最后更新时间：2026-03-30 10:00:53 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2283,3 +2283,9 @@
 - 本轮完成：把 `NamedExpr`（海象表达式）也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return (fallback := [])`、`except TypeError: return (fallback := False)` 与 `except OSError: return str((alias := empty))` 这类海象表达式绕行；定向扫描 except handler 内任意 return 表达式里的 NamedExpr 为 `NO_RETURN_NAMED_EXPR_ANYWHERE`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block named expression fallback`；最终 hash 以当前 HEAD 为准。
+
+### Round OG
+- 完成时间：2026-03-30 10:00:53 +0800
+- 本轮完成：把 `JoinedStr` / `f-string` 表达式也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return f"{''}"`、`except TypeError: empty = "" + ""; return f"{empty}"` 与 `except OSError: return str(f"{empty}")` 这类格式化字符串绕行；定向扫描 except handler 内的 direct / constructor-wrapped f-string return 为 `NO_RETURN_FSTRING_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block fstring expression fallback`；最终 hash 以当前 HEAD 为准。
