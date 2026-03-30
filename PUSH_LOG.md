@@ -2436,3 +2436,9 @@
 - Done: Connected empty `dict.keys()/values()/items()` view-method evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return list({}.keys())`, `except TypeError: payload = {}; return tuple(payload.values())`, and `except OSError: payload = {}; items = payload.items(); return dict(items)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty dict view fallback`; final hash follows HEAD.
+
+### Round PG
+- Time: 2026-03-30 20:36:32 +0800
+- Done: Connected empty `filter()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return list(filter(None, ()))`, `except TypeError: payload = []; return tuple(filter(None, payload))`, and `except OSError: payload = []; items = filter(None, payload); return set(items)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty filter fallback`; final hash follows HEAD.
