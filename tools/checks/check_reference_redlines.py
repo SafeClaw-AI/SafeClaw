@@ -367,6 +367,12 @@ _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS = {
 }
 _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "copy": (list, dict, set, frozenset),
+    "strip": (str, bytes, bytearray),
+    "lstrip": (str, bytes, bytearray),
+    "rstrip": (str, bytes, bytearray),
+    "lower": (str, bytes, bytearray),
+    "upper": (str, bytes, bytearray),
+    "casefold": (str,),
 }
 
 

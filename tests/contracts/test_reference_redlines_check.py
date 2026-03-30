@@ -1646,6 +1646,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_value_error_cannot_directly_silently_fallback_with_strip_method_on_empty_string(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return ''.strip()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_lower_method_on_known_empty_string(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    empty = '' + ''\n    return empty.lower()\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_return_constructor_wrapped_rstrip_method_on_known_empty_bytes(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    payload = b''\n    return bytes(payload.rstrip())\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"异常降级缺少上下文: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
     def test_key_error_cannot_directly_silently_fallback(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),
