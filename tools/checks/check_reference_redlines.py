@@ -489,6 +489,33 @@ def _try_evaluate_statically_empty_reversed_call_value(node: ast.Call, resolve_v
 
 
 
+def _try_evaluate_statically_empty_enumerate_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "enumerate":
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_node: ast.expr | None = None
+    start_node: ast.expr | None = None
+    if not node.keywords and len(node.args) in (1, 2):
+        iterable_node = node.args[0]
+        if len(node.args) == 2:
+            start_node = node.args[1]
+    elif len(node.args) == 1 and len(node.keywords) == 1 and node.keywords[0].arg == "start":
+        iterable_node = node.args[0]
+        start_node = node.keywords[0].value
+    else:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_value = resolve_value(iterable_node)
+    if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if start_node is not None:
+        start_value = resolve_value(start_node)
+        if start_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(start_value, int):
+            return _STATIC_VALUE_NOT_AVAILABLE
+    if _runtime_value_is_statically_empty_iterable(iterable_value):
+        return _STATIC_EMPTY_ITERATOR_VALUE
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_comprehension_value(
     node: ast.ListComp | ast.SetComp | ast.DictComp,
     resolve_value,
@@ -820,6 +847,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_reversed_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_reversed_value
+    empty_enumerate_value = _try_evaluate_statically_empty_enumerate_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_enumerate_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_enumerate_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1201,6 +1234,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_reversed_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_reversed_value
+    empty_enumerate_value = _try_evaluate_statically_empty_enumerate_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_enumerate_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_enumerate_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,

@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 18:53:09 +0800
+最后更新时间：2026-03-30 19:07:20 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 258 刀已完成；最近七十一轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 259 刀已完成；最近七十二轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -300,3 +300,4 @@
 | [x] | M1b Slice 256: empty iter iterator silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：沿通用空迭代器哨兵把 `iter()` 接入静态求值与 known-name 运行值解析；当 `iter()` 的单参数可静态判空时，直接把其结果视为“空迭代器”，从而阻断 `list(iter(()))`、`tuple(iter(payload))` 与 `bytes(iter(payload))` 这类 `iter()` silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 empty iter 必败合同 | 把空迭代器真源从 `zip()` 继续扩到 `iter()` 后，后续补 `reversed/enumerate` 等 family 可继续复用同一条真源 |
 | [x] | M1b Slice 257: empty iterator alias propagation silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把通用空迭代器哨兵纳入赋值链可追踪中间值，让 handler 内的 `items = iter(payload)`、`items = zip(payload, [1])`、`items = (item for item in payload)` 这类空迭代器 alias 仍可在后续 `list(items)`、`tuple(items)`、`set(items)` 等 consuming constructor 中被识别为静默降级；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条空迭代器 alias 必败合同 | 这刀不是继续补新函数，而是把已收口的 `generator/zip/iter` 真源打通赋值传播链，后续迭代器 family 复用收益更高 |
 | [x] | M1b Slice 258: empty reversed iterator silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：沿通用空迭代器哨兵把 `reversed()` 接入静态求值与 known-name 运行值解析；当 `reversed()` 的单参数属于“可逆且已知为空”的值时，直接把结果视为“空迭代器”，从而阻断 `list(reversed(()))`、`tuple(reversed(payload))` 与 `bytes(items)`（其中 `items = reversed(payload)`）这类 `reversed()` silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 empty reversed 必败合同 | 把空迭代器真源从 `iter/zip/generator` 继续扩到 `reversed()` 后，后续迭代器 family 继续收口时不再需要重复铺“直接消费/别名消费”两条线 |
+| [x] | M1b Slice 259: empty enumerate iterator silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：沿通用空迭代器哨兵把 `enumerate()` 接入静态求值与 known-name 运行值解析；当 `enumerate()` 的 iterable 参数可静态判空时，直接把结果视为“空迭代器”，从而阻断 `list(enumerate(()))`、`tuple(enumerate(payload))` 与 `dict(items)`（其中 `items = enumerate(payload)`）这类 `enumerate()` silent fallback 绕行；并在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 empty enumerate 必败合同 | 把空迭代器真源从 `iter/reversed/zip/generator` 继续扩到 `enumerate()` 后，迭代器 family 的高价值标准库 helper 已基本成片收平 |
