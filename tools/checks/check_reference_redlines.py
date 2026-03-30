@@ -545,6 +545,23 @@ def _try_evaluate_statically_empty_filter_call_value(node: ast.Call, resolve_val
 
 
 
+def _try_evaluate_statically_empty_next_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "next" or node.keywords or len(node.args) not in (1, 2):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterator_value = resolve_value(node.args[0])
+    if iterator_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not _runtime_value_is_statically_empty_iterable(iterator_value):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.args) == 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    default_value = resolve_value(node.args[1])
+    if default_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return default_value
+
+
+
 def _try_evaluate_statically_empty_sorted_call_value(node: ast.Call, resolve_value) -> object:
     if not isinstance(node.func, ast.Name) or node.func.id != "sorted" or node.keywords or len(node.args) != 1:
         return _STATIC_VALUE_NOT_AVAILABLE
@@ -990,6 +1007,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_filter_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_filter_value
+    empty_next_value = _try_evaluate_statically_empty_next_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_next_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_next_value
     empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1428,6 +1451,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_filter_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_filter_value
+    empty_next_value = _try_evaluate_statically_empty_next_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_next_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_next_value
     empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
