@@ -562,6 +562,33 @@ def _try_evaluate_statically_empty_next_call_value(node: ast.Call, resolve_value
 
 
 
+def _try_evaluate_statically_empty_min_max_default_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id not in {"min", "max"} or len(node.args) != 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not node.keywords:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    seen_keyword_names: set[str] = set()
+    default_keyword: ast.keyword | None = None
+    for keyword in node.keywords:
+        if keyword.arg is None or keyword.arg not in {"default", "key"} or keyword.arg in seen_keyword_names:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        seen_keyword_names.add(keyword.arg)
+        if keyword.arg == "default":
+            default_keyword = keyword
+    if default_keyword is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    iterable_value = resolve_value(node.args[0])
+    if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if not _runtime_value_is_statically_empty_iterable(iterable_value):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    default_value = resolve_value(default_keyword.value)
+    if default_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return default_value
+
+
+
 def _try_evaluate_statically_empty_sorted_call_value(node: ast.Call, resolve_value) -> object:
     if not isinstance(node.func, ast.Name) or node.func.id != "sorted" or node.keywords or len(node.args) != 1:
         return _STATIC_VALUE_NOT_AVAILABLE
@@ -1063,6 +1090,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_next_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_next_value
+    empty_min_max_default_value = _try_evaluate_statically_empty_min_max_default_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_min_max_default_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_min_max_default_value
     empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1528,6 +1561,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_next_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_next_value
+    empty_min_max_default_value = _try_evaluate_statically_empty_min_max_default_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_min_max_default_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_min_max_default_value
     empty_sorted_value = _try_evaluate_statically_empty_sorted_call_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(

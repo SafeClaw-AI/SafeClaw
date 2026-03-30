@@ -1,6 +1,6 @@
-# 提交推送流水账
+﻿# 提交推送流水账
 
-最后更新时间：2026-03-30 19:07:20 +0800
+最后更新时间：2026-03-31 00:25:34 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2466,3 +2466,9 @@
 - Done: Connected empty `dict.setdefault()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return {}.setdefault('missing')`, `except TypeError: payload = {}; return payload.setdefault('missing', False)`, and `except OSError: payload = {}; fallback = []; item = payload.setdefault('missing', fallback); return list(item)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_dict_setdefault_without_default tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_dict_setdefault_false_default tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_list_wrapped_empty_dict_setdefault_list_default_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty dict setdefault fallback`; final hash follows HEAD.
+
+### Round PL
+- Time: 2026-03-31 00:25:34 +0800
+- Done: Connected empty `min(..., default=...)` and `max(..., default=...)` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return min([], default=None)`, `except TypeError: payload = []; return max(payload, key=0, default=False)`, and `except OSError: payload = []; fallback = []; item = min(payload, default=fallback, key=0); return list(item)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_min_default_none_on_empty_iterable tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_max_default_false_on_empty_iterable_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_list_wrapped_min_default_list_on_empty_iterable_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty min max default fallback`; final hash follows HEAD.
