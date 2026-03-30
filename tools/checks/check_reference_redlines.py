@@ -395,6 +395,9 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "clear": (list, dict, set, bytearray),
     "reverse": (list, bytearray),
     "sort": (list,),
+    "difference": (set, frozenset),
+    "intersection": (set, frozenset),
+    "union": (set, frozenset),
 }
 
 
