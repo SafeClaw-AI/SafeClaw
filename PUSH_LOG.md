@@ -2220,3 +2220,8 @@
 - 本轮完成：把静态 `BinOp` 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: return "" + ""`、`except TypeError: return {} | {}` 与 `except OSError: fallback = [] + []; return fallback` 这类二元表达式绕行；定向扫描 direct 静态 `BinOp` silent fallback 为 `NO_HITS`。
 - 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
 - 提交推送：本轮提交信息拟为 `feat: block static binary fallback`；最终 hash 以当前 HEAD 为准。
+### Round NU
+- 完成时间：2026-03-30 07:58:58 +0800
+- 本轮完成：把多步 `Assign` / `AnnAssign` assignment chain 也纳入 direct silent fallback，`tools/checks/check_reference_redlines.py` 现在会阻断 `except ValueError: fallback = []; alias = fallback; return alias`、`except TypeError: fallback = bool(False); alias: object = fallback; return alias` 与 `except OSError: empty = "" + ""; fallback = empty; return fallback` 这类多步中转绕行；定向扫描多步 assignment chain silent fallback 为 `NO_ASSIGN_CHAIN_HITS`。
+- 验证：`python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`、`python -m unittest tests.contracts.test_reference_redlines_check -v`、`python tools/checks/check_reference_redlines.py`、`python tools/checks/check_ledger_alignment.py`、`git diff --check`。
+- 提交推送：本轮提交信息拟为 `feat: block assignment chain fallback`；最终 hash 以当前 HEAD 为准。

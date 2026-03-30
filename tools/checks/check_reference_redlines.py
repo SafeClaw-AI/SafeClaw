@@ -524,27 +524,38 @@ def _is_direct_silent_fallback_return_value(node: ast.expr | None) -> bool:
     return _runtime_value_is_silent_fallback(_try_evaluate_static_expression_value(node))
 
 
+
+def _extract_simple_name_assignment_target_and_value(statement: ast.stmt) -> tuple[str, ast.expr | None] | None:
+    if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
+        if isinstance(statement.targets[0], ast.Name):
+            return statement.targets[0].id, statement.value
+    elif isinstance(statement, ast.AnnAssign):
+        if isinstance(statement.target, ast.Name) and statement.value is not None:
+            return statement.target.id, statement.value
+    return None
+
+
+
 def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -> bool:
-    if len(body) != 2:
+    if len(body) < 2:
         return False
-    assignment, return_statement = body
-    assignment_target: ast.Name | None = None
-    assignment_value: ast.expr | None = None
-    if isinstance(assignment, ast.Assign) and len(assignment.targets) == 1:
-        if isinstance(assignment.targets[0], ast.Name):
-            assignment_target = assignment.targets[0]
-            assignment_value = assignment.value
-    elif isinstance(assignment, ast.AnnAssign):
-        if isinstance(assignment.target, ast.Name):
-            assignment_target = assignment.target
-            assignment_value = assignment.value
-    if assignment_target is None:
-        return False
+    return_statement = body[-1]
     if not isinstance(return_statement, ast.Return) or not isinstance(return_statement.value, ast.Name):
         return False
-    if return_statement.value.id != assignment_target.id:
+    silent_fallback_names: set[str] = set()
+    for statement in body[:-1]:
+        assignment_info = _extract_simple_name_assignment_target_and_value(statement)
+        if assignment_info is None:
+            return False
+        assignment_target_name, assignment_value = assignment_info
+        if _is_direct_silent_fallback_return_value(assignment_value):
+            silent_fallback_names.add(assignment_target_name)
+            continue
+        if isinstance(assignment_value, ast.Name) and assignment_value.id in silent_fallback_names:
+            silent_fallback_names.add(assignment_target_name)
+            continue
         return False
-    return _is_direct_silent_fallback_return_value(assignment_value)
+    return return_statement.value.id in silent_fallback_names
 
 
 
