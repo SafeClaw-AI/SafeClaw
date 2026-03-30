@@ -401,6 +401,8 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "update": (dict, set),
     "difference_update": (set,),
     "intersection_update": (set,),
+    "format": (str,),
+    "hex": (bytes, bytearray),
 }
 
 
