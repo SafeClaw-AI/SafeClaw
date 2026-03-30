@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-30 10:00:53 +0800
+最后更新时间：2026-03-30 10:10:29 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 231 刀已完成；最近四十四轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 232 刀已完成；最近四十五轮继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -281,3 +281,4 @@
 | [x] | M1b Slice 238: unpack literal silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 unpack container literal 求值，同时支持 `[*alias]` / `{**mapping}` 这类 starred sequence 与 dict unpack，让 `return [*[]]`、`return [*empty]`、`return {**{}}` 与 `return {**mapping}` 这类 unpack 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 4 条 unpack literal 必败合同，并确认 except handler 内的 unpack literal silent fallback 为 `NO_UNPACK_LITERAL_RETURN_HITS` | 把 silent fallback 从 `Subscript` 切片语法糖继续扩到 unpack literal 语法糖后，后续不容易只靠一层展开表达式继续吞异常上下文 |
 | [x] | M1b Slice 239: named expression silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `NamedExpr`（海象表达式）求值，既支持 direct return，也支持 constructor 包装场景，让 `return (fallback := [])`、`return (fallback := False)` 与 `return str((alias := empty))` 这类 named expression 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 named expression 必败合同，并确认 except handler 内任意 return 表达式里的 NamedExpr 为 `NO_RETURN_NAMED_EXPR_ANYWHERE` | 把 silent fallback 从 unpack literal 语法糖继续扩到海象表达式后，后续不容易只靠一层 `:=` 继续吞异常上下文 |
 | [x] | M1b Slice 240: fstring expression silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `JoinedStr` / `f-string` 表达式求值，既支持 direct return，也支持 constructor 包装场景，让 `return f"{''}"`、`return f"{empty}"` 与 `return str(f"{empty}")` 这类 f-string 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 f-string expression 必败合同，并确认 except handler 内的 direct / constructor-wrapped f-string return 为 `NO_RETURN_FSTRING_HITS` | 把 silent fallback 从 `NamedExpr` 海象表达式继续扩到 `f-string` 表达式后，后续不容易只靠一层格式化字符串继续吞异常上下文 |
+| [x] | M1b Slice 241: copy method silent fallback gate | M1b plan | 调整 `tools/checks/check_reference_redlines.py`：把 direct silent fallback 真源扩到 `copy()` 零参方法求值，既支持 direct return，也支持 constructor 包装场景，让 `return [].copy()`、`return mapping.copy()` 与 `return list(values.copy())` 这类 zero-arg method 语法糖也纳入门禁；同步在 `tests/contracts/test_reference_redlines_check.py` 补齐 3 条 `copy()` method 必败合同，并确认 except handler 内的 direct / constructor-wrapped `copy()` return 为 `NO_RETURN_COPY_METHOD_HITS` | 把 silent fallback 从 `f-string` 表达式继续扩到 empty-preserving 零参方法后，后续不容易只靠一层 `copy()` 继续吞异常上下文 |

@@ -365,6 +365,9 @@ _SINGLE_KEYWORD_SILENT_FALLBACK_CONSTRUCTORS = {
     "bytes": {"source": bytes},
     "bytearray": {"source": bytearray},
 }
+_ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
+    "copy": (list, dict, set, frozenset),
+}
 
 
 def _runtime_value_is_silent_fallback(value: object) -> bool:
@@ -404,6 +407,22 @@ def _try_evaluate_joined_string_value(node: ast.JoinedStr, resolve_value) -> obj
             continue
         return _STATIC_VALUE_NOT_AVAILABLE
     return "".join(values)
+
+
+
+def _try_call_zero_arg_silent_fallback_method(base_value: object, method_name: str) -> object:
+    owner_types = _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS.get(method_name)
+    if owner_types is None or not isinstance(base_value, owner_types):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    method = getattr(base_value, method_name, None)
+    if method is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        return method()
+    except (TypeError, ValueError, AttributeError) as error:
+        if isinstance(error, (TypeError, ValueError, AttributeError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable zero-arg method evaluation branch")
 
 
 
@@ -602,6 +621,11 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
         return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
+        base_value = _try_evaluate_static_expression_value(node.func.value)
+        if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return _try_call_zero_arg_silent_fallback_method(base_value, node.func.attr)
     if not isinstance(node.func, ast.Name):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not node.keywords and not node.args and node.func.id in _ZERO_ARG_SILENT_FALLBACK_CONSTRUCTOR_VALUES:
@@ -917,6 +941,14 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
         return _try_apply_subscript_to_runtime_value(base_value, subscript_key_value)
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
+        base_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.func.value,
+            known_name_values,
+        )
+        if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        return _try_call_zero_arg_silent_fallback_method(base_value, node.func.attr)
     if not isinstance(node.func, ast.Name):
         return _STATIC_VALUE_NOT_AVAILABLE
     if len(node.keywords) == 1 and not node.args:
