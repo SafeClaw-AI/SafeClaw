@@ -2400,3 +2400,9 @@
 - 本轮完成：沿通用空迭代器哨兵把 enumerate() 接入 direct silent fallback，	ools/checks/check_reference_redlines.py 现在会阻断 except ValueError: return list(enumerate(()))、except TypeError: payload = []; return tuple(enumerate(payload)) 与 except OSError: payload = []; items = enumerate(payload); return dict(items) 这类 enumerate() 空迭代器绕行。
 - 验证：python -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py、python -m unittest tests.contracts.test_reference_redlines_check -v、python tools/checks/check_reference_redlines.py、python tools/checks/check_ledger_alignment.py、git diff --check。
 - 提交推送：本轮提交信息拟为 eat: block empty enumerate fallback；最终 hash 以当前 HEAD 为准。
+
+### Round PA
+- 完成时间：2026-03-30 19:15:52 +0800
+- 本轮完成：Connected `map()` to the shared empty-iterator silent-fallback gate in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return list(map(str, ()))`, `except TypeError: payload = []; return tuple(map(str, payload))`, and `except OSError: payload = []; items = map(str, payload); return set(items)`.
+- 验证：`python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- 提交推送：本轮提交信息拟为 `feat: block empty map fallback`；最终 hash 以当前 HEAD 为准.

@@ -516,6 +516,23 @@ def _try_evaluate_statically_empty_enumerate_call_value(node: ast.Call, resolve_
 
 
 
+def _try_evaluate_statically_empty_map_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "map" or node.keywords or len(node.args) < 2:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    saw_unavailable = False
+    for iterable_node in node.args[1:]:
+        iterable_value = resolve_value(iterable_node)
+        if iterable_value is _STATIC_VALUE_NOT_AVAILABLE:
+            saw_unavailable = True
+            continue
+        if _runtime_value_is_statically_empty_iterable(iterable_value):
+            return _STATIC_EMPTY_ITERATOR_VALUE
+    if saw_unavailable:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_comprehension_value(
     node: ast.ListComp | ast.SetComp | ast.DictComp,
     resolve_value,
@@ -853,6 +870,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_enumerate_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_enumerate_value
+    empty_map_value = _try_evaluate_statically_empty_map_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_map_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_evaluate_static_expression_value(node.func.value)
         if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -1243,6 +1266,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_enumerate_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_enumerate_value
+    empty_map_value = _try_evaluate_statically_empty_map_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_map_value
     if isinstance(node.func, ast.Attribute) and not node.args and not node.keywords:
         base_value = _try_resolve_known_name_silent_fallback_runtime_value(
             node.func.value,
