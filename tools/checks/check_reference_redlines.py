@@ -385,6 +385,10 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "isspace": (str, bytes, bytearray),
     "istitle": (str, bytes, bytearray),
     "isupper": (str, bytes, bytearray),
+    "capitalize": (str, bytes, bytearray),
+    "swapcase": (str, bytes, bytearray),
+    "title": (str, bytes, bytearray),
+    "expandtabs": (str, bytes, bytearray),
 }
 
 
