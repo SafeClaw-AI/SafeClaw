@@ -644,6 +644,29 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
                 return False
             current_left = right_value
         return True
+    if isinstance(node, ast.BinOp):
+        left_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.left,
+            known_name_values,
+        )
+        right_value = _try_resolve_known_name_silent_fallback_runtime_value(
+            node.right,
+            known_name_values,
+        )
+        if left_value is _STATIC_VALUE_NOT_AVAILABLE or right_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        try:
+            if isinstance(node.op, ast.Add):
+                return left_value + right_value
+            if isinstance(node.op, ast.Mult):
+                return left_value * right_value
+            if isinstance(node.op, ast.BitOr):
+                return left_value | right_value
+        except (TypeError, ValueError) as error:
+            if isinstance(error, (TypeError, ValueError)):
+                return _STATIC_VALUE_NOT_AVAILABLE
+            raise AssertionError("unreachable known-name binop evaluation branch")
+        return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node, ast.Call):
         return _STATIC_VALUE_NOT_AVAILABLE
     if not isinstance(node.func, ast.Name):
