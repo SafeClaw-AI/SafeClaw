@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 11:21:09 +0800
+最后更新时间：2026-03-31 11:37:04 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2519,3 +2519,9 @@
 - Done: Connected empty `.count(...)` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, letting existing bool/compare logic fail-close `except ValueError: return bool([].count(1))`, `except TypeError: payload = []; return bool(payload.count(1))`, and `except OSError: payload = []; return payload.count(1) > 0`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_bool_wrapped_count_on_empty_list tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_bool_wrapped_count_on_known_empty_iterable_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_directly_silently_fallback_with_count_compare_on_known_empty_iterable_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty count fallback`; final hash follows HEAD.
+
+### Round PU
+- Time: 2026-03-31 11:37:04 +0800
+- Done: Connected empty `removeprefix()` / `removesuffix()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, fail-closing `except ValueError: return "".removeprefix("x")`, `except TypeError: payload = ""; return payload.removesuffix("x")`, and `except OSError: payload = b""; cleaned = payload.removeprefix(b"x"); return bytearray(cleaned)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_removeprefix tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_string_removesuffix_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytes_removeprefix_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty removal fallback`; final hash follows HEAD.

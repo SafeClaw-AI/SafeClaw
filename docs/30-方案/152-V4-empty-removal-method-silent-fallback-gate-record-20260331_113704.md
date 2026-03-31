@@ -1,0 +1,11 @@
+# V4 empty removal method silent fallback gate record
+
+- Time: 2026-03-31 11:37:04 +0800
+- Slice: M1b Slice 278
+- Action: Connected empty `removeprefix()` / `removesuffix()` method evaluation to the shared silent-fallback truth source in `tools/checks/check_reference_redlines.py` for both static expression evaluation and known-name runtime resolution.
+- Code Closure: Now `except ValueError: return "".removeprefix("x")`, `except TypeError: payload = ""; return payload.removesuffix("x")`, and `except OSError: payload = b""; cleaned = payload.removeprefix(b"x"); return bytearray(cleaned)` are treated as silent fallbacks and fail closed.
+- Contracts: Added 3 contract tests in `tests/contracts/test_reference_redlines_check.py`, covering direct string, known-name string alias, and bytes alias-consumed paths.
+- Result: This slice extends the expression-level gap scan from empty count semantics on `.count(...)` to empty text/bytes removal semantics on `removeprefix()` / `removesuffix()`, without widening assignment tracking.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_removeprefix tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_string_removesuffix_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytes_removeprefix_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`
+- Why: Compared with opening a broader argful-text-method family all at once, landing `removeprefix()` / `removesuffix()` closes a clear, low-risk same-level method lane with reusable empty-text semantics.
+- Next: Continue scanning same-level built-in / method / classmethod / value-semantic gaps instead of dropping back to low-yield iterator corner cases.
