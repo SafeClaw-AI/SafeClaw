@@ -906,6 +906,16 @@ fn print_runtime_status(
         governance.attempt_count
     );
 
+    let runtime_store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    let runtime = runtime_store
+        .load_runtime(task_id, effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing runtime for task={task_id} effect={effect_id}"))?;
+    print_readable_operation_bill(&runtime);
+
     let snapshot = service
         .diagnostic_snapshot(task_id, effect_id)
         .map_err(|error| format!("{error:?}"))?
@@ -917,6 +927,58 @@ fn print_runtime_status(
     println!("[mvp] output: {}", args.output_path.display());
     println!("[mvp] owner: {}", args.owner_id);
     Ok(())
+}
+
+fn print_readable_operation_bill(runtime: &InMemoryTaskRuntime) {
+    let tracked_operation_count = 1 + runtime.compensation_effects.len();
+    println!("[mvp] 操作账单 => 已记录 {tracked_operation_count} 个操作");
+    println!(
+        "[mvp] 账单条目 => {} {}（{}）",
+        render_effect_action_label(runtime.effect.action),
+        render_effect_target(&runtime.effect.target),
+        render_effect_reversibility_label(runtime.effect.reversibility)
+    );
+    println!(
+        "[mvp] 账单撤销能力 => {}",
+        render_effect_undo_hint(runtime.effect.reversibility)
+    );
+}
+
+fn render_effect_action_label(action: EffectAction) -> &'static str {
+    match action {
+        EffectAction::FileRead => "读取文件",
+        EffectAction::FileWrite => "写入文件",
+        EffectAction::FileDelete => "删除文件",
+        EffectAction::FileMove => "移动文件",
+        EffectAction::DirCreate => "创建目录",
+        EffectAction::DirDelete => "删除目录",
+        EffectAction::NetworkRequest => "发起网络请求",
+        EffectAction::SystemExec => "执行系统命令",
+        EffectAction::ClipboardWrite => "写入剪贴板",
+        EffectAction::ConfigChange => "修改配置",
+        EffectAction::PluginInstall => "安装插件",
+        EffectAction::PluginUninstall => "卸载插件",
+    }
+}
+
+fn render_effect_target(target: &str) -> &str {
+    target.strip_prefix("scope:").unwrap_or(target)
+}
+
+fn render_effect_reversibility_label(reversibility: EffectReversibility) -> &'static str {
+    match reversibility {
+        EffectReversibility::Rollbackable => "可撤销",
+        EffectReversibility::Compensatable => "可补偿",
+        EffectReversibility::Irreversible => "不可撤销",
+    }
+}
+
+fn render_effect_undo_hint(reversibility: EffectReversibility) -> &'static str {
+    match reversibility {
+        EffectReversibility::Rollbackable => "可撤销，但用户级 undo 入口待接入",
+        EffectReversibility::Compensatable => "可补偿，但用户级 undo 入口待接入",
+        EffectReversibility::Irreversible => "当前操作不可撤销",
+    }
 }
 
 fn resolve_status_target(args: &CliArgs) -> Result<(String, String), String> {

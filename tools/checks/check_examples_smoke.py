@@ -101,6 +101,9 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         [
             "[mvp] report target => task=task-smoke-mvp-entry effect=effect-task-smoke-mvp-entry",
             "[mvp] governance view => disposition=Resolved worker=Succeeded effect=Executed attempts=1",
+            "[mvp] 操作账单 => 已记录 1 个操作",
+            "[mvp] 账单条目 => 写入文件",
+            "[mvp] 账单撤销能力 => 可撤销，但用户级 undo 入口待接入",
             "[mvp] diagnostic => worker=Succeeded effect=Executed attempts=1 events=2 transitions=2 disposition=Resolved",
             "[mvp] output exists => true",
             "[mvp] output content => safeclaw mvp entry\\n",
@@ -126,6 +129,9 @@ CHECKS: list[tuple[str, list[str], list[str]]] = [
         [
             "[mvp] status target => task=task-smoke-mvp-entry effect=effect-task-smoke-mvp-entry",
             "[mvp] governance view => disposition=Resolved worker=Succeeded effect=Executed attempts=1",
+            "[mvp] 操作账单 => 已记录 1 个操作",
+            "[mvp] 账单条目 => 写入文件",
+            "[mvp] 账单撤销能力 => 可撤销，但用户级 undo 入口待接入",
             "[mvp] diagnostic => worker=Succeeded effect=Executed attempts=1 events=2 transitions=2 disposition=Resolved",
             "[mvp] output exists => true",
             "[mvp] output content => safeclaw mvp entry\\n",

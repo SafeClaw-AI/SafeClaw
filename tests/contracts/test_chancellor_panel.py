@@ -21,10 +21,10 @@ class ChancellorPanelTest(unittest.TestCase):
         self.assertEqual(
             snapshot,
             {
-                "mode": "M2-P0-1 Effect Ledger 可读账单",
+                "mode": "M2-P0-2 一个真实任务场景",
                 "stability": "稳态",
-                "next_step": "开始 M2-P0-1 Effect Ledger 可读账单",
-                "summary": "当前处于 M2-P0-1 Effect Ledger 可读账单；状态稳态；下一步开始 M2-P0-1 Effect Ledger 可读账单",
+                "next_step": "开始 M2-P0-2 一个真实任务场景",
+                "summary": "当前处于 M2-P0-2 一个真实任务场景；状态稳态；下一步开始 M2-P0-2 一个真实任务场景",
             },
         )
 

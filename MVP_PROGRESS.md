@@ -2,13 +2,13 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-04-01 00:48:36 +0800
+最后更新时间：2026-04-01 01:12:16 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：`M1b` 已毕业，前 296 刀已完成；`M2` 已冻结为先做可读账单 / 真实任务 / `undo` 价值闭环，下一步开始 `M2-P0-1` Effect Ledger 可读账单
+当前阶段：`M1b` 已毕业，前 297 刀已完成；`M2-P0-1` 已在 `report/status` 共享输出链落地最小可读账单，下一步开始 `M2-P0-2` 一个真实任务场景
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
-- 当前主线（M2-P0-1 Effect Ledger 可读账单）：约 1 ~ 3 天
+- 当前主线（M2-P0-2 一个真实任务场景）：约 1 ~ 3 天
 - M2 首轮价值层剩余：约 2 ~ 4 周
 
 ## 进展
@@ -339,3 +339,4 @@
 | [x] | M2-2 Slice 294: chancellor status snapshot | M2-2 plan | Added `tools/mvp/chancellor_panel.py` to aggregate `mode` / `stability` / `next_step` / `summary` from `开发计划.md`, and added `tests/contracts/test_chancellor_panel.py` so the minimal `丞相状态` snapshot plus stability derivation rules are fail-closed guarded by contracts | This gives `丞相状态` its first code-level consumer of the truth table before any command-level wiring starts diverging, which is higher leverage than re-deriving the same fields ad hoc in later slices |
 | [x] | M2-2 Slice 295: chancellor status command consumer | M2-2 plan | Extended `tools/mvp/chancellor_panel.py` with `build_chancellor_panel_command_payload()` so the literal `丞相状态` command now consumes the shared snapshot and emits summary-first command payloads, while unknown panel commands fail closed; also expanded `tests/contracts/test_chancellor_panel.py` to lock command-level output and unsupported-command behavior | This closes `M2-2` at the command-consumer layer instead of leaving a raw aggregation helper unowned, which is higher leverage than starting `丞相检查` while `丞相状态` still lacks a stable entry point |
 | [x] | M2 Slice 296: product value priority rebaseline | M2 plan | Added `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md` as the current M2 sequencing truth, updated `docs/README.md`, and extended `check_public_docs.py` plus `test_public_docs_check.py` so the new “可读账单 → 真实任务 → undo” priority is fail-closed guarded by public-doc contracts | This corrects the highest current planning risk: continuing to polish explanation-first commands before SafeClaw has delivered a screenshotable, undoable proof of value for non-technical users |
+| [x] | M2 Slice 297: readable effect bill in report/status | M2-P0-1 plan | Updated `tools/checks/check_examples_smoke.py` first to require a human-readable operation bill, then extended `safeclaw-sqlite/examples/safeclaw_mvp_entry.rs` so the shared `print_runtime_status(...)` path now loads runtime effect data and renders `操作账单 / 账单条目 / 账单撤销能力` before the diagnostic lines | This gives SafeClaw its first screenshotable value proof on the existing MVP path without widening the core protocol surface, which is higher leverage than debating GUI or undo before users can even see a readable bill |

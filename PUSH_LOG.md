@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-01 00:48:36 +0800
+最后更新时间：2026-04-01 01:12:16 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2633,3 +2633,9 @@
 - Done: Accepted the product-roadmap rebaseline by adding `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md` as the current M2 sequencing truth, demoted `01-m1b-exit-and-m2-panel-entry.md` to baseline sequencing history, updated `docs/README.md`, and extended `tools/checks/check_public_docs.py` plus `tests/contracts/test_public_docs_check.py` so the new “可读账单 → 真实任务 → undo” order is fail-closed guarded.
 - Verify: `python -X utf8 -m unittest tests.contracts.test_public_docs_check -v`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `git diff --check`.
 - Commit: planned message `docs: rebaseline m2 product value priority`; final hash follows HEAD.
+
+### Round QN
+- Time: 2026-04-01 01:12:16 +0800
+- Done: Locked readable effect-bill expectations in `tools/checks/check_examples_smoke.py`, then extended `safeclaw-sqlite/examples/safeclaw_mvp_entry.rs` so the shared `report/status` output path now renders `操作账单` / `账单条目` / `账单撤销能力` from runtime effect data before the diagnostic view; this completes the first minimal `M2-P0-1` readable-bill slice and moves the current mainline to `M2-P0-2 一个真实任务场景`.
+- Verify: `python -X utf8 tools/checks/check_examples_smoke.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel tests.contracts.test_public_docs_check -v`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `feat: add readable effect bill`; final hash follows HEAD.
