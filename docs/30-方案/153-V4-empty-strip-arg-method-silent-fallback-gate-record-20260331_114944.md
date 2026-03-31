@@ -1,0 +1,11 @@
+# V4 empty strip arg method silent fallback gate record
+
+- Time: 2026-03-31 11:49:44 +0800
+- Slice: M1b Slice 279
+- Action: Connected empty single-argument `strip()` / `lstrip()` / `rstrip()` method evaluation to the shared silent-fallback truth source in `tools/checks/check_reference_redlines.py` for both static expression evaluation and known-name runtime resolution.
+- Code Closure: Now `except ValueError: return "".strip("x")`, `except TypeError: payload = b""; return payload.lstrip(b"x")`, and `except OSError: payload = b""; cleaned = payload.rstrip(b"x"); return bytearray(cleaned)` are treated as silent fallbacks and fail closed.
+- Contracts: Added 3 contract tests in `tests/contracts/test_reference_redlines_check.py`, covering direct string, known-name bytes alias, and bytes alias-consumed paths.
+- Result: This slice extends the expression-level gap scan from empty removal-method semantics to empty parameterized strip-family semantics on `strip()` / `lstrip()` / `rstrip()`, without widening assignment tracking.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_strip_arg tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_lstrip_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytes_rstrip_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`
+- Why: Compared with????????????????? `strip` ????????????????????????????????/??????
+- Next: Continue scanning same-level built-in / method / classmethod / value-semantic gaps instead of dropping back to low-yield iterator corner cases.

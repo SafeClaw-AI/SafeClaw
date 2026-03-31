@@ -632,6 +632,28 @@ def _try_evaluate_statically_empty_removal_method_value(node: ast.Call, resolve_
 
 
 
+def _try_evaluate_statically_empty_strip_method_with_arg_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr not in {"strip", "lstrip", "rstrip"}
+        or node.keywords
+        or len(node.args) != 1
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_value = resolve_value(node.args[0])
+    if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(base_value, str) and isinstance(argument_value, str) and len(base_value) == 0:
+        return ""
+    if isinstance(base_value, (bytes, bytearray)) and isinstance(argument_value, (bytes, bytearray)) and len(base_value) == 0:
+        return base_value[:0]
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_fromhex_classmethod_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
@@ -1228,6 +1250,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_removal_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_removal_value
+    empty_strip_arg_value = _try_evaluate_statically_empty_strip_method_with_arg_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_strip_arg_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_strip_arg_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1756,6 +1784,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_removal_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_removal_value
+    empty_strip_arg_value = _try_evaluate_statically_empty_strip_method_with_arg_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_strip_arg_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_strip_arg_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
