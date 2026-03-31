@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 20:54:14 +0800
+最后更新时间：2026-03-31 21:51:17 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2615,3 +2615,9 @@
 - Done: Added `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md` as the single truth table for `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板`, indexed it in `docs/README.md`, linked it from the M2 entry decision doc, and extended `tools/checks/check_public_docs.py` plus `tests/contracts/test_public_docs_check.py` so this table is now fail-closed guarded by public-doc contracts.
 - Verify: `python -X utf8 -m unittest tests.contracts.test_public_docs_check -v`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `docs: add m2 panel command truth table`; final hash follows HEAD.
+
+### Round QK
+- Time: 2026-03-31 21:51:17 +0800
+- Done: Added `tools/mvp/chancellor_panel.py` as the first code-level consumer for `丞相状态`, deriving `mode` / `stability` / `next_step` / `summary` directly from `开发计划.md`; also added `tests/contracts/test_chancellor_panel.py` and aligned the ledgers so the new `M2-2` snapshot is documented and fail-closed guarded.
+- Verify: `python -X utf8 -m py_compile tools/mvp/chancellor_panel.py tests/contracts/test_chancellor_panel.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel -v`, `python -X utf8 tools/mvp/chancellor_panel.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `feat: add chancellor status snapshot`; final hash follows HEAD.
