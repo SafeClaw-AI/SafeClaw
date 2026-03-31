@@ -698,6 +698,28 @@ def _try_evaluate_statically_empty_replace_method_value(node: ast.Call, resolve_
 
 
 
+def _try_evaluate_statically_empty_translate_method_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr != "translate"
+        or node.keywords
+        or len(node.args) != 1
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_value = resolve_value(node.args[0])
+    if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if isinstance(base_value, str) and len(base_value) == 0:
+        return ""
+    if isinstance(base_value, (bytes, bytearray)) and argument_value is None and len(base_value) == 0:
+        return base_value[:0]
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_fromhex_classmethod_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
@@ -1306,6 +1328,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_replace_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_replace_value
+    empty_translate_value = _try_evaluate_statically_empty_translate_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_translate_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_translate_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1852,6 +1880,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_replace_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_replace_value
+    empty_translate_value = _try_evaluate_statically_empty_translate_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_translate_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_translate_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
