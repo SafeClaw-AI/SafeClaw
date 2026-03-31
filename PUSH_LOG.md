@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 19:52:12 +0800
+最后更新时间：2026-03-31 20:09:28 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2597,3 +2597,9 @@
 - Done: Added `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md` as the current truth source, froze `M1b` exit gates, declared official Codex panel as the only current user entry, and split the first `M2` panel-visible delivery into a bounded `<= 8` slice backlog centered on `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板`.
 - Verify: `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `docs: freeze m1b exit and m2 panel plan`; final hash follows HEAD.
+
+### Round QH
+- Time: 2026-03-31 20:09:28 +0800
+- Done: Updated `docs/30-方案/02-V4-目录锁定清单.md` to explicitly govern `tmp/`, `temp/`, and `docs/chancellor-mode/`, and updated `docs/reference/02-仓库卫生与命名规范.md` so the repository hygiene truth matches the current execution rules; this removes the long-standing false `tmp/` blocker from `check_scaffold.py` and turns the full `selfcheck.py` chain green on the current baseline.
+- Verify: `python -X utf8 -m unittest tests.contracts.test_scaffold_check -v`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `docs: align tmp scaffold governance`; final hash follows HEAD.

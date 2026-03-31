@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 19:52:12 +0800
+最后更新时间：2026-03-31 20:09:28 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b 收口尾段，前 290 刀已完成；本轮已冻结 M1b 毕业条件与 M2 面板入口真源，避免继续带着双口径切主线
+当前阶段：已进入 M1b 收口尾段，前 291 刀已完成；`tmp/` 根目录阻塞已清，下一步转入 M1b 毕业链总收口
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -332,3 +332,4 @@
 | [x] | M1b Slice 288: empty format_map method silent fallback gate | M1b plan | Added empty `format_map(...)` method evaluation in `tools/checks/check_reference_redlines.py` for both static expression evaluation and known-name runtime resolution, and widened known-name assignment tracking to accept statically resolvable values so alias mappings can participate; it now fail-closes `"".format_map({})`, `template.format_map(mapping)` when `template = ""` and `mapping = {"name": 1}`, and alias-consumed `bytearray(text.encode())` when `text = template.format_map(mapping)` and `mapping = {"name": 2}`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty `format(...)` semantics to empty `format_map(...)` semantics while fixing the assignment-tracking root cause required for alias-consumed mapping inputs |
 | [x] | M1b Slice 289: empty padding method silent fallback gate | M1b plan | Added empty padding-method evaluation in `tools/checks/check_reference_redlines.py` for positional-only `zfill()`, `center()`, `ljust()`, and `rjust()` across `str` / `bytes` / `bytearray`, and connected it to both static expression evaluation and known-name runtime resolution; it now fail-closes `"".zfill(0)`, `payload.center(0, b"x")` when `payload = b""`, and alias-consumed `bytearray(text)` when `text = payload.rjust(0, b"x")` and `payload = bytearray()`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty `format_map(...)` semantics to empty padding-method semantics by landing a reusable helper for the width-based family instead of patching one method at a time |
 | [x] | M1b Slice 290: freeze M1b exit and M2 panel entry truth source | M1b/M2 plan | Added `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md` as the current truth source, froze `M1b` exit gates, declared official Codex panel as the only current user entry, and split the first `M2` panel-visible delivery into a bounded `<= 8` slice backlog centered on `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板` | This does not ship new runtime behavior yet, but it removes the highest planning risk: entering `M2` with dual entry assumptions and no bounded first-value plan |
+| [x] | M1b Slice 291: clear tmp root governance blocker | M1b plan | Updated `docs/30-方案/02-V4-目录锁定清单.md` to explicitly govern `tmp/`, `temp/`, and `docs/chancellor-mode/`, and updated `docs/reference/02-仓库卫生与命名规范.md` so the repository hygiene truth matches the current execution rules; this unblocks `check_scaffold.py` and turns the full `selfcheck.py` chain green on the current baseline | This closes a long-standing false blocker at the governance layer, which has higher leverage than continuing to add new fail-closed slices while graduation gates still report stale structure drift |
