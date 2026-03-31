@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 20:33:15 +0800
+最后更新时间：2026-03-31 20:54:14 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：`M1b` 已毕业，前 292 刀已完成；当前正式切入 `M2-1 面板命令真源表`，先把四个丞相命令的人话返回真源锁稳
+当前阶段：`M1b` 已毕业，前 293 刀已完成；`M2-1` 四命令真源表与最小文档门禁已落地，下一步开始锁字段消费点与聚合口径
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
@@ -335,3 +335,4 @@
 | [x] | M1b Slice 290: freeze M1b exit and M2 panel entry truth source | M1b/M2 plan | Added `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md` as the current truth source, froze `M1b` exit gates, declared official Codex panel as the only current user entry, and split the first `M2` panel-visible delivery into a bounded `<= 8` slice backlog centered on `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板` | This does not ship new runtime behavior yet, but it removes the highest planning risk: entering `M2` with dual entry assumptions and no bounded first-value plan |
 | [x] | M1b Slice 291: clear tmp root governance blocker | M1b plan | Updated `docs/30-方案/02-V4-目录锁定清单.md` to explicitly govern `tmp/`, `temp/`, and `docs/chancellor-mode/`, and updated `docs/reference/02-仓库卫生与命名规范.md` so the repository hygiene truth matches the current execution rules; this unblocks `check_scaffold.py` and turns the full `selfcheck.py` chain green on the current baseline | This closes a long-standing false blocker at the governance layer, which has higher leverage than continuing to add new fail-closed slices while graduation gates still report stale structure drift |
 | [x] | M1b Slice 292: run graduation pass and switch to M2-1 | M1b/M2 plan | Ran the frozen `M1b` graduation chain end to end and recorded the result in `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`; all graduation gates are now green, so the project officially leaves `M1b` and switches the current mainline to `M2-1 面板命令真源表` | This turns “M1b should be done” into a documented, verifiable fact and frees the next slices to focus on the first panel-visible value instead of re-proving old stability |
+| [x] | M2-1 Slice 293: panel command truth-source table | M2-1 plan | Added `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md` as the single truth table for `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板`, indexed it in `docs/README.md`, linked it from the M2 entry decision doc, and extended `tools/checks/check_public_docs.py` plus `tests/contracts/test_public_docs_check.py` so the table is now fail-closed guarded by public-doc contracts | This gives `M2-1` a stable schema before any response aggregation starts, which is higher leverage than implementing one command ad hoc and backfilling meaning later |

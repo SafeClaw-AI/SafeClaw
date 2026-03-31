@@ -19,6 +19,9 @@ CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
 SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
 DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
+CHANCELLOR_PANEL_TRUTH_FILE = (
+    REPO_ROOT / "docs" / "chancellor-mode" / "v2" / "02-m2-panel-command-truth-source.md"
+)
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-compliance-rebaseline-record-20260329_030242.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
@@ -174,6 +177,9 @@ REQUIRED_MARKERS = {
         "06-V4-ledger-compat-index-spec.md",
         "08-V4-ledger-index-manifest.json",
         "20-V4-reference-compliance-rebaseline-record-20260329_030242.md",
+        "docs/chancellor-mode/v2/",
+        "01-m1b-exit-and-m2-panel-entry.md",
+        "02-m2-panel-command-truth-source.md",
         "selfcheck.py",
         "ledger_index_manifest.py",
         "check_ledger_alignment.py",
@@ -183,6 +189,19 @@ REQUIRED_MARKERS = {
         "check_scaffold.py",
         "check_public_docs.py",
         "tests/contracts/",
+    ],
+    CHANCELLOR_PANEL_TRUTH_FILE: [
+        "官方 Codex 面板",
+        "`丞相状态`",
+        "`丞相检查`",
+        "`丞相版本`",
+        "`丞相验板`",
+        "`mode`",
+        "`stability`",
+        "`next_step`",
+        "`checks_run`",
+        "`version_source`",
+        "`steps`",
     ],
     DIRECTORY_LOCK_FILE: [
         "当前仓库的目录锁定依据",

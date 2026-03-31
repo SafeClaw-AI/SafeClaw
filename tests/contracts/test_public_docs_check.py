@@ -20,6 +20,26 @@ from tools.checks.check_public_docs import (  # noqa: E402
 
 
 class PublicDocsCheckTest(unittest.TestCase):
+    def test_chancellor_panel_truth_source_is_guarded_by_public_docs_check(self) -> None:
+        panel_truth_file = (
+            REPO_ROOT / "docs" / "chancellor-mode" / "v2" / "02-m2-panel-command-truth-source.md"
+        )
+        expected_markers = [
+            "官方 Codex 面板",
+            "`丞相状态`",
+            "`丞相检查`",
+            "`丞相版本`",
+            "`丞相验板`",
+            "`mode`",
+            "`stability`",
+            "`next_step`",
+            "`checks_run`",
+            "`version_source`",
+            "`steps`",
+        ]
+        self.assertIn(panel_truth_file, REQUIRED_MARKERS)
+        self.assertEqual(REQUIRED_MARKERS[panel_truth_file], expected_markers)
+
     def test_newly_added_public_readmes_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             README_FILE: [
