@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 11:49:44 +0800
+最后更新时间：2026-03-31 12:06:58 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2531,3 +2531,9 @@
 - Done: Connected empty single-argument `strip()` / `lstrip()` / `rstrip()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, fail-closing `except ValueError: return "".strip("x")`, `except TypeError: payload = b""; return payload.lstrip(b"x")`, and `except OSError: payload = b""; cleaned = payload.rstrip(b"x"); return bytearray(cleaned)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_strip_arg tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_lstrip_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytes_rstrip_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty strip arg fallback`; final hash follows HEAD.
+
+### Round PW
+- Time: 2026-03-31 12:06:58 +0800
+- Done: Connected empty two-argument `replace()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, fail-closing `except ValueError: return "".replace("x", "y")`, `except TypeError: payload = b""; return payload.replace(b"x", b"y")`, and `except OSError: payload = b""; cleaned = payload.replace(b"x", b"y"); return bytearray(cleaned)`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_replace tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_replace_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytes_replace_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_versions.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_structure.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/check_mvp_operator_flow.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `feat: block empty replace fallback`; final hash follows HEAD.
