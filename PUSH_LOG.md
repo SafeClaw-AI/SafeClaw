@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 19:41:00 +0800
+最后更新时间：2026-03-31 19:52:12 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2591,3 +2591,9 @@
 - Done: Added empty padding-method evaluation in `tools/checks/check_reference_redlines.py` for positional-only `zfill()`, `center()`, `ljust()`, and `rjust()` across `str` / `bytes` / `bytearray`, and connected it to both static expression evaluation and known-name runtime resolution; this now fail-closes `except ValueError: return "".zfill(0)`, `except TypeError: payload = b""; return payload.center(0, b"x")`, and `except OSError: payload = bytearray(); text = payload.rjust(0, b"x"); return bytearray(text)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_zfill_width tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_center_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytearray_rjust_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_versions.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_structure.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/check_mvp_operator_flow.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `feat: block empty padding fallback`; final hash follows HEAD.
+
+### Round QG
+- Time: 2026-03-31 19:52:12 +0800
+- Done: Added `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md` as the current truth source, froze `M1b` exit gates, declared official Codex panel as the only current user entry, and split the first `M2` panel-visible delivery into a bounded `<= 8` slice backlog centered on `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板`.
+- Verify: `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `docs: freeze m1b exit and m2 panel plan`; final hash follows HEAD.
