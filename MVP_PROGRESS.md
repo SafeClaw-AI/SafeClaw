@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 11:09:27 +0800
+最后更新时间：2026-03-31 11:21:09 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 276 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 277 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -318,3 +318,4 @@
 | [x] | M1b Slice 274: empty all negation silent fallback gate | M1b plan | Connected empty `all()` evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; with existing negation/bool wrappers it now fail-closes `not all([])`, `not all(payload)` when `payload = []`, and `bool(not all(payload))`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty classmethod decoding semantics to empty universal-truth semantics on `all()`, reusing the existing negation truth path instead of widening assignment tracking |
 | [x] | M1b Slice 275: empty len bool compare silent fallback gate | M1b plan | Connected empty `len()` evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; with existing bool/compare wrappers it now fail-closes `bool(len([]))`, `bool(len(payload))` when `payload = []`, and `len(payload) > 0`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty universal-truth semantics on `all()` to empty length semantics on `len()`, reusing the existing bool/compare path without widening assignment tracking |
 | [x] | M1b Slice 276: empty sum bool compare silent fallback gate | M1b plan | Connected empty `sum()` evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; with existing bool/compare wrappers it now fail-closes `bool(sum([]))`, `bool(sum(payload))` when `payload = []`, and `sum(payload) > 0`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty length semantics on `len()` to empty additive semantics on `sum()`, reusing the existing bool/compare path without widening assignment tracking |
+| [x] | M1b Slice 277: empty count bool compare silent fallback gate | M1b plan | Connected empty `.count(...)` method evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; with existing bool/compare wrappers it now fail-closes `bool([].count(1))`, `bool(payload.count(1))` when `payload = []`, and `payload.count(1) > 0`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty additive semantics on `sum()` to empty count semantics on `.count(...)`, reusing the existing bool/compare path without widening assignment tracking |
