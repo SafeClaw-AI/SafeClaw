@@ -770,6 +770,35 @@ def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_va
 
 
 
+def _try_evaluate_statically_empty_format_method_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Attribute) or node.func.attr != "format":
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(base_value, str) or len(base_value) != 0:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_values: list[object] = []
+    for argument_node in node.args:
+        argument_value = resolve_value(argument_node)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        argument_values.append(argument_value)
+    keyword_values: dict[str, object] = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        keyword_value = resolve_value(keyword.value)
+        if keyword_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        keyword_values[keyword.arg] = keyword_value
+    try:
+        return base_value.format(*argument_values, **keyword_values)
+    except (IndexError, KeyError, TypeError, ValueError, AttributeError) as error:
+        if isinstance(error, (IndexError, KeyError, TypeError, ValueError, AttributeError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable format method evaluation branch")
+
+
+
 def _try_evaluate_statically_empty_fromhex_classmethod_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
@@ -1390,6 +1419,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_codec_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_codec_value
+    empty_format_value = _try_evaluate_statically_empty_format_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_format_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_format_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1954,6 +1989,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_codec_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_codec_value
+    empty_format_value = _try_evaluate_statically_empty_format_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_format_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_format_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
