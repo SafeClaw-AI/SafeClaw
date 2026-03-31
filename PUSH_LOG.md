@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-01 01:12:16 +0800
+最后更新时间：2026-04-01 01:48:36 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -9,6 +9,12 @@
 - 尽量用中文、短句、小学生能懂；先写做了什么，再写为什么重要。
 
 ## 流水
+### 轮次 M2-298
+- 完成时间：2026-04-01 01:48:36 +0800
+- 完成内容：新增 `archive-note` 真实任务；现在可把文本按日期归档到 `YYYY-MM/YYYY-MM-DD-<slug>.md`，并在同一条命令里直接看到可读账单。
+- 验证内容：`cargo test -p safeclaw-sqlite --example safeclaw_mvp_entry --quiet`（GNU toolchain）、`python -X utf8 tools/checks/check_examples_smoke.py`
+- 待提交内容：`safeclaw-sqlite/examples/safeclaw_mvp_entry.rs`、`tools/checks/check_examples_smoke.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/172-V4-archive-note-real-task-record-20260401_014836.md`
+
 ### 轮次 A
 - 完成时间：2026-03-25 01:06:11 +0800
 - 完成内容：补 `service-run --report` / `service-retry --report` / `service-recover --report` 组合报告能力。

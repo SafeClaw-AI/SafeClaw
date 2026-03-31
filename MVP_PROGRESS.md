@@ -2,13 +2,13 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-04-01 01:12:16 +0800
+最后更新时间：2026-04-01 01:48:36 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：`M1b` 已毕业，前 297 刀已完成；`M2-P0-1` 已在 `report/status` 共享输出链落地最小可读账单，下一步开始 `M2-P0-2` 一个真实任务场景
+当前阶段：`M1b` 已毕业，前 298 刀已完成；`M2-P0-2` 已交付最小真实任务场景 `archive-note`，下一步开始 `M2-P0-3 undo 撤销入口`
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
-- 当前主线（M2-P0-2 一个真实任务场景）：约 1 ~ 3 天
+- 当前主线（M2-P0-3 undo 撤销入口）：约 1 ~ 3 天
 - M2 首轮价值层剩余：约 2 ~ 4 周
 
 ## 进展
@@ -211,7 +211,7 @@
 
 
 | [x] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 冻结版毕业链已于 `2026-03-31 20:33:15 +0800` 全绿跑通；当前不再把新主题回灌成无限扫尾 | 已毕业 |
-| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已完成 `M2-1` / `M2-2` 解释层地基，但现行顺序已改为先做 `Effect Ledger` 可读账单、真实任务场景与 `undo` 价值闭环；其后再继续补 `丞相检查` / `丞相版本` / `丞相验板` 的人话层，并逐步进入 provider sidecar / permission gateway / memory / scheduler | 当前主线 |
+| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已完成 `M2-1` / `M2-2` 解释层地基，且 `M2-P0-1` 可读账单与 `M2-P0-2` 真实任务场景 `archive-note` 已落地；现行顺序继续推进 `undo` 价值闭环，其后再补 `丞相检查` / `丞相版本` / `丞相验板` 的人话层，并逐步进入 provider sidecar / permission gateway / memory / scheduler | 当前主线 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
 
 | [x] | M1b Slice 173: spi version metadata baseline | M1b plan | 在 `tests/contracts/test_version_check.py` 补齐完整版本合同，并把 `specs/spi/` 下 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`；随后执行 `python tools/codegen/regenerate_all.py` 同步 `generated/` 索引，最终让静默 `selfcheck` 恢复全绿 | 清掉长期卡在 `check_versions.py` 的历史总阻塞，避免之后每轮都被同一批 `spi` 占位文件拖住 |
@@ -340,3 +340,4 @@
 | [x] | M2-2 Slice 295: chancellor status command consumer | M2-2 plan | Extended `tools/mvp/chancellor_panel.py` with `build_chancellor_panel_command_payload()` so the literal `丞相状态` command now consumes the shared snapshot and emits summary-first command payloads, while unknown panel commands fail closed; also expanded `tests/contracts/test_chancellor_panel.py` to lock command-level output and unsupported-command behavior | This closes `M2-2` at the command-consumer layer instead of leaving a raw aggregation helper unowned, which is higher leverage than starting `丞相检查` while `丞相状态` still lacks a stable entry point |
 | [x] | M2 Slice 296: product value priority rebaseline | M2 plan | Added `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md` as the current M2 sequencing truth, updated `docs/README.md`, and extended `check_public_docs.py` plus `test_public_docs_check.py` so the new “可读账单 → 真实任务 → undo” priority is fail-closed guarded by public-doc contracts | This corrects the highest current planning risk: continuing to polish explanation-first commands before SafeClaw has delivered a screenshotable, undoable proof of value for non-technical users |
 | [x] | M2 Slice 297: readable effect bill in report/status | M2-P0-1 plan | Updated `tools/checks/check_examples_smoke.py` first to require a human-readable operation bill, then extended `safeclaw-sqlite/examples/safeclaw_mvp_entry.rs` so the shared `print_runtime_status(...)` path now loads runtime effect data and renders `操作账单 / 账单条目 / 账单撤销能力` before the diagnostic lines | This gives SafeClaw its first screenshotable value proof on the existing MVP path without widening the core protocol surface, which is higher leverage than debating GUI or undo before users can even see a readable bill |
+| [x] | M2 Slice 298: archive-note real task scenario | M2-P0-2 plan | Added a new `archive-note` action to `safeclaw-sqlite/examples/safeclaw_mvp_entry.rs`, computed dated archive targets as `YYYY-MM/YYYY-MM-DD-<slug>.md`, reused the shared write-dispatch helper so the task writes a real file and immediately prints the readable bill, and locked the new path with one smoke case plus 3 example-level parser tests | This turns the readable bill from a passive report into a screenshotable real task users can actually run, while keeping the effect surface on the already-stable `FileWrite` path instead of jumping early to wider move/rollback complexity |

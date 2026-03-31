@@ -21,10 +21,10 @@ class ChancellorPanelTest(unittest.TestCase):
         self.assertEqual(
             snapshot,
             {
-                "mode": "M2-P0-2 一个真实任务场景",
+                "mode": "M2-P0-3 undo 撤销入口",
                 "stability": "稳态",
-                "next_step": "开始 M2-P0-2 一个真实任务场景",
-                "summary": "当前处于 M2-P0-2 一个真实任务场景；状态稳态；下一步开始 M2-P0-2 一个真实任务场景",
+                "next_step": "开始 M2-P0-3 undo 撤销入口",
+                "summary": "当前处于 M2-P0-3 undo 撤销入口；状态稳态；下一步开始 M2-P0-3 undo 撤销入口",
             },
         )
 

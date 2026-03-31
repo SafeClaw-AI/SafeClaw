@@ -19,6 +19,7 @@ use safeclaw_core::{
 use safeclaw_sqlite::{
     open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
     SqliteSingleWorkerLoop, SqliteTaskOrchestrator, SqliteWorkerService,
+    WorkerServiceRunReport,
 };
 
 const DEFAULT_CONTENT: &str = "safeclaw mvp entry\n";
@@ -37,6 +38,7 @@ fn main() -> Result<(), String> {
     let args = CliArgs::parse(raw_args)?;
     match args.action {
         CliAction::Run => run_action(&args),
+        CliAction::ArchiveNote => archive_note_action(&args),
         CliAction::Report => report_action(&args),
         CliAction::Status => status_action(&args),
         CliAction::SeedCrash => seed_crash_action(&args),
@@ -50,69 +52,7 @@ fn main() -> Result<(), String> {
 }
 
 fn run_action(args: &CliArgs) -> Result<(), String> {
-    ensure_parent_dir(&args.db_path)?;
-    ensure_parent_dir(&args.output_path)?;
-    if args.reset {
-        reset_session_artifacts(&args.db_path, &args.output_path);
-    }
-
-    let effect_id = args.effect_id();
-    let mut service = SqliteWorkerService::open(
-        &args.db_path,
-        SqliteOpenOptions::default(),
-        args.owner_id.clone(),
-    )
-    .map_err(|error| format!("{error:?}"))?
-    .with_lease_ttl_ms(60_000)
-    .with_poll_interval_ms(5);
-
-    if args.probe_mode == ProbeModeCli::Auto {
-        service.filesystem_probe_mut().register_expected_blake3(
-            effect_id.clone(),
-            blake3::hash(args.content.as_bytes()).to_hex().to_string(),
-        );
-    }
-    service
-        .enqueue_task(OrchestratorTask::new(
-            &args.task_id,
-            ScheduleIntent::write(format!("scope:{}", args.output_path.display())),
-            0,
-        ))
-        .map_err(|error| format!("{error:?}"))?;
-
-    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
-    print_snapshot("after-enqueue", service.queue_snapshot());
-
-    let output_path = args.output_path.clone();
-    let content = args.content.clone();
-    let effect_id_for_service = effect_id.clone();
-    let report = service
-        .run_dispatch_until_idle(
-            0,
-            2,
-            PreflightDecision::Permit,
-            {
-                let effect_id = effect_id_for_service.clone();
-                move |_| Ok(effect_id.clone())
-            },
-            {
-                let effect_id = effect_id_for_service.clone();
-                let output_path = output_path.clone();
-                let content = content.clone();
-                move |claim| {
-                    Ok((
-                        build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()),
-                        sandbox_write_command(&output_path, content.as_bytes()),
-                    ))
-                }
-            },
-            {
-                let output_path = output_path.clone();
-                let content = content.clone();
-                move |_, _| Ok(sandbox_write_command(&output_path, content.as_bytes()))
-            },
-        )
-        .map_err(|error| format!("{error:?}"))?;
+    let (service, report, effect_id) = dispatch_write_task(args, &args.output_path, &args.content)?;
 
     println!(
         "[mvp] run report => polls={} idle={} executed={} probed={} parked={}",
@@ -143,6 +83,84 @@ fn run_action(args: &CliArgs) -> Result<(), String> {
         effect_id
     );
     Ok(())
+}
+
+fn archive_note_action(args: &CliArgs) -> Result<(), String> {
+    let (service, _, effect_id) = dispatch_write_task(args, &args.output_path, &args.content)?;
+    println!("[mvp] archive note => created {}", render_user_path(&args.output_path));
+    print_runtime_status(&service, args, "archive-note", &args.task_id, &effect_id)
+}
+
+fn dispatch_write_task(
+    args: &CliArgs,
+    output_path: &Path,
+    content: &str,
+) -> Result<(SqliteWorkerService, WorkerServiceRunReport, String), String> {
+    ensure_parent_dir(&args.db_path)?;
+    ensure_parent_dir(output_path)?;
+    if args.reset {
+        reset_session_artifacts(&args.db_path, output_path);
+    }
+
+    let effect_id = args.effect_id();
+    let mut service = SqliteWorkerService::open(
+        &args.db_path,
+        SqliteOpenOptions::default(),
+        args.owner_id.clone(),
+    )
+    .map_err(|error| format!("{error:?}"))?
+    .with_lease_ttl_ms(60_000)
+    .with_poll_interval_ms(5);
+
+    if args.probe_mode == ProbeModeCli::Auto {
+        service.filesystem_probe_mut().register_expected_blake3(
+            effect_id.clone(),
+            blake3::hash(content.as_bytes()).to_hex().to_string(),
+        );
+    }
+    service
+        .enqueue_task(OrchestratorTask::new(
+            &args.task_id,
+            ScheduleIntent::write(format!("scope:{}", output_path.display())),
+            0,
+        ))
+        .map_err(|error| format!("{error:?}"))?;
+
+    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    print_snapshot("after-enqueue", service.queue_snapshot());
+
+    let output_path = output_path.to_path_buf();
+    let content = content.to_owned();
+    let effect_id_for_service = effect_id.clone();
+    let report = service
+        .run_dispatch_until_idle(
+            0,
+            2,
+            PreflightDecision::Permit,
+            {
+                let effect_id = effect_id_for_service.clone();
+                move |_| Ok(effect_id.clone())
+            },
+            {
+                let effect_id = effect_id_for_service.clone();
+                let output_path = output_path.clone();
+                let content = content.clone();
+                move |claim| {
+                    Ok((
+                        build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()),
+                        sandbox_write_command(&output_path, content.as_bytes()),
+                    ))
+                }
+            },
+            {
+                let output_path = output_path.clone();
+                let content = content.clone();
+                move |_, _| Ok(sandbox_write_command(&output_path, content.as_bytes()))
+            },
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    Ok((service, report, effect_id))
 }
 
 fn report_action(args: &CliArgs) -> Result<(), String> {
@@ -638,6 +656,7 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CliAction {
     Run,
+    ArchiveNote,
     Report,
     Status,
     SeedCrash,
@@ -719,12 +738,19 @@ impl CliArgs {
         let mut reset = false;
         let mut probe_mode = ProbeModeCli::Auto;
         let mut reconcile_decision = None;
+        let mut archive_root = None;
+        let mut archive_date = None;
+        let mut archive_name = None;
 
         let mut args = raw_args.into_iter();
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "run" if !action_set => {
                     action = CliAction::Run;
+                    action_set = true;
+                }
+                "archive-note" if !action_set => {
+                    action = CliAction::ArchiveNote;
                     action_set = true;
                 }
                 "report" if !action_set => {
@@ -771,6 +797,11 @@ impl CliArgs {
                 "--task-id" => task_id = Some(next_value(&mut args, "--task-id")?),
                 "--owner-id" => owner_id = next_value(&mut args, "--owner-id")?,
                 "--effect-id" => effect_id = Some(next_value(&mut args, "--effect-id")?),
+                "--archive-root" => {
+                    archive_root = Some(PathBuf::from(next_value(&mut args, "--archive-root")?))
+                }
+                "--archive-date" => archive_date = Some(next_value(&mut args, "--archive-date")?),
+                "--archive-name" => archive_name = Some(next_value(&mut args, "--archive-name")?),
                 "--probe-mode" => probe_mode = parse_probe_mode(&next_value(&mut args, "--probe-mode")?)?,
                 "--decision" => reconcile_decision = Some(parse_reconcile_decision(&next_value(&mut args, "--decision")?)?),
                 "--reset" => reset = true,
@@ -783,6 +814,27 @@ impl CliArgs {
                 let output_path = output_path.unwrap_or(default_output);
                 let db_path = db_path.unwrap_or(default_db);
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
+                (db_path, output_path, task_id)
+            }
+            CliAction::ArchiveNote => {
+                if output_path.is_some() {
+                    return Err(archive_note_usage_error(
+                        "archive-note does not accept --output; use --archive-root",
+                    ));
+                }
+                let archive_root = archive_root.ok_or_else(|| {
+                    archive_note_usage_error("archive-note requires --archive-root")
+                })?;
+                let archive_date = archive_date.ok_or_else(|| {
+                    archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>")
+                })?;
+                let archive_name = archive_name.ok_or_else(|| {
+                    archive_note_usage_error("archive-note requires --archive-name")
+                })?;
+                let output_path =
+                    build_archive_note_output_path(&archive_root, &archive_date, &archive_name)?;
+                let db_path = db_path.unwrap_or_else(|| archive_root.join("session.db"));
+                let task_id = task_id.unwrap_or(format!("task-safeclaw-archive-note-{unique}"));
                 (db_path, output_path, task_id)
             }
             CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Resume | CliAction::Reconcile => {
@@ -842,6 +894,7 @@ impl CliArgs {
 fn action_name(action: CliAction) -> &'static str {
     match action {
         CliAction::Run => "run",
+        CliAction::ArchiveNote => "archive-note",
         CliAction::Report => "report",
         CliAction::Status => "status",
         CliAction::SeedCrash => "seed-crash",
@@ -877,8 +930,95 @@ fn parse_reconcile_decision(value: &str) -> Result<ReconcileCliDecision, String>
         _ => Err(format!("unsupported --decision value: {value}\n\n{}", usage_text())),
     }
 }
+
+fn archive_note_usage_error(message: &str) -> String {
+    format!("{message}\n\n{}", usage_text())
+}
+
+fn build_archive_note_output_path(
+    archive_root: &Path,
+    archive_date: &str,
+    archive_name: &str,
+) -> Result<PathBuf, String> {
+    let month_scope = render_archive_note_month_scope(archive_date)?;
+    let archive_slug = sanitize_archive_note_name(archive_name)?;
+    Ok(
+        archive_root
+            .join(month_scope)
+            .join(format!("{archive_date}-{archive_slug}.md")),
+    )
+}
+
+fn render_archive_note_month_scope(archive_date: &str) -> Result<String, String> {
+    let segments = archive_date.split('-').collect::<Vec<_>>();
+    if segments.len() != 3 {
+        return Err(archive_note_usage_error(
+            "archive-note requires --archive-date <YYYY-MM-DD>",
+        ));
+    }
+    let year = segments[0];
+    let month = segments[1];
+    let day = segments[2];
+    if !is_archive_note_number_segment(year, 4)
+        || !is_archive_note_number_segment(month, 2)
+        || !is_archive_note_number_segment(day, 2)
+    {
+        return Err(archive_note_usage_error(
+            "archive-note requires --archive-date <YYYY-MM-DD>",
+        ));
+    }
+    let month_value = month
+        .parse::<u32>()
+        .map_err(|_| archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>"))?;
+    let day_value = day
+        .parse::<u32>()
+        .map_err(|_| archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>"))?;
+    if !(1..=12).contains(&month_value) || !(1..=31).contains(&day_value) {
+        return Err(archive_note_usage_error(
+            "archive-note requires --archive-date <YYYY-MM-DD>",
+        ));
+    }
+    Ok(format!("{year}-{month}"))
+}
+
+fn is_archive_note_number_segment(value: &str, expected_len: usize) -> bool {
+    value.len() == expected_len && value.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn sanitize_archive_note_name(value: &str) -> Result<String, String> {
+    let mut sanitized = String::new();
+    let mut previous_dash = false;
+    for character in value.trim().chars() {
+        let normalized = match character {
+            'a'..='z' | '0'..='9' => Some(character),
+            'A'..='Z' => Some(character.to_ascii_lowercase()),
+            ' ' | '-' | '_' => Some('-'),
+            _ if character.is_ascii_alphanumeric() => Some(character.to_ascii_lowercase()),
+            _ => None,
+        };
+        if let Some(normalized) = normalized {
+            if normalized == '-' {
+                if previous_dash {
+                    continue;
+                }
+                previous_dash = true;
+            } else {
+                previous_dash = false;
+            }
+            sanitized.push(normalized);
+        }
+    }
+    let sanitized = sanitized.trim_matches('-').to_string();
+    if sanitized.is_empty() {
+        return Err(archive_note_usage_error(
+            "archive-note requires --archive-name",
+        ));
+    }
+    Ok(sanitized)
+}
+
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | seed-hibernated [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | resume --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | archive-note [--reset] [--db <path>] --archive-root <path> --archive-date <YYYY-MM-DD> --archive-name <name> [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | seed-hibernated [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | resume --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -961,8 +1101,15 @@ fn render_effect_action_label(action: EffectAction) -> &'static str {
     }
 }
 
-fn render_effect_target(target: &str) -> &str {
-    target.strip_prefix("scope:").unwrap_or(target)
+fn render_effect_target(target: &str) -> String {
+    target
+        .strip_prefix("scope:")
+        .unwrap_or(target)
+        .replace('\\', "/")
+}
+
+fn render_user_path(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
 }
 
 fn render_effect_reversibility_label(reversibility: EffectReversibility) -> &'static str {
@@ -1159,5 +1306,65 @@ fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -
             ],
             500,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_archive_note_output_path, CliAction, CliArgs,
+    };
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn parse_archive_note_builds_dated_output_path() {
+        let args = CliArgs::parse(vec![
+            "archive-note".into(),
+            "--db".into(),
+            "target/test-archive-note/session.db".into(),
+            "--archive-root".into(),
+            "target/test-archive-note/archive".into(),
+            "--archive-date".into(),
+            "2026-04-01".into(),
+            "--archive-name".into(),
+            "Weekly Standup".into(),
+            "--task-id".into(),
+            "task-test-archive-note".into(),
+        ])
+        .expect("archive-note args should parse");
+
+        assert_eq!(args.action, CliAction::ArchiveNote);
+        assert_eq!(args.db_path, PathBuf::from("target/test-archive-note/session.db"));
+        assert_eq!(
+            args.output_path,
+            PathBuf::from("target/test-archive-note/archive/2026-04/2026-04-01-weekly-standup.md")
+        );
+        assert_eq!(args.task_id, "task-test-archive-note");
+    }
+
+    #[test]
+    fn parse_archive_note_requires_archive_root() {
+        let error = CliArgs::parse(vec![
+            "archive-note".into(),
+            "--archive-date".into(),
+            "2026-04-01".into(),
+            "--archive-name".into(),
+            "Weekly Standup".into(),
+        ])
+        .expect_err("archive-note should require archive root");
+
+        assert!(error.contains("archive-note requires --archive-root"));
+    }
+
+    #[test]
+    fn build_archive_note_output_path_rejects_invalid_date() {
+        let error = build_archive_note_output_path(
+            Path::new("target/test-archive-note/archive"),
+            "2026-13-40",
+            "Weekly Standup",
+        )
+        .expect_err("archive-note should validate archive date");
+
+        assert!(error.contains("archive-note requires --archive-date <YYYY-MM-DD>"));
     }
 }
