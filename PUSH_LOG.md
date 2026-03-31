@@ -1,6 +1,6 @@
-﻿# 提交推送流水账
+# 提交推送流水账
 
-最后更新时间：2026-03-31 10:34:55 +0800
+最后更新时间：2026-03-31 10:41:54 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2496,3 +2496,8 @@
 - Done: Repaired the stale summary headers in `PUSH_LOG.md` and `开发计划.md` so their top timestamps and stage count match the already-landed `M1b Slice 273` state.
 - Verify: `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `git diff --check`.
 - Commit: planned message `fix: align ledger summary headers`; final hash follows HEAD.
+### Round PQ
+- Time: 2026-03-31 10:41:54 +0800
+- Done: Connected empty `all()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, letting existing negation/bool wrappers fail-close `except ValueError: return not all([])`, `except TypeError: payload = []; return not all(payload)`, and `except OSError: payload = []; return bool(not all(payload))`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_negated_all_on_empty_list tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_negated_all_on_known_empty_iterable_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bool_wrapped_negated_all_on_known_empty_iterable_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
+- Commit: planned message `feat: block empty all negation fallback`; final hash follows HEAD.

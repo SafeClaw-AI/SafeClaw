@@ -1,0 +1,11 @@
+# V4 empty all negation silent fallback gate record
+
+- Time: 2026-03-31 10:41:54 +0800
+- Slice: M1b Slice 274
+- Action: Connected empty `all()` evaluation to the shared silent-fallback truth source in `tools/checks/check_reference_redlines.py` for both static expression evaluation and known-name runtime resolution, specifically to let existing unary/bool wrapping logic fail-closed on `not all(empty)`.
+- Code Closure: Now `except ValueError: return not all([])`, `except TypeError: payload = []; return not all(payload)`, and `except OSError: payload = []; return bool(not all(payload))` are treated as silent fallbacks and fail closed.
+- Contracts: Added 3 contract tests in `tests/contracts/test_reference_redlines_check.py`, covering direct, known-name, and bool-wrapped paths.
+- Result: This slice extends the expression-level gap scan from empty classmethod decoding semantics to empty universal-truth semantics on `all()`, while reusing the existing negation truth path instead of opening a new tracking branch.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_negated_all_on_empty_list tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_negated_all_on_known_empty_iterable_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bool_wrapped_negated_all_on_known_empty_iterable_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`
+- Why: Compared with widening assignment-state tracking, teaching the shared evaluator that `all(empty)` is statically `True` closes the same-level built-in truthiness lane with lower complexity and better long-term stability.
+- Next: Continue scanning same-level built-in / method / classmethod / value-semantic gaps instead of dropping back to low-yield iterator corner cases.

@@ -1,10 +1,10 @@
-﻿# 整体计划实现进展表
+# 整体计划实现进展表
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 10:32:10 +0800
+最后更新时间：2026-03-31 10:41:54 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 273 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 274 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天
@@ -315,3 +315,4 @@
 | [x] | M1b Slice 271: empty min max default silent fallback gate | M1b plan | Connected empty `min(..., default=...)` and `max(..., default=...)` evaluation in `tools/checks/check_reference_redlines.py` to the shared empty-iterator default truth source for both static expression evaluation and known-name runtime resolution; on empty iterables they now collapse to the statically known default while also accepting inert `key=` keywords, blocking `min([], default=None)`, `max(payload, key=0, default=False)`, and `list(item)` (where `item = min(payload, default=fallback, key=0)` and `fallback = []`); also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level truth source from positional empty-iterator default semantics to keyword default semantics on `min/max`, which has higher long-term leverage than continuing to sweep simpler helper edges |
 | [x] | M1b Slice 272: empty any silent fallback gate | M1b plan | Connected empty `any()` evaluation in `tools/checks/check_reference_redlines.py` to the shared empty-iterator truth source for both static expression evaluation and known-name runtime resolution; on empty iterables it now collapses to `False`, blocking `any([])`, `any(payload)` when `payload = []`, and `bool(flag)` where `flag = any(payload)` and `payload = []`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level truth source from keyword-default built-in semantics to empty-truthiness built-in semantics on `any()`, which has higher long-term leverage than continuing to sweep simpler helper edges |
 | [x] | M1b Slice 273: empty fromhex classmethod silent fallback gate | M1b plan | Connected empty `bytes.fromhex()` / `bytearray.fromhex()` evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; on empty text it now collapses to `b''` / `bytearray()`, blocking `bytes.fromhex('')`, `bytearray.fromhex(payload)` when `payload = ''`, and alias-consumed `bytearray(bytes.fromhex(payload))`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level truth source from empty-truthiness built-in semantics to empty classmethod decoding semantics on `fromhex()`, which keeps the current same-level high-leverage gap scan moving without dropping back to low-yield iterator corners |
+| [x] | M1b Slice 274: empty all negation silent fallback gate | M1b plan | Connected empty `all()` evaluation in `tools/checks/check_reference_redlines.py` to the shared silent-fallback truth source for both static expression evaluation and known-name runtime resolution; with existing negation/bool wrappers it now fail-closes `not all([])`, `not all(payload)` when `payload = []`, and `bool(not all(payload))`; also added 3 failing contracts in `tests/contracts/test_reference_redlines_check.py` | This extends the expression-level gap scan from empty classmethod decoding semantics to empty universal-truth semantics on `all()`, reusing the existing negation truth path instead of widening assignment tracking |
