@@ -658,9 +658,15 @@ def _try_evaluate_statically_empty_replace_method_value(node: ast.Call, resolve_
     if (
         not isinstance(node.func, ast.Attribute)
         or node.func.attr != "replace"
-        or node.keywords
         or len(node.args) not in {2, 3}
     ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.keywords) > 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    count_keyword = node.keywords[0] if node.keywords else None
+    if count_keyword is not None and count_keyword.arg != "count":
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.args) == 3 and count_keyword is not None:
         return _STATIC_VALUE_NOT_AVAILABLE
     base_value = resolve_value(node.func.value)
     if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -673,6 +679,10 @@ def _try_evaluate_statically_empty_replace_method_value(node: ast.Call, resolve_
         return _STATIC_VALUE_NOT_AVAILABLE
     if len(node.args) == 3:
         count_value = resolve_value(node.args[2])
+        if count_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(count_value, int):
+            return _STATIC_VALUE_NOT_AVAILABLE
+    if count_keyword is not None:
+        count_value = resolve_value(count_keyword.value)
         if count_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(count_value, int):
             return _STATIC_VALUE_NOT_AVAILABLE
     if isinstance(base_value, str) and isinstance(old_value, str) and isinstance(new_value, str) and len(base_value) == 0:
