@@ -720,6 +720,45 @@ def _try_evaluate_statically_empty_translate_method_value(node: ast.Call, resolv
 
 
 
+def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr not in {"encode", "decode"}
+        or node.keywords
+        or len(node.args) not in {1, 2}
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if node.func.attr == "encode":
+        if not isinstance(base_value, str) or len(base_value) != 0:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    else:
+        if not isinstance(base_value, (bytes, bytearray)) or len(base_value) != 0:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    argument_values: list[str] = []
+    for argument_node in node.args:
+        argument_value = resolve_value(argument_node)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(argument_value, str):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        argument_values.append(argument_value)
+    evaluation_base_value = _copy_runtime_value_for_zero_arg_method_evaluation(base_value)
+    method = getattr(evaluation_base_value, node.func.attr, None)
+    if method is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        result = method(*argument_values)
+    except (LookupError, TypeError, ValueError, AttributeError) as error:
+        if isinstance(error, (LookupError, TypeError, ValueError, AttributeError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable codec method evaluation branch")
+    if _runtime_value_is_silent_fallback(result):
+        return result
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_fromhex_classmethod_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
@@ -1334,6 +1373,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_translate_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_translate_value
+    empty_codec_value = _try_evaluate_statically_empty_codec_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_codec_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_codec_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1889,6 +1934,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_translate_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_translate_value
+    empty_codec_value = _try_evaluate_statically_empty_codec_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_codec_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_codec_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(

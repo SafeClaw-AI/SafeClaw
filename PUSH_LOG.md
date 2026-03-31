@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 15:11:54 +0800
+最后更新时间：2026-03-31 16:38:13 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2555,3 +2555,9 @@
 - Done: Added empty `translate()` evaluation in `tools/checks/check_reference_redlines.py`, fail-closing `except ValueError: return "".translate({})`, `except TypeError: payload = b""; return payload.translate(None)`, and `except OSError: payload = bytearray(); cleaned = payload.translate(None); return bytes(cleaned)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_translate tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_translate_none_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytes_wrapped_empty_bytearray_translate_none_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_versions.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_structure.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/check_mvp_operator_flow.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `feat: block empty translate fallback`; final hash follows HEAD.
+
+### Round QA
+- Time: 2026-03-31 16:38:13 +0800
+- Done: Added parameterized empty `encode()/decode()` evaluation in `tools/checks/check_reference_redlines.py`, fail-closing `except ValueError: return "".encode("utf-8")`, `except TypeError: payload = b""; return payload.decode("utf-8")`, and `except OSError: payload = bytearray(); text = payload.decode("utf-8"); return bytearray(text.encode("utf-8"))`.
+- Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_empty_string_encode_utf8 tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_empty_bytes_decode_utf8_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_empty_bytearray_decode_utf8_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_versions.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_structure.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/check_mvp_operator_flow.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `feat: block empty codec fallback`; final hash follows HEAD.
