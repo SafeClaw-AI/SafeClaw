@@ -659,7 +659,7 @@ def _try_evaluate_statically_empty_replace_method_value(node: ast.Call, resolve_
         not isinstance(node.func, ast.Attribute)
         or node.func.attr != "replace"
         or node.keywords
-        or len(node.args) != 2
+        or len(node.args) not in {2, 3}
     ):
         return _STATIC_VALUE_NOT_AVAILABLE
     base_value = resolve_value(node.func.value)
@@ -671,6 +671,10 @@ def _try_evaluate_statically_empty_replace_method_value(node: ast.Call, resolve_
     new_value = resolve_value(node.args[1])
     if new_value is _STATIC_VALUE_NOT_AVAILABLE:
         return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.args) == 3:
+        count_value = resolve_value(node.args[2])
+        if count_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(count_value, int):
+            return _STATIC_VALUE_NOT_AVAILABLE
     if isinstance(base_value, str) and isinstance(old_value, str) and isinstance(new_value, str) and len(base_value) == 0:
         return ""
     if (
