@@ -1,6 +1,6 @@
 ﻿# 提交推送流水账
 
-最后更新时间：2026-03-31 00:36:58 +0800
+最后更新时间：2026-03-31 10:34:55 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2490,3 +2490,9 @@
 - Done: Repaired the `MVP_PROGRESS.md` header so the top summary count and timestamp match the already-landed `M1b Slice 273` row.
 - Verify: `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `git diff --check`.
 - Commit: planned message `fix: repair mvp progress slice count`; final hash follows HEAD.
+
+### Round PP
+- Time: 2026-03-31 10:34:55 +0800
+- Done: Repaired the stale summary headers in `PUSH_LOG.md` and `开发计划.md` so their top timestamps and stage count match the already-landed `M1b Slice 273` state.
+- Verify: `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `git diff --check`.
+- Commit: planned message `fix: align ledger summary headers`; final hash follows HEAD.
