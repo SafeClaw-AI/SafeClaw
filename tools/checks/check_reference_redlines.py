@@ -581,6 +581,18 @@ def _try_evaluate_statically_empty_len_call_value(node: ast.Call, resolve_value)
 
 
 
+def _try_evaluate_statically_empty_sum_call_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Name) or node.func.id != "sum" or node.keywords or len(node.args) != 1:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    value = resolve_value(node.args[0])
+    if value is _STATIC_VALUE_NOT_AVAILABLE:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if _runtime_value_is_statically_empty_iterable(value):
+        return 0
+    return _STATIC_VALUE_NOT_AVAILABLE
+
+
+
 def _try_evaluate_statically_empty_fromhex_classmethod_value(node: ast.Call, resolve_value) -> object:
     if (
         not isinstance(node.func, ast.Attribute)
@@ -1159,6 +1171,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_len_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_len_value
+    empty_sum_value = _try_evaluate_statically_empty_sum_call_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_sum_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_sum_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1660,6 +1678,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_len_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_len_value
+    empty_sum_value = _try_evaluate_statically_empty_sum_call_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_sum_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_sum_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
