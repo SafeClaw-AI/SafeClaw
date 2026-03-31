@@ -3162,6 +3162,42 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             ],
         )
 
+    def test_value_error_cannot_directly_silently_fallback_with_empty_string_encode_keyword_utf8(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept ValueError:\n    return \"\".encode(encoding=\"utf-8\")\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> ValueError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_type_error_cannot_directly_silently_fallback_with_empty_bytes_decode_keyword_utf8_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept TypeError:\n    payload = b\"\"\n    return payload.decode(encoding=\"utf-8\")\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> TypeError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
+    def test_os_error_cannot_return_bytearray_wrapped_empty_bytearray_decode_keyword_utf8_alias(self) -> None:
+        errors = collect_silent_fallback_exception_errors_for_python_text(
+            Path("sample.py"),
+            "try:\n    work()\nexcept OSError:\n    payload = bytearray()\n    text = payload.decode(encoding=\"utf-8\")\n    return bytearray(text.encode(encoding=\"utf-8\"))\n",
+        )
+        self.assertEqual(
+            errors,
+            [
+                f"\u5f02\u5e38\u964d\u7ea7\u7f3a\u5c11\u4e0a\u4e0b\u6587: sample.py:3 -> OSError {SILENT_FALLBACK_SUFFIX}",
+            ],
+        )
+
     def test_value_error_cannot_directly_silently_fallback_with_bytes_fromhex_on_empty_text(self) -> None:
         errors = collect_silent_fallback_exception_errors_for_python_text(
             Path("sample.py"),

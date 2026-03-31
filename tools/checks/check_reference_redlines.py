@@ -724,9 +724,14 @@ def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_va
     if (
         not isinstance(node.func, ast.Attribute)
         or node.func.attr not in {"encode", "decode"}
-        or node.keywords
-        or len(node.args) not in {1, 2}
+        or len(node.args) not in {0, 1, 2}
+        or len(node.keywords) > 1
     ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    encoding_keyword = node.keywords[0] if node.keywords else None
+    if encoding_keyword is not None and encoding_keyword.arg != "encoding":
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if len(node.args) == 0 and encoding_keyword is None:
         return _STATIC_VALUE_NOT_AVAILABLE
     base_value = resolve_value(node.func.value)
     if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -743,12 +748,18 @@ def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_va
         if argument_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(argument_value, str):
             return _STATIC_VALUE_NOT_AVAILABLE
         argument_values.append(argument_value)
+    keyword_values: dict[str, str] = {}
+    if encoding_keyword is not None:
+        encoding_value = resolve_value(encoding_keyword.value)
+        if encoding_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(encoding_value, str):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        keyword_values[encoding_keyword.arg] = encoding_value
     evaluation_base_value = _copy_runtime_value_for_zero_arg_method_evaluation(base_value)
     method = getattr(evaluation_base_value, node.func.attr, None)
     if method is None:
         return _STATIC_VALUE_NOT_AVAILABLE
     try:
-        result = method(*argument_values)
+        result = method(*argument_values, **keyword_values)
     except (LookupError, TypeError, ValueError, AttributeError) as error:
         if isinstance(error, (LookupError, TypeError, ValueError, AttributeError)):
             return _STATIC_VALUE_NOT_AVAILABLE
