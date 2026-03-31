@@ -2,9 +2,9 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 10:11:46 +0800
+最后更新时间：2026-03-31 10:32:10 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：已进入 M1b，前 272 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
+当前阶段：已进入 M1b，前 273 刀已完成；最近继续沿 reference fail-closed 主线收口 broad exception family、helper 真源、消息真源、caught_types 真源、高风险异常真源与 silent fallback 语法糖真源
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - 当前主线（M1b 生存层补完）：约 0.5 ~ 1 天

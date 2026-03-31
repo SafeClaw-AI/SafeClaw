@@ -2484,3 +2484,9 @@
 - Done: Connected empty `bytes.fromhex()` / `bytearray.fromhex()` evaluation to the silent-fallback truth source in `tools/checks/check_reference_redlines.py`, blocking `except ValueError: return bytes.fromhex('')`, `except TypeError: payload = ''; return bytearray.fromhex(payload)`, and `except OSError: payload = ''; fallback = bytes.fromhex(payload); return bytearray(fallback)`.
 - Verify: `python -X utf8 -m py_compile tools/checks/check_reference_redlines.py tests/contracts/test_reference_redlines_check.py`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_value_error_cannot_directly_silently_fallback_with_bytes_fromhex_on_empty_text tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_type_error_cannot_directly_silently_fallback_with_bytearray_fromhex_on_known_empty_text_alias tests.contracts.test_reference_redlines_check.ReferenceRedlinesCheckTest.test_os_error_cannot_return_bytearray_wrapped_bytes_fromhex_on_known_empty_text_alias -v`, `python -X utf8 -m unittest tests.contracts.test_reference_redlines_check -v`, `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `git diff --check`.
 - Commit: planned message `feat: block empty fromhex fallback`; final hash follows HEAD.
+
+### Round PO
+- Time: 2026-03-31 10:32:10 +0800
+- Done: Repaired the `MVP_PROGRESS.md` header so the top summary count and timestamp match the already-landed `M1b Slice 273` row.
+- Verify: `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `git diff --check`.
+- Commit: planned message `fix: repair mvp progress slice count`; final hash follows HEAD.
