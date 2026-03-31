@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 20:09:28 +0800
+最后更新时间：2026-03-31 20:33:15 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2603,3 +2603,9 @@
 - Done: Updated `docs/30-方案/02-V4-目录锁定清单.md` to explicitly govern `tmp/`, `temp/`, and `docs/chancellor-mode/`, and updated `docs/reference/02-仓库卫生与命名规范.md` so the repository hygiene truth matches the current execution rules; this removes the long-standing false `tmp/` blocker from `check_scaffold.py` and turns the full `selfcheck.py` chain green on the current baseline.
 - Verify: `python -X utf8 -m unittest tests.contracts.test_scaffold_check -v`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `docs: align tmp scaffold governance`; final hash follows HEAD.
+
+### Round QI
+- Time: 2026-03-31 20:33:15 +0800
+- Done: Ran the frozen `M1b` graduation chain end to end, recorded the all-green result in `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`, and formally switched the current mainline to `M2-1 面板命令真源表`.
+- Verify: `python -X utf8 tools/checks/check_reference_redlines.py`, `python -X utf8 tools/checks/check_versions.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_structure.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_ledger_alignment.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/check_mvp_operator_flow.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `docs: graduate m1b and start m2-1`; final hash follows HEAD.

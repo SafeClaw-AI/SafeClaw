@@ -51,3 +51,8 @@
 - 若新问题不影响 `M1b` 毕业链，就先记到 `M2 backlog`，不再把 `M1b` 无限拖长。
 - 若新问题会让 `M1a/M1b` 现有门禁失真、漂移或误报，仍按 `M1b` 优先级处理。
 - 若出现真正高风险变更，再单独升级为需要人工拍板的决策项。
+
+## 9. 毕业检查点
+- 2026-03-31 20:33:15 +0800：冻结版 `M1b` 毕业链已完整跑通。
+- 当前全绿链路：`check_reference_redlines.py`、`check_versions.py`、`check_consistency.py`、`check_structure.py`、`check_scaffold.py`、`check_ledger_alignment.py`、`check_public_docs.py`、`check_tooling_smoke.py`、`check_mvp_operator_flow.py`、`selfcheck.py`、`git diff --check`。
+- 从这一刻开始，`M1b` 视为已毕业；当前主线切换到 `M2-1 面板命令真源表`。
