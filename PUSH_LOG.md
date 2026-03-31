@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-01 00:41:19 +0800
+最后更新时间：2026-04-01 00:48:36 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2627,3 +2627,9 @@
 - Done: Extended `tools/mvp/chancellor_panel.py` with `build_chancellor_panel_command_payload()` so the literal `丞相状态` command now consumes the shared snapshot and emits a summary-first command payload; unknown panel commands stay fail-closed, `tests/contracts/test_chancellor_panel.py` now locks the command-level output plus unsupported-command behavior, and an out-of-governance root `CLAUDE.md` was parked to `temp/parked-root/claude-context-20260401/CLAUDE.md` so scaffold layout returns to the current truth.
 - Verify: `python -X utf8 -m py_compile tools/mvp/chancellor_panel.py tests/contracts/test_chancellor_panel.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel -v`, `python -X utf8 tools/mvp/chancellor_panel.py 丞相状态`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `feat: wire chancellor status command`; final hash follows HEAD.
+
+### Round QM
+- Time: 2026-04-01 00:48:36 +0800
+- Done: Accepted the product-roadmap rebaseline by adding `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md` as the current M2 sequencing truth, demoted `01-m1b-exit-and-m2-panel-entry.md` to baseline sequencing history, updated `docs/README.md`, and extended `tools/checks/check_public_docs.py` plus `tests/contracts/test_public_docs_check.py` so the new “可读账单 → 真实任务 → undo” order is fail-closed guarded.
+- Verify: `python -X utf8 -m unittest tests.contracts.test_public_docs_check -v`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `git diff --check`.
+- Commit: planned message `docs: rebaseline m2 product value priority`; final hash follows HEAD.

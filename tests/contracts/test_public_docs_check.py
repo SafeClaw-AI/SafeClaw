@@ -9,6 +9,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_public_docs import (  # noqa: E402
+    CHANCELLOR_PRODUCT_REBASELINE_FILE,
     LINT_README_FILE,
     MVP_README_FILE,
     OPERATOR_PLAYBOOK_FILE,
@@ -39,6 +40,20 @@ class PublicDocsCheckTest(unittest.TestCase):
         ]
         self.assertIn(panel_truth_file, REQUIRED_MARKERS)
         self.assertEqual(REQUIRED_MARKERS[panel_truth_file], expected_markers)
+
+    def test_chancellor_product_rebaseline_is_guarded_by_public_docs_check(self) -> None:
+        expected_markers = [
+            "`M2-1` / `M2-2` 已经证明",
+            "可读账单",
+            "真实任务",
+            "`undo`",
+            "官方 Codex 面板",
+            "终端仍只保留给维护",
+            "M2-P0-1",
+            "M2-P0-4",
+        ]
+        self.assertIn(CHANCELLOR_PRODUCT_REBASELINE_FILE, REQUIRED_MARKERS)
+        self.assertEqual(REQUIRED_MARKERS[CHANCELLOR_PRODUCT_REBASELINE_FILE], expected_markers)
 
     def test_newly_added_public_readmes_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {

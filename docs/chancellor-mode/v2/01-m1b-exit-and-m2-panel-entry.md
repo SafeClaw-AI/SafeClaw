@@ -1,8 +1,8 @@
 # M1b 收口与 M2 面板入口决议
 
 - Time: 2026-03-31 19:52:12 +0800
-- Status: current truth source
-- Scope: freeze M1b exit rules and define the first M2 panel-visible delivery
+- Status: baseline truth source (M2 sequencing superseded by `03-m2-product-value-rebaseline.md`)
+- Scope: freeze M1b exit rules and preserve the first M2 panel-visible delivery baseline
 
 ## 1. 为什么现在先写这份文档
 - 当前风险不在代码质量，而在 `M1b` 何时算完、`M2` 先交什么给用户这两件事没有被当前主线写成单一真源。

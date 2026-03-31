@@ -22,6 +22,9 @@ DOCS_README_FILE = REPO_ROOT / "docs" / "README.md"
 CHANCELLOR_PANEL_TRUTH_FILE = (
     REPO_ROOT / "docs" / "chancellor-mode" / "v2" / "02-m2-panel-command-truth-source.md"
 )
+CHANCELLOR_PRODUCT_REBASELINE_FILE = (
+    REPO_ROOT / "docs" / "chancellor-mode" / "v2" / "03-m2-product-value-rebaseline.md"
+)
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-compliance-rebaseline-record-20260329_030242.md"
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
@@ -180,6 +183,7 @@ REQUIRED_MARKERS = {
         "docs/chancellor-mode/v2/",
         "01-m1b-exit-and-m2-panel-entry.md",
         "02-m2-panel-command-truth-source.md",
+        "03-m2-product-value-rebaseline.md",
         "selfcheck.py",
         "ledger_index_manifest.py",
         "check_ledger_alignment.py",
@@ -202,6 +206,16 @@ REQUIRED_MARKERS = {
         "`checks_run`",
         "`version_source`",
         "`steps`",
+    ],
+    CHANCELLOR_PRODUCT_REBASELINE_FILE: [
+        "`M2-1` / `M2-2` 已经证明",
+        "可读账单",
+        "真实任务",
+        "`undo`",
+        "官方 Codex 面板",
+        "终端仍只保留给维护",
+        "M2-P0-1",
+        "M2-P0-4",
     ],
     DIRECTORY_LOCK_FILE: [
         "当前仓库的目录锁定依据",

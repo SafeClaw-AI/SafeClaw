@@ -21,10 +21,10 @@ class ChancellorPanelTest(unittest.TestCase):
         self.assertEqual(
             snapshot,
             {
-                "mode": "M2-3 丞相检查最小检查",
+                "mode": "M2-P0-1 Effect Ledger 可读账单",
                 "stability": "稳态",
-                "next_step": "开始锁 M2-3 最小检查链与人话结论",
-                "summary": "当前处于 M2-3 丞相检查最小检查；状态稳态；下一步开始锁 M2-3 最小检查链与人话结论",
+                "next_step": "开始 M2-P0-1 Effect Ledger 可读账单",
+                "summary": "当前处于 M2-P0-1 Effect Ledger 可读账单；状态稳态；下一步开始 M2-P0-1 Effect Ledger 可读账单",
             },
         )
 

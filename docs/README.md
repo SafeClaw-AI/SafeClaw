@@ -14,8 +14,9 @@
 - `docs/30-方案/08-V4-ledger-index-manifest.json`：台账索引最小机读真源，供后续脚本读取
 - `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md`：当前 reference 合规纠偏快照，说明旧审计里哪些说法已过期
 - `docs/chancellor-mode/v2/`：现行丞相模式方案真源目录
-- `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`：现行 `M1b` 收口与 `M2` 面板入口决议真源
-- `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`：`M2-1` 四个丞相面板命令的输入/输出字段真源表
+- `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`：`M1b` 收口与 `M2` 面板入口的基线决议真源
+- `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`：四个丞相面板命令的输入/输出字段真源表
+- `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md`：现行 `M2` 改序真源，先做可读账单 / 真实任务 / `undo` 价值闭环
 
 ## 说明
 
