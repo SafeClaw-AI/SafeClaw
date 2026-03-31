@@ -2,13 +2,13 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-03-31 21:51:17 +0800
+最后更新时间：2026-04-01 00:41:19 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：`M1b` 已毕业，前 294 刀已完成；`M2-2` 丞相状态最小聚合已落地，下一步把 `mode/stability/next_step/summary` 接到命令级消费入口
+当前阶段：`M1b` 已毕业，前 295 刀已完成；`M2-2` 已接入 `丞相状态` 命令级消费入口，下一步开始锁 `M2-3` 最小检查链与人话结论
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
-- 当前主线（M2-1 面板命令真源表）：约 0.5 ~ 1 天
+- 当前主线（M2-3 丞相检查最小检查）：约 0.5 ~ 1 天
 - M2 首轮价值层剩余：约 1 ~ 2 周
 
 ## 进展
@@ -211,7 +211,7 @@
 
 
 | [x] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 冻结版毕业链已于 `2026-03-31 20:33:15 +0800` 全绿跑通；当前不再把新主题回灌成无限扫尾 | 已毕业 |
-| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已正式切入 `M2-1 面板命令真源表`，先锁住 `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板` 四个面板命令的人话真源，再逐步进入 provider sidecar / permission gateway / memory / scheduler | 当前主线 |
+| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已完成 `M2-2` 的 `丞相状态` 命令级消费入口，并切入 `M2-3 丞相检查最小检查`；继续先锁住 `丞相检查` / `丞相版本` / `丞相验板` 的人话输出，再逐步进入 provider sidecar / permission gateway / memory / scheduler | 当前主线 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
 
 | [x] | M1b Slice 173: spi version metadata baseline | M1b plan | 在 `tests/contracts/test_version_check.py` 补齐完整版本合同，并把 `specs/spi/` 下 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`；随后执行 `python tools/codegen/regenerate_all.py` 同步 `generated/` 索引，最终让静默 `selfcheck` 恢复全绿 | 清掉长期卡在 `check_versions.py` 的历史总阻塞，避免之后每轮都被同一批 `spi` 占位文件拖住 |
@@ -337,3 +337,4 @@
 | [x] | M1b Slice 292: run graduation pass and switch to M2-1 | M1b/M2 plan | Ran the frozen `M1b` graduation chain end to end and recorded the result in `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`; all graduation gates are now green, so the project officially leaves `M1b` and switches the current mainline to `M2-1 面板命令真源表` | This turns “M1b should be done” into a documented, verifiable fact and frees the next slices to focus on the first panel-visible value instead of re-proving old stability |
 | [x] | M2-1 Slice 293: panel command truth-source table | M2-1 plan | Added `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md` as the single truth table for `丞相状态` / `丞相检查` / `丞相版本` / `丞相验板`, indexed it in `docs/README.md`, linked it from the M2 entry decision doc, and extended `tools/checks/check_public_docs.py` plus `tests/contracts/test_public_docs_check.py` so the table is now fail-closed guarded by public-doc contracts | This gives `M2-1` a stable schema before any response aggregation starts, which is higher leverage than implementing one command ad hoc and backfilling meaning later |
 | [x] | M2-2 Slice 294: chancellor status snapshot | M2-2 plan | Added `tools/mvp/chancellor_panel.py` to aggregate `mode` / `stability` / `next_step` / `summary` from `开发计划.md`, and added `tests/contracts/test_chancellor_panel.py` so the minimal `丞相状态` snapshot plus stability derivation rules are fail-closed guarded by contracts | This gives `丞相状态` its first code-level consumer of the truth table before any command-level wiring starts diverging, which is higher leverage than re-deriving the same fields ad hoc in later slices |
+| [x] | M2-2 Slice 295: chancellor status command consumer | M2-2 plan | Extended `tools/mvp/chancellor_panel.py` with `build_chancellor_panel_command_payload()` so the literal `丞相状态` command now consumes the shared snapshot and emits summary-first command payloads, while unknown panel commands fail closed; also expanded `tests/contracts/test_chancellor_panel.py` to lock command-level output and unsupported-command behavior | This closes `M2-2` at the command-consumer layer instead of leaving a raw aggregation helper unowned, which is higher leverage than starting `丞相检查` while `丞相状态` still lacks a stable entry point |

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEV_PLAN_FILE = REPO_ROOT / "开发计划.md"
+CHANCELLOR_STATUS_COMMAND = "丞相状态"
 
 
 def normalize_markdown_inline_code(text: str) -> str:
@@ -54,5 +56,36 @@ def build_chancellor_status_snapshot(dev_plan_text: str | None = None) -> dict[s
     }
 
 
+def normalize_chancellor_panel_command_text(command_text: str) -> str:
+    return command_text.strip()
+
+
+def build_chancellor_panel_command_payload(
+    command_text: str,
+    dev_plan_text: str | None = None,
+) -> dict[str, str]:
+    normalized_command_text = normalize_chancellor_panel_command_text(command_text)
+    if normalized_command_text != CHANCELLOR_STATUS_COMMAND:
+        raise ValueError(f"unsupported chancellor panel command: {normalized_command_text or '<empty>'}")
+    snapshot = build_chancellor_status_snapshot(dev_plan_text=dev_plan_text)
+    return {
+        "command": CHANCELLOR_STATUS_COMMAND,
+        "summary": snapshot["summary"],
+        "mode": snapshot["mode"],
+        "stability": snapshot["stability"],
+        "next_step": snapshot["next_step"],
+    }
+
+
+def main(argv: list[str]) -> int:
+    payload = (
+        build_chancellor_panel_command_payload(" ".join(argv[1:]))
+        if len(argv) > 1
+        else build_chancellor_status_snapshot()
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 if __name__ == "__main__":
-    print(json.dumps(build_chancellor_status_snapshot(), ensure_ascii=False, indent=2))
+    raise SystemExit(main(sys.argv))

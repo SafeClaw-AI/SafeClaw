@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-03-31 21:51:17 +0800
+最后更新时间：2026-04-01 00:41:19 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2621,3 +2621,9 @@
 - Done: Added `tools/mvp/chancellor_panel.py` as the first code-level consumer for `丞相状态`, deriving `mode` / `stability` / `next_step` / `summary` directly from `开发计划.md`; also added `tests/contracts/test_chancellor_panel.py` and aligned the ledgers so the new `M2-2` snapshot is documented and fail-closed guarded.
 - Verify: `python -X utf8 -m py_compile tools/mvp/chancellor_panel.py tests/contracts/test_chancellor_panel.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel -v`, `python -X utf8 tools/mvp/chancellor_panel.py`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/check_tooling_smoke.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `feat: add chancellor status snapshot`; final hash follows HEAD.
+
+### Round QL
+- Time: 2026-04-01 00:41:19 +0800
+- Done: Extended `tools/mvp/chancellor_panel.py` with `build_chancellor_panel_command_payload()` so the literal `丞相状态` command now consumes the shared snapshot and emits a summary-first command payload; unknown panel commands stay fail-closed, `tests/contracts/test_chancellor_panel.py` now locks the command-level output plus unsupported-command behavior, and an out-of-governance root `CLAUDE.md` was parked to `temp/parked-root/claude-context-20260401/CLAUDE.md` so scaffold layout returns to the current truth.
+- Verify: `python -X utf8 -m py_compile tools/mvp/chancellor_panel.py tests/contracts/test_chancellor_panel.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel -v`, `python -X utf8 tools/mvp/chancellor_panel.py 丞相状态`, `python -X utf8 tools/checks/check_public_docs.py`, `python -X utf8 tools/checks/check_consistency.py`, `python -X utf8 tools/checks/check_scaffold.py`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
+- Commit: planned message `feat: wire chancellor status command`; final hash follows HEAD.
