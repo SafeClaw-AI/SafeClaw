@@ -414,6 +414,12 @@ _ZERO_ARG_SILENT_FALLBACK_METHOD_OWNERS = {
     "format": (str,),
     "hex": (bytes, bytearray),
 }
+_POSITIONAL_EMPTY_PADDING_METHOD_OWNERS = {
+    "zfill": (str, bytes, bytearray),
+    "center": (str, bytes, bytearray),
+    "ljust": (str, bytes, bytearray),
+    "rjust": (str, bytes, bytearray),
+}
 
 
 def _runtime_value_is_silent_fallback(value: object) -> bool:
@@ -818,6 +824,45 @@ def _try_evaluate_statically_empty_format_map_method_value(node: ast.Call, resol
         if isinstance(error, (KeyError, TypeError, ValueError, AttributeError)):
             return _STATIC_VALUE_NOT_AVAILABLE
         raise AssertionError("unreachable format_map method evaluation branch")
+
+
+
+def _try_evaluate_statically_empty_padding_method_value(node: ast.Call, resolve_value) -> object:
+    if not isinstance(node.func, ast.Attribute) or node.keywords:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    owner_types = _POSITIONAL_EMPTY_PADDING_METHOD_OWNERS.get(node.func.attr)
+    if owner_types is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    if node.func.attr == "zfill":
+        if len(node.args) != 1:
+            return _STATIC_VALUE_NOT_AVAILABLE
+    elif len(node.args) not in {1, 2}:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if (
+        base_value is _STATIC_VALUE_NOT_AVAILABLE
+        or not isinstance(base_value, owner_types)
+        or len(base_value) != 0
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    argument_values: list[object] = []
+    for argument_node in node.args:
+        argument_value = resolve_value(argument_node)
+        if argument_value is _STATIC_VALUE_NOT_AVAILABLE:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        argument_values.append(argument_value)
+    method = getattr(base_value, node.func.attr, None)
+    if method is None:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        result = method(*argument_values)
+    except (TypeError, ValueError, AttributeError) as error:
+        if isinstance(error, (TypeError, ValueError, AttributeError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable padding method evaluation branch")
+    if _runtime_value_is_silent_fallback(result):
+        return result
+    return _STATIC_VALUE_NOT_AVAILABLE
 
 
 
@@ -1453,6 +1498,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_format_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_format_map_value
+    empty_padding_value = _try_evaluate_statically_empty_padding_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_padding_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_padding_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -2035,6 +2086,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_format_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_format_map_value
+    empty_padding_value = _try_evaluate_statically_empty_padding_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_padding_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_padding_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
