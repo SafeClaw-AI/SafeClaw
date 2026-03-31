@@ -436,8 +436,8 @@ def _runtime_value_is_statically_empty_iterable(value: object) -> bool:
 
 
 
-def _runtime_value_is_trackable_silent_fallback_assignment_value(value: object) -> bool:
-    return _runtime_value_is_silent_fallback(value) or value is _STATIC_EMPTY_ITERATOR_VALUE
+def _runtime_value_is_trackable_known_name_assignment_value(value: object) -> bool:
+    return value is not _STATIC_VALUE_NOT_AVAILABLE
 
 
 
@@ -795,6 +795,29 @@ def _try_evaluate_statically_empty_format_method_value(node: ast.Call, resolve_v
         if isinstance(error, (IndexError, KeyError, TypeError, ValueError, AttributeError)):
             return _STATIC_VALUE_NOT_AVAILABLE
         raise AssertionError("unreachable format method evaluation branch")
+
+
+
+def _try_evaluate_statically_empty_format_map_method_value(node: ast.Call, resolve_value) -> object:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr != "format_map"
+        or node.keywords
+        or len(node.args) != 1
+    ):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    base_value = resolve_value(node.func.value)
+    if base_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(base_value, str) or len(base_value) != 0:
+        return _STATIC_VALUE_NOT_AVAILABLE
+    mapping_value = resolve_value(node.args[0])
+    if mapping_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(mapping_value, dict):
+        return _STATIC_VALUE_NOT_AVAILABLE
+    try:
+        return base_value.format_map(mapping_value)
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
+        if isinstance(error, (KeyError, TypeError, ValueError, AttributeError)):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        raise AssertionError("unreachable format_map method evaluation branch")
 
 
 
@@ -1424,6 +1447,12 @@ def _try_evaluate_static_expression_value(node: ast.expr | None) -> object:
     )
     if empty_format_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_format_value
+    empty_format_map_value = _try_evaluate_statically_empty_format_map_method_value(
+        node,
+        _try_evaluate_static_expression_value,
+    )
+    if empty_format_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_format_map_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         _try_evaluate_static_expression_value,
@@ -1997,6 +2026,15 @@ def _try_resolve_known_name_silent_fallback_runtime_value(
     )
     if empty_format_value is not _STATIC_VALUE_NOT_AVAILABLE:
         return empty_format_value
+    empty_format_map_value = _try_evaluate_statically_empty_format_map_method_value(
+        node,
+        lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
+            expression,
+            known_name_values,
+        ),
+    )
+    if empty_format_map_value is not _STATIC_VALUE_NOT_AVAILABLE:
+        return empty_format_map_value
     empty_fromhex_value = _try_evaluate_statically_empty_fromhex_classmethod_value(
         node,
         lambda expression: _try_resolve_known_name_silent_fallback_runtime_value(
@@ -2182,7 +2220,7 @@ def _is_assignment_then_same_name_return_silent_fallback(body: list[ast.stmt]) -
             assignment_value,
             known_name_values,
         )
-        if not _runtime_value_is_trackable_silent_fallback_assignment_value(runtime_value):
+        if not _runtime_value_is_trackable_known_name_assignment_value(runtime_value):
             return False
         for assignment_target_name in assignment_target_names:
             known_name_values[assignment_target_name] = runtime_value
