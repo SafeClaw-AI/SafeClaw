@@ -725,13 +725,18 @@ def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_va
         not isinstance(node.func, ast.Attribute)
         or node.func.attr not in {"encode", "decode"}
         or len(node.args) not in {0, 1, 2}
-        or len(node.keywords) > 1
+        or len(node.keywords) > 2
     ):
         return _STATIC_VALUE_NOT_AVAILABLE
-    encoding_keyword = node.keywords[0] if node.keywords else None
-    if encoding_keyword is not None and encoding_keyword.arg != "encoding":
-        return _STATIC_VALUE_NOT_AVAILABLE
-    if len(node.args) == 0 and encoding_keyword is None:
+    keyword_values: dict[str, str] = {}
+    for keyword in node.keywords:
+        if keyword.arg not in {"encoding", "errors"} or keyword.arg in keyword_values:
+            return _STATIC_VALUE_NOT_AVAILABLE
+        keyword_value = resolve_value(keyword.value)
+        if keyword_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(keyword_value, str):
+            return _STATIC_VALUE_NOT_AVAILABLE
+        keyword_values[keyword.arg] = keyword_value
+    if len(node.args) == 0 and not keyword_values:
         return _STATIC_VALUE_NOT_AVAILABLE
     base_value = resolve_value(node.func.value)
     if base_value is _STATIC_VALUE_NOT_AVAILABLE:
@@ -748,12 +753,6 @@ def _try_evaluate_statically_empty_codec_method_value(node: ast.Call, resolve_va
         if argument_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(argument_value, str):
             return _STATIC_VALUE_NOT_AVAILABLE
         argument_values.append(argument_value)
-    keyword_values: dict[str, str] = {}
-    if encoding_keyword is not None:
-        encoding_value = resolve_value(encoding_keyword.value)
-        if encoding_value is _STATIC_VALUE_NOT_AVAILABLE or not isinstance(encoding_value, str):
-            return _STATIC_VALUE_NOT_AVAILABLE
-        keyword_values[encoding_keyword.arg] = encoding_value
     evaluation_base_value = _copy_runtime_value_for_zero_arg_method_evaluation(base_value)
     method = getattr(evaluation_base_value, node.func.attr, None)
     if method is None:
