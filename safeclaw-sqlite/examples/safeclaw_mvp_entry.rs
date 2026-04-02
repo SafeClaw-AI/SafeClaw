@@ -9,7 +9,7 @@ use rusqlite::{Connection, OptionalExtension};
 use safeclaw_core::{
     ConfirmationAction, HibernationAction,
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
         ProbeMode,
     },
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask, TaskOrchestrator},
@@ -39,6 +39,7 @@ fn main() -> Result<(), String> {
     match args.action {
         CliAction::Run => run_action(&args),
         CliAction::ArchiveNote => archive_note_action(&args),
+        CliAction::Undo => undo_action(&args),
         CliAction::Report => report_action(&args),
         CliAction::Status => status_action(&args),
         CliAction::SeedCrash => seed_crash_action(&args),
@@ -185,6 +186,50 @@ fn status_action(args: &CliArgs) -> Result<(), String> {
     .map_err(|error| format!("{error:?}"))?;
 
     print_runtime_status(&service, args, "status", &task_id, &effect_id)
+}
+
+fn undo_action(args: &CliArgs) -> Result<(), String> {
+    let (task_id, effect_id) = resolve_status_target(args)?;
+    let mut store = SqliteRuntimeStore::new(
+        open_database(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?,
+    );
+    let mut runtime = store
+        .load_runtime(&task_id, &effect_id)
+        .map_err(|error| format!("{error:?}"))?
+        .ok_or_else(|| format!("missing runtime for task={task_id} effect={effect_id}"))?;
+    let output_path = resolve_runtime_output_path(&runtime.effect, &args.output_path);
+    if !output_path.exists() {
+        return Err(format!("undo target missing at {}", render_user_path(&output_path)));
+    }
+
+    let summary = runtime
+        .rollback_executed_effect()
+        .map_err(|error| format!("{error:?}"))?;
+    fs::remove_file(&output_path).map_err(|error| error.to_string())?;
+    store
+        .persist_runtime(
+            &runtime,
+            format!("safeclaw-mvp:{effect_id}:undo"),
+            "safeclaw-mvp-entry",
+        )
+        .map_err(|error| format!("{error:?}"))?;
+
+    let service = SqliteWorkerService::open(
+        &args.db_path,
+        SqliteOpenOptions::default(),
+        args.owner_id.clone(),
+    )
+    .map_err(|error| format!("{error:?}"))?;
+    println!("[mvp] undo target => task={task_id} effect={effect_id}");
+    println!(
+        "[mvp] undo result => worker={:?} effect={:?} compensation={}",
+        summary.worker_state,
+        summary.effect_status,
+        summary.compensation_count
+    );
+    println!("[mvp] undo removed => {}", render_user_path(&output_path));
+    print_runtime_status(&service, args, "undo", &task_id, &effect_id)
 }
 
 fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
@@ -657,6 +702,7 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
 enum CliAction {
     Run,
     ArchiveNote,
+    Undo,
     Report,
     Status,
     SeedCrash,
@@ -753,6 +799,10 @@ impl CliArgs {
                     action = CliAction::ArchiveNote;
                     action_set = true;
                 }
+                "undo" if !action_set => {
+                    action = CliAction::Undo;
+                    action_set = true;
+                }
                 "report" if !action_set => {
                     action = CliAction::Report;
                     action_set = true;
@@ -837,6 +887,18 @@ impl CliArgs {
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-archive-note-{unique}"));
                 (db_path, output_path, task_id)
             }
+            CliAction::Undo => {
+                let db_path = db_path.ok_or_else(|| {
+                    format!("{} requires --db\n\n{}", action_name(action), usage_text())
+                })?;
+                let output_path = output_path.unwrap_or_else(|| {
+                    db_path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join("output.txt")
+                });
+                (db_path, output_path, task_id.unwrap_or_default())
+            }
             CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Resume | CliAction::Reconcile => {
                 let db_path = db_path.ok_or_else(|| {
                     format!("{} requires --db\n\n{}", action_name(action), usage_text())
@@ -895,6 +957,7 @@ fn action_name(action: CliAction) -> &'static str {
     match action {
         CliAction::Run => "run",
         CliAction::ArchiveNote => "archive-note",
+        CliAction::Undo => "undo",
         CliAction::Report => "report",
         CliAction::Status => "status",
         CliAction::SeedCrash => "seed-crash",
@@ -1018,7 +1081,7 @@ fn sanitize_archive_note_name(value: &str) -> Result<String, String> {
 }
 
 fn usage_text() -> &'static str {
-    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | archive-note [--reset] [--db <path>] --archive-root <path> --archive-date <YYYY-MM-DD> --archive-name <name> [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | seed-hibernated [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | resume --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
+    "usage: cargo run -p safeclaw-sqlite --example safeclaw_mvp_entry -- [run [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | archive-note [--reset] [--db <path>] --archive-root <path> --archive-date <YYYY-MM-DD> --archive-name <name> [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | undo --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | report --db <path> --task-id <id> [--output <path>] [--owner-id <id>] [--effect-id <id>] | status --db <path> [--task-id <id>] [--output <path>] [--owner-id <id>] [--effect-id <id>] | seed-crash [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | seed-hibernated [--reset] [--probe-mode <auto|none>] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | recover --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | seed-failed [--reset] [--db <path>] [--output <path>] [--content <text>] [--task-id <id>] [--owner-id <id>] [--effect-id <id>] | retry --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | resume --db <path> --task-id <id> [--output <path>] [--content <text>] [--owner-id <id>] [--effect-id <id>] | reconcile --db <path> --task-id <id> --decision <executed|not-executed> [--output <path>] [--owner-id <id>] [--effect-id <id>]]"
 }
 
 fn print_usage() {
@@ -1054,6 +1117,7 @@ fn print_runtime_status(
         .load_runtime(task_id, effect_id)
         .map_err(|error| format!("{error:?}"))?
         .ok_or_else(|| format!("missing runtime for task={task_id} effect={effect_id}"))?;
+    let resolved_output_path = resolve_runtime_output_path(&runtime.effect, &args.output_path);
     print_readable_operation_bill(&runtime);
 
     let snapshot = service
@@ -1062,9 +1126,9 @@ fn print_runtime_status(
         .ok_or_else(|| format!("missing diagnostic snapshot for task={task_id} effect={effect_id}"))?;
     println!("[mvp] diagnostic => {}", snapshot.render_line());
     print_snapshot(label, service.queue_snapshot());
-    print_output_state(&args.output_path)?;
+    print_output_state(&resolved_output_path)?;
     println!("[mvp] db: {}", args.db_path.display());
-    println!("[mvp] output: {}", args.output_path.display());
+    println!("[mvp] output: {}", render_user_path(&resolved_output_path));
     println!("[mvp] owner: {}", args.owner_id);
     Ok(())
 }
@@ -1073,14 +1137,17 @@ fn print_readable_operation_bill(runtime: &InMemoryTaskRuntime) {
     let tracked_operation_count = 1 + runtime.compensation_effects.len();
     println!("[mvp] 操作账单 => 已记录 {tracked_operation_count} 个操作");
     println!(
-        "[mvp] 账单条目 => {} {}（{}）",
-        render_effect_action_label(runtime.effect.action),
-        render_effect_target(&runtime.effect.target),
-        render_effect_reversibility_label(runtime.effect.reversibility)
+        "[mvp] 账单条目 => {}",
+        render_effect_bill_entry(
+            runtime.effect.action,
+            &runtime.effect.target,
+            runtime.effect.reversibility,
+            runtime.effect.status,
+        )
     );
     println!(
         "[mvp] 账单撤销能力 => {}",
-        render_effect_undo_hint(runtime.effect.reversibility)
+        render_effect_undo_hint(runtime.effect.reversibility, runtime.effect.status)
     );
 }
 
@@ -1112,6 +1179,20 @@ fn render_user_path(path: &Path) -> String {
     path.display().to_string().replace('\\', "/")
 }
 
+fn resolve_runtime_output_path(effect: &EffectRecord, fallback: &Path) -> PathBuf {
+    match effect.action {
+        EffectAction::FileWrite | EffectAction::FileDelete | EffectAction::FileMove => {
+            let target = effect.target.strip_prefix("scope:").unwrap_or(&effect.target);
+            if target.is_empty() {
+                fallback.to_path_buf()
+            } else {
+                PathBuf::from(target)
+            }
+        }
+        _ => fallback.to_path_buf(),
+    }
+}
+
 fn render_effect_reversibility_label(reversibility: EffectReversibility) -> &'static str {
     match reversibility {
         EffectReversibility::Rollbackable => "可撤销",
@@ -1120,11 +1201,41 @@ fn render_effect_reversibility_label(reversibility: EffectReversibility) -> &'st
     }
 }
 
-fn render_effect_undo_hint(reversibility: EffectReversibility) -> &'static str {
-    match reversibility {
-        EffectReversibility::Rollbackable => "可撤销，但用户级 undo 入口待接入",
-        EffectReversibility::Compensatable => "可补偿，但用户级 undo 入口待接入",
-        EffectReversibility::Irreversible => "当前操作不可撤销",
+fn render_effect_bill_entry(
+    action: EffectAction,
+    target: &str,
+    reversibility: EffectReversibility,
+    status: EffectStatus,
+) -> String {
+    match status {
+        EffectStatus::RolledBack => format!(
+            "已撤销 {} {}（已回滚）",
+            render_effect_action_label(action),
+            render_effect_target(target)
+        ),
+        EffectStatus::Compensated => format!(
+            "已补偿 {} {}（已补偿）",
+            render_effect_action_label(action),
+            render_effect_target(target)
+        ),
+        _ => format!(
+            "{} {}（{}）",
+            render_effect_action_label(action),
+            render_effect_target(target),
+            render_effect_reversibility_label(reversibility)
+        ),
+    }
+}
+
+fn render_effect_undo_hint(reversibility: EffectReversibility, status: EffectStatus) -> &'static str {
+    match status {
+        EffectStatus::RolledBack => "已撤销，无需再次 undo",
+        EffectStatus::Compensated => "已补偿，无需再次 undo",
+        _ => match reversibility {
+            EffectReversibility::Rollbackable => "可撤销，输入 undo 可恢复现场",
+            EffectReversibility::Compensatable => "可补偿，输入 undo 可恢复现场",
+            EffectReversibility::Irreversible => "当前操作不可撤销",
+        },
     }
 }
 
@@ -1366,5 +1477,27 @@ mod tests {
         .expect_err("archive-note should validate archive date");
 
         assert!(error.contains("archive-note requires --archive-date <YYYY-MM-DD>"));
+    }
+
+    #[test]
+    fn parse_undo_preserves_archive_task_context() {
+        let args = CliArgs::parse(vec![
+            "undo".into(),
+            "--db".into(),
+            "target/test-archive-note/session.db".into(),
+            "--task-id".into(),
+            "task-test-archive-note".into(),
+            "--output".into(),
+            "target/test-archive-note/archive/2026-04/2026-04-01-weekly-standup.md".into(),
+        ])
+        .expect("undo args should parse");
+
+        assert_eq!(args.action, CliAction::Undo);
+        assert_eq!(args.db_path, PathBuf::from("target/test-archive-note/session.db"));
+        assert_eq!(args.task_id, "task-test-archive-note");
+        assert_eq!(
+            args.output_path,
+            PathBuf::from("target/test-archive-note/archive/2026-04/2026-04-01-weekly-standup.md")
+        );
     }
 }

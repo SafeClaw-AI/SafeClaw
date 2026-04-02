@@ -17,7 +17,10 @@
 
 ## Recommended Operator Path
 
+- This README is mainly for maintenance-layer MVP flow.
+- If you only want the owner-only personal MVP loop, read `tools/mvp/PERSONAL_MVP_PLAYBOOK.md` first and prefer the deployed production entry there.
 - See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
+- If you want a rollbackable personal production slot for that loop, run `python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy`.
 - Normal path first: `workspace --name demo -> doctor -> service-run --report`.
 - `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
 - Optional explicit offline gate: `preflight --action service-run` before executing the local flow; `preflight --action ai-reason` now demonstrates the provider-unavailable deny path in the current local-only MVP; `service-status` also mirrors that same fact as a top-level `offline_gate` summary so operators can see it without running preflight first; common wrapper / session actions auto-infer permission context from remembered session / workspace / default output, add `--scope demo.workspace` / `--write` / `--doctor-bypass` to override, add `--enforce-permission` when scripts should fail closed on `confirm` / `deny`, and add `--preflight-action ai-reason` to a combo command when you want that combo to reuse the provider-unavailable gate contract, keep `error.details.preflight.error_code` stable, surface top-level `error.code=preflight-blocked` plus optional top-level `error.error_code=<preflight_error_code>` / `error.degradation_mode=<degradation_mode>` / `error.requires_model=<requires_model>` / `error.requires_sidecar=<requires_sidecar>` and top-level `error.reason=<preflight_reason>` / `error.summary=<preflight_summary>` / `error.requested_action=<preflight_requested_action>`, and expose shallow shortcuts like `error.details.preflight_requested_action` / `preflight_reason` / `preflight_summary` / `preflight_error_code`.

@@ -327,6 +327,10 @@ class ReferenceRedlinesCheckTest(unittest.TestCase):
             "SystemError",
             "json.JSONDecodeError",
             "subprocess.TimeoutExpired",
+            "FileNotFoundError",
+            "PermissionError",
+            "UnicodeDecodeError",
+            "UnicodeEncodeError",
         )
         silent_fallback_expected = context_required_expected + ("ValueError", "TypeError")
         self.assertEqual(SILENT_FALLBACK_EXCEPTION_TYPE_ORDER, silent_fallback_expected)

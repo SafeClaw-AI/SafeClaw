@@ -475,6 +475,23 @@ impl InMemoryTaskRuntime {
         Ok(self.summary())
     }
 
+    pub fn rollback_executed_effect(&mut self) -> Result<RunSummary, RuntimeError> {
+        if self.worker_state != WorkerState::Succeeded || self.effect.status != EffectStatus::Executed {
+            return Err(RuntimeError::ReconcileUnavailable {
+                state: self.worker_state,
+                effect_status: self.effect.status,
+            });
+        }
+
+        self.apply_rollback_effect_transition(
+            WorkerEvent::UserRollback,
+            "doctor",
+            "user_requested_rollback",
+            "user_requested_compensation",
+        )?;
+        Ok(self.summary())
+    }
+
     pub fn run_persist_error_recovery(
         &mut self,
         preflight: PreflightDecision,
@@ -690,22 +707,38 @@ impl InMemoryTaskRuntime {
     }
 
     fn recover_failed_commit(&mut self) -> Result<(), RuntimeError> {
+        self.apply_rollback_effect_transition(
+            WorkerEvent::AutoRollback,
+            "worker",
+            "auto_rollback_after_persist_error",
+            "compensation_applied",
+        )
+    }
+
+    fn apply_rollback_effect_transition(
+        &mut self,
+        rollback_event: WorkerEvent,
+        rollback_triggered_by: &str,
+        rollback_reason: &str,
+        compensation_reason: &str,
+    ) -> Result<(), RuntimeError> {
         match self.effect.reversibility {
             effect_ledger::EffectReversibility::Rollbackable => {
-                self.apply_worker_event(WorkerEvent::AutoRollback)?;
+                self.apply_worker_event(rollback_event)?;
                 self.effect.transition_to(
                     EffectStatus::RolledBack,
                     self.timestamp(),
-                    "worker",
-                    "auto_rollback_after_persist_error",
+                    rollback_triggered_by,
+                    rollback_reason,
                 )?;
                 self.apply_worker_event(WorkerEvent::RollbackOk)?;
             }
             effect_ledger::EffectReversibility::Compensatable => {
-                self.apply_worker_event(WorkerEvent::AutoRollback)?;
+                self.apply_worker_event(rollback_event)?;
+                let compensation_suffix = self.compensation_effects.len() + 1;
                 let compensation = self.effect.spawn_compensation(
-                    format!("{}-comp", self.effect.effect_id),
-                    format!("{}-comp", self.effect.intent_key),
+                    format!("{}-comp-{compensation_suffix}", self.effect.effect_id),
+                    format!("{}-comp-{compensation_suffix}", self.effect.intent_key),
                     effect_ledger::EffectActor::Doctor,
                     self.effect.action,
                     self.effect.target.clone(),
@@ -730,12 +763,15 @@ impl InMemoryTaskRuntime {
                     EffectStatus::Compensated,
                     self.timestamp(),
                     "doctor",
-                    "compensation_applied",
+                    compensation_reason,
                 )?;
                 self.apply_worker_event(WorkerEvent::RollbackOk)?;
             }
             effect_ledger::EffectReversibility::Irreversible => {
-                self.apply_worker_event(WorkerEvent::UserAbandon)?;
+                return Err(RuntimeError::ReconcileUnavailable {
+                    state: self.worker_state,
+                    effect_status: self.effect.status,
+                });
             }
         }
         Ok(())
@@ -1296,6 +1332,50 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::RolledBack);
         assert_eq!(summary.effect_status, EffectStatus::RolledBack);
         assert_eq!(summary.compensation_count, 0);
+    }
+
+    #[test]
+    fn succeeded_runtime_can_user_rollback_executed_effect() {
+        let mut runtime = demo_runtime(ProbeMode::Auto);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+            .unwrap();
+
+        let summary = runtime.rollback_executed_effect().unwrap();
+
+        assert_eq!(summary.worker_state, WorkerState::RolledBack);
+        assert_eq!(summary.effect_status, EffectStatus::RolledBack);
+        assert_eq!(summary.compensation_count, 0);
+    }
+
+    #[test]
+    fn succeeded_compensatable_runtime_can_user_rollback_with_compensation() {
+        let effect = EffectRecord::new(
+            "effect-compensatable-user-rollback",
+            "task-compensatable-user-rollback",
+            "trace-compensatable-user-rollback",
+            "intent-compensatable-user-rollback",
+            EffectActor::Worker,
+            EffectAction::FileWrite,
+            "scope:/tmp/user-rollback-compensatable.txt",
+            EffectTier::Tier1,
+            EffectReversibility::Compensatable,
+            ProbeMode::Auto,
+        );
+        let mut runtime = InMemoryTaskRuntime::new(effect);
+        runtime
+            .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Commit)
+            .unwrap();
+
+        let summary = runtime.rollback_executed_effect().unwrap();
+
+        assert_eq!(summary.worker_state, WorkerState::RolledBack);
+        assert_eq!(summary.effect_status, EffectStatus::Compensated);
+        assert_eq!(summary.compensation_count, 1);
+        assert_eq!(
+            runtime.compensation_effects[0].compensates_effect_id,
+            Some(String::from("effect-compensatable-user-rollback"))
+        );
     }
 
     #[test]

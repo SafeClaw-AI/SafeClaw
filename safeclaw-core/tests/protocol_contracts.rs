@@ -104,13 +104,16 @@ fn worker_retry_guards_and_spec_bindings_are_explicit() {
 
 #[test]
 fn worker_transition_table_covers_full_spec_paths() {
-    assert_eq!(TRANSITIONS.len(), 35);
+    assert_eq!(TRANSITIONS.len(), 36);
 
     let accepted = transition_for(WorkerEvent::TaskAccepted, WorkerState::Created).unwrap();
     assert_eq!(accepted.to, WorkerState::Planning);
 
     let persisted = transition_for(WorkerEvent::ResultsPersisted, WorkerState::Committing).unwrap();
     assert_eq!(persisted.to, WorkerState::Succeeded);
+
+    let user_rollback = transition_for(WorkerEvent::UserRollback, WorkerState::Succeeded).unwrap();
+    assert_eq!(user_rollback.to, WorkerState::RollingBack);
 }
 
 #[test]

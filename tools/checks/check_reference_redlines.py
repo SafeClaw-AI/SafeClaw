@@ -31,6 +31,10 @@ CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER = (
     "SystemError",
     "json.JSONDecodeError",
     "subprocess.TimeoutExpired",
+    "FileNotFoundError",
+    "PermissionError",
+    "UnicodeDecodeError",
+    "UnicodeEncodeError",
 )
 SILENT_FALLBACK_EXCEPTION_TYPE_ORDER = CONTEXT_REQUIRED_EXCEPTION_TYPE_ORDER + (
     "ValueError",

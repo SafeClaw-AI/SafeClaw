@@ -144,15 +144,24 @@ SafeClaw 还在很早期。
 目前还没有正式 GUI，也还不是“开箱即用的产品”。  
 但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动完成最小闭环。
 
-- 推荐入口：`safeclaw.cmd`
-- PowerShell 入口：`safeclaw.ps1`
-- 底层 wrapper：`tools/mvp/safeclaw_mvp.cmd`
+- 如果只给仓库主人自己先快速用，请先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` 或 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
+- `safeclaw.cmd`
+- `safeclaw.ps1`
+- `tools/mvp/safeclaw_mvp.cmd`
 - 完整命令参考：`tools/mvp/README.md`
 - 本机日用白名单：`tools/mvp/OPERATOR_PLAYBOOK.md`
 
 ### 最短上手路径
 
-第一次体验时，建议先固定一个 workspace，再做环境检查与正常执行：
+如果你只是想明早直接用，请先走个人生产位最短路径：
+
+```bat
+%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd status
+%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd archive-note --name "Morning Note" --content "先跑一轮"
+%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd undo
+```
+
+如果你是在维护、排障或继续开发，再走维护层路径：
 
 ```bat
 safeclaw.cmd workspace --name demo

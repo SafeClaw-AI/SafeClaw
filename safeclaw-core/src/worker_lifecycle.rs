@@ -63,7 +63,7 @@ pub enum WorkerEvent {
     PersistError,
     /// spec: EV_AUTO_ROLLBACK
     AutoRollback,
-    /// spec: EV_USER_ROLLBACK
+    /// spec: EV_USER_ROLLBACK_FAILED / EV_USER_ROLLBACK_SUCCEEDED
     UserRollback,
     /// spec: EV_USER_RETRY
     UserRetry,
@@ -117,7 +117,7 @@ pub const TERMINAL_STATES: [WorkerState; 4] = [
     WorkerState::Closed,
 ];
 
-pub const TRANSITIONS: [Transition; 35] = [
+pub const TRANSITIONS: [Transition; 36] = [
     Transition {
         event: WorkerEvent::TaskAccepted,
         from: WorkerState::Created,
@@ -251,6 +251,12 @@ pub const TRANSITIONS: [Transition; 35] = [
         guards: &[],
     },
     Transition {
+        event: WorkerEvent::UserRollback,
+        from: WorkerState::Succeeded,
+        to: WorkerState::RollingBack,
+        guards: &[],
+    },
+    Transition {
         event: WorkerEvent::UserRetry,
         from: WorkerState::Failed,
         to: WorkerState::Planning,
@@ -359,7 +365,7 @@ mod tests {
 
     #[test]
     fn full_transition_table_matches_spec_count() {
-        assert_eq!(TRANSITIONS.len(), 35);
+        assert_eq!(TRANSITIONS.len(), 36);
     }
 
     #[test]
@@ -453,6 +459,12 @@ mod tests {
                 .unwrap()
                 .guards,
             &RECONCILE_GUARD
+        );
+        assert!(
+            transition_for(WorkerEvent::UserRollback, WorkerState::Succeeded)
+                .unwrap()
+                .guards
+                .is_empty()
         );
     }
 

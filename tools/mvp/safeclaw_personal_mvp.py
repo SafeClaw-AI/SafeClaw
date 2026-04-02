@@ -1,0 +1,303 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+from datetime import date, datetime
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TOOLCHAIN = "stable-x86_64-pc-windows-gnu"
+LINKER = (
+    r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
+    r"WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\x86_64-w64-mingw32-gcc.exe"
+)
+PROFILE_ROOT_ENV = "SAFECLAW_PERSONAL_ROOT"
+DEFAULT_PROFILE_ROOT = Path(
+    os.environ.get(PROFILE_ROOT_ENV) or (Path.home() / ".safeclaw-personal")
+).expanduser()
+STATE_DIR = DEFAULT_PROFILE_ROOT / "state"
+ARCHIVE_ROOT = DEFAULT_PROFILE_ROOT / "archive"
+DB_PATH = STATE_DIR / "session.db"
+LAST_NOTE_FILE = STATE_DIR / "last_note.json"
+ENTRY_COMMAND_ENV = "SAFECLAW_PERSONAL_ENTRY_COMMAND"
+ENTRY_COMMAND = os.environ.get(ENTRY_COMMAND_ENV) or r"tools\mvp\safeclaw_personal_mvp.cmd"
+DEFAULT_OWNER_ID = "safeclaw-personal"
+
+
+def render_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def sanitize_note_name(value: str) -> str:
+    sanitized: list[str] = []
+    previous_dash = False
+    for character in value.strip():
+        if "a" <= character <= "z" or "0" <= character <= "9":
+            normalized = character
+        elif "A" <= character <= "Z":
+            normalized = character.lower()
+        elif character in {" ", "-", "_"}:
+            normalized = "-"
+        elif character.isascii() and character.isalnum():
+            normalized = character.lower()
+        else:
+            normalized = None
+        if normalized is None:
+            continue
+        if normalized == "-":
+            if previous_dash:
+                continue
+            previous_dash = True
+        else:
+            previous_dash = False
+        sanitized.append(normalized)
+    return "".join(sanitized).strip("-")
+
+
+def validate_archive_date(value: str) -> str:
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("--date requires YYYY-MM-DD") from error
+    return value
+
+
+def build_archive_output_path(archive_root: Path, archive_date: str, note_name: str) -> Path:
+    archive_slug = sanitize_note_name(note_name)
+    if not archive_slug:
+        raise ValueError("archive-note requires --name")
+    month_scope = archive_date[:7]
+    return archive_root / month_scope / f"{archive_date}-{archive_slug}.md"
+
+
+def build_task_id(note_name: str, now: datetime) -> str:
+    archive_slug = sanitize_note_name(note_name)
+    if not archive_slug:
+        raise ValueError("archive-note requires --name")
+    timestamp = now.strftime("%Y%m%d-%H%M%S")
+    return f"task-safeclaw-personal-{timestamp}-{archive_slug}"
+
+
+def build_archive_note_command(
+    note_name: str,
+    archive_date: str,
+    content: str,
+    task_id: str,
+) -> list[str]:
+    return [
+        "cargo",
+        f"+{TOOLCHAIN}",
+        "run",
+        "-p",
+        "safeclaw-sqlite",
+        "--example",
+        "safeclaw_mvp_entry",
+        "--quiet",
+        "--",
+        "archive-note",
+        "--db",
+        str(DB_PATH),
+        "--archive-root",
+        str(ARCHIVE_ROOT),
+        "--archive-date",
+        archive_date,
+        "--archive-name",
+        note_name,
+        "--content",
+        content,
+        "--task-id",
+        task_id,
+        "--owner-id",
+        DEFAULT_OWNER_ID,
+    ]
+
+
+def build_undo_command(task_id: str) -> list[str]:
+    return [
+        "cargo",
+        f"+{TOOLCHAIN}",
+        "run",
+        "-p",
+        "safeclaw-sqlite",
+        "--example",
+        "safeclaw_mvp_entry",
+        "--quiet",
+        "--",
+        "undo",
+        "--db",
+        str(DB_PATH),
+        "--task-id",
+        task_id,
+        "--owner-id",
+        DEFAULT_OWNER_ID,
+    ]
+
+
+def ensure_profile_dirs() -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    ARCHIVE_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def load_last_note() -> dict[str, str] | None:
+    if not LAST_NOTE_FILE.exists():
+        return None
+    payload = json.loads(LAST_NOTE_FILE.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid last note file: {LAST_NOTE_FILE}")
+    return {key: str(value) for key, value in payload.items()}
+
+
+def save_last_note(payload: dict[str, str]) -> None:
+    ensure_profile_dirs()
+    LAST_NOTE_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def build_cargo_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", LINKER)
+    return env
+
+
+def run_checked(command: list[str]) -> int:
+    cargo_path = shutil.which("cargo")
+    if cargo_path is None:
+        print("[personal] missing cargo in PATH")
+        return 1
+    if not Path(LINKER).exists():
+        print(f"[personal] missing GNU linker => {LINKER}")
+        return 1
+    completed = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=build_cargo_env(),
+        check=False,
+    )
+    return completed.returncode
+
+
+def read_content(args: argparse.Namespace) -> str:
+    if args.content is not None:
+        return args.content
+    if args.content_file is not None:
+        return Path(args.content_file).read_text(encoding="utf-8")
+    raise ValueError("archive-note requires --content or --content-file")
+
+
+def run_archive_note(args: argparse.Namespace) -> int:
+    ensure_profile_dirs()
+    archive_date = args.date or date.today().isoformat()
+    note_name = args.name.strip()
+    if not note_name:
+        print("[personal] archive-note requires --name")
+        return 1
+    try:
+        content = read_content(args)
+        task_id = build_task_id(note_name, datetime.now())
+        output_path = build_archive_output_path(ARCHIVE_ROOT, archive_date, note_name)
+    except ValueError as error:
+        print(f"[personal] {error}")
+        return 1
+    exit_code = run_checked(build_archive_note_command(note_name, archive_date, content, task_id))
+    if exit_code != 0:
+        return exit_code
+    save_last_note(
+        {
+            "task_id": task_id,
+            "archive_date": archive_date,
+            "archive_name": note_name,
+            "archive_output": str(output_path),
+            "db_path": str(DB_PATH),
+            "archive_root": str(ARCHIVE_ROOT),
+            "owner_id": DEFAULT_OWNER_ID,
+            "entry": ENTRY_COMMAND,
+        }
+    )
+    print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
+    print(f"[personal] last note => task={task_id} output={render_path(output_path)}")
+    print(f"[personal] next => {ENTRY_COMMAND} undo")
+    return 0
+
+
+def run_undo(_: argparse.Namespace) -> int:
+    note = load_last_note()
+    if note is None:
+        print("[personal] no last note recorded; run archive-note first")
+        return 1
+    exit_code = run_checked(build_undo_command(note["task_id"]))
+    if exit_code != 0:
+        return exit_code
+    updated_note = dict(note)
+    updated_note["undone_at"] = datetime.now().isoformat(timespec="seconds")
+    save_last_note(updated_note)
+    output_path = Path(note["archive_output"])
+    print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
+    print(f"[personal] archive exists => {output_path.exists()}")
+    print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
+    return 0
+
+
+def run_status(_: argparse.Namespace) -> int:
+    ensure_profile_dirs()
+    note = load_last_note()
+    print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
+    print(f"[personal] db => {render_path(DB_PATH)}")
+    print(f"[personal] archive_root => {render_path(ARCHIVE_ROOT)}")
+    if note is None:
+        print("[personal] last note => none")
+        print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
+        return 0
+    output_path = Path(note["archive_output"])
+    print(
+        "[personal] last note => "
+        f"task={note['task_id']} name={note['archive_name']} date={note['archive_date']}"
+    )
+    print(f"[personal] archive_output => {render_path(output_path)}")
+    print(f"[personal] archive exists => {output_path.exists()}")
+    if output_path.exists():
+        print(f"[personal] next => {ENTRY_COMMAND} undo")
+    else:
+        print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="SafeClaw 个人自用最小版：只保留 archive-note / status / undo。",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    archive_note_parser = subparsers.add_parser("archive-note")
+    archive_note_parser.add_argument("--name", required=True, help="归档标题")
+    archive_note_parser.add_argument("--date", type=validate_archive_date, help="归档日期，默认今天")
+    archive_note_content = archive_note_parser.add_mutually_exclusive_group(required=True)
+    archive_note_content.add_argument("--content", help="归档内容")
+    archive_note_content.add_argument("--content-file", help="从文件读取归档内容")
+    archive_note_parser.set_defaults(handler=run_archive_note)
+
+    undo_parser = subparsers.add_parser("undo")
+    undo_parser.set_defaults(handler=run_undo)
+
+    status_parser = subparsers.add_parser("status")
+    status_parser.set_defaults(handler=run_status)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return args.handler(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

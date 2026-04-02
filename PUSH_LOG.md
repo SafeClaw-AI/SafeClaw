@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-01 01:48:36 +0800
+最后更新时间：2026-04-02 04:08:58 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -2645,3 +2645,57 @@
 - Done: Locked readable effect-bill expectations in `tools/checks/check_examples_smoke.py`, then extended `safeclaw-sqlite/examples/safeclaw_mvp_entry.rs` so the shared `report/status` output path now renders `操作账单` / `账单条目` / `账单撤销能力` from runtime effect data before the diagnostic view; this completes the first minimal `M2-P0-1` readable-bill slice and moves the current mainline to `M2-P0-2 一个真实任务场景`.
 - Verify: `python -X utf8 tools/checks/check_examples_smoke.py`, `python -X utf8 -m unittest tests.contracts.test_chancellor_panel tests.contracts.test_public_docs_check -v`, `python -X utf8 tools/checks/selfcheck.py`, `git diff --check`.
 - Commit: planned message `feat: add readable effect bill`; final hash follows HEAD.
+
+### 轮次 M2-299
+- 完成时间：2026-04-01 22:51:56 +0800
+- 完成内容：补上 `undo` 最小闭环真验收；`archive-note` 现在不仅能真实写入，还能从可读账单里看到撤销目标，并在 `undo` 后把文件完整删回去；同时把 `开发计划.md` 与 `tests/contracts/test_chancellor_panel.py` 对齐到 `M2-P0-4` 现行真相。
+- 验证内容：`cargo +stable-x86_64-pc-windows-gnu test -p safeclaw-core rollback -- --nocapture`、`cargo +stable-x86_64-pc-windows-gnu test -p safeclaw-core --test protocol_contracts worker_transition_table_covers_full_spec_paths -- --nocapture`、`cargo +stable-x86_64-pc-windows-gnu test -p safeclaw-sqlite --example safeclaw_mvp_entry --quiet`、`python -X utf8 tools/checks/check_examples_smoke.py`
+- 待提交内容：`safeclaw-core/src/worker_lifecycle.rs`、`safeclaw-sqlite/examples/safeclaw_mvp_entry.rs`、`tools/checks/check_examples_smoke.py`、`开发计划.md`、`tests/contracts/test_chancellor_panel.py`、`MVP_PROGRESS.md`、`docs/30-方案/173-V4-undo-entry-record-20260401_225156.md`、`PUSH_LOG.md`
+
+### 轮次 M2-300
+- 完成时间：2026-04-02 00:46:00 +0800
+- 完成内容：新增仓库主人自用的隔离金线入口 `tools/mvp/safeclaw_personal_mvp.py`、`tools/mvp/safeclaw_personal_mvp.cmd`、`tools/mvp/safeclaw_personal_mvp.ps1` 与 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`；把当前最小可用路径收成 `archive-note -> status -> undo`，默认落到 `%USERPROFILE%\.safeclaw-personal`，也支持 `SAFECLAW_PERSONAL_ROOT` 覆盖。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_mvp -v`、在 `SAFECLAW_PERSONAL_ROOT=target/personal-smoke` 下依次执行 `python -X utf8 tools/mvp/safeclaw_personal_mvp.py archive-note --name "Bedtime Note" --content "今晚先把最小版跑通"`、`python -X utf8 tools/mvp/safeclaw_personal_mvp.py status`、`python -X utf8 tools/mvp/safeclaw_personal_mvp.py undo`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tools/mvp/safeclaw_personal_mvp.py`、`tools/mvp/safeclaw_personal_mvp.cmd`、`tools/mvp/safeclaw_personal_mvp.ps1`、`tools/mvp/PERSONAL_MVP_PLAYBOOK.md`、`tools/mvp/README.md`、`tests/contracts/test_safeclaw_personal_mvp.py`、`docs/30-方案/174-V4-personal-mvp-goldline-launcher-record-20260402_004600.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`
+
+### 轮次 M2-301
+- 完成时间：2026-04-02 01:10:00 +0800
+- 完成内容：为个人最小版补上端到端合同 `tests/contracts/test_safeclaw_personal_mvp_cli.py`；现在首轮空状态提示、真实归档成功、以及 `undo` 后文件消失三件事都已有自动护栏。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_mvp_cli -v`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tests/contracts/test_safeclaw_personal_mvp_cli.py`、`docs/30-方案/175-V4-personal-mvp-e2e-contract-record-20260402_011000.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`
+
+### 轮次 M2-302
+- 完成时间：2026-04-02 02:03:41 +0800
+- 完成内容：新增 `tools/mvp/safeclaw_personal_deploy.py`，只做个人最小版的 `deploy / rollback / status`；现在可以把当前自用金线快照到 `%USERPROFILE%\.safeclaw-personal-production\releases\<release>\repo`，并通过稳定入口 `safeclaw-personal.cmd` / `safeclaw-personal.ps1` 使用；回滚时只切 `current_release.txt`，不碰数据目录。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy -v`、`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli -v`
+- 待提交内容：`tools/mvp/safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`tools/mvp/PERSONAL_MVP_PLAYBOOK.md`、`tools/mvp/README.md`、`开发计划.md`、`MVP_PROGRESS.md`、`docs/30-方案/176-V4-personal-mvp-deploy-slot-record-20260402_020341.md`、`PUSH_LOG.md`
+
+### 轮次 M2-303
+- 完成时间：2026-04-02 02:47:56 +0800
+- 完成内容：把部署后的稳定入口也锁成真实金线合同；`tests/contracts/test_safeclaw_personal_deploy_cli.py` 现在不只验 `status`，还会直接通过 `safeclaw-personal.cmd` 跑完整 `archive-note -> status -> undo` 回路，并锁住所有下一步提示继续指向 `safeclaw-personal.cmd`。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli.SafeclawPersonalDeployCliTest.test_deployed_launcher_runs_archive_note_status_undo_roundtrip -v`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/177-V4-deployed-personal-roundtrip-guard-record-20260402_024756.md`
+
+### 轮次 M2-304
+- 完成时间：2026-04-02 03:15:34 +0800
+- 完成内容：把“回滚不碰个人数据”锁成部署位自动合同；`tests/contracts/test_safeclaw_personal_deploy_cli.py` 现在会先用 `release-one` 通过稳定入口创建真实归档，再部署 `release-two` 后执行 `rollback`，最后确认旧发布继续能看到原文件并完成 `undo`。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli.SafeclawPersonalDeployCliTest.test_rollback_keeps_personal_data_and_old_release_can_continue -v`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/178-V4-rollback-keeps-personal-data-record-20260402_031534.md`
+
+### 轮次 M2-305
+- 完成时间：2026-04-02 03:35:05 +0800
+- 完成内容：给部署后的 `safeclaw-personal.ps1` 补上真实入口合同，发现并修复了它的路径拼接 bug；随后重新部署默认生产槽位，现在 `safeclaw-personal.ps1 status` 已能正常运行，并把下一步提示稳定指向 `safeclaw-personal.ps1`。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli.SafeclawPersonalDeployCliTest.test_deployed_powershell_launcher_status_uses_ps1_entry_prompt -v`、`powershell.exe -ExecutionPolicy Bypass -File %USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1 status`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tools/mvp/safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/179-V4-deployed-ps1-launcher-guard-record-20260402_033505.md`
+
+### 轮次 M2-306
+- 完成时间：2026-04-02 03:50:12 +0800
+- 完成内容：把部署后的 `safeclaw-personal.ps1` 也锁成完整真实回路；`tests/contracts/test_safeclaw_personal_deploy_cli.py` 现在会通过稳定 PowerShell 入口直接跑 `archive-note -> status -> undo`，并锁住所有下一步提示继续指向 `safeclaw-personal.ps1`。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli.SafeclawPersonalDeployCliTest.test_deployed_powershell_launcher_runs_archive_note_status_undo_roundtrip -v`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/180-V4-deployed-ps1-roundtrip-guard-record-20260402_035012.md`
+
+### 轮次 M2-307
+- 完成时间：2026-04-02 04:08:58 +0800
+- 完成内容：把部署后的 `safeclaw-personal.ps1` 也锁成“回滚不碰个人数据”的自动合同；`tests/contracts/test_safeclaw_personal_deploy_cli.py` 现在会通过 PowerShell 稳定入口真实创建归档、切到新发布、执行 `rollback`，再确认旧发布继续能看到原文件并完成 `undo`。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy_cli.SafeclawPersonalDeployCliTest.test_rollback_keeps_personal_data_and_old_powershell_release_can_continue -v`、`python -X utf8 tools/checks/selfcheck.py`
+- 待提交内容：`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/181-V4-deployed-ps1-rollback-data-guard-record-20260402_040858.md`

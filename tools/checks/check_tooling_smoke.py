@@ -186372,7 +186372,7 @@ def collect_errors() -> list[str]:
 
 
 
-    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-resume --task-id task-demo --limit 1 --report | service-reconcile --task-id task-demo --decision executed --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | reconcile --task-id task-demo --decision executed | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify" not in wrapper_help_output:
+    elif "[mvp-wrapper] examples => demo | recover-demo | retry-demo | service-demo | service-run --reset --limit 1 | service-run --reset --limit 1 --report | service-retry --task-id task-demo --limit 1 --report | service-recover --task-id task-demo --limit 1 --report | service-resume --task-id task-demo --limit 1 --report | service-reconcile --task-id task-demo --decision executed --limit 1 --report | service-status --limit 5 | session | sessions --limit 5 | use --index 0 | use --task-id task-demo | status --task-id task-demo | report --task-id task-demo | undo --task-id task-demo | reconcile --task-id task-demo --decision executed | forget | workspace | workspace --name demo | workspace --clear | doctor | preflight --action service-run --enforce-permission | verify" not in wrapper_help_output:
 
 
 
@@ -187140,7 +187140,7 @@ def collect_errors() -> list[str]:
 
 
 
-    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-resume/service-reconcile/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/seed-hibernated/recover/seed-failed/retry/resume/reconcile/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
+    elif "demo/recover-demo/retry-demo/service-demo/service-run/service-retry/service-recover/service-resume/service-reconcile/service-status/run/report/status/" not in wrapper_help_output or "seed-crash/seed-hibernated/recover/seed-failed/retry/resume/reconcile/undo/session/sessions/use/forget/workspace/doctor/preflight/verify" not in wrapper_help_output or "{ok, action, schema_version, result|error}" not in wrapper_help_output:
 
 
 
