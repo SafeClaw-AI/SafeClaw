@@ -110,6 +110,16 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
             status_completed.stdout,
         )
         self.assertIn("[deploy] current release => none", status_completed.stdout)
+        self.assertLess(
+            status_completed.stdout.index("[deploy] summary => 当前还没有部署版本。"),
+            status_completed.stdout.index("[deploy] root => "),
+        )
+        self.assertLess(
+            status_completed.stdout.index("[deploy] panel => "),
+            status_completed.stdout.index(
+                "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy"
+            ),
+        )
 
     def test_rollback_without_release_explains_next_step(self) -> None:
         rollback = self.run_deployer("rollback")

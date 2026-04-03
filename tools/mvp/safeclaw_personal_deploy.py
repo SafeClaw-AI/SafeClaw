@@ -295,15 +295,17 @@ def show_status(_: argparse.Namespace) -> int:
     current_release = read_current_release()
     if current_release is None:
         print_deploy_summary("当前还没有部署版本。")
-        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
     else:
         print_deploy_summary("个人生产位已有可用版本。")
-        print_deploy_next(str(STABLE_PANEL_CMD))
     print(f"[deploy] root => {DEFAULT_DEPLOY_ROOT}")
     print(f"[deploy] current release => {current_release or 'none'}")
     print(f"[deploy] releases => {len(payload['releases'])}")
     print(f"[deploy] launcher => {STABLE_CMD}")
     print(f"[deploy] panel => {STABLE_PANEL_CMD}")
+    if current_release is None:
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
+    else:
+        print_deploy_next(str(STABLE_PANEL_CMD))
     return 0
 
 
