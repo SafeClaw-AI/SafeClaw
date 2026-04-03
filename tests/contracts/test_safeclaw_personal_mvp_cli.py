@@ -50,9 +50,20 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         completed = self.run_personal("undo")
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("[personal] summary => 这次没有可撤销的最近笔记。", completed.stdout)
+        self.assertIn("[personal] no last note recorded; run archive-note first", completed.stdout)
         self.assertIn(
             "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>",
             completed.stdout,
+        )
+        self.assertLess(
+            completed.stdout.index("[personal] summary => 这次没有可撤销的最近笔记。"),
+            completed.stdout.index("[personal] no last note recorded; run archive-note first"),
+        )
+        self.assertLess(
+            completed.stdout.index("[personal] no last note recorded; run archive-note first"),
+            completed.stdout.index(
+                "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>"
+            ),
         )
 
     def test_archive_note_then_undo_roundtrip(self) -> None:
