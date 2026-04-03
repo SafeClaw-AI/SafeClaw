@@ -5,6 +5,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from queue import Queue
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -12,7 +14,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.mvp.safeclaw_personal_panel import (  # noqa: E402
     PERSONAL_PANEL_ENTRY_PATH_ENV,
+    SafeclawPersonalPanelController,
     build_archive_note_panel_arguments,
+    build_personal_panel_exception_text,
     build_personal_panel_undo_confirmation_text,
     build_personal_panel_result_text,
     build_personal_panel_progress_text,
@@ -179,6 +183,32 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("下一步：看下面原始输出，再决定怎么处理。", rendered)
         self.assertIn("【原始输出】", rendered)
         self.assertIn("unexpected failure", rendered)
+
+    def test_build_personal_panel_exception_text_guides_missing_entry(self) -> None:
+        rendered = build_personal_panel_exception_text(
+            "status",
+            FileNotFoundError("[WinError 2] 系统找不到指定的文件。"),
+            ["cmd", "/c", r"C:\missing\safeclaw-personal.cmd"],
+        )
+        self.assertIn("【查看状态】", rendered)
+        self.assertIn("结果：这次没能完成操作。", rendered)
+        self.assertIn("原因：当前入口程序找不到了。", rendered)
+        self.assertIn('下一步：先检查入口是否还在：cmd /c C:\\missing\\safeclaw-personal.cmd', rendered)
+        self.assertNotIn("【原始错误】", rendered)
+
+    def test_run_action_worker_converts_exception_to_rendered_result(self) -> None:
+        controller = object.__new__(SafeclawPersonalPanelController)
+        controller.entry_command = ["cmd", "/c", r"C:\missing\safeclaw-personal.cmd"]
+        controller.result_queue = Queue()
+        with patch(
+            "tools.mvp.safeclaw_personal_panel.run_personal_panel_action",
+            side_effect=FileNotFoundError("[WinError 2] 系统找不到指定的文件。"),
+        ):
+            SafeclawPersonalPanelController._run_action_worker(controller, "status", "", "")
+        action_name, rendered = controller.result_queue.get_nowait()
+        self.assertEqual(action_name, "status")
+        self.assertIn("结果：这次没能完成操作。", rendered)
+        self.assertIn("原因：当前入口程序找不到了。", rendered)
 
     def test_build_personal_panel_progress_text_uses_human_readable_copy(self) -> None:
         self.assertEqual(build_personal_panel_progress_text("archive-note"), "正在写入笔记，请稍等。")

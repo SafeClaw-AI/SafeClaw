@@ -266,6 +266,25 @@ def build_personal_panel_result_text(
     return "\n".join(lines)
 
 
+def build_personal_panel_exception_text(
+    action_name: str,
+    error: Exception,
+    entry_command: Sequence[str],
+) -> str:
+    lines = [f"【{get_personal_panel_action_title(action_name)}】"]
+    lines.append("结果：这次没能完成操作。")
+    if isinstance(error, FileNotFoundError):
+        lines.append("原因：当前入口程序找不到了。")
+        lines.append(f"下一步：先检查入口是否还在：{describe_personal_panel_entry_command(entry_command)}")
+        return "\n".join(lines)
+    lines.append(f"原因：程序内部执行失败（{type(error).__name__}）。")
+    lines.append("下一步：先看下面原始错误，再决定怎么处理。")
+    error_text = str(error).strip()
+    if error_text:
+        lines.extend(["", "【原始错误】", error_text])
+    return "\n".join(lines)
+
+
 def build_personal_panel_welcome_text(entry_command: Sequence[str]) -> str:
     return "\n".join(
         [
@@ -382,13 +401,16 @@ class SafeclawPersonalPanelController:
         worker.start()
 
     def _run_action_worker(self, action_name: str, note_name: str, note_content: str) -> None:
-        completed = run_personal_panel_action(
-            self.entry_command,
-            action_name,
-            note_name=note_name,
-            note_content=note_content,
-        )
-        rendered_text = build_personal_panel_result_text(action_name, completed)
+        try:
+            completed = run_personal_panel_action(
+                self.entry_command,
+                action_name,
+                note_name=note_name,
+                note_content=note_content,
+            )
+            rendered_text = build_personal_panel_result_text(action_name, completed)
+        except Exception as error:
+            rendered_text = build_personal_panel_exception_text(action_name, error, self.entry_command)
         self.result_queue.put((action_name, rendered_text))
 
     def _drain_result_queue(self) -> None:
