@@ -39,12 +39,27 @@ OPTIONAL_DEPLOY_SNAPSHOT_PATHS = (
 DEPLOY_IGNORED_DIRECTORY_NAMES = ("target", "__pycache__", ".pytest_cache")
 
 
+def render_deploy_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def print_deploy_summary(summary_text: str) -> None:
     print(f"[deploy] summary => {summary_text}")
 
 
 def print_deploy_next(next_text: str) -> None:
     print(f"[deploy] next => {next_text}")
+
+
+def print_invalid_deploy_ledger_failure() -> int:
+    ledger_path = render_deploy_path(DEPLOY_LEDGER_FILE)
+    print_deploy_summary("生产部署账本文件有问题，这次没法继续。")
+    print(f"[deploy] invalid deploy ledger => {ledger_path}")
+    print_deploy_next(f"先检查并修复 {ledger_path}，再重试当前命令。")
+    return 1
 
 
 def build_release_id() -> str:
@@ -216,8 +231,7 @@ def copy_snapshot_path(relative_path: Path, release_repo_root: Path) -> None:
     shutil.copy2(source_path, target_path)
 
 
-def append_release_record(release_id: str) -> None:
-    payload = read_ledger()
+def append_release_record(payload: dict[str, list[dict[str, str]]], release_id: str) -> None:
     payload["releases"].append(
         {
             "id": release_id,
@@ -240,6 +254,10 @@ def pick_rollback_release(releases: list[dict[str, str]], current_release: str) 
 
 def deploy_release(_: argparse.Namespace) -> int:
     ensure_deploy_dirs()
+    try:
+        payload = read_ledger()
+    except ValueError:
+        return print_invalid_deploy_ledger_failure()
     release_id = build_release_id()
     release_root = RELEASES_DIR / release_id
     release_repo_root = release_root / "repo"
@@ -264,7 +282,7 @@ def deploy_release(_: argparse.Namespace) -> int:
         ) + "\n",
         encoding="utf-8",
     )
-    append_release_record(release_id)
+    append_release_record(payload, release_id)
     write_current_release(release_id)
     write_stable_launchers()
     print_deploy_summary("个人生产位已经更新到新版本。")
@@ -278,13 +296,16 @@ def deploy_release(_: argparse.Namespace) -> int:
 
 def rollback_release(_: argparse.Namespace) -> int:
     ensure_deploy_dirs()
+    try:
+        payload = read_ledger()
+    except ValueError:
+        return print_invalid_deploy_ledger_failure()
     current_release = read_current_release()
     if current_release is None:
         print_deploy_summary("当前还没有可回滚的生产版本。")
         print("[deploy] no current release")
         print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
         return 1
-    payload = read_ledger()
     rollback_release_id = pick_rollback_release(payload["releases"], current_release)
     if rollback_release_id is None:
         print_deploy_summary("当前只有一个生产版本，还没有上一版可回滚。")
@@ -303,7 +324,10 @@ def rollback_release(_: argparse.Namespace) -> int:
 
 def show_status(_: argparse.Namespace) -> int:
     ensure_deploy_dirs()
-    payload = read_ledger()
+    try:
+        payload = read_ledger()
+    except ValueError:
+        return print_invalid_deploy_ledger_failure()
     current_release = read_current_release()
     if current_release is None:
         print_deploy_summary("当前还没有部署版本。")

@@ -35,6 +35,10 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
             check=False,
         )
 
+    def write_invalid_deploy_ledger(self) -> None:
+        TEST_DEPLOY_ROOT.mkdir(parents=True, exist_ok=True)
+        (TEST_DEPLOY_ROOT / "deployments.json").write_text("[]\n", encoding="utf-8")
+
     def run_prod_launcher(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["SAFECLAW_PERSONAL_ROOT"] = str(TEST_PERSONAL_ROOT)
@@ -121,6 +125,31 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
             second.stdout.index("[deploy] release already exists => release-one"),
             second.stdout.index("[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py status"),
         )
+
+    def test_status_with_invalid_deploy_ledger_explains_human_next_step(self) -> None:
+        self.write_invalid_deploy_ledger()
+        status_completed = self.run_deployer("status")
+        self.assertEqual(status_completed.returncode, 1, status_completed.stdout + status_completed.stderr)
+        self.assertIn("[deploy] summary => 生产部署账本文件有问题，这次没法继续。", status_completed.stdout)
+        self.assertIn("[deploy] invalid deploy ledger => target\\test-safeclaw-personal-deploy\\deployments.json", status_completed.stdout)
+        self.assertIn(
+            "[deploy] next => 先检查并修复 target\\test-safeclaw-personal-deploy\\deployments.json，再重试当前命令。",
+            status_completed.stdout,
+        )
+        self.assertEqual(status_completed.stderr, "")
+
+    def test_deploy_with_invalid_deploy_ledger_stops_before_creating_release(self) -> None:
+        self.write_invalid_deploy_ledger()
+        deploy = self.run_deployer("deploy", release_id="release-one")
+        self.assertEqual(deploy.returncode, 1, deploy.stdout + deploy.stderr)
+        self.assertIn("[deploy] summary => 生产部署账本文件有问题，这次没法继续。", deploy.stdout)
+        self.assertIn("[deploy] invalid deploy ledger => target\\test-safeclaw-personal-deploy\\deployments.json", deploy.stdout)
+        self.assertIn(
+            "[deploy] next => 先检查并修复 target\\test-safeclaw-personal-deploy\\deployments.json，再重试当前命令。",
+            deploy.stdout,
+        )
+        self.assertFalse((TEST_DEPLOY_ROOT / "releases" / "release-one").exists())
+        self.assertEqual(deploy.stderr, "")
 
     def test_status_without_release_explains_next_step(self) -> None:
         status_completed = self.run_deployer("status")
