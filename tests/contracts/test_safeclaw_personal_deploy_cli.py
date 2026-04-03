@@ -101,6 +101,27 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
         self.assertIn(f"[deploy] next => {TEST_DEPLOY_ROOT / 'safeclaw-personal-panel.cmd'}", rollback.stdout)
         self.assertEqual((TEST_DEPLOY_ROOT / "current_release.txt").read_text(encoding="utf-8").strip(), "release-one")
 
+    def test_deploy_with_existing_release_id_explains_status_next_step(self) -> None:
+        first = self.run_deployer("deploy", release_id="release-one")
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+
+        second = self.run_deployer("deploy", release_id="release-one")
+        self.assertEqual(second.returncode, 1, second.stdout + second.stderr)
+        self.assertIn("[deploy] summary => 这个版本号已经存在，这次没有重复部署。", second.stdout)
+        self.assertIn("[deploy] release already exists => release-one", second.stdout)
+        self.assertIn(
+            "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py status",
+            second.stdout,
+        )
+        self.assertLess(
+            second.stdout.index("[deploy] summary => 这个版本号已经存在，这次没有重复部署。"),
+            second.stdout.index("[deploy] release already exists => release-one"),
+        )
+        self.assertLess(
+            second.stdout.index("[deploy] release already exists => release-one"),
+            second.stdout.index("[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py status"),
+        )
+
     def test_status_without_release_explains_next_step(self) -> None:
         status_completed = self.run_deployer("status")
         self.assertEqual(status_completed.returncode, 0, status_completed.stdout + status_completed.stderr)

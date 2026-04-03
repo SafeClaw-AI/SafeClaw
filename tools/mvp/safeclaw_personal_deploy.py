@@ -245,7 +245,9 @@ def deploy_release(_: argparse.Namespace) -> int:
     release_repo_root = release_root / "repo"
     snapshot_paths = collect_personal_deploy_snapshot_paths()
     if release_root.exists():
+        print_deploy_summary("这个版本号已经存在，这次没有重复部署。")
         print(f"[deploy] release already exists => {release_id}")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py status")
         return 1
     for relative_path in snapshot_paths:
         copy_snapshot_path(relative_path, release_repo_root)
