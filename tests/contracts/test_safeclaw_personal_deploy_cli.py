@@ -125,11 +125,21 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
         rollback = self.run_deployer("rollback")
         self.assertEqual(rollback.returncode, 1, rollback.stdout + rollback.stderr)
         self.assertIn("[deploy] summary => 当前还没有可回滚的生产版本。", rollback.stdout)
+        self.assertIn("[deploy] no current release", rollback.stdout)
         self.assertIn(
             "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy",
             rollback.stdout,
         )
-        self.assertIn("[deploy] no current release", rollback.stdout)
+        self.assertLess(
+            rollback.stdout.index("[deploy] summary => 当前还没有可回滚的生产版本。"),
+            rollback.stdout.index("[deploy] no current release"),
+        )
+        self.assertLess(
+            rollback.stdout.index("[deploy] no current release"),
+            rollback.stdout.index(
+                "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy"
+            ),
+        )
 
     def test_deployed_powershell_launcher_status_uses_ps1_entry_prompt(self) -> None:
         deploy = self.run_deployer("deploy", release_id="release-ps1")

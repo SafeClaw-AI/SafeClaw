@@ -269,15 +269,15 @@ def rollback_release(_: argparse.Namespace) -> int:
     current_release = read_current_release()
     if current_release is None:
         print_deploy_summary("当前还没有可回滚的生产版本。")
-        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
         print("[deploy] no current release")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
         return 1
     payload = read_ledger()
     rollback_release_id = pick_rollback_release(payload["releases"], current_release)
     if rollback_release_id is None:
         print_deploy_summary("当前只有一个生产版本，还没有上一版可回滚。")
-        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py status")
         print("[deploy] no previous release to roll back to")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py status")
         return 1
     write_current_release(rollback_release_id)
     write_stable_launchers()
