@@ -167,17 +167,17 @@ def extract_personal_output_value(output_text: str, label: str) -> str | None:
     return None
 
 
-def build_personal_panel_error_hint(output_text: str) -> str | None:
+def resolve_personal_panel_error_guidance(output_text: str) -> tuple[str | None, str | None, str | None]:
     lowered_output = output_text.lower()
     if "no last note recorded" in lowered_output:
-        return "还没有最近笔记，先点“写笔记”。"
+        return ("这次没有可撤销的最近笔记。", "还没有最近笔记。", "先点“写笔记”。")
     if "archive-note requires --name" in lowered_output:
-        return "标题不能为空。"
+        return ("这次还没写成笔记。", "标题不能为空。", "先填标题，再点“写笔记”。")
     if "archive-note requires --content" in lowered_output:
-        return "内容不能为空。"
+        return ("这次还没写成笔记。", "内容不能为空。", "先填内容，再点“写笔记”。")
     if "undo target missing" in lowered_output:
-        return "要撤销的归档文件已经不存在，请先点“查看状态”。"
-    return None
+        return ("这次没能撤销最近笔记。", "要撤销的归档文件已经不存在。", "先点“查看状态”，确认当前情况。")
+    return (None, None, None)
 
 
 def build_archive_note_summary_lines(output_text: str) -> list[str]:
@@ -248,18 +248,20 @@ def build_personal_panel_result_text(
     completed: subprocess.CompletedProcess[str],
 ) -> str:
     output_text = ((completed.stdout or "") + (completed.stderr or "")).strip()
+    summary_text = extract_personal_output_value(output_text, "summary")
+    next_step = extract_personal_output_value(output_text, "next")
+    fallback_summary, reason_text, fallback_next = resolve_personal_panel_error_guidance(output_text)
     lines = [f"【{get_personal_panel_action_title(action_name)}】"]
     if completed.returncode == 0:
         lines.extend(build_personal_panel_summary_lines(action_name, output_text))
     else:
-        lines.append(f"退出码：{completed.returncode}")
-        lines.append("结果：执行失败")
-        error_hint = build_personal_panel_error_hint(output_text)
-        if error_hint:
-            lines.append(f"提示：{error_hint}")
+        lines.append(f"结果：{summary_text or fallback_summary or '执行失败'}")
+        if reason_text:
+            lines.append(f"原因：{reason_text}")
         else:
-            lines.append("提示：下面是程序原始输出，便于排查。")
-    if output_text and completed.returncode != 0:
+            lines.append(f"原因：程序没有正常完成（退出码：{completed.returncode}）。")
+        lines.append(f"下一步：{next_step or fallback_next or '看下面原始输出，再决定怎么处理。'}")
+    if output_text and completed.returncode != 0 and summary_text is None and next_step is None and reason_text is None:
         lines.extend(["", "【原始输出】", output_text])
     return "\n".join(lines)
 

@@ -81,18 +81,46 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertNotIn("退出码：0", rendered)
         self.assertNotIn("【原始输出】", rendered)
 
-    def test_build_personal_panel_result_text_renders_undo_failure_hint(self) -> None:
+    def test_build_personal_panel_result_text_renders_undo_failure_guidance(self) -> None:
         completed = subprocess.CompletedProcess(
             args=["undo"],
             returncode=1,
-            stdout="[personal] no last note recorded; run archive-note first\n",
+            stdout=(
+                "[personal] summary => 这次没有可撤销的最近笔记。\n"
+                "[personal] no last note recorded; run archive-note first\n"
+                "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>\n"
+            ),
             stderr="",
         )
         rendered = build_personal_panel_result_text("undo", completed)
         self.assertIn("【撤销上一步】", rendered)
+        self.assertIn("结果：这次没有可撤销的最近笔记。", rendered)
+        self.assertIn("原因：还没有最近笔记。", rendered)
+        self.assertIn(
+            "下一步：tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>",
+            rendered,
+        )
+        self.assertLess(rendered.index("结果：这次没有可撤销的最近笔记。"), rendered.index("原因：还没有最近笔记。"))
+        self.assertLess(
+            rendered.index("原因：还没有最近笔记。"),
+            rendered.index("下一步：tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>"),
+        )
+        self.assertNotIn("退出码：", rendered)
+        self.assertNotIn("【原始输出】", rendered)
+
+    def test_build_personal_panel_result_text_keeps_raw_output_for_unknown_failure(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["status"],
+            returncode=2,
+            stdout="unexpected failure\nline two\n",
+            stderr="",
+        )
+        rendered = build_personal_panel_result_text("status", completed)
         self.assertIn("结果：执行失败", rendered)
-        self.assertIn("提示：还没有最近笔记，先点“写笔记”。", rendered)
+        self.assertIn("原因：程序没有正常完成（退出码：2）。", rendered)
+        self.assertIn("下一步：看下面原始输出，再决定怎么处理。", rendered)
         self.assertIn("【原始输出】", rendered)
+        self.assertIn("unexpected failure", rendered)
 
     def test_build_personal_panel_progress_text_uses_human_readable_copy(self) -> None:
         self.assertEqual(build_personal_panel_progress_text("archive-note"), "正在写入笔记，请稍等。")
