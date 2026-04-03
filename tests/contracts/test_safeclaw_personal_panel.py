@@ -21,6 +21,34 @@ from tools.mvp.safeclaw_personal_panel import (  # noqa: E402
 
 
 class SafeclawPersonalPanelTest(unittest.TestCase):
+    def assert_known_failure_guidance(
+        self,
+        action_name: str,
+        output_text: str,
+        expected_title: str,
+        expected_result: str,
+        expected_reason: str,
+        expected_next: str,
+    ) -> None:
+        completed = subprocess.CompletedProcess(
+            args=[action_name],
+            returncode=1,
+            stdout=output_text,
+            stderr="",
+        )
+        rendered = build_personal_panel_result_text(action_name, completed)
+        self.assertIn(expected_title, rendered)
+        self.assertIn(f"结果：{expected_result}", rendered)
+        self.assertIn(f"原因：{expected_reason}", rendered)
+        self.assertIn(f"下一步：{expected_next}", rendered)
+        self.assertLess(rendered.index(f"结果：{expected_result}"), rendered.index(f"原因：{expected_reason}"))
+        self.assertLess(
+            rendered.index(f"原因：{expected_reason}"),
+            rendered.index(f"下一步：{expected_next}"),
+        )
+        self.assertNotIn("退出码：", rendered)
+        self.assertNotIn("【原始输出】", rendered)
+
     def test_resolve_personal_panel_entry_command_prefers_production_cmd(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home_root = Path(temp_dir)
@@ -107,6 +135,36 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         )
         self.assertNotIn("退出码：", rendered)
         self.assertNotIn("【原始输出】", rendered)
+
+    def test_build_personal_panel_result_text_guides_missing_note_title(self) -> None:
+        self.assert_known_failure_guidance(
+            action_name="archive-note",
+            output_text="[personal] archive-note requires --name\n",
+            expected_title="【写笔记】",
+            expected_result="这次还没写成笔记。",
+            expected_reason="标题不能为空。",
+            expected_next="先填标题，再点“写笔记”。",
+        )
+
+    def test_build_personal_panel_result_text_guides_missing_note_content(self) -> None:
+        self.assert_known_failure_guidance(
+            action_name="archive-note",
+            output_text="[personal] archive-note requires --content or --content-file\n",
+            expected_title="【写笔记】",
+            expected_result="这次还没写成笔记。",
+            expected_reason="内容不能为空。",
+            expected_next="先填内容，再点“写笔记”。",
+        )
+
+    def test_build_personal_panel_result_text_guides_missing_undo_target(self) -> None:
+        self.assert_known_failure_guidance(
+            action_name="undo",
+            output_text="[mvp] undo target missing at C:/demo/archive/demo.md\n",
+            expected_title="【撤销上一步】",
+            expected_result="这次没能撤销最近笔记。",
+            expected_reason="要撤销的归档文件已经不存在。",
+            expected_next="先点“查看状态”，确认当前情况。",
+        )
 
     def test_build_personal_panel_result_text_keeps_raw_output_for_unknown_failure(self) -> None:
         completed = subprocess.CompletedProcess(
