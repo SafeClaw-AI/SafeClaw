@@ -31,6 +31,11 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
             check=False,
         )
 
+    def write_invalid_last_note_state(self) -> None:
+        state_dir = TEST_ROOT / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "last_note.json").write_text("[]\n", encoding="utf-8")
+
     def assert_archive_note_failure(
         self,
         completed: subprocess.CompletedProcess[str],
@@ -97,6 +102,30 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
                 "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>"
             ),
         )
+
+    def test_status_with_invalid_last_note_file_explains_human_next_step(self) -> None:
+        self.write_invalid_last_note_state()
+        completed = self.run_personal("status")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("[personal] summary => 最近笔记状态文件有问题，这次没法继续。", completed.stdout)
+        self.assertIn("[personal] invalid last note file => target\\test-safeclaw-personal-cli\\state\\last_note.json", completed.stdout)
+        self.assertIn(
+            "[personal] next => 先检查并修复 target\\test-safeclaw-personal-cli\\state\\last_note.json，再重试当前命令。",
+            completed.stdout,
+        )
+        self.assertEqual(completed.stderr, "")
+
+    def test_undo_with_invalid_last_note_file_explains_human_next_step(self) -> None:
+        self.write_invalid_last_note_state()
+        completed = self.run_personal("undo")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("[personal] summary => 最近笔记状态文件有问题，这次没法继续。", completed.stdout)
+        self.assertIn("[personal] invalid last note file => target\\test-safeclaw-personal-cli\\state\\last_note.json", completed.stdout)
+        self.assertIn(
+            "[personal] next => 先检查并修复 target\\test-safeclaw-personal-cli\\state\\last_note.json，再重试当前命令。",
+            completed.stdout,
+        )
+        self.assertEqual(completed.stderr, "")
 
     def test_archive_note_then_undo_roundtrip(self) -> None:
         archive_completed = self.run_personal(

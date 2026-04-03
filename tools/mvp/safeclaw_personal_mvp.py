@@ -255,6 +255,14 @@ def print_archive_note_failure(reason_text: str) -> int:
     return 1
 
 
+def print_last_note_state_failure() -> int:
+    state_file_path = render_path(LAST_NOTE_FILE)
+    print_personal_summary("最近笔记状态文件有问题，这次没法继续。")
+    print(f"[personal] invalid last note file => {state_file_path}")
+    print(f"[personal] next => 先检查并修复 {state_file_path}，再重试当前命令。")
+    return 1
+
+
 def run_archive_note(args: argparse.Namespace) -> int:
     ensure_profile_dirs()
     archive_date = args.date or date.today().isoformat()
@@ -290,7 +298,10 @@ def run_archive_note(args: argparse.Namespace) -> int:
 
 
 def run_undo(_: argparse.Namespace) -> int:
-    note = load_last_note()
+    try:
+        note = load_last_note()
+    except ValueError:
+        return print_last_note_state_failure()
     if note is None:
         print_personal_summary("这次没有可撤销的最近笔记。")
         print("[personal] no last note recorded; run archive-note first")
@@ -312,7 +323,10 @@ def run_undo(_: argparse.Namespace) -> int:
 
 def run_status(_: argparse.Namespace) -> int:
     ensure_profile_dirs()
-    note = load_last_note()
+    try:
+        note = load_last_note()
+    except ValueError:
+        return print_last_note_state_failure()
     summary_text = "当前还没有最近笔记。"
     next_text = f"{ENTRY_COMMAND} archive-note --name <name> --content <text>"
     if note is None:
