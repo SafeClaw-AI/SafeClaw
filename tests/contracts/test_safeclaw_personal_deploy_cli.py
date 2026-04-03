@@ -69,6 +69,7 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
     def test_deploy_creates_stable_launcher_and_snapshot(self) -> None:
         completed = self.run_deployer("deploy", release_id="release-one")
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("[deploy] summary => 个人生产位已经更新到新版本。", completed.stdout)
         self.assertIn("[deploy] current release => release-one", completed.stdout)
         self.assertTrue((TEST_DEPLOY_ROOT / "safeclaw-personal.cmd").exists())
         self.assertTrue((TEST_DEPLOY_ROOT / "safeclaw-personal.ps1").exists())
@@ -80,6 +81,7 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
         self.assertTrue((TEST_DEPLOY_ROOT / "releases" / "release-one" / "repo" / "tools" / "mvp" / "safeclaw_personal_panel.py").exists())
         self.assertTrue((TEST_DEPLOY_ROOT / "releases" / "release-one" / "repo" / "tools" / "mvp" / "safeclaw_personal_panel.pyw").exists())
         self.assertTrue((TEST_DEPLOY_ROOT / "releases" / "release-one" / "repo" / "target" / "debug" / "examples" / "safeclaw_mvp_entry.exe").exists())
+        self.assertIn(f"[deploy] next => {TEST_DEPLOY_ROOT / 'safeclaw-personal-panel.cmd'}", completed.stdout)
 
         status_completed = self.run_prod_launcher("status")
         self.assertEqual(status_completed.returncode, 0, status_completed.stdout + status_completed.stderr)
@@ -94,8 +96,30 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
 
         rollback = self.run_deployer("rollback")
         self.assertEqual(rollback.returncode, 0, rollback.stdout + rollback.stderr)
+        self.assertIn("[deploy] summary => 个人生产位已经切回上一版。", rollback.stdout)
         self.assertIn("[deploy] rolled back => release-one", rollback.stdout)
+        self.assertIn(f"[deploy] next => {TEST_DEPLOY_ROOT / 'safeclaw-personal-panel.cmd'}", rollback.stdout)
         self.assertEqual((TEST_DEPLOY_ROOT / "current_release.txt").read_text(encoding="utf-8").strip(), "release-one")
+
+    def test_status_without_release_explains_next_step(self) -> None:
+        status_completed = self.run_deployer("status")
+        self.assertEqual(status_completed.returncode, 0, status_completed.stdout + status_completed.stderr)
+        self.assertIn("[deploy] summary => 当前还没有部署版本。", status_completed.stdout)
+        self.assertIn(
+            "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy",
+            status_completed.stdout,
+        )
+        self.assertIn("[deploy] current release => none", status_completed.stdout)
+
+    def test_rollback_without_release_explains_next_step(self) -> None:
+        rollback = self.run_deployer("rollback")
+        self.assertEqual(rollback.returncode, 1, rollback.stdout + rollback.stderr)
+        self.assertIn("[deploy] summary => 当前还没有可回滚的生产版本。", rollback.stdout)
+        self.assertIn(
+            "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy",
+            rollback.stdout,
+        )
+        self.assertIn("[deploy] no current release", rollback.stdout)
 
     def test_deployed_powershell_launcher_status_uses_ps1_entry_prompt(self) -> None:
         deploy = self.run_deployer("deploy", release_id="release-ps1")

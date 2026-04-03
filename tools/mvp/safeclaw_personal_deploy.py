@@ -38,6 +38,14 @@ OPTIONAL_DEPLOY_SNAPSHOT_PATHS = (
 )
 
 
+def print_deploy_summary(summary_text: str) -> None:
+    print(f"[deploy] summary => {summary_text}")
+
+
+def print_deploy_next(next_text: str) -> None:
+    print(f"[deploy] next => {next_text}")
+
+
 def build_release_id() -> str:
     override = os.environ.get(DEPLOY_RELEASE_ID_ENV)
     if override:
@@ -247,10 +255,12 @@ def deploy_release(_: argparse.Namespace) -> int:
     append_release_record(release_id)
     write_current_release(release_id)
     write_stable_launchers()
+    print_deploy_summary("个人生产位已经更新到新版本。")
     print(f"[deploy] root => {DEFAULT_DEPLOY_ROOT}")
     print(f"[deploy] current release => {release_id}")
     print(f"[deploy] launcher => {STABLE_CMD}")
     print(f"[deploy] panel => {STABLE_PANEL_CMD}")
+    print_deploy_next(str(STABLE_PANEL_CMD))
     return 0
 
 
@@ -258,18 +268,24 @@ def rollback_release(_: argparse.Namespace) -> int:
     ensure_deploy_dirs()
     current_release = read_current_release()
     if current_release is None:
+        print_deploy_summary("当前还没有可回滚的生产版本。")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
         print("[deploy] no current release")
         return 1
     payload = read_ledger()
     rollback_release_id = pick_rollback_release(payload["releases"], current_release)
     if rollback_release_id is None:
+        print_deploy_summary("当前只有一个生产版本，还没有上一版可回滚。")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py status")
         print("[deploy] no previous release to roll back to")
         return 1
     write_current_release(rollback_release_id)
     write_stable_launchers()
+    print_deploy_summary("个人生产位已经切回上一版。")
     print(f"[deploy] rolled back => {rollback_release_id}")
     print(f"[deploy] launcher => {STABLE_CMD}")
     print(f"[deploy] panel => {STABLE_PANEL_CMD}")
+    print_deploy_next(str(STABLE_PANEL_CMD))
     return 0
 
 
@@ -277,6 +293,12 @@ def show_status(_: argparse.Namespace) -> int:
     ensure_deploy_dirs()
     payload = read_ledger()
     current_release = read_current_release()
+    if current_release is None:
+        print_deploy_summary("当前还没有部署版本。")
+        print_deploy_next("python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy")
+    else:
+        print_deploy_summary("个人生产位已有可用版本。")
+        print_deploy_next(str(STABLE_PANEL_CMD))
     print(f"[deploy] root => {DEFAULT_DEPLOY_ROOT}")
     print(f"[deploy] current release => {current_release or 'none'}")
     print(f"[deploy] releases => {len(payload['releases'])}")
