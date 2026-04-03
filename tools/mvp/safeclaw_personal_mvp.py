@@ -297,27 +297,33 @@ def run_undo(_: argparse.Namespace) -> int:
 def run_status(_: argparse.Namespace) -> int:
     ensure_profile_dirs()
     note = load_last_note()
+    summary_text = "当前还没有最近笔记。"
+    next_text = f"{ENTRY_COMMAND} archive-note --name <name> --content <text>"
+    if note is None:
+        print_personal_summary(summary_text)
+        print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
+        print(f"[personal] db => {render_path(DB_PATH)}")
+        print(f"[personal] archive_root => {render_path(ARCHIVE_ROOT)}")
+        print("[personal] last note => none")
+        print(f"[personal] next => {next_text}")
+        return 0
+    output_path = Path(note["archive_output"])
+    if output_path.exists():
+        summary_text = "最近一次笔记还在，需要时可以直接撤销。"
+        next_text = f"{ENTRY_COMMAND} undo"
+    else:
+        summary_text = "最近一次笔记记录还在，但归档文件已经不在了。"
+    print_personal_summary(summary_text)
     print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
     print(f"[personal] db => {render_path(DB_PATH)}")
     print(f"[personal] archive_root => {render_path(ARCHIVE_ROOT)}")
-    if note is None:
-        print_personal_summary("当前还没有最近笔记。")
-        print("[personal] last note => none")
-        print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
-        return 0
-    output_path = Path(note["archive_output"])
     print(
         "[personal] last note => "
         f"task={note['task_id']} name={note['archive_name']} date={note['archive_date']}"
     )
     print(f"[personal] archive_output => {render_path(output_path)}")
     print(f"[personal] archive exists => {output_path.exists()}")
-    if output_path.exists():
-        print_personal_summary("最近一次笔记还在，需要时可以直接撤销。")
-        print(f"[personal] next => {ENTRY_COMMAND} undo")
-    else:
-        print_personal_summary("最近一次笔记记录还在，但归档文件已经不在了。")
-        print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
+    print(f"[personal] next => {next_text}")
     return 0
 
 

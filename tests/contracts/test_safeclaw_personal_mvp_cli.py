@@ -37,6 +37,14 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         self.assertIn("[personal] summary => 当前还没有最近笔记。", completed.stdout)
         self.assertIn("[personal] last note => none", completed.stdout)
         self.assertIn("archive-note --name <name> --content <text>", completed.stdout)
+        self.assertLess(
+            completed.stdout.index("[personal] summary => 当前还没有最近笔记。"),
+            completed.stdout.index("[personal] profile => "),
+        )
+        self.assertLess(
+            completed.stdout.index("[personal] last note => none"),
+            completed.stdout.index("[personal] next => "),
+        )
 
     def test_undo_without_last_note_explains_human_next_step(self) -> None:
         completed = self.run_personal("undo")
@@ -68,6 +76,14 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         self.assertIn("[personal] summary => 最近一次笔记还在，需要时可以直接撤销。", status_completed.stdout)
         self.assertIn("[personal] archive exists => True", status_completed.stdout)
         self.assertIn("[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd undo", status_completed.stdout)
+        self.assertLess(
+            status_completed.stdout.index("[personal] summary => 最近一次笔记还在，需要时可以直接撤销。"),
+            status_completed.stdout.index("[personal] profile => "),
+        )
+        self.assertLess(
+            status_completed.stdout.index("[personal] archive exists => True"),
+            status_completed.stdout.index("[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd undo"),
+        )
 
         undo_completed = self.run_personal("undo")
         self.assertEqual(undo_completed.returncode, 0, undo_completed.stdout + undo_completed.stderr)
