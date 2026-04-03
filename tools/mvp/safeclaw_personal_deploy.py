@@ -36,6 +36,7 @@ DEPLOY_SNAPSHOT_PATHS = (
 OPTIONAL_DEPLOY_SNAPSHOT_PATHS = (
     Path("target/debug/examples/safeclaw_mvp_entry.exe"),
 )
+DEPLOY_IGNORED_DIRECTORY_NAMES = ("target", "__pycache__", ".pytest_cache")
 
 
 def print_deploy_summary(summary_text: str) -> None:
@@ -194,13 +195,22 @@ def collect_personal_deploy_snapshot_paths() -> tuple[Path, ...]:
     return tuple(snapshot_paths)
 
 
+def build_deploy_copy_ignore_names(child_names: list[str]) -> set[str]:
+    return {name for name in child_names if name in DEPLOY_IGNORED_DIRECTORY_NAMES}
+
+
 def copy_snapshot_path(relative_path: Path, release_repo_root: Path) -> None:
     source_path = REPO_ROOT / relative_path
     if not source_path.exists():
         raise FileNotFoundError(f"missing deploy source: {relative_path.as_posix()}")
     target_path = release_repo_root / relative_path
     if source_path.is_dir():
-        shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+        shutil.copytree(
+            source_path,
+            target_path,
+            dirs_exist_ok=True,
+            ignore=lambda _current_dir, child_names: build_deploy_copy_ignore_names(child_names),
+        )
         return
     target_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_path, target_path)

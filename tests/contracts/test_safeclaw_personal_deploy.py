@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.mvp.safeclaw_personal_deploy import (  # noqa: E402
     DEPLOY_SNAPSHOT_PATHS,
+    build_deploy_copy_ignore_names,
     build_cmd_launcher,
     build_panel_cmd_launcher,
     build_panel_ps1_launcher,
@@ -63,6 +64,12 @@ class SafeclawPersonalDeployTest(unittest.TestCase):
         ]
         self.assertEqual(pick_rollback_release(releases, "release-three"), "release-two")
         self.assertEqual(pick_rollback_release(releases, "release-one"), None)
+
+    def test_build_deploy_copy_ignore_names_skips_build_artifacts(self) -> None:
+        ignored_names = build_deploy_copy_ignore_names(
+            ["src", "tests", "target", "__pycache__", ".pytest_cache", "Cargo.toml"]
+        )
+        self.assertEqual(ignored_names, {"target", "__pycache__", ".pytest_cache"})
 
 
 if __name__ == "__main__":
