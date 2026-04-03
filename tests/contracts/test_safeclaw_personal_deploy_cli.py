@@ -141,6 +141,29 @@ class SafeclawPersonalDeployCliTest(unittest.TestCase):
             ),
         )
 
+    def test_rollback_with_only_one_release_explains_status_next_step(self) -> None:
+        deploy = self.run_deployer("deploy", release_id="release-one")
+        self.assertEqual(deploy.returncode, 0, deploy.stdout + deploy.stderr)
+
+        rollback = self.run_deployer("rollback")
+        self.assertEqual(rollback.returncode, 1, rollback.stdout + rollback.stderr)
+        self.assertIn("[deploy] summary => 当前只有一个生产版本，还没有上一版可回滚。", rollback.stdout)
+        self.assertIn("[deploy] no previous release to roll back to", rollback.stdout)
+        self.assertIn(
+            "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py status",
+            rollback.stdout,
+        )
+        self.assertLess(
+            rollback.stdout.index("[deploy] summary => 当前只有一个生产版本，还没有上一版可回滚。"),
+            rollback.stdout.index("[deploy] no previous release to roll back to"),
+        )
+        self.assertLess(
+            rollback.stdout.index("[deploy] no previous release to roll back to"),
+            rollback.stdout.index(
+                "[deploy] next => python -X utf8 tools/mvp/safeclaw_personal_deploy.py status"
+            ),
+        )
+
     def test_deployed_powershell_launcher_status_uses_ps1_entry_prompt(self) -> None:
         deploy = self.run_deployer("deploy", release_id="release-ps1")
         self.assertEqual(deploy.returncode, 0, deploy.stdout + deploy.stderr)
