@@ -244,7 +244,11 @@ def read_content(args: argparse.Namespace) -> str:
     if args.content is not None:
         return args.content
     if args.content_file is not None:
-        return Path(args.content_file).read_text(encoding="utf-8")
+        content_file_path = Path(args.content_file)
+        try:
+            return content_file_path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise ValueError(f"archive-note content-file missing => {render_path(content_file_path)}") from error
     raise ValueError("archive-note requires --content or --content-file")
 
 

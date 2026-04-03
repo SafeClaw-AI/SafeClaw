@@ -68,6 +68,19 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         completed = self.run_personal("archive-note", "--name", ARCHIVE_NAME)
         self.assert_archive_note_failure(completed, "archive-note requires --content or --content-file")
 
+    def test_archive_note_with_missing_content_file_explains_human_next_step(self) -> None:
+        completed = self.run_personal(
+            "archive-note",
+            "--name",
+            ARCHIVE_NAME,
+            "--content-file",
+            str(TEST_ROOT / "missing.md"),
+        )
+        self.assert_archive_note_failure(
+            completed,
+            "archive-note content-file missing => target\\test-safeclaw-personal-cli\\missing.md",
+        )
+
     def test_status_without_last_note_guides_to_archive_note(self) -> None:
         completed = self.run_personal("status")
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
