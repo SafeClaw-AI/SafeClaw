@@ -210,16 +210,27 @@ def check_configured_linker_accessible() -> bool:
         return True
 
 
+def print_personal_runtime_failure(reason_text: str, next_text: str) -> int:
+    print_personal_summary("当前机器还没准备好个人归档运行环境。")
+    print(f"[personal] {reason_text}")
+    print(f"[personal] next => {next_text}")
+    return 1
+
+
 def run_checked(command: list[str]) -> int:
     runtime_command = resolve_safeclaw_mvp_runtime_command(command)
     if runtime_command == command:
         cargo_path = shutil.which("cargo")
         if cargo_path is None:
-            print("[personal] missing cargo in PATH")
-            return 1
+            return print_personal_runtime_failure(
+                "missing cargo in PATH",
+                "先安装 Rust cargo，再重试当前命令。",
+            )
         if not check_configured_linker_accessible():
-            print(f"[personal] missing GNU linker => {LINKER}")
-            return 1
+            return print_personal_runtime_failure(
+                f"missing GNU linker => {LINKER}",
+                "先检查 GNU linker 路径是否存在，再重试当前命令。",
+            )
     completed = subprocess.run(
         runtime_command,
         cwd=REPO_ROOT,

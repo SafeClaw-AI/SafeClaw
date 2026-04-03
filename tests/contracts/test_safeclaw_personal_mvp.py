@@ -112,6 +112,40 @@ class SafeclawPersonalMvpTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         run_mock.assert_called_once()
 
+    def test_run_checked_explains_missing_cargo_with_next_step(self) -> None:
+        with patch("tools.mvp.safeclaw_personal_mvp.resolve_safeclaw_mvp_runtime_command", return_value=["cargo", "test"]):
+            with patch("tools.mvp.safeclaw_personal_mvp.shutil.which", return_value=None):
+                with patch("builtins.print") as print_mock:
+                    exit_code = run_checked(["cargo", "test"])
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            [call.args[0] for call in print_mock.call_args_list],
+            [
+                "[personal] summary => 当前机器还没准备好个人归档运行环境。",
+                "[personal] missing cargo in PATH",
+                "[personal] next => 先安装 Rust cargo，再重试当前命令。",
+            ],
+        )
+
+    def test_run_checked_explains_missing_linker_with_next_step(self) -> None:
+        with patch("tools.mvp.safeclaw_personal_mvp.resolve_safeclaw_mvp_runtime_command", return_value=["cargo", "test"]):
+            with patch("tools.mvp.safeclaw_personal_mvp.shutil.which", return_value=r"C:\Rust\cargo.exe"):
+                with patch("tools.mvp.safeclaw_personal_mvp.check_configured_linker_accessible", return_value=False):
+                    with patch("builtins.print") as print_mock:
+                        exit_code = run_checked(["cargo", "test"])
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(
+            [call.args[0] for call in print_mock.call_args_list],
+            [
+                "[personal] summary => 当前机器还没准备好个人归档运行环境。",
+                "[personal] missing GNU linker => "
+                "C:\\Users\\tianduan999\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders."
+                "WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\"
+                "x86_64-w64-mingw32-gcc.exe",
+                "[personal] next => 先检查 GNU linker 路径是否存在，再重试当前命令。",
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
