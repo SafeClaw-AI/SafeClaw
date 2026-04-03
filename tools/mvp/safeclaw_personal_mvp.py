@@ -48,6 +48,10 @@ def render_path(path: Path) -> str:
         return str(path)
 
 
+def print_personal_summary(summary_text: str) -> None:
+    print(f"[personal] summary => {summary_text}")
+
+
 def sanitize_note_name(value: str) -> str:
     sanitized: list[str] = []
     previous_dash = False
@@ -262,6 +266,7 @@ def run_archive_note(args: argparse.Namespace) -> int:
             "entry": ENTRY_COMMAND,
         }
     )
+    print_personal_summary("最近一次笔记已归档，需要时可以直接撤销。")
     print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
     print(f"[personal] last note => task={task_id} output={render_path(output_path)}")
     print(f"[personal] next => {ENTRY_COMMAND} undo")
@@ -271,6 +276,8 @@ def run_archive_note(args: argparse.Namespace) -> int:
 def run_undo(_: argparse.Namespace) -> int:
     note = load_last_note()
     if note is None:
+        print_personal_summary("这次没有可撤销的最近笔记。")
+        print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
         print("[personal] no last note recorded; run archive-note first")
         return 1
     exit_code = run_checked(build_undo_command(note["task_id"]))
@@ -280,6 +287,7 @@ def run_undo(_: argparse.Namespace) -> int:
     updated_note["undone_at"] = datetime.now().isoformat(timespec="seconds")
     save_last_note(updated_note)
     output_path = Path(note["archive_output"])
+    print_personal_summary("已撤销最近一次归档。")
     print(f"[personal] profile => {render_path(DEFAULT_PROFILE_ROOT)}")
     print(f"[personal] archive exists => {output_path.exists()}")
     print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
@@ -293,6 +301,7 @@ def run_status(_: argparse.Namespace) -> int:
     print(f"[personal] db => {render_path(DB_PATH)}")
     print(f"[personal] archive_root => {render_path(ARCHIVE_ROOT)}")
     if note is None:
+        print_personal_summary("当前还没有最近笔记。")
         print("[personal] last note => none")
         print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
         return 0
@@ -304,8 +313,10 @@ def run_status(_: argparse.Namespace) -> int:
     print(f"[personal] archive_output => {render_path(output_path)}")
     print(f"[personal] archive exists => {output_path.exists()}")
     if output_path.exists():
+        print_personal_summary("最近一次笔记还在，需要时可以直接撤销。")
         print(f"[personal] next => {ENTRY_COMMAND} undo")
     else:
+        print_personal_summary("最近一次笔记记录还在，但归档文件已经不在了。")
         print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
     return 0
 

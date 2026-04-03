@@ -34,8 +34,18 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
     def test_status_without_last_note_guides_to_archive_note(self) -> None:
         completed = self.run_personal("status")
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("[personal] summary => 当前还没有最近笔记。", completed.stdout)
         self.assertIn("[personal] last note => none", completed.stdout)
         self.assertIn("archive-note --name <name> --content <text>", completed.stdout)
+
+    def test_undo_without_last_note_explains_human_next_step(self) -> None:
+        completed = self.run_personal("undo")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("[personal] summary => 这次没有可撤销的最近笔记。", completed.stdout)
+        self.assertIn(
+            "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>",
+            completed.stdout,
+        )
 
     def test_archive_note_then_undo_roundtrip(self) -> None:
         archive_completed = self.run_personal(
@@ -49,17 +59,20 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         )
         self.assertEqual(archive_completed.returncode, 0, archive_completed.stdout + archive_completed.stderr)
         self.assertIn("[mvp] archive note => created", archive_completed.stdout)
+        self.assertIn("[personal] summary => 最近一次笔记已归档，需要时可以直接撤销。", archive_completed.stdout)
         self.assertIn("[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd undo", archive_completed.stdout)
         self.assertTrue(ARCHIVE_FILE.exists())
 
         status_completed = self.run_personal("status")
         self.assertEqual(status_completed.returncode, 0, status_completed.stdout + status_completed.stderr)
+        self.assertIn("[personal] summary => 最近一次笔记还在，需要时可以直接撤销。", status_completed.stdout)
         self.assertIn("[personal] archive exists => True", status_completed.stdout)
         self.assertIn("[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd undo", status_completed.stdout)
 
         undo_completed = self.run_personal("undo")
         self.assertEqual(undo_completed.returncode, 0, undo_completed.stdout + undo_completed.stderr)
         self.assertIn("[mvp] undo result => worker=RolledBack effect=RolledBack compensation=0", undo_completed.stdout)
+        self.assertIn("[personal] summary => 已撤销最近一次归档。", undo_completed.stdout)
         self.assertIn("[personal] archive exists => False", undo_completed.stdout)
         self.assertFalse(ARCHIVE_FILE.exists())
 
