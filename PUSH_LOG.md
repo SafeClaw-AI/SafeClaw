@@ -1,6 +1,6 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-02 04:08:58 +0800
+最后更新时间：2026-04-04 01:23:31 +0800
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。
@@ -9,6 +9,18 @@
 - 尽量用中文、短句、小学生能懂；先写做了什么，再写为什么重要。
 
 ## 流水
+### 轮次 M2-309
+- 完成时间：2026-04-04 01:23:31 +0800
+- 完成内容：把 `tools/mvp/safeclaw_personal_mvp.py` 改成优先复用预编译 `target/debug/examples/safeclaw_mvp_entry.exe`，只有它不存在时才回退 `cargo run`；同时扩展 `tools/mvp/safeclaw_personal_deploy.py`，让每个个人生产发布快照都顺手带上这份 exe，所以 `safeclaw-personal.cmd` / `.ps1` 不再被本机 GNU linker 阻塞。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_chancellor_panel tests.contracts.test_safeclaw_personal_panel tests.contracts.test_safeclaw_personal_deploy tests.contracts.test_safeclaw_personal_deploy_cli tests.contracts.test_safeclaw_personal_mvp tests.contracts.test_safeclaw_personal_mvp_cli -v`；`python -X utf8 tools/checks/check_reference_redlines.py`
+- 待提交内容：`tools/mvp/safeclaw_personal_panel.py`、`tools/mvp/safeclaw_personal_panel.pyw`、`tools/mvp/safeclaw_personal_mvp.py`、`tools/mvp/safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_panel.py`、`tests/contracts/test_safeclaw_personal_mvp.py`、`tests/contracts/test_safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`tests/contracts/test_chancellor_panel.py`、`README.md`、`tools/mvp/PERSONAL_MVP_PLAYBOOK.md`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/182-V4-personal-thin-panel-record-20260402_122455.md`
+
+### 轮次 M2-308
+- 完成时间：2026-04-02 12:24:55 +0800
+- 完成内容：新增个人生产位中文小面板 `tools/mvp/safeclaw_personal_panel.py` + `.pyw`；它只包住 `archive-note -> status -> undo`，默认优先调 `%USERPROFILE%\\.safeclaw-personal-production\\safeclaw-personal.cmd`，并把小面板一并接进生产部署与回滚位。
+- 验证内容：`python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_panel tests.contracts.test_safeclaw_personal_deploy tests.contracts.test_safeclaw_personal_deploy_cli -v`
+- 待提交内容：`tools/mvp/safeclaw_personal_panel.py`、`tools/mvp/safeclaw_personal_panel.pyw`、`tools/mvp/safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_panel.py`、`tests/contracts/test_safeclaw_personal_deploy.py`、`tests/contracts/test_safeclaw_personal_deploy_cli.py`、`README.md`、`tools/mvp/PERSONAL_MVP_PLAYBOOK.md`、`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/182-V4-personal-thin-panel-record-20260402_122455.md`
+
 ### 轮次 M2-298
 - 完成时间：2026-04-01 01:48:36 +0800
 - 完成内容：新增 `archive-note` 真实任务；现在可把文本按日期归档到 `YYYY-MM/YYYY-MM-DD-<slug>.md`，并在同一条命令里直接看到可读账单。

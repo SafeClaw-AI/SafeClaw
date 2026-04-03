@@ -141,10 +141,11 @@ SafeClaw 还在很早期。
 
 ## 当前可手动体验的本地 MVP
 
-目前还没有正式 GUI，也还不是“开箱即用的产品”。  
-但在当前 Windows GNU 开发环境下，已经可以按 **人工操作台** 的方式手动完成最小闭环。
+现在已经有一层给主人自用的中文小面板，但还不是“开箱即用的完整产品”。  
+在当前 Windows GNU 开发环境下，仓库主人已经可以用 **小面板 + 生产位** 跑最小闭环。
 
-- 如果只给仓库主人自己先快速用，请先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` 或 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
+- 如果只给仓库主人自己先快速用，请先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd` 或 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`
+- CLI 生产入口仍保留：`%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
 - `safeclaw.cmd`
 - `safeclaw.ps1`
 - `tools/mvp/safeclaw_mvp.cmd`
@@ -153,7 +154,13 @@ SafeClaw 还在很早期。
 
 ### 最短上手路径
 
-如果你只是想明早直接用，请先走个人生产位最短路径：
+如果你只是想明早直接用，请先双击个人生产位小面板：
+
+```bat
+%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd
+```
+
+如果你当时更想走 CLI 备份路径，再用下面这组命令：
 
 ```bat
 %USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd status

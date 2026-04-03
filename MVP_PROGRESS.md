@@ -2,13 +2,13 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-04-01 01:48:36 +0800
+最后更新时间：2026-04-04 01:23:31 +0800
 范围：`01_文档` 对应的整体计划
-当前阶段：`M1b` 已毕业，前 298 刀已完成；`M2-P0-2` 已交付最小真实任务场景 `archive-note`，下一步开始 `M2-P0-3 undo 撤销入口`
+当前阶段：`M1b` 已毕业，前 309 刀已完成；`M2-P0-4` 已把个人生产位切到优先走预编译示例并随部署快照携带 `safeclaw_mvp_entry.exe`，当前继续锁 `archive-note -> status -> undo` 金线并准备收第一条 GUI 日用痛点
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
-- 当前主线（M2-P0-3 undo 撤销入口）：约 1 ~ 3 天
+- 当前主线（M2-P0-4 产品价值闭环验收）：约 1 ~ 3 天
 - M2 首轮价值层剩余：约 2 ~ 4 周
 
 ## 进展
@@ -350,3 +350,5 @@
 | [x] | M2 Slice 305: deployed ps1 launcher guard and path fix | M2-P0-4 plan | Extended `tests/contracts/test_safeclaw_personal_deploy_cli.py` with a PowerShell stable-launcher contract, found that `safeclaw-personal.ps1` built an invalid launcher path, fixed `tools/mvp/safeclaw_personal_deploy.py` to compose the path step by step, and redeployed the default personal production slot so `safeclaw-personal.ps1 status` now works and keeps its next-step prompt pinned to `safeclaw-personal.ps1` | This closes the last unguarded stable entry in the deployed slot, which is higher leverage than more product work because a broken备用入口 in production is still real breakage |
 | [x] | M2 Slice 306: deployed ps1 launcher roundtrip guard | M2-P0-4 plan | Extended `tests/contracts/test_safeclaw_personal_deploy_cli.py` again so the deployed `safeclaw-personal.ps1` is no longer only guarded for `status`; it now has a full `archive-note -> status -> undo` roundtrip contract, with all next-step prompts pinned to `safeclaw-personal.ps1` | This makes the PowerShell stable launcher symmetric with the cmd stable launcher at the exact deployed boundary, which is higher leverage than more feature work because both real production entrances are now guarded end to end |
 | [x] | M2 Slice 307: deployed ps1 rollback keeps personal data guard | M2-P0-4 plan | Extended `tests/contracts/test_safeclaw_personal_deploy_cli.py` with a PowerShell rollback-safety contract: deploy `release-ps1-one`, create a real archived note through `safeclaw-personal.ps1`, deploy `release-ps1-two`, roll back, then verify the archived file still exists and the rolled-back PowerShell launcher can still `status -> undo` against the same personal data root | This finishes the safety symmetry between the cmd and PowerShell production entrances, which is higher leverage than more feature work because rollback safety now holds for every real deployed entry the user may actually use |
+| [x] | M2 Slice 308: personal thin panel production entry | M2-P0-4 plan | Added `tools/mvp/safeclaw_personal_panel.py` + `.pyw` as a thin Chinese GUI skin over the existing personal goldline, added `tests/contracts/test_safeclaw_personal_panel.py`, extended `tools/mvp/safeclaw_personal_deploy.py` so production deploy now also writes `safeclaw-personal-panel.cmd` / `.ps1`, and kept the panel on the same rollbackable release slot instead of creating a second execution path | This is higher leverage than jumping to a bigger GUI stack because it gives the repo owner a no-terminal daily-use entry while still reusing the same `archive-note -> status -> undo` core, deploy slot, rollback pointer, and safety guards |
+| [x] | M2 Slice 309: personal runtime prefers prebuilt entry | M2-P0-4 plan | Updated `tools/mvp/safeclaw_personal_mvp.py` so the personal loop now prefers the prebuilt `target/debug/examples/safeclaw_mvp_entry.exe`, only falls back to `cargo run` when that exe is absent, and extended `tools/mvp/safeclaw_personal_deploy.py` so deploy snapshots carry that exe into each release slot; also added contracts in `tests/contracts/test_safeclaw_personal_mvp.py` and extended deploy CLI guards to verify the bundled exe is really present | This is higher leverage than keeping the old fixed-linker path because the owner-facing personal production slot now survives a broken local GNU linker and keeps `archive-note -> status -> undo` usable on the current machine |

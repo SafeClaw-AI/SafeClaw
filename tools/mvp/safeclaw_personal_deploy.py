@@ -18,6 +18,8 @@ CURRENT_RELEASE_FILE = DEFAULT_DEPLOY_ROOT / "current_release.txt"
 DEPLOY_LEDGER_FILE = DEFAULT_DEPLOY_ROOT / "deployments.json"
 STABLE_CMD = DEFAULT_DEPLOY_ROOT / "safeclaw-personal.cmd"
 STABLE_PS1 = DEFAULT_DEPLOY_ROOT / "safeclaw-personal.ps1"
+STABLE_PANEL_CMD = DEFAULT_DEPLOY_ROOT / "safeclaw-personal-panel.cmd"
+STABLE_PANEL_PS1 = DEFAULT_DEPLOY_ROOT / "safeclaw-personal-panel.ps1"
 DEPLOY_SNAPSHOT_PATHS = (
     Path("Cargo.toml"),
     Path("Cargo.lock"),
@@ -27,7 +29,12 @@ DEPLOY_SNAPSHOT_PATHS = (
     Path("tools/mvp/safeclaw_personal_mvp.py"),
     Path("tools/mvp/safeclaw_personal_mvp.cmd"),
     Path("tools/mvp/safeclaw_personal_mvp.ps1"),
+    Path("tools/mvp/safeclaw_personal_panel.py"),
+    Path("tools/mvp/safeclaw_personal_panel.pyw"),
     Path("tools/mvp/PERSONAL_MVP_PLAYBOOK.md"),
+)
+OPTIONAL_DEPLOY_SNAPSHOT_PATHS = (
+    Path("target/debug/examples/safeclaw_mvp_entry.exe"),
 )
 
 
@@ -116,9 +123,67 @@ exit $LASTEXITCODE
 """
 
 
+def build_panel_cmd_launcher() -> str:
+    return """@echo off
+setlocal
+set SCRIPT_DIR=%~dp0
+set CURRENT_RELEASE=
+for /f "usebackq delims=" %%i in ("%SCRIPT_DIR%current_release.txt") do set CURRENT_RELEASE=%%i
+if not defined CURRENT_RELEASE (
+  >&2 echo [deploy] missing current release pointer: %SCRIPT_DIR%current_release.txt
+  exit /b 1
+)
+set PANEL_SCRIPT=%SCRIPT_DIR%releases\%CURRENT_RELEASE%\repo\tools\mvp\safeclaw_personal_panel.pyw
+if not exist "%PANEL_SCRIPT%" (
+  >&2 echo [deploy] missing personal panel launcher: %PANEL_SCRIPT%
+  exit /b 1
+)
+set SAFECLAW_PERSONAL_GUI_ENTRY_PATH=%SCRIPT_DIR%safeclaw-personal.cmd
+start "" pythonw -X utf8 "%PANEL_SCRIPT%"
+exit /b 0
+"""
+
+
+def build_panel_ps1_launcher() -> str:
+    return """$deployRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$currentReleaseFile = Join-Path $deployRoot 'current_release.txt'
+if (-not (Test-Path $currentReleaseFile)) {
+    Write-Error "[deploy] missing current release pointer: $currentReleaseFile"
+    exit 1
+}
+$currentRelease = (Get-Content -LiteralPath $currentReleaseFile -Raw).Trim()
+if (-not $currentRelease) {
+    Write-Error "[deploy] empty current release pointer: $currentReleaseFile"
+    exit 1
+}
+$releaseRoot = Join-Path (Join-Path $deployRoot 'releases') $currentRelease
+$repoRoot = Join-Path $releaseRoot 'repo'
+$toolsRoot = Join-Path $repoRoot 'tools'
+$mvpRoot = Join-Path $toolsRoot 'mvp'
+$scriptPath = Join-Path $mvpRoot 'safeclaw_personal_panel.pyw'
+if (-not (Test-Path $scriptPath)) {
+    Write-Error "[deploy] missing personal panel launcher: $scriptPath"
+    exit 1
+}
+$env:SAFECLAW_PERSONAL_GUI_ENTRY_PATH = Join-Path $deployRoot 'safeclaw-personal.ps1'
+Start-Process -FilePath 'pythonw' -ArgumentList @('-X', 'utf8', $scriptPath)
+exit 0
+"""
+
+
 def write_stable_launchers() -> None:
     STABLE_CMD.write_text(build_cmd_launcher(), encoding="utf-8")
     STABLE_PS1.write_text(build_ps1_launcher(), encoding="utf-8")
+    STABLE_PANEL_CMD.write_text(build_panel_cmd_launcher(), encoding="utf-8")
+    STABLE_PANEL_PS1.write_text(build_panel_ps1_launcher(), encoding="utf-8")
+
+
+def collect_personal_deploy_snapshot_paths() -> tuple[Path, ...]:
+    snapshot_paths = list(DEPLOY_SNAPSHOT_PATHS)
+    for relative_path in OPTIONAL_DEPLOY_SNAPSHOT_PATHS:
+        if (REPO_ROOT / relative_path).exists():
+            snapshot_paths.append(relative_path)
+    return tuple(snapshot_paths)
 
 
 def copy_snapshot_path(relative_path: Path, release_repo_root: Path) -> None:
@@ -160,10 +225,11 @@ def deploy_release(_: argparse.Namespace) -> int:
     release_id = build_release_id()
     release_root = RELEASES_DIR / release_id
     release_repo_root = release_root / "repo"
+    snapshot_paths = collect_personal_deploy_snapshot_paths()
     if release_root.exists():
         print(f"[deploy] release already exists => {release_id}")
         return 1
-    for relative_path in DEPLOY_SNAPSHOT_PATHS:
+    for relative_path in snapshot_paths:
         copy_snapshot_path(relative_path, release_repo_root)
     (release_root / "release.json").write_text(
         json.dumps(
@@ -171,7 +237,7 @@ def deploy_release(_: argparse.Namespace) -> int:
                 "id": release_id,
                 "created_at": datetime.now().isoformat(timespec="seconds"),
                 "source_repo": str(REPO_ROOT),
-                "snapshot_paths": [path.as_posix() for path in DEPLOY_SNAPSHOT_PATHS],
+                "snapshot_paths": [path.as_posix() for path in snapshot_paths],
             },
             ensure_ascii=False,
             indent=2,
@@ -184,6 +250,7 @@ def deploy_release(_: argparse.Namespace) -> int:
     print(f"[deploy] root => {DEFAULT_DEPLOY_ROOT}")
     print(f"[deploy] current release => {release_id}")
     print(f"[deploy] launcher => {STABLE_CMD}")
+    print(f"[deploy] panel => {STABLE_PANEL_CMD}")
     return 0
 
 
@@ -202,6 +269,7 @@ def rollback_release(_: argparse.Namespace) -> int:
     write_stable_launchers()
     print(f"[deploy] rolled back => {rollback_release_id}")
     print(f"[deploy] launcher => {STABLE_CMD}")
+    print(f"[deploy] panel => {STABLE_PANEL_CMD}")
     return 0
 
 
@@ -213,6 +281,7 @@ def show_status(_: argparse.Namespace) -> int:
     print(f"[deploy] current release => {current_release or 'none'}")
     print(f"[deploy] releases => {len(payload['releases'])}")
     print(f"[deploy] launcher => {STABLE_CMD}")
+    print(f"[deploy] panel => {STABLE_PANEL_CMD}")
     return 0
 
 

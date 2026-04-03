@@ -11,6 +11,8 @@ if str(REPO_ROOT) not in sys.path:
 from tools.mvp.safeclaw_personal_deploy import (  # noqa: E402
     DEPLOY_SNAPSHOT_PATHS,
     build_cmd_launcher,
+    build_panel_cmd_launcher,
+    build_panel_ps1_launcher,
     build_ps1_launcher,
     pick_rollback_release,
 )
@@ -26,6 +28,8 @@ class SafeclawPersonalDeployTest(unittest.TestCase):
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.py"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.cmd"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.ps1"), DEPLOY_SNAPSHOT_PATHS)
+        self.assertIn(Path("tools/mvp/safeclaw_personal_panel.py"), DEPLOY_SNAPSHOT_PATHS)
+        self.assertIn(Path("tools/mvp/safeclaw_personal_panel.pyw"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/PERSONAL_MVP_PLAYBOOK.md"), DEPLOY_SNAPSHOT_PATHS)
 
     def test_build_cmd_launcher_resolves_current_release_snapshot(self) -> None:
@@ -38,6 +42,18 @@ class SafeclawPersonalDeployTest(unittest.TestCase):
         self.assertIn("current_release.txt", launcher)
         self.assertIn("releases", launcher)
         self.assertIn("safeclaw_personal_mvp.py", launcher)
+
+    def test_build_panel_cmd_launcher_resolves_current_release_snapshot(self) -> None:
+        launcher = build_panel_cmd_launcher()
+        self.assertIn("current_release.txt", launcher)
+        self.assertIn("safeclaw_personal_panel.pyw", launcher)
+        self.assertIn("SAFECLAW_PERSONAL_GUI_ENTRY_PATH", launcher)
+
+    def test_build_panel_ps1_launcher_resolves_current_release_snapshot(self) -> None:
+        launcher = build_panel_ps1_launcher()
+        self.assertIn("current_release.txt", launcher)
+        self.assertIn("safeclaw_personal_panel.pyw", launcher)
+        self.assertIn("SAFECLAW_PERSONAL_GUI_ENTRY_PATH", launcher)
 
     def test_pick_rollback_release_returns_previous_release(self) -> None:
         releases = [

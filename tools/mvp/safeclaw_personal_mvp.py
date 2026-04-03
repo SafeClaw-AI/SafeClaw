@@ -11,10 +11,23 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOLCHAIN = "stable-x86_64-pc-windows-gnu"
+TOOLCHAIN_BIN_PATH = Path.home() / ".rustup" / "toolchains" / TOOLCHAIN / "bin"
 LINKER = (
     r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
     r"WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\x86_64-w64-mingw32-gcc.exe"
 )
+CARGO_SAFECLAW_MVP_ENTRY_PREFIX = [
+    "cargo",
+    f"+{TOOLCHAIN}",
+    "run",
+    "-p",
+    "safeclaw-sqlite",
+    "--example",
+    "safeclaw_mvp_entry",
+    "--quiet",
+    "--",
+]
+SAFECLAW_MVP_ENTRY_EXE_RELATIVE_PATH = Path("target/debug/examples/safeclaw_mvp_entry.exe")
 PROFILE_ROOT_ENV = "SAFECLAW_PERSONAL_ROOT"
 DEFAULT_PROFILE_ROOT = Path(
     os.environ.get(PROFILE_ROOT_ENV) or (Path.home() / ".safeclaw-personal")
@@ -92,15 +105,7 @@ def build_archive_note_command(
     task_id: str,
 ) -> list[str]:
     return [
-        "cargo",
-        f"+{TOOLCHAIN}",
-        "run",
-        "-p",
-        "safeclaw-sqlite",
-        "--example",
-        "safeclaw_mvp_entry",
-        "--quiet",
-        "--",
+        *CARGO_SAFECLAW_MVP_ENTRY_PREFIX,
         "archive-note",
         "--db",
         str(DB_PATH),
@@ -121,15 +126,7 @@ def build_archive_note_command(
 
 def build_undo_command(task_id: str) -> list[str]:
     return [
-        "cargo",
-        f"+{TOOLCHAIN}",
-        "run",
-        "-p",
-        "safeclaw-sqlite",
-        "--example",
-        "safeclaw_mvp_entry",
-        "--quiet",
-        "--",
+        *CARGO_SAFECLAW_MVP_ENTRY_PREFIX,
         "undo",
         "--db",
         str(DB_PATH),
@@ -162,24 +159,67 @@ def save_last_note(payload: dict[str, str]) -> None:
     )
 
 
-def build_cargo_env() -> dict[str, str]:
-    env = os.environ.copy()
-    env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", LINKER)
-    return env
+def prepend_runtime_path_entries(runtime_env: dict[str, str], path_entries: list[str]) -> dict[str, str]:
+    if not path_entries:
+        return runtime_env
+    existing_entries = [entry for entry in runtime_env.get("PATH", "").split(os.pathsep) if entry]
+    seen_entries = {os.path.normcase(os.path.normpath(entry)) for entry in existing_entries}
+    additions: list[str] = []
+    for entry in path_entries:
+        normalized_entry = os.path.normcase(os.path.normpath(entry))
+        if normalized_entry in seen_entries:
+            continue
+        seen_entries.add(normalized_entry)
+        additions.append(entry)
+    if additions:
+        runtime_env["PATH"] = os.pathsep.join([*additions, *existing_entries])
+    return runtime_env
+
+
+def resolve_safeclaw_mvp_runtime_command(
+    command: list[str],
+    repo_root: Path = REPO_ROOT,
+) -> list[str]:
+    if command[: len(CARGO_SAFECLAW_MVP_ENTRY_PREFIX)] != CARGO_SAFECLAW_MVP_ENTRY_PREFIX:
+        return list(command)
+    example_path = repo_root / SAFECLAW_MVP_ENTRY_EXE_RELATIVE_PATH
+    if not example_path.exists():
+        return list(command)
+    return [str(example_path), *command[len(CARGO_SAFECLAW_MVP_ENTRY_PREFIX) :]]
+
+
+def build_safeclaw_mvp_runtime_env(command: list[str]) -> dict[str, str]:
+    runtime_env = os.environ.copy()
+    path_entries: list[str] = []
+    if TOOLCHAIN_BIN_PATH.exists():
+        path_entries.append(str(TOOLCHAIN_BIN_PATH))
+    if command[: len(CARGO_SAFECLAW_MVP_ENTRY_PREFIX)] == CARGO_SAFECLAW_MVP_ENTRY_PREFIX:
+        runtime_env.setdefault("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER", LINKER)
+    return prepend_runtime_path_entries(runtime_env, path_entries)
+
+
+def check_configured_linker_accessible() -> bool:
+    try:
+        return Path(LINKER).exists()
+    except PermissionError as error:
+        print(f"[personal] linker probe permission denied => {LINKER} ({error})")
+        return True
 
 
 def run_checked(command: list[str]) -> int:
-    cargo_path = shutil.which("cargo")
-    if cargo_path is None:
-        print("[personal] missing cargo in PATH")
-        return 1
-    if not Path(LINKER).exists():
-        print(f"[personal] missing GNU linker => {LINKER}")
-        return 1
+    runtime_command = resolve_safeclaw_mvp_runtime_command(command)
+    if runtime_command == command:
+        cargo_path = shutil.which("cargo")
+        if cargo_path is None:
+            print("[personal] missing cargo in PATH")
+            return 1
+        if not check_configured_linker_accessible():
+            print(f"[personal] missing GNU linker => {LINKER}")
+            return 1
     completed = subprocess.run(
-        command,
+        runtime_command,
         cwd=REPO_ROOT,
-        env=build_cargo_env(),
+        env=build_safeclaw_mvp_runtime_env(runtime_command),
         check=False,
     )
     return completed.returncode

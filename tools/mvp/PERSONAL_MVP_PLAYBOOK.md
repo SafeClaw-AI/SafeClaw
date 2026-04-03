@@ -6,12 +6,13 @@
 - 只保留 `archive-note -> 可读账单 -> undo`
 - 不混入丞相模式
 - 不混入大都督模式
-- 不等待 GUI、商业化、安全包、多人协作
+- 不等待大 GUI、商业化、安全包、多人协作；当前只补一层中文小面板
 
 ## 入口
 ### 明早直接用（已部署生产入口）
-- `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd`
-- `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
+- `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd`
+- `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`
+- 备份 CLI：`%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
 - 如果你只是要直接用，先不要回到仓库内入口。
 
 ### 维护层入口（仓库内）
@@ -29,16 +30,17 @@
 
 ## 生产部署（维护层动作）
 - 部署命令：`python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy`
-- 稳定入口：`%USERPROFILE%\\.safeclaw-personal-production\\safeclaw-personal.cmd`
+- 面板入口：`%USERPROFILE%\\.safeclaw-personal-production\\safeclaw-personal-panel.cmd`
+- 备份 CLI：`%USERPROFILE%\\.safeclaw-personal-production\\safeclaw-personal.cmd`
 - 查看部署态：`python -X utf8 tools/mvp/safeclaw_personal_deploy.py status`
 - 回滚上一版：`python -X utf8 tools/mvp/safeclaw_personal_deploy.py rollback`
 - 可用 `SAFECLAW_PERSONAL_DEPLOY_ROOT` 覆盖默认部署根目录，方便测试或迁移。
 
 ## 最短循环
-1. 记一条笔记
-2. 看 SafeClaw 的可读账单
-3. 需要时执行 `undo`
-4. 第二天继续用
+1. 先点开个人中文小面板
+2. 写一条笔记
+3. 看当前状态
+4. 需要时点“撤销上一步”
 
 ## 命令
 ### 1) 写入归档笔记（生产位）
