@@ -181,7 +181,8 @@ def build_personal_panel_error_hint(output_text: str) -> str | None:
 
 
 def build_archive_note_summary_lines(output_text: str) -> list[str]:
-    lines = ["结果：已写入归档笔记"]
+    summary_text = extract_personal_output_value(output_text, "summary")
+    lines = [f"结果：{summary_text or '已写入归档笔记'}"]
     last_note = extract_personal_output_value(output_text, "last note")
     next_step = extract_personal_output_value(output_text, "next")
     if last_note:
@@ -192,7 +193,8 @@ def build_archive_note_summary_lines(output_text: str) -> list[str]:
 
 
 def build_status_summary_lines(output_text: str) -> list[str]:
-    lines = ["结果：已刷新当前状态"]
+    summary_text = extract_personal_output_value(output_text, "summary")
+    lines = [f"结果：{summary_text or '已刷新当前状态'}"]
     profile_path = extract_personal_output_value(output_text, "profile")
     database_path = extract_personal_output_value(output_text, "db")
     archive_root = extract_personal_output_value(output_text, "archive_root")
@@ -220,7 +222,8 @@ def build_status_summary_lines(output_text: str) -> list[str]:
 
 
 def build_undo_summary_lines(output_text: str) -> list[str]:
-    lines = ["结果：已执行撤销"]
+    summary_text = extract_personal_output_value(output_text, "summary")
+    lines = [f"结果：{summary_text or '已执行撤销'}"]
     archive_exists = extract_personal_output_value(output_text, "archive exists")
     next_step = extract_personal_output_value(output_text, "next")
     if archive_exists:

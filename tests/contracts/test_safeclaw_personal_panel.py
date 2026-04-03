@@ -67,6 +67,7 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
                 "[personal] profile => C:/demo/.safeclaw-personal\n"
                 "[personal] db => C:/demo/.safeclaw-personal/state/session.db\n"
                 "[personal] archive_root => C:/demo/.safeclaw-personal/archive\n"
+                "[personal] summary => 当前还没有最近笔记。\n"
                 "[personal] last note => none\n"
                 "[personal] next => safeclaw-personal.cmd archive-note --name <name> --content <text>\n"
             ),
@@ -74,7 +75,7 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         )
         rendered = build_personal_panel_result_text("status", completed)
         self.assertIn("【查看状态】", rendered)
-        self.assertIn("结果：已刷新当前状态", rendered)
+        self.assertIn("结果：当前还没有最近笔记。", rendered)
         self.assertIn("最近笔记：还没有", rendered)
         self.assertIn("下一步：safeclaw-personal.cmd archive-note --name <name> --content <text>", rendered)
         self.assertNotIn("退出码：0", rendered)
