@@ -13,7 +13,9 @@ if str(REPO_ROOT) not in sys.path:
 from tools.mvp.safeclaw_personal_panel import (  # noqa: E402
     PERSONAL_PANEL_ENTRY_PATH_ENV,
     build_archive_note_panel_arguments,
+    build_personal_panel_undo_confirmation_text,
     build_personal_panel_result_text,
+    build_personal_panel_progress_text,
     resolve_personal_panel_entry_command,
 )
 
@@ -75,6 +77,8 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("结果：已刷新当前状态", rendered)
         self.assertIn("最近笔记：还没有", rendered)
         self.assertIn("下一步：safeclaw-personal.cmd archive-note --name <name> --content <text>", rendered)
+        self.assertNotIn("退出码：0", rendered)
+        self.assertNotIn("【原始输出】", rendered)
 
     def test_build_personal_panel_result_text_renders_undo_failure_hint(self) -> None:
         completed = subprocess.CompletedProcess(
@@ -87,6 +91,18 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("【撤销上一步】", rendered)
         self.assertIn("结果：执行失败", rendered)
         self.assertIn("提示：还没有最近笔记，先点“写笔记”。", rendered)
+        self.assertIn("【原始输出】", rendered)
+
+    def test_build_personal_panel_progress_text_uses_human_readable_copy(self) -> None:
+        self.assertEqual(build_personal_panel_progress_text("archive-note"), "正在写入笔记，请稍等。")
+        self.assertEqual(build_personal_panel_progress_text("status"), "正在刷新状态，请稍等。")
+        self.assertEqual(build_personal_panel_progress_text("undo"), "正在撤销上一步，请稍等。")
+
+    def test_build_personal_panel_undo_confirmation_text_explains_risk(self) -> None:
+        confirmation_text = build_personal_panel_undo_confirmation_text()
+        self.assertIn("这会尝试撤销最近一次归档笔记。", confirmation_text)
+        self.assertIn("对应文件可能会被删除。", confirmation_text)
+        self.assertIn("确定继续吗？", confirmation_text)
 
 
 if __name__ == "__main__":

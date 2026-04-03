@@ -14,6 +14,11 @@ PERSONAL_PANEL_ENTRY_PATH_ENV = "SAFECLAW_PERSONAL_GUI_ENTRY_PATH"
 PERSONAL_PANEL_TITLE_ENV = "SAFECLAW_PERSONAL_GUI_TITLE"
 DEFAULT_PANEL_TITLE = "SafeClaw 个人小面板"
 DEFAULT_PANEL_POLL_INTERVAL_MS = 150
+PANEL_ACTION_TITLES = {
+    "archive-note": "写笔记",
+    "status": "查看状态",
+    "undo": "撤销上一步",
+}
 
 
 def build_entry_process_command(entry_path: Path) -> list[str]:
@@ -66,6 +71,30 @@ def build_status_panel_arguments() -> list[str]:
 
 def build_undo_panel_arguments() -> list[str]:
     return ["undo"]
+
+
+def get_personal_panel_action_title(action_name: str) -> str:
+    return PANEL_ACTION_TITLES.get(action_name, action_name)
+
+
+def build_personal_panel_progress_text(action_name: str) -> str:
+    if action_name == "archive-note":
+        return "正在写入笔记，请稍等。"
+    if action_name == "status":
+        return "正在刷新状态，请稍等。"
+    if action_name == "undo":
+        return "正在撤销上一步，请稍等。"
+    return f"正在执行：{action_name}"
+
+
+def build_personal_panel_undo_confirmation_text() -> str:
+    return "\n".join(
+        [
+            "这会尝试撤销最近一次归档笔记。",
+            "如果最近一次笔记已经写入归档，对应文件可能会被删除。",
+            "确定继续吗？",
+        ]
+    )
 
 
 def build_panel_action_command(
@@ -215,21 +244,19 @@ def build_personal_panel_result_text(
     action_name: str,
     completed: subprocess.CompletedProcess[str],
 ) -> str:
-    action_titles = {
-        "archive-note": "写笔记",
-        "status": "查看状态",
-        "undo": "撤销上一步",
-    }
     output_text = ((completed.stdout or "") + (completed.stderr or "")).strip()
-    lines = [f"【{action_titles.get(action_name, action_name)}】", f"退出码：{completed.returncode}"]
+    lines = [f"【{get_personal_panel_action_title(action_name)}】"]
     if completed.returncode == 0:
         lines.extend(build_personal_panel_summary_lines(action_name, output_text))
     else:
+        lines.append(f"退出码：{completed.returncode}")
         lines.append("结果：执行失败")
         error_hint = build_personal_panel_error_hint(output_text)
         if error_hint:
             lines.append(f"提示：{error_hint}")
-    if output_text:
+        else:
+            lines.append("提示：下面是程序原始输出，便于排查。")
+    if output_text and completed.returncode != 0:
         lines.extend(["", "【原始输出】", output_text])
     return "\n".join(lines)
 
@@ -331,11 +358,17 @@ class SafeclawPersonalPanelController:
         self._queue_action("status")
 
     def request_undo(self) -> None:
+        if not self.messagebox.askyesno(
+            "SafeClaw 个人小面板",
+            build_personal_panel_undo_confirmation_text(),
+        ):
+            self._set_output("已取消：这次没有执行撤销。")
+            return
         self._queue_action("undo")
 
     def _queue_action(self, action_name: str, note_name: str = "", note_content: str = "") -> None:
         self._set_buttons_enabled(False)
-        self._set_output(f"正在执行：{action_name} ...")
+        self._set_output(build_personal_panel_progress_text(action_name))
         worker = threading.Thread(
             target=self._run_action_worker,
             args=(action_name, note_name, note_content),
