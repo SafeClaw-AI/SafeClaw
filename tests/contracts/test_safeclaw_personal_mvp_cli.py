@@ -31,6 +31,38 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
             check=False,
         )
 
+    def assert_archive_note_failure(
+        self,
+        completed: subprocess.CompletedProcess[str],
+        expected_reason: str,
+    ) -> None:
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("[personal] summary => 这次还没写成笔记。", completed.stdout)
+        self.assertIn(f"[personal] {expected_reason}", completed.stdout)
+        self.assertIn(
+            "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>",
+            completed.stdout,
+        )
+        self.assertLess(
+            completed.stdout.index("[personal] summary => 这次还没写成笔记。"),
+            completed.stdout.index(f"[personal] {expected_reason}"),
+        )
+        self.assertLess(
+            completed.stdout.index(f"[personal] {expected_reason}"),
+            completed.stdout.index(
+                "[personal] next => tools\\mvp\\safeclaw_personal_mvp.cmd archive-note --name <name> --content <text>"
+            ),
+        )
+        self.assertEqual(completed.stderr, "")
+
+    def test_archive_note_without_name_explains_human_next_step(self) -> None:
+        completed = self.run_personal("archive-note", "--content", "个人最小版回路验证")
+        self.assert_archive_note_failure(completed, "archive-note requires --name")
+
+    def test_archive_note_without_content_explains_human_next_step(self) -> None:
+        completed = self.run_personal("archive-note", "--name", ARCHIVE_NAME)
+        self.assert_archive_note_failure(completed, "archive-note requires --content or --content-file")
+
     def test_status_without_last_note_guides_to_archive_note(self) -> None:
         completed = self.run_personal("status")
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)

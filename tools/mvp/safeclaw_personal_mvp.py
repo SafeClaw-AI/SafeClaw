@@ -237,20 +237,25 @@ def read_content(args: argparse.Namespace) -> str:
     raise ValueError("archive-note requires --content or --content-file")
 
 
+def print_archive_note_failure(reason_text: str) -> int:
+    print_personal_summary("这次还没写成笔记。")
+    print(f"[personal] {reason_text}")
+    print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
+    return 1
+
+
 def run_archive_note(args: argparse.Namespace) -> int:
     ensure_profile_dirs()
     archive_date = args.date or date.today().isoformat()
-    note_name = args.name.strip()
+    note_name = (args.name or "").strip()
     if not note_name:
-        print("[personal] archive-note requires --name")
-        return 1
+        return print_archive_note_failure("archive-note requires --name")
     try:
         content = read_content(args)
         task_id = build_task_id(note_name, datetime.now())
         output_path = build_archive_output_path(ARCHIVE_ROOT, archive_date, note_name)
     except ValueError as error:
-        print(f"[personal] {error}")
-        return 1
+        return print_archive_note_failure(str(error))
     exit_code = run_checked(build_archive_note_command(note_name, archive_date, content, task_id))
     if exit_code != 0:
         return exit_code
@@ -334,9 +339,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     archive_note_parser = subparsers.add_parser("archive-note")
-    archive_note_parser.add_argument("--name", required=True, help="归档标题")
+    archive_note_parser.add_argument("--name", help="归档标题")
     archive_note_parser.add_argument("--date", type=validate_archive_date, help="归档日期，默认今天")
-    archive_note_content = archive_note_parser.add_mutually_exclusive_group(required=True)
+    archive_note_content = archive_note_parser.add_mutually_exclusive_group()
     archive_note_content.add_argument("--content", help="归档内容")
     archive_note_content.add_argument("--content-file", help="从文件读取归档内容")
     archive_note_parser.set_defaults(handler=run_archive_note)
