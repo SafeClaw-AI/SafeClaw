@@ -111,11 +111,20 @@ set SCRIPT_DIR=%~dp0
 set CURRENT_RELEASE=
 for /f \"usebackq delims=\" %%i in (\"%SCRIPT_DIR%current_release.txt\") do set CURRENT_RELEASE=%%i
 if not defined CURRENT_RELEASE (
-  >&2 echo [deploy] missing current release pointer: %SCRIPT_DIR%current_release.txt
+  >&2 echo [deploy] summary =^> 当前还没有可用的生产版本入口。
+  >&2 echo [deploy] missing current release pointer =^> %SCRIPT_DIR%current_release.txt
+  >&2 echo [deploy] next =^> 先检查并修复 current_release.txt，再重新部署。
   exit /b 1
 )
 set SAFECLAW_PERSONAL_ENTRY_COMMAND=safeclaw-personal.cmd
-python -X utf8 \"%SCRIPT_DIR%releases\\%CURRENT_RELEASE%\\repo\\tools\\mvp\\safeclaw_personal_mvp.py\" %*
+set SCRIPT_PATH=%SCRIPT_DIR%releases\\%CURRENT_RELEASE%\\repo\\tools\\mvp\\safeclaw_personal_mvp.py
+if not exist "%SCRIPT_PATH%" (
+  >&2 echo [deploy] summary =^> 当前生产入口不完整，这次没法继续。
+  >&2 echo [deploy] missing personal MVP launcher =^> %SCRIPT_PATH%
+  >&2 echo [deploy] next =^> 先重新部署当前版本，再重试。
+  exit /b 1
+)
+python -X utf8 "%SCRIPT_PATH%" %*
 exit /b %ERRORLEVEL%
 """
 
@@ -124,12 +133,16 @@ def build_ps1_launcher() -> str:
     return """$deployRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $currentReleaseFile = Join-Path $deployRoot 'current_release.txt'
 if (-not (Test-Path $currentReleaseFile)) {
-    Write-Error "[deploy] missing current release pointer: $currentReleaseFile"
+    Write-Output "[deploy] summary => 当前还没有可用的生产版本入口。"
+    Write-Output "[deploy] missing current release pointer => $currentReleaseFile"
+    Write-Output "[deploy] next => 先检查并修复 current_release.txt，再重新部署。"
     exit 1
 }
 $currentRelease = (Get-Content -LiteralPath $currentReleaseFile -Raw).Trim()
 if (-not $currentRelease) {
-    Write-Error "[deploy] empty current release pointer: $currentReleaseFile"
+    Write-Output "[deploy] summary => 当前还没有可用的生产版本入口。"
+    Write-Output "[deploy] empty current release pointer => $currentReleaseFile"
+    Write-Output "[deploy] next => 先检查并修复 current_release.txt，再重新部署。"
     exit 1
 }
 $releaseRoot = Join-Path (Join-Path $deployRoot 'releases') $currentRelease
@@ -138,7 +151,9 @@ $toolsRoot = Join-Path $repoRoot 'tools'
 $mvpRoot = Join-Path $toolsRoot 'mvp'
 $scriptPath = Join-Path $mvpRoot 'safeclaw_personal_mvp.py'
 if (-not (Test-Path $scriptPath)) {
-    Write-Error "[deploy] missing personal MVP launcher: $scriptPath"
+    Write-Output "[deploy] summary => 当前生产入口不完整，这次没法继续。"
+    Write-Output "[deploy] missing personal MVP launcher => $scriptPath"
+    Write-Output "[deploy] next => 先重新部署当前版本，再重试。"
     exit 1
 }
 $env:SAFECLAW_PERSONAL_ENTRY_COMMAND = 'safeclaw-personal.ps1'
@@ -154,12 +169,16 @@ set SCRIPT_DIR=%~dp0
 set CURRENT_RELEASE=
 for /f "usebackq delims=" %%i in ("%SCRIPT_DIR%current_release.txt") do set CURRENT_RELEASE=%%i
 if not defined CURRENT_RELEASE (
-  >&2 echo [deploy] missing current release pointer: %SCRIPT_DIR%current_release.txt
+  >&2 echo [deploy] summary =^> 当前还没有可用的面板入口。
+  >&2 echo [deploy] missing current release pointer =^> %SCRIPT_DIR%current_release.txt
+  >&2 echo [deploy] next =^> 先检查并修复 current_release.txt，再重新部署。
   exit /b 1
 )
-set PANEL_SCRIPT=%SCRIPT_DIR%releases\%CURRENT_RELEASE%\repo\tools\mvp\safeclaw_personal_panel.pyw
+set PANEL_SCRIPT=%SCRIPT_DIR%releases\\%CURRENT_RELEASE%\\repo\\tools\\mvp\\safeclaw_personal_panel.pyw
 if not exist "%PANEL_SCRIPT%" (
-  >&2 echo [deploy] missing personal panel launcher: %PANEL_SCRIPT%
+  >&2 echo [deploy] summary =^> 当前面板入口不完整，这次没法打开。
+  >&2 echo [deploy] missing personal panel launcher =^> %PANEL_SCRIPT%
+  >&2 echo [deploy] next =^> 先重新部署当前版本，再重试。
   exit /b 1
 )
 set SAFECLAW_PERSONAL_GUI_ENTRY_PATH=%SCRIPT_DIR%safeclaw-personal.cmd
@@ -172,12 +191,16 @@ def build_panel_ps1_launcher() -> str:
     return """$deployRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $currentReleaseFile = Join-Path $deployRoot 'current_release.txt'
 if (-not (Test-Path $currentReleaseFile)) {
-    Write-Error "[deploy] missing current release pointer: $currentReleaseFile"
+    Write-Output "[deploy] summary => 当前还没有可用的面板入口。"
+    Write-Output "[deploy] missing current release pointer => $currentReleaseFile"
+    Write-Output "[deploy] next => 先检查并修复 current_release.txt，再重新部署。"
     exit 1
 }
 $currentRelease = (Get-Content -LiteralPath $currentReleaseFile -Raw).Trim()
 if (-not $currentRelease) {
-    Write-Error "[deploy] empty current release pointer: $currentReleaseFile"
+    Write-Output "[deploy] summary => 当前还没有可用的面板入口。"
+    Write-Output "[deploy] empty current release pointer => $currentReleaseFile"
+    Write-Output "[deploy] next => 先检查并修复 current_release.txt，再重新部署。"
     exit 1
 }
 $releaseRoot = Join-Path (Join-Path $deployRoot 'releases') $currentRelease
@@ -186,7 +209,9 @@ $toolsRoot = Join-Path $repoRoot 'tools'
 $mvpRoot = Join-Path $toolsRoot 'mvp'
 $scriptPath = Join-Path $mvpRoot 'safeclaw_personal_panel.pyw'
 if (-not (Test-Path $scriptPath)) {
-    Write-Error "[deploy] missing personal panel launcher: $scriptPath"
+    Write-Output "[deploy] summary => 当前面板入口不完整，这次没法打开。"
+    Write-Output "[deploy] missing personal panel launcher => $scriptPath"
+    Write-Output "[deploy] next => 先重新部署当前版本，再重试。"
     exit 1
 }
 $env:SAFECLAW_PERSONAL_GUI_ENTRY_PATH = Join-Path $deployRoot 'safeclaw-personal.ps1'
