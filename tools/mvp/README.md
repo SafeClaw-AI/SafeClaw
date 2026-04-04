@@ -23,8 +23,8 @@
 - 默认先走 `workspace --name demo -> doctor -> service-run --report`。
 - `service-run` 已经自带一次 `service-status` 摘要；只有在你还想再看 queue / worker / effect 快照时，才需要额外执行 `service-status`。
 - 若要在真正执行前显式确认离线门禁，可先跑 `preflight --action service-run`。
-- `preflight --action ai-reason` 会稳定演示当前 local-only MVP 下的 provider-unavailable 拒绝路径；`service-status` 顶层 `offline_gate` 会镜像同一事实。
-- 常见命令入口 / session 动作会自动从 remembered session / workspace / 默认 output 推断权限上下文；如需显式覆盖，使用 `--scope demo.workspace` / `--write` / `--doctor-bypass`；如需在 `confirm` / `deny` 时直接 fail-closed，加 `--enforce-permission`；如需让组合动作复用 AI 离线门禁合同，加 `--preflight-action ai-reason`。
+- `preflight --action ai-reason` 会稳定显示“当前 local-only MVP 还不能调用 AI 提供方”这一拒绝结果；`service-status` 顶层 `offline_gate` 会镜像同一事实。
+- 常见命令入口 / session 动作会自动从最近一次成功会话、workspace、默认 output 推断权限上下文；如需显式覆盖，使用 `--scope demo.workspace` / `--write` / `--doctor-bypass`；如需在 `confirm` / `deny` 时直接硬阻断，加 `--enforce-permission`；如需让组合动作复用 AI 离线门禁合同，加 `--preflight-action ai-reason`。
 - failed 恢复路径先走 `service-retry --report`；若还想再看一次当前队列快照，再补 `service-status`。
 - uncertain 恢复路径先走 `service-recover --report`；若还想再看一次当前队列快照，再补 `service-status`。
 
@@ -36,24 +36,24 @@
 - `recover-demo`：一键演示 `seed-crash -> recover -> report`
 - `retry-demo`：一键演示 `seed-failed -> retry -> report`
 - `service-demo`：一条命令输出 `resolved / confirmation` 队列的 worker service 治理摘要。
-- `service-run`：执行任务后立刻打印对应的 service 摘要；可选 `--preflight` 会先展示同一动作的门禁结果，`--enforce-permission` 会把该门禁转成 fail-closed 阻断。
+- `service-run`：执行任务后立刻打印对应的 service 摘要；可选 `--preflight` 会先展示同一动作的门禁结果，`--enforce-permission` 会把该门禁直接变成硬阻断。
 - `service-retry`：重试 failed 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同。
 - `service-recover`：恢复 uncertain 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同。
 - `service-resume`：恢复 hibernated 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同；若目标任务已不再 hibernated，`--json` 会稳定返回 `resume-target-missing` / `resume-target-not-hibernated`，并附带 `service-status` 提示。
 - `--report`：在 `service-status` 之后顺手补 `report`，把同一路径收口到治理视图；`service-resume --report` 现已成为 hibernated 任务的一条命令收口路径。
 - `service-status`：查看所选 db 的 queue / lease / coordination 快照，并镜像顶层本地 runtime 快照（`runtime_profile`、`model_provider`、`sidecar`、`offline_gate`）、recent task 的 `next_*` 提示、remembered-session-aware 顶层 `coordination` 与 `executed_assumed` 的 reconcile 选择；精确 JSON 字段见下方“JSON 错误约定”。
-- `preflight`：显式检查某个目标动作在当前 local-only MVP 下是否仍被允许；已知命令入口 / session 动作放行，未知动作默认拒绝，`ai-reason` 会稳定返回 `ERR_AI_PROVIDER_UNAVAILABLE`；可用 `--scope` / `--write` / `--doctor-bypass` 覆盖推断上下文，用 `--enforce-permission` 做 fail-closed，用 `--preflight-action <name>` 让组合动作复用另一条门禁合同。
+- `preflight`：显式检查某个目标动作在当前 local-only MVP 下是否仍被允许；已知命令入口 / session 动作放行，未知动作默认拒绝，`ai-reason` 会稳定返回 `ERR_AI_PROVIDER_UNAVAILABLE`，也就是“当前还不能调用 AI 提供方”；可用 `--scope` / `--write` / `--doctor-bypass` 覆盖推断上下文，用 `--enforce-permission` 做硬阻断，用 `--preflight-action <name>` 让组合动作复用另一条门禁合同。
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
-- `session`：显示当前记忆的最近成功会话，并在文本输出里带上 remembered session 文件路径
-- `sessions`：列出当前数据库里的最近任务快照；默认优先使用 remembered session 的 `db`，并在文本/JSON 输出里标出来源
+- `session`：显示当前记忆的最近成功会话，并在文本输出里带上对应记忆文件路径
+- `sessions`：列出当前数据库里的最近任务快照；默认优先使用最近一次成功会话记忆里的 `db`，并在文本/JSON 输出里标出来源
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话，并在文本/JSON 输出里标出选择来源及 `db` / `output` / `owner_id` 来源
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
 - `workspace`：显示或激活一个命名 workspace，并固定默认 `db` / `output`；`--clear` 会回到全局默认路径，但 remembered session 仍保持独立。
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `run` / `report` / `status` / `seed-crash` / `seed-hibernated` / `recover` / `seed-failed` / `retry` / `resume` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
-- `doctor`：检查命令入口、Rust 工具链、linker、remembered session / workspace 路径，并报告当前 `db` / `output` 来源（`flag` / `session` / `workspace` / `default`）；同时明确当前 local MVP 即使没有 model provider / sidecar 仍可运行；`--json` 还会返回 `status`、`failing_checks`、`runtime_profile`、`model_provider`、`sidecar`。
-- `verify`：通过当前命令入口执行最小可用 operator flow 验收；`--json` 会返回 script path、python path、exit code 与 captured output。
+- `doctor`：检查命令入口、Rust 工具链、linker、最近一次成功会话记忆 / workspace 路径，并报告当前 `db` / `output` 来源（`flag` / `session` / `workspace` / `default`）；同时明确当前 local MVP 即使没有 model provider / sidecar 仍可运行；`--json` 还会返回 `status`、`failing_checks`、`runtime_profile`、`model_provider`、`sidecar`。
+- `verify`：通过当前命令入口执行最小可用白路径验收；`--json` 会返回 script path、python path、exit code 与 captured output。
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
 - `seed-failed`：制造失败态但不自动结案
