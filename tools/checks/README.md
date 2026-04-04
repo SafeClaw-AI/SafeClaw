@@ -17,6 +17,9 @@
 - `check_examples_smoke.py`：高层示例烟测，并要求覆盖 `safeclaw-sqlite/examples/*.rs` 全量示例
 - `check_generated_sync.py`：生成产物同步检查
 - `selfcheck.py`：串起全部门禁的统一入口
+- `worktree_groups.py`：把当前脏工作区按边界治理 / 自检治理 / 个人部署链 / 未归类分组输出，便于人工判断本轮改动边界
+- `selfcheck.py` 当前不会再单独重复跑 `check_mvp_operator_flow.py`；`Tooling smoke` 内的 `verify` 链路已经覆盖这条门禁
+- `selfcheck.py` 会把 `Example smoke` 与 `Generated sync` 作为并行尾部收口，减少总入口耗时
 
 ## 迁移期优先链路
 

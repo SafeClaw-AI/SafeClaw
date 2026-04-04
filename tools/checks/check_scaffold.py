@@ -62,6 +62,9 @@ REFERENCE_REQUIRED_FILES = [
     REPO_ROOT / "docs" / "reference" / "01-反屎山AI研发执行总纲（Codex专用浓缩对照版）.md",
     REPO_ROOT / "docs" / "reference" / "02-仓库卫生与命名规范.md",
 ]
+ROOT_TEXT_POLICY_FILES = [
+    REPO_ROOT / ".gitattributes",
+]
 ROOT_DIRECTORY_SECTION_TITLES = (
     "一、长期保留的根目录",
     "二、迁移前临时保留的根目录",
@@ -76,8 +79,9 @@ DIRECTORY_LOCK_REQUIRED_MARKERS = (
     "高优先级参考规范",
 )
 FORBIDDEN_NAME_TOKENS = ("最终版", "临时版", "new2", "test1")
-ALLOWED_HIDDEN_ROOT_ENTRIES = {".github", ".gitignore"}
+ALLOWED_HIDDEN_ROOT_ENTRIES = {".github", ".gitattributes", ".gitignore"}
 IGNORED_RUNTIME_DIR_NAMES = {"__pycache__"}
+TMP_DISALLOWED_PREFIXES = ("round-log-",)
 
 
 def normalize_locked_entry(entry: str) -> str:
@@ -121,7 +125,9 @@ def iter_governed_root_entries() -> list[Path]:
     for path in REPO_ROOT.iterdir():
         if path.name in IGNORED_RUNTIME_DIR_NAMES:
             continue
-        if path.name.startswith(".") and path.name not in ALLOWED_HIDDEN_ROOT_ENTRIES:
+        if path.name.startswith("."):
+            if path.name in ALLOWED_HIDDEN_ROOT_ENTRIES:
+                continue
             continue
         entries.append(path)
     return entries
@@ -149,6 +155,14 @@ def collect_reference_file_errors() -> list[str]:
     for path in REFERENCE_REQUIRED_FILES:
         if not path.exists():
             errors.append(f"缺少 reference 真源文件: {path.relative_to(REPO_ROOT).as_posix()}")
+    return errors
+
+
+def collect_root_text_policy_errors() -> list[str]:
+    errors: list[str] = []
+    for path in ROOT_TEXT_POLICY_FILES:
+        if not path.exists():
+            errors.append(f"缺少根级文本行尾策略文件: {path.relative_to(REPO_ROOT).as_posix()}")
     return errors
 
 
@@ -206,12 +220,30 @@ def collect_forbidden_name_errors() -> list[str]:
     return errors
 
 
+def collect_tmp_hygiene_errors() -> list[str]:
+    tmp_root = REPO_ROOT / "tmp"
+    if not tmp_root.exists():
+        return []
+
+    errors: list[str] = []
+    for path in tmp_root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.name.startswith(TMP_DISALLOWED_PREFIXES):
+            errors.append(
+                f"tmp 目录存在误放长期留痕: {path.relative_to(REPO_ROOT).as_posix()}"
+            )
+    return errors
+
+
 def collect_reference_guardrail_errors() -> list[str]:
     errors: list[str] = []
     errors.extend(collect_reference_file_errors())
+    errors.extend(collect_root_text_policy_errors())
     errors.extend(collect_directory_lock_errors())
     errors.extend(collect_root_layout_errors())
     errors.extend(collect_forbidden_name_errors())
+    errors.extend(collect_tmp_hygiene_errors())
     return errors
 
 
