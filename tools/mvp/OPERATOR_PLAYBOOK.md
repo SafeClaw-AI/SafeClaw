@@ -24,6 +24,8 @@
 
 ## 主路径
 
+下列示例优先只保留每条路径的主命令。若某一步执行完后你还想再看一次当前队列快照，再补 `tools\mvp\safeclaw_mvp.cmd service-status --limit 5`。
+
 ### 0. Workspace 选择
 
 先固定一个命名 workspace，让 wrapper 复用稳定的 `db/output` 路径，避免重复传 flag。
@@ -46,7 +48,6 @@ tools\mvp\safeclaw_mvp.cmd doctor --json
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
 
 ### 3. failed 恢复路径
@@ -56,7 +57,6 @@ tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```bat
 tools\mvp\safeclaw_mvp.cmd seed-failed --reset --task-id task-demo-failed
 tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo-failed --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
 
 ### 4. uncertain 恢复路径
@@ -66,7 +66,6 @@ tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```bat
 tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status --limit 5
 ```
 
 提示：workspace 只固定默认 `db/output`；读动作是否复用 task/effect，仍由 remembered session 决定。
