@@ -141,7 +141,7 @@ SafeClaw 还在很早期。
 
 ## 当前可手动体验的本地 MVP
 
-现在已经有一层给主人自用的中文小面板，但还不是“开箱即用的完整产品”。  
+下面只列当前已经能实际进入的本地入口。
 在当前 Windows GNU 开发环境下，仓库主人已经可以用 **小面板 + 生产位** 跑最小闭环。
 
 - 主人自用入口：先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`；CLI 备份入口仍保留 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
