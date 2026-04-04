@@ -1,3 +1,10 @@
+"""Legacy Chancellor compatibility snapshot.
+
+SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
+本文件仅保留历史兼容快照与后期拼接融合参考，不代表 SafeClaw 当前主线功能承诺。
+"""
+
 from __future__ import annotations
 
 import json

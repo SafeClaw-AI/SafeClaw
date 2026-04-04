@@ -2,14 +2,35 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-04-04 01:23:31 +0800
+最后更新时间：2026-04-04 09:14:00 +08:00
 范围：`01_文档` 对应的整体计划
 当前阶段：`M1b` 已毕业，前 309 刀已完成；`M2-P0-4` 已把个人生产位切到优先走预编译示例并随部署快照携带 `safeclaw_mvp_entry.exe`，当前继续锁 `archive-note -> status -> undo` 金线并准备收第一条 GUI 日用痛点
+当前边界说明（2026-04-04）：
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
+- 本表内旧有 `docs/chancellor-mode/v2/`、`丞相状态`、`丞相检查` 等记录仅代表当时历史切片，不代表当前主线承诺。
 当前预估：
 - Win11 本地 MVP / M1a 可手用收口：已完成
 - M1b 生存层补完：已完成
 - 当前主线（M2-P0-4 产品价值闭环验收）：约 1 ~ 3 天
 - M2 首轮价值层剩余：约 2 ~ 4 周
+
+## 当前收口总览（2026-04-04）
+当前工作区摘要：
+- 总改动：24
+- 分组：边界治理 13，自检治理 8，个人部署链 3
+- 未归类改动：0 项
+
+| 分组 | 当前事实 | 已锁边界 | 当前判定 | 下一动作 |
+| --- | --- | --- | --- | --- |
+| 边界治理 | 公开文档、`tools/mvp/chancellor_panel.py` 与相关合同已统一写明：SafeClaw 不独立开发丞相模式/大都督模式，只保留后期外部拼接融合边界；当前组内 13 项改动均已纳入既定分组 | `docs/chancellor-mode/v2/` 只作为历史切片与后期拼接融合参考，不作为当前主线真源；`tools/mvp/chancellor_panel.py` 只保留快照消费与兼容检查；`python -X utf8 tools/checks/check_public_docs.py` 必须继续全绿 | 可验收，待合批 | 逐项终审并并批 |
+| 自检治理 | `python -X utf8 tools/checks/selfcheck.py` 已全绿，`438` 项合同测试通过；当前组内 8 项改动均已纳入既定分组 | `python -X utf8 tools/checks/selfcheck.py` 继续作为唯一总验收入口；`tools/checks/worktree_groups.py` 继续输出摘要优先、明细随后的人话收口视图；`.gitattributes` 继续作为当前仓库的换行真源；`tmp/` 只允许放临时验证产物 | 可验收，待合批 | 保持总入口不绕行，按门禁批次收口 |
+| 个人部署链 | 个人生产位仍只服务 `archive-note -> status -> undo` 金线，部署/回滚链与外部丞相模式保持隔离；当前组内 3 项改动均已纳入既定分组 | `safeclaw-personal.cmd` / `safeclaw-personal.ps1` 继续只服务 `archive-note -> status -> undo` 个人金线；`tools/mvp/safeclaw_personal_deploy.py` 只保留 `deploy / rollback / status`；回滚只切 release 指针，不碰个人数据目录；个人部署链继续与外部丞相模式隔离 | 可验收，待合批 | 仅按个人部署语义收口，不升格为当前主线 |
+
+收口结论：
+- 当前 `24` 项改动已全部纳入三组治理，未归类 `0` 项，现状稳定。
+- 提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节。
+- 历史切片仍保留，但只作回看与后期拼接融合参考，不改变当前主线承诺。
 
 ## 进展
 | 状态 | 计划区块 | 文档来源 | 当前实现进展 | 备注 |
@@ -211,7 +232,7 @@
 
 
 | [x] | M1b 生存层补完 | `01_文档/03_开发蓝图.md` M1b | 冻结版毕业链已于 `2026-03-31 20:33:15 +0800` 全绿跑通；当前不再把新主题回灌成无限扫尾 | 已毕业 |
-| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已完成 `M2-1` / `M2-2` 解释层地基，且 `M2-P0-1` 可读账单与 `M2-P0-2` 真实任务场景 `archive-note` 已落地；现行顺序继续推进 `undo` 价值闭环，其后再补 `丞相检查` / `丞相版本` / `丞相验板` 的人话层，并逐步进入 provider sidecar / permission gateway / memory / scheduler | 当前主线 |
+| [ ] | M2 价值层 | `01_文档/03_开发蓝图.md` 价值层 | 当前已完成 `M2-1` / `M2-2` 解释层历史地基，且 `M2-P0-1` 可读账单与 `M2-P0-2` 真实任务场景 `archive-note` 已落地；现行顺序继续推进 `undo` 价值闭环；外部丞相命令后续如需接入，只做拼接融合，不在 SafeClaw 仓内继续扩写 | 当前主线 |
 | [ ] | M3 / Phase 2 / Phase 3+ | `01_文档/03_开发蓝图.md` 后续阶段 | 正式 CLI、插件、浏览器自动化、远程节点等属于后续 | 长线 |
 
 | [x] | M1b Slice 173: spi version metadata baseline | M1b plan | 在 `tests/contracts/test_version_check.py` 补齐完整版本合同，并把 `specs/spi/` 下 6 个安全抽象占位 JSON 一次性补齐 `version/$schema/$id/title`；随后执行 `python tools/codegen/regenerate_all.py` 同步 `generated/` 索引，最终让静默 `selfcheck` 恢复全绿 | 清掉长期卡在 `check_versions.py` 的历史总阻塞，避免之后每轮都被同一批 `spi` 占位文件拖住 |

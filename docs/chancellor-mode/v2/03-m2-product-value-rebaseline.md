@@ -1,8 +1,13 @@
 # M2 产品价值优先级改序决议
 
 - Time: 2026-04-01 00:48:36 +0800
-- Status: current truth source
-- Scope: rebaseline M2 sequencing so the first proof of value is readable, screenshotable, and undoable before deeper explanation-layer polishing
+- Status: historical external-integration sequencing snapshot
+- Scope: preserve the old sequencing snapshot for future external integration/fusion reference
+
+## 0. 边界说明（2026-04-04）
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 本文档仅保留历史改序快照与后期拼接融合参考，不作为 SafeClaw 当前主线功能承诺。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
 
 ## 1. 为什么现在改序
 - 现有 `M2-1` / `M2-2` 已经证明：面板人话层可以做，但它还不足以向非技术用户证明 SafeClaw 的核心价值。

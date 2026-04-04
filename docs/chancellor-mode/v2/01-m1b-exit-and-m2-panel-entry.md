@@ -1,8 +1,13 @@
 # M1b 收口与 M2 面板入口决议
 
 - Time: 2026-03-31 19:52:12 +0800
-- Status: baseline truth source (M2 sequencing superseded by `03-m2-product-value-rebaseline.md`)
-- Scope: freeze M1b exit rules and preserve the first M2 panel-visible delivery baseline
+- Status: historical external-integration baseline reference
+- Scope: preserve the old M2 panel-visible delivery baseline for future external integration/fusion reference
+
+## 0. 边界说明（2026-04-04）
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 本文档仅保留历史基线、兼容语义与后期拼接融合参考，不作为 SafeClaw 当前主线功能承诺。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
 
 ## 1. 为什么现在先写这份文档
 - 当前风险不在代码质量，而在 `M1b` 何时算完、`M2` 先交什么给用户这两件事没有被当前主线写成单一真源。

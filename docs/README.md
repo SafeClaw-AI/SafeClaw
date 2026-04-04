@@ -2,6 +2,12 @@
 
 公开文档索引。
 
+## 当前边界说明（2026-04-04）
+
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
+- 下文出现的 `docs/chancellor-mode/v2/` 仅代表历史方案与后期拼接融合参考，不代表 SafeClaw 当前主线功能承诺。
+
 ## 当前文件
 
 - `docs/DEVLOG.md`：公开开发日志
@@ -13,10 +19,10 @@
 - `docs/30-方案/06-V4-ledger-compat-index-spec.md`：台账兼容索引规则，定义新旧路径映射与读取优先级
 - `docs/30-方案/08-V4-ledger-index-manifest.json`：台账索引最小机读真源，供后续脚本读取
 - `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md`：当前 reference 合规纠偏快照，说明旧审计里哪些说法已过期
-- `docs/chancellor-mode/v2/`：现行丞相模式方案真源目录
-- `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`：`M1b` 收口与 `M2` 面板入口的基线决议真源
-- `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`：四个丞相面板命令的输入/输出字段真源表
-- `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md`：现行 `M2` 改序真源，先做可读账单 / 真实任务 / `undo` 价值闭环
+- `docs/chancellor-mode/v2/`：外部丞相模式历史方案与后期拼接融合参考目录，不属于 SafeClaw 当前开发范围
+- `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`：外部丞相模式的历史基线决议快照，保留作后期拼接融合参考
+- `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`：外部丞相模式四命令字段快照，保留作后期拼接融合参考
+- `docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md`：外部丞相模式的历史改序快照，保留作后期拼接融合参考
 
 ## 说明
 

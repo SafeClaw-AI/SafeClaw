@@ -1,6 +1,66 @@
 # 提交推送流水账
 
-最后更新时间：2026-04-04 01:23:31 +0800
+最后更新时间：2026-04-04 09:24:36 +08:00
+
+## 当前边界说明（2026-04-04）
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
+- 本文件内旧有 `docs/chancellor-mode/v2/`、`丞相状态`、`丞相检查` 等条目仅代表历史流水，不代表当前主线承诺。
+
+## 当前提交执行摘要（2026-04-04）
+- 当前工作区总改动：24；当前分组情况：边界治理 13 / 自检治理 8 / 个人部署链 3；未归类：0。
+- 本摘要属于提交前快照；任一批次完成 commit 后，必须同步刷新总改动、分组数、批次文件表与收口表，不沿用旧数值。
+- 建议提交顺序：边界治理 -> 自检治理 -> 个人部署链。
+- 批次一文件：`MVP_PROGRESS.md`、`PUSH_LOG.md`、`docs/30-方案/02-V4-目录锁定清单.md`、`docs/README.md`、`docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`、`docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`、`docs/chancellor-mode/v2/03-m2-product-value-rebaseline.md`、`docs/reference/02-仓库卫生与命名规范.md`、`tests/contracts/test_chancellor_panel.py`、`tests/contracts/test_public_docs_check.py`、`tools/checks/check_public_docs.py`、`tools/mvp/chancellor_panel.py`、`开发计划.md`。
+- 批次二文件：`tests/contracts/test_scaffold_check.py`、`tests/contracts/test_selfcheck.py`、`tools/checks/README.md`、`tools/checks/check_scaffold.py`、`tools/checks/selfcheck.py`、`.gitattributes`、`tests/contracts/test_worktree_groups.py`、`tools/checks/worktree_groups.py`。
+- 批次三文件：`tests/contracts/test_safeclaw_personal_deploy.py`、`tools/mvp/safeclaw_personal_deploy.py`、`temp/parked-root/round-log-20260402-130500-personal-thin-panel-delivery.md`。
+- 当前重点：三组提交前验证清单、收口表、就绪核对与文件级逐项核对已补齐；逐项核对时，未跟踪文件必须用 `git status --short` 补核，随后按顺序进入最终提交/归档收束；不再继续追加治理口径说明。
+
+### 批次一提交前验证清单（边界治理 13）
+- `python -X utf8 -m unittest tests.contracts.test_chancellor_panel tests.contracts.test_public_docs_check -v`
+- `python -X utf8 tools/checks/check_public_docs.py`
+- `python -X utf8 tools/checks/worktree_groups.py`
+- `git diff --check`
+- 通过标准：边界治理仍为 13，未归类仍为 0，公开口径不反弹。
+
+### 批次二提交前验证清单（自检治理 8）
+- `python -X utf8 -m unittest tests.contracts.test_scaffold_check tests.contracts.test_selfcheck tests.contracts.test_worktree_groups -v`
+- `python -X utf8 tools/checks/check_scaffold.py`
+- `python -X utf8 tools/checks/selfcheck.py`
+- `python -X utf8 tools/checks/worktree_groups.py`
+- `git diff --check`
+- 通过标准：自检治理仍为 8，未归类仍为 0，自检总入口不绕行，换行门禁不反弹。
+
+### 批次三提交前验证清单（个人部署链 3）
+- `python -X utf8 -m unittest tests.contracts.test_safeclaw_personal_deploy -v`
+- `python -X utf8 tools/checks/worktree_groups.py`
+- `git diff --check`
+- 通过标准：个人部署链仍为 3，未归类仍为 0，个人部署链继续与外部丞相模式隔离，回滚只切 release 指针的边界不反弹。
+
+## 当前提交/归档收口表（2026-04-04）
+
+| 批次 | 当前状态 | 已验结果 | 提交边界 |
+| --- | --- | --- | --- |
+| 边界治理 | 已验 | 公开文档门禁、合同、分组与换行检查已通过 | 不独立开发丞相模式/大都督模式，只保留后期外部拼接融合边界 |
+| 自检治理 | 已验 | scaffold、自检总入口、分组与换行检查已通过 | `selfcheck.py` 继续作为唯一总验收入口，不绕行 |
+| 个人部署链 | 已验 | 个人部署合同、分组与换行检查已通过 | 只服务 `archive-note -> status -> undo`，回滚只切 release 指针 |
+
+- 提交顺序：`边界治理 -> 自检治理 -> 个人部署链`。
+- 当前无需新增治理说明，直接进入提交/归档动作。
+
+## 当前提交前就绪核对（2026-04-04）
+
+| 批次 | 分组改动数 | 批次文件数 | 是否一致 | 当前结论 |
+| --- | --- | --- | --- | --- |
+| 边界治理 | 13 | 13 | 是 | 可独立提交 |
+| 自检治理 | 8 | 8 | 是 | 可独立提交 |
+| 个人部署链 | 3 | 3 | 是 | 可独立提交 |
+
+- 当前三组文件数与分组改动数一致，没有批次漏挂或跨组混挂迹象。
+- 当前三组批次文件已与脏工作区分组清单逐项核对，一致。
+- 核对方式：已跟踪改动看 `git diff --name-only -- <批次文件>`；未跟踪文件补看 `git status --short`。
+- 本轮补核到的未跟踪文件：自检治理 ` .gitattributes / tests/contracts/test_worktree_groups.py / tools/checks/worktree_groups.py `；个人部署链 ` temp/parked-root/round-log-20260402-130500-personal-thin-panel-delivery.md `。
+- 已实跑 `git status --short -- <批次文件>` 与 `git diff --stat -- <批次文件>`；三组均只命中本组文件，可独立提交。
 
 ## 记录规则
 - 每次准备 commit + push 前，先记本轮完成内容、验证内容、待提交内容。

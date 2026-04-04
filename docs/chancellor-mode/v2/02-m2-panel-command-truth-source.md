@@ -1,8 +1,13 @@
 # M2-1 面板命令真源表
 
 - Time: 2026-03-31 20:54:14 +0800
-- Status: current truth source
-- Scope: the first panel-visible command cards for ordinary users on 官方 Codex 面板
+- Status: historical external-integration field snapshot
+- Scope: preserve the old panel command field snapshot for future external integration/fusion reference
+
+## 零、边界说明（2026-04-04）
+- SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。
+- 本文档仅保留历史字段语义与后期拼接融合参考，不作为 SafeClaw 当前主线功能承诺。
+- 若后续需要接入，只做外部程序拼接融合，不在 SafeClaw 仓内继续扩写独立模式功能。
 
 ## 一、适用范围
 - 只覆盖四个面板命令：`丞相状态`、`丞相检查`、`丞相版本`、`丞相验板`。
