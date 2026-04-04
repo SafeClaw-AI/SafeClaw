@@ -256,16 +256,18 @@ SafeClaw 的核心协议和引擎永远开源免费。
 
 ## English Summary
 
-SafeClaw is an automation system designed for ordinary users, not just developers.  
-It is built around a simple idea:  
-**automation should feel understandable, controllable, and recoverable.**
+SafeClaw is an early automation system aimed at ordinary users, not just developers.
+Its core idea is simple:
+**automation should stay understandable, controllable, and recoverable.**
 
-Instead of pushing users to trust a black box, SafeClaw tries to:
+The public repo is still protocol-first. There is already an owner-only Chinese local small panel and personal production slot on Win11, but it is not yet a public turnkey product. The current local MVP operator path lives under `tools/mvp/`.
 
-- explain what it is going to do before it acts
+SafeClaw still tries to keep a few rules stable:
+
+- explain before acting
 - ask for confirmation when risk is involved
 - keep a clear effect ledger of external actions
-- stop, recover, or roll back whenever possible
+- preserve stop, recover, and rollback paths whenever possible
 - keep core control on the user's own machine
 
 Licensed under GPL-3.0. Commercial closed-source licensing is available upon request.
