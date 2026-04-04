@@ -181,7 +181,7 @@ safeclaw.cmd preflight --action ai-reason
 safeclaw.cmd service-status --limit 5
 ```
 
-其中 `preflight --action ai-reason` 与 `service-status` 顶层 `offline_gate` 会稳定回显当前离线 MVP 下的 AI provider-unavailable 事实；更细权限覆盖、`--enforce-permission` 与 `--preflight-action ai-reason` 的组合合同，统一看 `tools/mvp/README.md`。
+其中 `preflight --action ai-reason` 与 `service-status` 顶层 `offline_gate` 会稳定回显“当前离线 MVP 还不能调用 AI 提供方”这一事实；更细权限覆盖、`--enforce-permission` 与 `--preflight-action ai-reason` 的组合规则，统一看 `tools/mvp/README.md`。
 
 如果要确认当前包装层仍处于可交付状态，最小验收入口保留如下；failed / uncertain / executed_assumed 的收口顺序仍以 `tools/mvp/OPERATOR_PLAYBOOK.md` 为准：
 
@@ -193,9 +193,9 @@ safeclaw.cmd verify --json
 ### 当前最小能力
 
 - `workspace` / `doctor`：固定默认 `db` / `output`，并确认 launcher、Rust/linker、session/workspace 路径与当前离线 runtime 快照是否健康。
-- `preflight` / `service-status`：一个负责显式预检，一个负责查看 queue / lease / coordination 摘要；`ai-reason` 用来稳定演示当前 local-only MVP 下的 AI provider 不可用阻断，`service-status` 会同步镜像 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` 与 recent task 的 `next_*` 提示。
+- `preflight` / `service-status`：一个负责显式预检，一个负责查看 queue / lease / coordination 摘要；`ai-reason` 用来稳定显示“当前 local-only MVP 还不能调用 AI 提供方”这一阻断结果，`service-status` 会同步镜像 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` 与 recent task 的 `next_*` 提示。
 - `service-*` 组合动作：`service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` 分别覆盖正常执行、failed 重试、uncertain 恢复、hibernated 恢复与 `executed_assumed` 收口；白路径顺序统一以 `tools/mvp/OPERATOR_PLAYBOOK.md` 为准。
-- `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参。
+- `session` / `sessions` / `use` / `forget`：管理“最近一次成功会话”的记忆，减少重复传参。
 - `verify`：确认当前包装层仍处于可交付状态。
 - 常用 demo / service / seed / recover / session / workspace / doctor / preflight / verify 动作均支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`；字段级合同细节见 `tools/mvp/README.md`。
 
