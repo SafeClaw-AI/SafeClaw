@@ -2,7 +2,7 @@
 
 说明：本文件尽量用中文、短句、小学生能懂；先写做了什么，再写有什么用。
 
-最后更新时间：2026-04-04 09:14:00 +08:00
+最后更新时间：2026-04-04 11:31:20 +08:00
 范围：`01_文档` 对应的整体计划
 当前阶段：`M1b` 已毕业，前 309 刀已完成；`M2-P0-4` 已把个人生产位切到优先走预编译示例并随部署快照携带 `safeclaw_mvp_entry.exe`，当前继续锁 `archive-note -> status -> undo` 金线并准备收第一条 GUI 日用痛点
 当前边界说明（2026-04-04）：
@@ -17,19 +17,20 @@
 
 ## 当前收口总览（2026-04-04）
 当前工作区摘要：
-- 总改动：24
-- 分组：边界治理 13，自检治理 8，个人部署链 3
+- 总改动：0
+- 分组：当前工作区已干净
 - 未归类改动：0 项
 
 | 分组 | 当前事实 | 已锁边界 | 当前判定 | 下一动作 |
 | --- | --- | --- | --- | --- |
-| 边界治理 | 公开文档、`tools/mvp/chancellor_panel.py` 与相关合同已统一写明：SafeClaw 不独立开发丞相模式/大都督模式，只保留后期外部拼接融合边界；当前组内 13 项改动均已纳入既定分组 | `docs/chancellor-mode/v2/` 只作为历史切片与后期拼接融合参考，不作为当前主线真源；`tools/mvp/chancellor_panel.py` 只保留快照消费与兼容检查；`python -X utf8 tools/checks/check_public_docs.py` 必须继续全绿 | 可验收，待合批 | 逐项终审并并批 |
-| 自检治理 | `python -X utf8 tools/checks/selfcheck.py` 已全绿，`438` 项合同测试通过；当前组内 8 项改动均已纳入既定分组 | `python -X utf8 tools/checks/selfcheck.py` 继续作为唯一总验收入口；`tools/checks/worktree_groups.py` 继续输出摘要优先、明细随后的人话收口视图；`.gitattributes` 继续作为当前仓库的换行真源；`tmp/` 只允许放临时验证产物 | 可验收，待合批 | 保持总入口不绕行，按门禁批次收口 |
-| 个人部署链 | 个人生产位仍只服务 `archive-note -> status -> undo` 金线，部署/回滚链与外部丞相模式保持隔离；当前组内 3 项改动均已纳入既定分组 | `safeclaw-personal.cmd` / `safeclaw-personal.ps1` 继续只服务 `archive-note -> status -> undo` 个人金线；`tools/mvp/safeclaw_personal_deploy.py` 只保留 `deploy / rollback / status`；回滚只切 release 指针，不碰个人数据目录；个人部署链继续与外部丞相模式隔离 | 可验收，待合批 | 仅按个人部署语义收口，不升格为当前主线 |
+| 边界治理 | 公开文档、`tools/mvp/chancellor_panel.py` 与相关合同已统一写明：SafeClaw 不独立开发丞相模式/大都督模式，只保留后期外部拼接融合边界；本轮已提交 `80fe243` | `docs/chancellor-mode/v2/` 只作为历史切片与后期拼接融合参考，不作为当前主线真源；`tools/mvp/chancellor_panel.py` 只保留快照消费与兼容检查；`python -X utf8 tools/checks/check_public_docs.py` 必须继续全绿 | 已提交 | 下一轮若再动边界口径，先重新分组 |
+| 自检治理 | `python -X utf8 tools/checks/selfcheck.py` 已全绿，`438` 项合同测试通过；本轮已提交 `f6ca6a1` | `python -X utf8 tools/checks/selfcheck.py` 继续作为唯一总验收入口；`tools/checks/worktree_groups.py` 继续输出摘要优先、明细随后的人话收口视图；`.gitattributes` 继续作为当前仓库的换行真源；`tmp/` 只允许放临时验证产物 | 已提交 | 下一轮若再动门禁，先重新分组 |
+| 个人部署链 | 个人生产位仍只服务 `archive-note -> status -> undo` 金线，部署/回滚链与外部丞相模式保持隔离；本轮已提交 `7937fa4` | `safeclaw-personal.cmd` / `safeclaw-personal.ps1` 继续只服务 `archive-note -> status -> undo` 个人金线；`tools/mvp/safeclaw_personal_deploy.py` 只保留 `deploy / rollback / status`；回滚只切 release 指针，不碰个人数据目录；个人部署链继续与外部丞相模式隔离 | 已提交 | 下一轮若再动个人链，先重新分组 |
 
 收口结论：
-- 当前 `24` 项改动已全部纳入三组治理，未归类 `0` 项，现状稳定。
+- 当前这一轮三组治理已全部完成提交，工作区干净。
 - 提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节。
+- 若后续开启新一轮迭代，先刷新顶部摘要再新增改动，不沿用本轮旧数字。
 - 历史切片仍保留，但只作回看与后期拼接融合参考，不改变当前主线承诺。
 
 ## 进展
