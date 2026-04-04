@@ -68,6 +68,9 @@ REQUIRED_MARKERS = {
         "0.1.1",
         "OpenClaw",
         "English Summary",
+        "已经有一层给主人自用的本地中文小面板",
+        "还不是对外开箱即用的完整产品",
+        "当前可手动体验的本地 MVP",
     ],
     DEV_PLAN_FILE: [
         BOUNDARY_NOTE_TITLE,
