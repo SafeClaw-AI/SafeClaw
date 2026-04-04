@@ -1,6 +1,6 @@
 # MVP Operator Playbook
 
-这份手册只保留当前 Win11 本地 MVP wrapper 真正有用的最短操作路径。
+这份手册只保留当前 Win11 本地 MVP 命令入口真正有用的最短操作路径。
 
 目标不是把所有命令都摊开。
 目标是锁住一条能反复执行、检查、恢复、验证的白名单路径。
@@ -16,7 +16,7 @@
 
 ## 日用护栏
 
-- 当前 wrapper 仍是 **local-only**，即使尚未接入 model provider 或 sidecar 也可使用
+- 当前命令入口仍是 **local-only**，即使尚未接入 model provider 或 sidecar 也可使用
 - 把 `workspace --name demo -> doctor -> service-run --report -> service-status --limit 5 -> verify --json` 视为日用白路径
 - failed 任务的第一恢复动作固定为 `service-retry --report`
 - uncertain 任务的第一恢复动作固定为 `service-recover --report`
@@ -28,7 +28,7 @@
 
 ### 0. Workspace 选择
 
-先固定一个命名 workspace，让 wrapper 复用稳定的 `db/output` 路径，避免重复传 flag。
+先固定一个命名 workspace，让命令入口复用稳定的 `db/output` 路径，避免重复传 flag。
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd workspace --name demo
@@ -72,14 +72,14 @@ tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo-uncertain --limit
 
 ## 验证
 
-先用 wrapper 走 practical MVP gate：
+先用当前命令入口跑一遍最小可用验收：
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd verify
 tools\mvp\safeclaw_mvp.cmd verify --json
 ```
 
-再用任意能执行 wrapper 的 Python 跑完整协议门禁：
+再用任意能执行当前命令入口的 Python 跑完整协议门禁：
 
 ```bat
 set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
@@ -88,7 +88,7 @@ set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
 
 当前 selfcheck 策略：
 
-- `verify` 只跑当前 practical MVP operator flow gate
+- `verify` 只跑当前最小可用 operator flow 验收
 - `tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
 - 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
 - 这条 ledger policy chain 会显式前置在 `Contract tests` 之前
