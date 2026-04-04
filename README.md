@@ -144,23 +144,18 @@ SafeClaw 还在很早期。
 现在已经有一层给主人自用的中文小面板，但还不是“开箱即用的完整产品”。  
 在当前 Windows GNU 开发环境下，仓库主人已经可以用 **小面板 + 生产位** 跑最小闭环。
 
-- 如果只给仓库主人自己先快速用，请先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd` 或 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`
-- CLI 生产入口仍保留：`%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
-- `safeclaw.cmd`
-- `safeclaw.ps1`
-- `tools/mvp/safeclaw_mvp.cmd`
-- 完整命令参考：`tools/mvp/README.md`
-- 本机日用白名单：`tools/mvp/OPERATOR_PLAYBOOK.md`
+- 主人自用入口：先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`；CLI 备份入口仍保留 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
+- 维护层入口：统一从 `safeclaw.cmd` / `safeclaw.ps1` / `tools/mvp/safeclaw_mvp.cmd` 进入；本机日用白名单看 `tools/mvp/OPERATOR_PLAYBOOK.md`，完整命令参考看 `tools/mvp/README.md`
 
 ### 最短上手路径
 
-如果你只是想明早直接用，请先双击个人生产位小面板：
+主人自用先走个人生产位：
 
 ```bat
 %USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd
 ```
 
-如果你当时更想走 CLI 备份路径，再用下面这组命令：
+若面板当时不可用，再退回 CLI 备份路径：
 
 ```bat
 %USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd status
@@ -168,7 +163,7 @@ SafeClaw 还在很早期。
 %USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd undo
 ```
 
-如果你是在维护、排障或继续开发，再走维护层路径：
+维护 / 排障 / 开发先走维护入口：
 
 ```bat
 safeclaw.cmd workspace --name demo
@@ -176,23 +171,19 @@ safeclaw.cmd doctor
 safeclaw.cmd service-run --reset --task-id task-demo --limit 1 --report
 ```
 
-若你现在就想边开发边用，请把 `tools/mvp/OPERATOR_PLAYBOOK.md` 视为当前 **local-only** MVP 的本机日用白名单；最短稳定路径是 `workspace --name demo -> doctor -> service-run --report -> service-status --limit 5 -> verify --json`。
+这一步只负责把你带到维护入口。继续按当前 **local-only** MVP 的本机日用白名单推进时，请直接看 `tools/mvp/OPERATOR_PLAYBOOK.md`；字段级合同与权限细节统一看 `tools/mvp/README.md`。
 
-如需显式确认当前动作在本地离线 MVP 中仍被允许，可先执行 `safeclaw.cmd preflight --action service-run`；若要验证“需要 AI 推理的动作在当前离线环境下会不会被拦”，可执行 `safeclaw.cmd preflight --action ai-reason`；若只想从治理视角直接看到这条离线阻断事实，也可执行 `safeclaw.cmd service-status`，现在会在顶层额外回显 `offline_gate` 摘要；常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断权限上下文；若要显式覆盖，可追加 `--scope demo.workspace`、`--write`、`--doctor-bypass`；若要让脚本在 `confirm/deny` 时直接 fail-closed，可再加 `--enforce-permission`；若要在组合动作里直接复用 AI 离线门禁合同，可对 `demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` 追加 `--preflight-action ai-reason`，此时阻断的组合动作 JSON 会在 `error.details.preflight.error_code` 稳定回显 `ERR_AI_PROVIDER_UNAVAILABLE`，并在顶层稳定回显 `error.code=preflight-blocked`、可选 `error.error_code=<preflight_error_code>`、可选 `error.degradation_mode=<degradation_mode>`、`error.requires_model=<requires_model>`、`error.requires_sidecar=<requires_sidecar>`、`error.reason=ERR_AI_PROVIDER_UNAVAILABLE`、`error.summary=<preflight_summary>` 与 `error.requested_action=<preflight_requested_action>`；同时额外在浅层镜像 `error.details.preflight_requested_action` / `error.details.preflight_reason` / `error.details.preflight_summary` / `error.details.preflight_error_code`，减少脚本读取深度。
-如果要验证异常链，建议分别走 failed 与 uncertain 两条恢复路径：
+维护前若要先判定门禁，可优先执行：
 
 ```bat
-safeclaw.cmd seed-failed --reset --task-id task-demo-failed
-safeclaw.cmd service-retry --task-id task-demo-failed --limit 1 --report
-
-safeclaw.cmd seed-crash --reset --task-id task-demo-uncertain
-safeclaw.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
-
-safeclaw.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed
-safeclaw.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report
+safeclaw.cmd preflight --action service-run
+safeclaw.cmd preflight --action ai-reason
+safeclaw.cmd service-status --limit 5
 ```
 
-如果要确认当前包装层仍处于可交付状态，可直接运行：
+其中 `preflight --action ai-reason` 与 `service-status` 顶层 `offline_gate` 会稳定回显当前离线 MVP 下的 AI provider-unavailable 事实；更细权限覆盖、`--enforce-permission` 与 `--preflight-action ai-reason` 的组合合同，统一看 `tools/mvp/README.md`。
+
+如果要确认当前包装层仍处于可交付状态，最小验收入口保留如下；failed / uncertain / executed_assumed 的收口顺序仍以 `tools/mvp/OPERATOR_PLAYBOOK.md` 为准：
 
 ```bat
 safeclaw.cmd verify
@@ -201,18 +192,12 @@ safeclaw.cmd verify --json
 
 ### 当前最小能力
 
-- `workspace`：固定当前命名 workspace 的默认 `db` / `output`；`--clear` 回退到全局默认路径
-- `doctor`：检查 launcher、Rust 工具链、linker、当前 session / workspace 路径，并显式标出当前 `db` / `output` 来源；当前 local MVP 即使未配置 model provider / sidecar 也可正常离线使用，文本输出里的 `doctor sidecar => ... detail=...` 会直接说明当前为何不依赖 sidecar
-- `preflight`：显式预检某个目标动作在当前本地离线 MVP 中是否仍被允许；已知 wrapper / session 动作可离线运行，未知动作默认从严拒绝；新增 preflight-only 的 `ai-reason` 占位动作，在当前 local-only MVP 下会稳定返回 `ERR_AI_PROVIDER_UNAVAILABLE`；常见动作会自动从 remembered session / workspace / 默认 output 推断 `scope/write` 上下文，如传入 `--scope` / `--write` / `--doctor-bypass` 则显式覆盖；同时返回 `permission_tier` / `permission_policy` / `permission_reason` 供执行前判断；加上 `--enforce-permission` 后，脚本会在 `confirm` / `deny` 场景直接非零退出；组合动作还可通过 `--preflight-action <name>` 复用另一条门禁合同，并把阻断时的完整 preflight 载荷稳定留在 `error.details.preflight`；同时在顶层 `error.code` 镜像 `preflight-blocked`、在顶层 `error.reason` 镜像既有 `preflight_reason`、在顶层可选 `error.error_code` 镜像既有 `preflight_error_code`、在顶层可选 `error.degradation_mode` 镜像既有 `degradation_mode`、在顶层 `error.requires_model` 镜像既有 `requires_model`、在顶层 `error.requires_sidecar` 镜像既有 `requires_sidecar`、在顶层 `error.summary` 镜像既有 `preflight_summary`、在顶层 `error.requested_action` 镜像既有 `preflight_requested_action`，并镜像 `preflight_requested_action` / `preflight_reason` / `preflight_summary` / 可选 `preflight_error_code` 到 `error.details` 顶层
-- `service-status`：查看当前 service 队列 / worker / effect / probe / heartbeat / coordination 摘要，并同步回显当前 local MVP 的 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` 运行快照；其中 `sidecar` 文本快照现也会带上 `detail`，直接说明当前为何不依赖 sidecar，`offline_gate` 则会把 `preflight --action ai-reason` 的 provider-unavailable 事实压成 operator 可直读的一行摘要；同时显式展示 recent task 的 `scope` / `write` / `doctor_bypass`、权限决策、lease 新鲜度、same-scope peer / scope-quarantine、`next_action` / `next_task_id` / `next_command` / `next_reason` / `next_blocker` / `coordination_*` / `next_summary`? remembered session ????????? recent window ???? `coordination` ??????????????????????????；若当前只有历史已完成/已释放任务且不存在 active lease，顶层 `heartbeat` 现在会回到 `idle`，并把 `latest_updated_at` / `latest_age_ms` 一并清空为 `none`，不再把旧历史误报成 `failed`；在 `executed_assumed` 现场还会直接给出 `recent_tasks[*].reconcile_commands.executed` / `recent_tasks[*].reconcile_commands.not_executed` 两条可复制的对账收口命令；现在 `hibernated` 现场不仅会显式回显 `coordination=hibernated` 和 `next_reason=hibernated_waiting_for_resume`，还会把 `next_command` 直接切到 `service-resume --report`；当前 local MVP 还没有真实 budget runtime/source，所以这里故意不回显 `budget` 面板或 `budget` 字段
-- `service-run --report`：一条命令串起正常执行、服务态摘要与治理视图；加 `--preflight` 会在执行前显示同一次实际参数对应的门禁摘要，加 `--enforce-permission` 则会在 `confirm` / `deny` 时直接拦下；如需在组合动作里复用 AI/provider 阻断合同，可加 `--preflight-action ai-reason`
-- `service-retry --report`：用于 failed 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁，也支持 `--preflight-action <name>` 覆盖组合动作的预检合同
-- `service-recover --report`：用于 uncertain 任务的首选恢复路径；同样支持 `--preflight` / `--enforce-permission` 前置门禁，也支持 `--preflight-action <name>` 覆盖组合动作的预检合同
-- `service-resume --report`：用于 hibernated 任务的首选恢复路径；会先执行真实 `resume`，再打印最新 `service-status`，必要时还能顺手补 `report`；同样支持 `--preflight` / `--enforce-permission` 与 `--preflight-action <name>`；若接错现场，`--json` 现在会稳定返回 `resume-target-missing` / `resume-target-not-hibernated`，并附带回看 `service-status` 的提示
-- `service-reconcile --report`: closes an `executed_assumed` task via explicit `--decision executed|not-executed`; it also supports `--preflight` / `--enforce-permission` before execution, plus `--preflight-action <name>` for alternate combo gate contracts
-- `demo` / `recover-demo` / `retry-demo`：一键演示正常执行、uncertain 恢复与 failed 重试；同样支持 `--preflight` / `--enforce-permission`，可先跑离线门禁再继续组合动作
-- `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参
-- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` / `run` / `report` / `status` / `seed-crash` / `seed-hibernated` / `recover` / `seed-failed` / `retry` / `resume` / `reconcile` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` support `--json`, returning a unified `{ok, action, schema_version, result|error}` envelope for scripts
+- `workspace` / `doctor`：固定默认 `db` / `output`，并确认 launcher、Rust/linker、session/workspace 路径与当前离线 runtime 快照是否健康。
+- `preflight` / `service-status`：一个负责显式预检，一个负责查看 queue / lease / coordination 摘要；`ai-reason` 用来稳定演示当前 local-only MVP 下的 AI provider 不可用阻断，`service-status` 会同步镜像 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` 与 recent task 的 `next_*` 提示。
+- `service-*` 组合动作：`service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` 分别覆盖正常执行、failed 重试、uncertain 恢复、hibernated 恢复与 `executed_assumed` 收口；白路径顺序统一以 `tools/mvp/OPERATOR_PLAYBOOK.md` 为准。
+- `session` / `sessions` / `use` / `forget`：管理 remembered session，减少重复传参。
+- `verify`：确认当前包装层仍处于可交付状态。
+- 常用 demo / service / seed / recover / session / workspace / doctor / preflight / verify 动作均支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`；字段级合同细节见 `tools/mvp/README.md`。
 
 ### 当前边界
 

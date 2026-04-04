@@ -15,17 +15,18 @@
 - `tools/mvp/safeclaw_mvp.py`：会话薄层实现，负责默认路径与最近会话复用
 
 
-## Recommended Operator Path
+## 推荐维护路径
 
-- This README is mainly for maintenance-layer MVP flow.
-- If you only want the owner-only personal MVP loop, read `tools/mvp/PERSONAL_MVP_PLAYBOOK.md` first and prefer the deployed production entry there.
-- See `tools/mvp/OPERATOR_PLAYBOOK.md` for the shortest practical operator flow.
-- If you want a rollbackable personal production slot for that loop, run `python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy`.
-- Normal path first: `workspace --name demo -> doctor -> service-run --report`.
-- `service-run` already includes one `service-status` summary; rerun `service-status` only when you need another queue / worker / effect snapshot.
-- Optional explicit offline gate: `preflight --action service-run` before executing the local flow; `preflight --action ai-reason` now demonstrates the provider-unavailable deny path in the current local-only MVP; `service-status` also mirrors that same fact as a top-level `offline_gate` summary so operators can see it without running preflight first; common wrapper / session actions auto-infer permission context from remembered session / workspace / default output, add `--scope demo.workspace` / `--write` / `--doctor-bypass` to override, add `--enforce-permission` when scripts should fail closed on `confirm` / `deny`, and add `--preflight-action ai-reason` to a combo command when you want that combo to reuse the provider-unavailable gate contract, keep `error.details.preflight.error_code` stable, surface top-level `error.code=preflight-blocked` plus optional top-level `error.error_code=<preflight_error_code>` / `error.degradation_mode=<degradation_mode>` / `error.requires_model=<requires_model>` / `error.requires_sidecar=<requires_sidecar>` and top-level `error.reason=<preflight_reason>` / `error.summary=<preflight_summary>` / `error.requested_action=<preflight_requested_action>`, and expose shallow shortcuts like `error.details.preflight_requested_action` / `preflight_reason` / `preflight_summary` / `preflight_error_code`.
-- Failed recovery path: `service-retry --report -> service-status`.
-- Uncertain recovery path: `service-recover --report -> service-status`.
+- 这份 README 主要服务维护层 MVP 流程，不承担面对普通使用者的完整上手说明。
+- 如果你只想走主人自用的个人 MVP 闭环，优先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，并使用那里部署出来的生产位入口。
+- 最短维护路径看 `tools/mvp/OPERATOR_PLAYBOOK.md`；若要先部署一套可回退的个人生产位，可执行 `python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy`。
+- 默认先走 `workspace --name demo -> doctor -> service-run --report`。
+- `service-run` 已经自带一次 `service-status` 摘要；只有在你还想再看 queue / worker / effect 快照时，才需要额外执行 `service-status`。
+- 若要在真正执行前显式确认离线门禁，可先跑 `preflight --action service-run`。
+- `preflight --action ai-reason` 会稳定演示当前 local-only MVP 下的 provider-unavailable 拒绝路径；`service-status` 顶层 `offline_gate` 会镜像同一事实。
+- 常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断权限上下文；如需显式覆盖，使用 `--scope demo.workspace` / `--write` / `--doctor-bypass`；如需在 `confirm` / `deny` 时直接 fail-closed，加 `--enforce-permission`；如需让组合动作复用 AI 离线门禁合同，加 `--preflight-action ai-reason`。
+- failed 恢复路径：`service-retry --report -> service-status`。
+- uncertain 恢复路径：`service-recover --report -> service-status`。
 
 
 ## 当前支持的动作
@@ -34,26 +35,25 @@
 - `demo`：一键演示默认会话的 `run -> status -> report`
 - `recover-demo`：一键演示 `seed-crash -> recover -> report`
 - `retry-demo`：一键演示 `seed-failed -> retry -> report`
-- `service-demo`: one-command worker service governance summary for `resolved / confirmation` queues
-- `service-run`: run a task and immediately print the matching service summary; optional `--preflight` shows the gate for the exact prepared action, and `--enforce-permission` turns that gate into a fail-closed blocker
-- `service-retry`: retry a failed task and immediately print the matching service summary; optional `--preflight` / `--enforce-permission` work the same way as `service-run`
-- `service-recover`: recover an uncertain task and immediately print the matching service summary; optional `--preflight` / `--enforce-permission` work the same way as `service-run`
-- `service-resume`: resume a hibernated task and immediately print the matching service summary; optional `--preflight` / `--enforce-permission` work the same way as `service-run`; if the selected task is no longer hibernated, `--json` now stably returns `resume-target-missing` / `resume-target-not-hibernated` plus a `service-status` hint
-- `--report`: append `report` after `service-status`, so the practical path can end with a governance view in one command; `service-resume --report` is now the one-command closeout path for hibernated tasks
-- `service-status`: queue / lease / task snapshot summary for the selected db, including heartbeat / coordination summaries plus top-level local runtime snapshots (`runtime_profile`, `model_provider`, `sidecar`), recent task `scope` / `write` / `doctor_bypass` visibility, same-scope peer / scope-quarantine visibility (`scope_peer_count` / `scope_active_peer_count` / `scope_active_peer_task_id` / `scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`), current `permission_tier` / `permission_policy` / `permission_reason`, latest lease freshness, active-lease wait timing, a `next_action` hint, a focused `next_task_id`, a copyable `next_command`, a short `next_reason`, the current `next_blocker` (including `scope_quarantine`), task-level `coordination_status` / `coordination_reason` / `coordination_summary`, a one-line `next_summary`, and explicit `reconcile_commands.executed` / `reconcile_commands.not_executed` choices for `executed_assumed` closeout scenes; hibernated tasks now surface `coordination=hibernated`, `next_reason=hibernated_waiting_for_resume`, and a real `next_command=service-resume --report`; current local MVP still does not expose a `budget` section because there is no real budget runtime/source wired into the wrapper yet
-- `preflight`: explicit gate for whether a target action stays allowed in the current local-only MVP entry; known local actions allow, unknown actions default deny, the preflight-only placeholder `ai-reason` now fails closed with `ERR_AI_PROVIDER_UNAVAILABLE`, common wrapper / session actions auto-infer permission context from remembered session / workspace / default output, optional `--scope` / `--write` / `--doctor-bypass` override that inferred context and surface `permission_tier` / `permission_policy` / `permission_reason`, `--enforce-permission` turns that surfaced permission decision into a fail-closed gate, and combo commands can override their preflight contract with `--preflight-action <name>`
+- `service-demo`：一条命令输出 `resolved / confirmation` 队列的 worker service 治理摘要。
+- `service-run`：执行任务后立刻打印对应的 service 摘要；可选 `--preflight` 会先展示同一动作的门禁结果，`--enforce-permission` 会把该门禁转成 fail-closed 阻断。
+- `service-retry`：重试 failed 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同。
+- `service-recover`：恢复 uncertain 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同。
+- `service-resume`：恢复 hibernated 任务后立刻打印对应的 service 摘要；`--preflight` / `--enforce-permission` 语义与 `service-run` 相同；若目标任务已不再 hibernated，`--json` 会稳定返回 `resume-target-missing` / `resume-target-not-hibernated`，并附带 `service-status` 提示。
+- `--report`：在 `service-status` 之后顺手补 `report`，把同一路径收口到治理视图；`service-resume --report` 现已成为 hibernated 任务的一条命令收口路径。
+- `service-status`：查看所选 db 的 queue / lease / coordination 快照，并镜像顶层本地 runtime 快照（`runtime_profile`、`model_provider`、`sidecar`、`offline_gate`）、recent task 的 `next_*` 提示、remembered-session-aware 顶层 `coordination` 与 `executed_assumed` 的 reconcile 选择；精确 JSON 字段见下方“JSON 错误约定”。
+- `preflight`：显式检查某个目标动作在当前 local-only MVP 下是否仍被允许；已知 wrapper / session 动作放行，未知动作默认拒绝，`ai-reason` 会稳定返回 `ERR_AI_PROVIDER_UNAVAILABLE`；可用 `--scope` / `--write` / `--doctor-bypass` 覆盖推断上下文，用 `--enforce-permission` 做 fail-closed，用 `--preflight-action <name>` 让组合动作复用另一条门禁合同。
 - `report`：查看指定任务 / effect 的治理视图
 - `status`：默认查看当前记忆会话，也可配合 `--task-id` 使用
 - `session`：显示当前记忆的最近成功会话，并在文本输出里带上 remembered session 文件路径
 - `sessions`：列出当前数据库里的最近任务快照；默认优先使用 remembered session 的 `db`，并在文本/JSON 输出里标出来源
 - `use`：按 `--index` 或 `--task-id` 激活某条历史会话，并在文本/JSON 输出里标出选择来源及 `db` / `output` / `owner_id` 来源
 - `forget`：清空包装层记忆的最近会话，不删除数据库与输出文件；文本/JSON 输出都会显式给出 `reason` 与 `path`
-- `workspace`: show or activate a named workspace; it fixes default `db` / `output`; `--clear` returns to global defaults while remembered session stays independent
+- `workspace`：显示或激活一个命名 workspace，并固定默认 `db` / `output`；`--clear` 会回到全局默认路径，但 remembered session 仍保持独立。
 - 若 remembered session 文件损坏，包装层会自动丢弃坏文件并回退为 `session => none`
 - `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `run` / `report` / `status` / `seed-crash` / `seed-hibernated` / `recover` / `seed-failed` / `retry` / `resume` / `session` / `sessions` / `use` / `forget` / `workspace` / `doctor` / `preflight` / `verify` 支持 `--json`，统一返回 `{ok, action, schema_version, result|error}`
-- `doctor`: checks wrapper entrypoints, Rust toolchain, linker, remembered session / workspace paths, reports current `db` / `output` sources (`flag` / `session` / `workspace` / `default`), and states that the current local MVP remains runnable without a model provider / sidecar; `--json` also returns `status`, `failing_checks`, `runtime_profile`, `model_provider`, and `sidecar`
-- `preflight`: checks whether a target action remains allowed in the current local-only MVP entry; `ai-reason` is recognized as a preflight-only AI placeholder and returns `ERR_AI_PROVIDER_UNAVAILABLE` in the current offline MVP; `--json` also returns `tier`, `decision`, `offline_ready`, optional `target_scope` / `requires_write` / `doctor_bypass`, `permission_context_source`, `permission_context_applied`, `permission_enforced`, `action_allowed` / `action_decision` / `action_reason`, optional `error_code`, `permission_tier` / `permission_policy` / `permission_reason`, and current runtime/provider snapshots; combo commands that accept `--preflight` / `--enforce-permission` also accept `--preflight-action <name>` to reuse a different gate contract while preserving the full blocked preflight payload in combo JSON errors, mirroring `preflight-blocked` at top-level `error.code`, mirroring optional existing `preflight_error_code` at top-level `error.error_code`, mirroring existing `degradation_mode` at top-level `error.degradation_mode`, mirroring existing `requires_model` at top-level `error.requires_model`, mirroring existing `requires_sidecar` at top-level `error.requires_sidecar`, mirroring existing `preflight_reason` at top-level `error.reason`, mirroring existing `preflight_summary` at top-level `error.summary`, mirroring existing `preflight_requested_action` at top-level `error.requested_action`, and mirroring shallow shortcuts at `error.details` top level
-- `verify`: run the practical operator flow gate via the current wrapper entry; `--json` returns script path, python path, exit code, and captured output
+- `doctor`：检查 wrapper 入口、Rust 工具链、linker、remembered session / workspace 路径，并报告当前 `db` / `output` 来源（`flag` / `session` / `workspace` / `default`）；同时明确当前 local MVP 即使没有 model provider / sidecar 仍可运行；`--json` 还会返回 `status`、`failing_checks`、`runtime_profile`、`model_provider`、`sidecar`。
+- `verify`：通过当前 wrapper 入口执行实际 operator flow 门禁；`--json` 会返回 script path、python path、exit code 与 captured output。
 - `seed-crash`：制造超时后的 uncertain 持久化现场
 - `recover`：在租约过期后恢复 uncertain runtime
 - `seed-failed`：制造失败态但不自动结案
@@ -61,127 +61,91 @@
 
 ## JSON 错误约定
 
-- 包装层失败统一返回 `{ok: false, action, schema_version, error}`。
-- `error.message` 是稳定的 wrapper 级错误消息，不再要求脚本解析底层 cargo 文案。
-- `error.details.code` 当前已稳定提供：`invalid-argument`、`missing-task-context`、`preflight-blocked`、`resume-target-missing`、`resume-target-not-hibernated`。
-- 对因 wrapper preflight 被阻断的组合动作，顶层 `error.code` 现稳定返回 `preflight-blocked`，顶层 `error.reason` 现稳定返回既有 `preflight_reason`，若 preflight 自带错误码则顶层 `error.error_code` 也会稳定返回既有 `preflight_error_code`，顶层 `error.requires_model` / `error.requires_sidecar` 现稳定返回既有 `requires_model` / `requires_sidecar`，顶层 `error.summary` 现稳定返回既有 `preflight_summary`，顶层 `error.requested_action` 现稳定返回既有 `preflight_requested_action`，`error.details.code` 仍保留同值。
-- `invalid-argument` 表示包装层已识别出未知参数或缺少 flag 值，如 `--bogus`、`--db` 后缺值。
-- `missing-task-context` 表示 `report` / `recover` / `retry` / `resume` 缺少 `--task-id`，且当前没有可复用 remembered session；此时可显式传入 `--task-id`，或先执行 `use` / `run` / `seed-crash` / `seed-hibernated` / `seed-failed` 建立上下文。
-- `resume-target-missing` 表示选中的任务当前没有可继续的 hibernated runtime；请先执行 `service-status` 回看当前现场。
-- `resume-target-not-hibernated` 表示选中的任务当前不是 hibernated，`resume` 不适用；请先执行 `service-status`，再按当前 `next_command` 继续。
-- `service-resume` 在这两类底层执行失败里，还会在顶层稳定返回 `error.code` / `error.reason`，并在 `error.details` 里补上 `error_message` / `next_command`，减少脚本和人工读底层 cargo 文案的成本。
-- 对 `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-reconcile` 这类组合动作，若失败发生在 wrapper 预处理阶段，`error.details` 还会带上 `failed_step`、`code`、`error_message`，便于脚本直接定位失败步骤。
-- 若当前存在 remembered session，包装层会在错误细节中尽量附带 `remembered_session`，方便脚本决定是否重试或切换上下文。
-- `status` / `report` / `recover` / `retry` / `resume` / `reconcile` successful `--json` results also expose `result.source_hints`, showing where `db` / `output` / `owner_id` / `task_context` came from.
-- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` successful `--json` results also expose `result.steps[*].source_hints`, so scripts can see when a combo starts reusing the remembered session.
-- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` successful `--json` results now return `result.remembered_session`; `result.session` remains only a compatibility alias.
-- `service-demo` successful `--json` returns structured fields like `resolved_run`, `resolved_governance`, `confirmation_governance`, and `db_path`.
-- `service-run` successful `--json` returns combo `steps`, a nested `run` result, and `service_status` summary fields.
-- `service-retry` successful `--json` returns combo `steps`, a nested `retry` result, and `service_status` summary fields.
-- `service-recover` successful `--json` returns combo `steps`, a nested `recover` result, and `service_status` summary fields.
-- `service-reconcile` successful `--json` returns combo `steps`, a nested `reconcile` result, and `service_status` summary fields; after reconciliation it also closes the stale orchestrator lease so queue state returns to `expired=0`.
-- `service-status` successful `--json` returns structured fields like top-level `runtime_profile`, `model_provider`, `sidecar`, `offline_gate`, `queue`, `workers`, `effects`, `probes`, top-level `heartbeat`, top-level `coordination`, and `recent_tasks`; top-level `offline_gate` mirrors the current `preflight --action ai-reason` deny contract via `status` / `reason` / `summary` / `requested_action` / `requires_model` / `requires_sidecar` / `next_command` / `error_code`; top-level `coordination` now also carries `next_task_id`, and each recent task now also includes `target_scope`, `requires_write`, `doctor_bypass`, `permission_tier`, `permission_policy`, `permission_reason`, `lease_state`, `lease_owner_id`, latest lease snapshot fields, `lease_remaining_ms` for active leases, same-scope peer / scope-quarantine visibility (`scope_peer_count` / `scope_active_peer_count` / `scope_active_peer_task_id` / `scope_quarantine_active` / `scope_quarantine_source` / `scope_quarantine_task_id` / `scope_quarantine_count`), `next_action` (`ok` / `retry` / `recover` / `inspect`), `next_task_id`, a copyable `next_command`, a short `next_reason`, `next_blocker` (`none` / `active_lease` / `scope_quarantine` / `manual_review_needed`), task-level `coordination_status` / `coordination_reason` / `coordination_summary`, a concise `next_summary`, and `reconcile_commands.executed` / `reconcile_commands.not_executed` for the `executed_assumed` path; the text output also prints matching `service runtime => ...`, `service model => ...`, `service sidecar => ... detail=...`, `service offline => ...`, and `service recent[i] reconcile => ...` lines.
-- blocked combo JSON now also preserves the full preflight payload in `error.details.preflight`; with `--preflight-action ai-reason`, scripts can stably read `error.details.preflight.error_code=ERR_AI_PROVIDER_UNAVAILABLE` without re-running an isolated preflight command, can read top-level `error.code=preflight-blocked`, can read top-level `error.reason=ERR_AI_PROVIDER_UNAVAILABLE`, can read optional top-level `error.error_code=ERR_AI_PROVIDER_UNAVAILABLE`, can read top-level `error.degradation_mode=provider_unavailable`, can read top-level `error.requires_model=true`, can read top-level `error.requires_sidecar=true`, can read top-level `error.summary=<preflight_summary>`, can read top-level `error.requested_action=<preflight_requested_action>`, and can also read shallow mirrors like `error.details.preflight_requested_action`, `error.details.preflight_reason`, `error.details.preflight_summary`, and optional `error.details.preflight_error_code`.
-- 若组合动作在底层执行阶段失败，错误 JSON 的 `error.details.steps[*].source_hints` 也会保留已进入失败步骤的来源，便于脚本区分“预处理失败”与“底层动作失败”。
+- 失败统一返回 `{ok: false, action, schema_version, error}`；成功统一返回 `{ok: true, action, schema_version, result}`。
+- `error.message` 是稳定的 wrapper 级错误消息，不再要求脚本解析底层 cargo 文案；基础错误码看 `error.details.code`。
+- 当前稳定错误码可先按这 5 类理解：
+  - `invalid-argument`：参数未知或缺少 flag 值。
+  - `missing-task-context`：`report` / `recover` / `retry` / `resume` 缺少 `--task-id`，且当前没有可复用 remembered session。
+  - `preflight-blocked`：动作被 wrapper preflight 拦下。
+  - `resume-target-missing`：当前没有可继续的 hibernated runtime。
+  - `resume-target-not-hibernated`：当前任务不是 hibernated，`resume` 不适用。
+- 对被 preflight 拦下的组合动作，顶层会稳定镜像 `error.code=preflight-blocked`、`error.reason`、可选 `error.error_code`、`error.degradation_mode`、`error.requires_model`、`error.requires_sidecar`、`error.summary`、`error.requested_action`；完整 preflight 载荷保留在 `error.details.preflight`，浅层快捷镜像保留在 `error.details.preflight_*`。若使用 `--preflight-action ai-reason`，可稳定读取 `error.details.preflight.error_code=ERR_AI_PROVIDER_UNAVAILABLE`。
+- `service-resume` 在 `resume-target-missing` / `resume-target-not-hibernated` 场景下，还会在 `error.details` 里补上 `error_message` / `next_command`，减少人工回看成本。
+- 组合动作若失败在 wrapper 预处理阶段，`error.details` 会带 `failed_step` / `code` / `error_message`；若失败在底层执行阶段，`error.details.steps[*].source_hints` 会保留已进入失败步骤的来源。
+- 若当前存在 remembered session，错误细节中会尽量附带 `remembered_session`，方便脚本决定是否重试或切换上下文。
+- 成功结果的来源字段统一按两层看：
+  - 单步动作：`result.source_hints` 说明 `db` / `output` / `owner_id` / `task_context` 来源。
+  - 组合动作：`result.steps[*].source_hints` 说明每一步何时开始复用 remembered session。
+- `demo` / `recover-demo` / `retry-demo` / `service-run` / `service-retry` / `service-recover` / `service-resume` / `service-reconcile` 成功时会稳定返回 `result.remembered_session`；`result.session` 只保留兼容别名。
+- 常见成功载荷可按 4 组记：
+  - `service-demo`：返回 `resolved_run` / `resolved_governance` / `confirmation_governance` / `db_path`。
+  - `service-run` / `service-retry` / `service-recover` / `service-reconcile`：返回组合 `steps`、嵌套动作结果与 `service_status` 摘要；其中 `service-reconcile` 还会把过期 orchestrator lease 收回，让队列回到 `expired=0`。
+  - `service-status`：返回顶层 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` / `queue` / `workers` / `effects` / `probes` / `heartbeat` / `coordination` / `recent_tasks`；`offline_gate` 镜像当前 `preflight --action ai-reason` 阻断事实，`coordination` 带 `next_task_id`，`recent_tasks[*]` 带 `next_*`、权限、租约与 `reconcile_commands.*`。
+  - 文本输出仍会同步打印 `service runtime => ...`、`service model => ...`、`service sidecar => ... detail=...`、`service offline => ...`、`service recent[i] reconcile => ...`，方便脚本外人工排障。
 
 ## 最常用命令
 
-第一次运行可以直接走默认会话路径：
+优先按场景取最短路径，不再把同一动作按所有参数排列一遍。
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd demo
-tools\mvp\safeclaw_mvp.cmd demo --preflight
-tools\mvp\safeclaw_mvp.cmd demo --json
-tools\mvp\safeclaw_mvp.cmd demo --preflight --json
-tools\mvp\safeclaw_mvp.cmd recover-demo
-tools\mvp\safeclaw_mvp.cmd recover-demo --preflight
-tools\mvp\safeclaw_mvp.cmd recover-demo --json
-tools\mvp\safeclaw_mvp.cmd recover-demo --preflight --json
-tools\mvp\safeclaw_mvp.cmd retry-demo
-tools\mvp\safeclaw_mvp.cmd retry-demo --preflight
-tools\mvp\safeclaw_mvp.cmd retry-demo --json
-tools\mvp\safeclaw_mvp.cmd retry-demo --preflight --json
-tools\mvp\safeclaw_mvp.cmd service-demo
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1
-tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed
-tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1
-tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report
-tools\mvp\safeclaw_mvp.cmd service-status
-tools\mvp\safeclaw_mvp.cmd service-demo --json
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --json
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --preflight --json
-tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report --json
-tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --json
-tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo --limit 1 --report --json
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed --json
-tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --json
-tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report --json
-tools\mvp\safeclaw_mvp.cmd service-status --json
-tools\mvp\safeclaw_mvp.cmd run --reset
-tools\mvp\safeclaw_mvp.cmd run --reset --json
-tools\mvp\safeclaw_mvp.cmd workspace
-tools\mvp\safeclaw_mvp.cmd workspace --json
+:: 日常白名单路径
 tools\mvp\safeclaw_mvp.cmd workspace --name demo
-tools\mvp\safeclaw_mvp.cmd workspace --clear
+tools\mvp\safeclaw_mvp.cmd doctor
+tools\mvp\safeclaw_mvp.cmd service-run --reset --task-id task-demo --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd service-status --limit 5
+tools\mvp\safeclaw_mvp.cmd verify --json
+
+:: 异常恢复路径
+tools\mvp\safeclaw_mvp.cmd seed-failed --reset --task-id task-demo-failed
+tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo-failed --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain
+tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
+tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --task-id task-demo-assumed
+tools\mvp\safeclaw_mvp.cmd service-reconcile --task-id task-demo-assumed --decision executed --limit 1 --report
+
+:: JSON / 脚本入口
+tools\mvp\safeclaw_mvp.cmd demo --json
+tools\mvp\safeclaw_mvp.cmd preflight --action service-run --json
+tools\mvp\safeclaw_mvp.cmd service-run --reset --limit 1 --report --json
+tools\mvp\safeclaw_mvp.cmd service-status --json
+tools\mvp\safeclaw_mvp.cmd verify --json
+
+:: 会话与显式路径
 tools\mvp\safeclaw_mvp.cmd session
-tools\mvp\safeclaw_mvp.cmd session --json
 tools\mvp\safeclaw_mvp.cmd sessions
 tools\mvp\safeclaw_mvp.cmd use --index 0
 tools\mvp\safeclaw_mvp.cmd forget
-tools\mvp\safeclaw_mvp.cmd doctor
-tools\mvp\safeclaw_mvp.cmd preflight --action service-run
-tools\mvp\safeclaw_mvp.cmd preflight --action service-run --enforce-permission
-tools\mvp\safeclaw_mvp.cmd preflight --action service-run --scope demo.workspace
-tools\mvp\safeclaw_mvp.cmd preflight --action service-status --scope demo.workspace --write --enforce-permission
-tools\mvp\safeclaw_mvp.cmd verify
-tools\mvp\safeclaw_mvp.cmd doctor --json
-tools\mvp\safeclaw_mvp.cmd preflight --action service-run --json
-tools\mvp\safeclaw_mvp.cmd preflight --action service-status --scope demo.workspace --write --json
-tools\mvp\safeclaw_mvp.cmd preflight --action service-status --scope demo.workspace --write --enforce-permission --json
-tools\mvp\safeclaw_mvp.cmd verify --json
-tools\mvp\safeclaw_mvp.cmd status
-tools\mvp\safeclaw_mvp.cmd status --json
-tools\mvp\safeclaw_mvp.cmd report
-tools\mvp\safeclaw_mvp.cmd report --json
-tools\mvp\safeclaw_mvp.cmd seed-failed --reset
-tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo --limit 1
-tools\mvp\safeclaw_mvp.cmd seed-failed --reset --json
-tools\mvp\safeclaw_mvp.cmd service-retry --task-id task-demo --limit 1 --json
-tools\mvp\safeclaw_mvp.cmd retry
-tools\mvp\safeclaw_mvp.cmd retry --json
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --json
-tools\mvp\safeclaw_mvp.cmd recover
-tools\mvp\safeclaw_mvp.cmd recover --json
-tools\mvp\safeclaw_mvp.cmd reconcile --task-id task-demo-assumed --decision executed
-tools\mvp\safeclaw_mvp.cmd reconcile --task-id task-demo-assumed --decision executed --json
+tools\mvp\safeclaw_mvp.cmd workspace --clear
+tools\mvp\safeclaw_mvp.cmd run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
+tools\mvp\safeclaw_mvp.cmd service-recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
+tools\mvp\safeclaw_mvp.cmd service-reconcile --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed --decision executed --limit 1
 ```
 
-如果你想显式控制路径，也仍然支持完整参数：
+如果你只想快速扫一遍命令覆盖面，再看这些动作名即可：
+
+```text
+demo / recover-demo / retry-demo
+run / report / status
+service-run / service-retry / service-recover / service-resume / service-reconcile / service-status
+workspace / session / sessions / use / forget / doctor / preflight / verify
+seed-failed / seed-crash / seed-hibernated / retry / recover / resume / reconcile
+```
+
+如果你想显式控制路径，也仍然支持完整参数；以下保留最小对照样例：
 
 ```bat
-tools\mvp\safeclaw_mvp.cmd run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
-tools\mvp\safeclaw_mvp.cmd report --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd status --db target\demo\session.db --output target\demo\output.txt
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
-tools\mvp\safeclaw_mvp.cmd service-recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
-tools\mvp\safeclaw_mvp.cmd recover --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
-tools\mvp\safeclaw_mvp.cmd seed-crash --reset --probe-mode none --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed
-tools\mvp\safeclaw_mvp.cmd service-reconcile --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed --decision executed --limit 1
-tools\mvp\safeclaw_mvp.cmd reconcile --db target\demo\session.db --output target\demo\output.txt --task-id task-demo-assumed --decision executed
-tools\mvp\safeclaw_mvp.cmd seed-failed --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
+tools\mvp\safeclaw_mvp.cmd preflight --action service-run
+tools\mvp\safeclaw_mvp.cmd preflight --action service-run --enforce-permission
+tools\mvp\safeclaw_mvp.cmd preflight --action service-status --scope demo.workspace --write --json
+tools\mvp\safeclaw_mvp.cmd report --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd service-retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
-tools\mvp\safeclaw_mvp.cmd retry --db target\demo\session.db --output target\demo\output.txt --task-id task-demo
 tools\mvp\safeclaw_mvp.cmd doctor --db target\demo\session.db --output target\demo\output.txt
 tools\mvp\safeclaw_mvp.cmd service-run --reset --db target\demo\session.db --output target\demo\output.txt --task-id task-demo --limit 1
 ```
 
-## ?? ledger-first policy
+## 台账优先策略
 
-- `tools/mvp/README.md` ????? MVP ?????????????????????????? ledger policy chain ??
-- `tools/checks/selfcheck.py` ? `.github/workflows/contracts.yml` ??? `ledger_index_manifest.py`
-- ????? `check_ledger_alignment.py`?`check_consistency.py`?`check_versions.py`?`check_structure.py`?`check_scaffold.py`?`check_public_docs.py`?????? `Contract tests`
+- `tools/mvp/README.md` 只保留当前可手用 MVP 的最短操作链，不重复展开底层 ledger policy chain 细节。
+- `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py`，确认协议台账入口完整，再继续后续门禁。
+- 随后串行执行 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`，全部通过后才进入 `Contract tests`。
