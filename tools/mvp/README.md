@@ -25,8 +25,8 @@
 - 若要在真正执行前显式确认离线门禁，可先跑 `preflight --action service-run`。
 - `preflight --action ai-reason` 会稳定演示当前 local-only MVP 下的 provider-unavailable 拒绝路径；`service-status` 顶层 `offline_gate` 会镜像同一事实。
 - 常见 wrapper / session 动作会自动从 remembered session / workspace / 默认 output 推断权限上下文；如需显式覆盖，使用 `--scope demo.workspace` / `--write` / `--doctor-bypass`；如需在 `confirm` / `deny` 时直接 fail-closed，加 `--enforce-permission`；如需让组合动作复用 AI 离线门禁合同，加 `--preflight-action ai-reason`。
-- failed 恢复路径：`service-retry --report -> service-status`。
-- uncertain 恢复路径：`service-recover --report -> service-status`。
+- failed 恢复路径先走 `service-retry --report`；若还想再看一次当前队列快照，再补 `service-status`。
+- uncertain 恢复路径先走 `service-recover --report`；若还想再看一次当前队列快照，再补 `service-status`。
 
 
 ## 当前支持的动作
