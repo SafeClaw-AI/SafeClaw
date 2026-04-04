@@ -16,11 +16,11 @@
 
 ## 日用护栏
 
-- 当前命令入口仍是 **local-only**，即使尚未接入 model provider 或 sidecar 也可使用
+- 当前命令入口仍是**纯本地（local-only）**路径，即使尚未接入 AI 提供方或 sidecar 也可使用
 - 把 `workspace --name demo -> doctor -> service-run --report -> service-status --limit 5 -> verify --json` 视为日用白路径
 - failed 任务的第一恢复动作固定为 `service-retry --report`
 - uncertain 任务的第一恢复动作固定为 `service-recover --report`
-- `preflight --action ai-reason` 只用于确认当前 local-only MVP 下 AI 路径仍保持阻断
+- `preflight --action ai-reason` 只用于确认当前纯本地 MVP 下 AI 路径仍保持阻断
 
 ## 主路径
 
@@ -28,7 +28,7 @@
 
 ### 0. Workspace 选择
 
-先固定一个命名 workspace，让命令入口复用稳定的 `db/output` 路径，避免重复传 flag。
+先固定一个命名 workspace，让命令入口复用稳定的 `db/output` 路径，避免重复传参数。
 
 ```bat
 tools\mvp\safeclaw_mvp.cmd workspace --name demo
@@ -68,7 +68,7 @@ tools\mvp\safeclaw_mvp.cmd seed-crash --reset --task-id task-demo-uncertain
 tools\mvp\safeclaw_mvp.cmd service-recover --task-id task-demo-uncertain --limit 1 --report
 ```
 
-提示：workspace 只固定默认 `db/output`；读动作是否复用 task/effect，仍由 remembered session 决定。
+提示：workspace 只固定默认 `db/output`；读动作是否复用 task/effect，仍由最近一次成功会话记忆决定。
 
 ## 验证
 
@@ -88,7 +88,7 @@ set SAFECLAW_MVP_PYTHON=C:\path\to\python.exe
 
 当前 selfcheck 策略：
 
-- `verify` 只跑当前最小可用 operator flow 验收
+- `verify` 只跑当前最小可用白路径验收
 - `tools/checks/selfcheck.py` 会先跑 `ledger_index_manifest.py`
 - 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
-- 这条 ledger policy chain 会显式前置在 `Contract tests` 之前
+- 这条台账门禁链会显式前置在合同测试（Contract tests）之前
