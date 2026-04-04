@@ -122,9 +122,9 @@ SafeClaw 目前还处于非常早期的阶段。
 
 ```
 版本：3.2.0
-阶段：Phase 0 — 协议真源闭环 + Rust Core 起步前夜
-重点：四阶段 Effect Ledger / Probe / Fencing / Scope Quarantine / Reconcile
-可体验路径：Win11 本地 MVP 操作入口（tools/mvp/）
+阶段：Phase 0 — 协议真源闭环 + Win11 本地 MVP 已可手用
+重点：本地 MVP 操作链 + 个人生产位小面板 + `archive-note -> status -> undo`
+可体验路径：仓库维护入口（`tools/mvp/`）+ 个人生产位入口（`%USERPROFILE%\.safeclaw-personal-production\`）
 ```
 
 SafeClaw 还在很早期。  

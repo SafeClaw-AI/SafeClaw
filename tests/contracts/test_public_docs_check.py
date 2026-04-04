@@ -182,6 +182,9 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "已经有一层给主人自用的本地中文小面板",
                 "还不是对外开箱即用的完整产品",
                 "当前可手动体验的本地 MVP",
+                "Win11 本地 MVP 已可手用",
+                "个人生产位小面板",
+                "archive-note -> status -> undo",
             ],
             REPO_ROOT / "docs" / "README.md": [
                 BOUNDARY_NOTE_TITLE,
