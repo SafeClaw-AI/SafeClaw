@@ -41,6 +41,10 @@ ENTRY_COMMAND = os.environ.get(ENTRY_COMMAND_ENV) or r"tools\mvp\safeclaw_person
 DEFAULT_OWNER_ID = "safeclaw-personal"
 ARCHIVE_NOTE_NAME_REQUIRED_REASON = "标题不能为空。"
 ARCHIVE_NOTE_CONTENT_REQUIRED_REASON = "内容不能为空。"
+RUNTIME_CARGO_MISSING_REASON = "当前机器还没装好 Rust cargo。"
+RUNTIME_CARGO_MISSING_NEXT = "先安装 Rust cargo，再重试当前命令。"
+RUNTIME_LINKER_MISSING_REASON = "当前机器还没装好 GNU linker。"
+RUNTIME_LINKER_MISSING_NEXT = "先装好 GNU linker，或把它的路径改对，再重试当前命令。"
 
 
 def render_path(path: Path) -> str:
@@ -225,13 +229,13 @@ def run_checked(command: list[str]) -> int:
         cargo_path = shutil.which("cargo")
         if cargo_path is None:
             return print_personal_runtime_failure(
-                "missing cargo in PATH",
-                "先安装 Rust cargo，再重试当前命令。",
+                RUNTIME_CARGO_MISSING_REASON,
+                RUNTIME_CARGO_MISSING_NEXT,
             )
         if not check_configured_linker_accessible():
             return print_personal_runtime_failure(
-                f"missing GNU linker => {LINKER}",
-                "先检查 GNU linker 路径是否存在，再重试当前命令。",
+                RUNTIME_LINKER_MISSING_REASON,
+                RUNTIME_LINKER_MISSING_NEXT,
             )
     completed = subprocess.run(
         runtime_command,

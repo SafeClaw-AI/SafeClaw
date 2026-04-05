@@ -175,6 +175,10 @@ def resolve_personal_panel_error_guidance(output_text: str) -> tuple[str | None,
         return ("这次还没写成笔记。", "标题不能为空。", "先填标题，再点“写笔记”。")
     if "archive-note requires --content" in lowered_output or "内容不能为空。" in output_text:
         return ("这次还没写成笔记。", "内容不能为空。", "先填内容，再点“写笔记”。")
+    if "missing cargo in path" in lowered_output or "当前机器还没装好 rust cargo。" in output_text.lower():
+        return ("当前机器还没准备好个人归档运行环境。", "当前机器还没装好 Rust cargo。", None)
+    if "missing gnu linker" in lowered_output or "当前机器还没装好 gnu linker。" in output_text.lower():
+        return ("当前机器还没准备好个人归档运行环境。", "当前机器还没装好 GNU linker。", None)
     if "undo target missing" in lowered_output:
         return ("这次没能撤销最近笔记。", "要撤销的归档文件已经不存在。", "先点“查看状态”，确认当前情况。")
     return (None, None, None)

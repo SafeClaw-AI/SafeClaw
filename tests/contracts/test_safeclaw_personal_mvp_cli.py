@@ -5,7 +5,10 @@ import shutil
 import subprocess
 import sys
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PERSONAL_MVP = REPO_ROOT / "tools" / "mvp" / "safeclaw_personal_mvp.py"
@@ -13,6 +16,12 @@ TEST_ROOT = REPO_ROOT / "target" / "test-safeclaw-personal-cli"
 ARCHIVE_DATE = "2026-04-02"
 ARCHIVE_NAME = "CLI Roundtrip"
 ARCHIVE_FILE = TEST_ROOT / "archive" / "2026-04" / "2026-04-02-cli-roundtrip.md"
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.mvp.safeclaw_personal_mvp import run_checked  # noqa: E402
+from tools.mvp.safeclaw_personal_panel import build_personal_panel_result_text  # noqa: E402
 
 
 class SafeclawPersonalMvpCliTest(unittest.TestCase):
@@ -60,6 +69,34 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         )
         self.assertEqual(completed.stderr, "")
 
+    def assert_runtime_failure_output(
+        self,
+        output_text: str,
+        expected_reason: str,
+        expected_next: str,
+    ) -> None:
+        self.assertIn("[personal] summary => 当前机器还没准备好个人归档运行环境。", output_text)
+        self.assertIn(f"[personal] {expected_reason}", output_text)
+        self.assertIn(f"[personal] next => {expected_next}", output_text)
+
+    def assert_runtime_failure_panel_rendered(
+        self,
+        output_text: str,
+        expected_reason: str,
+        expected_next: str,
+    ) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["archive-note"],
+            returncode=1,
+            stdout=output_text,
+            stderr="",
+        )
+        rendered = build_personal_panel_result_text("archive-note", completed)
+        self.assertIn("结果：当前机器还没准备好个人归档运行环境。", rendered)
+        self.assertIn(f"原因：{expected_reason}", rendered)
+        self.assertIn(f"下一步：{expected_next}", rendered)
+        self.assertNotIn("退出码：", rendered)
+
     def test_archive_note_without_name_explains_human_next_step(self) -> None:
         completed = self.run_personal("archive-note", "--content", "个人最小版回路验证")
         self.assert_archive_note_failure(completed, "标题不能为空。")
@@ -79,6 +116,51 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
         self.assert_archive_note_failure(
             completed,
             "archive-note content-file missing => target\\test-safeclaw-personal-cli\\missing.md",
+        )
+
+    def test_run_checked_guides_missing_cargo_in_human_words(self) -> None:
+        output = StringIO()
+        expected_next = "先安装 Rust cargo，再重试当前命令。"
+        with (
+            redirect_stdout(output),
+            patch("tools.mvp.safeclaw_personal_mvp.resolve_safeclaw_mvp_runtime_command", return_value=["archive-note"]),
+            patch("tools.mvp.safeclaw_personal_mvp.shutil.which", return_value=None),
+        ):
+            exit_code = run_checked(["archive-note"])
+        self.assertEqual(exit_code, 1)
+        rendered_output = output.getvalue()
+        self.assert_runtime_failure_output(
+            rendered_output,
+            "当前机器还没装好 Rust cargo。",
+            expected_next,
+        )
+        self.assert_runtime_failure_panel_rendered(
+            rendered_output,
+            "当前机器还没装好 Rust cargo。",
+            expected_next,
+        )
+
+    def test_run_checked_guides_missing_linker_in_human_words(self) -> None:
+        output = StringIO()
+        expected_next = "先装好 GNU linker，或把它的路径改对，再重试当前命令。"
+        with (
+            redirect_stdout(output),
+            patch("tools.mvp.safeclaw_personal_mvp.resolve_safeclaw_mvp_runtime_command", return_value=["archive-note"]),
+            patch("tools.mvp.safeclaw_personal_mvp.shutil.which", return_value=r"C:\Users\demo\.cargo\bin\cargo.exe"),
+            patch("tools.mvp.safeclaw_personal_mvp.check_configured_linker_accessible", return_value=False),
+        ):
+            exit_code = run_checked(["archive-note"])
+        self.assertEqual(exit_code, 1)
+        rendered_output = output.getvalue()
+        self.assert_runtime_failure_output(
+            rendered_output,
+            "当前机器还没装好 GNU linker。",
+            expected_next,
+        )
+        self.assert_runtime_failure_panel_rendered(
+            rendered_output,
+            "当前机器还没装好 GNU linker。",
+            expected_next,
         )
 
     def test_status_without_last_note_guides_to_archive_note(self) -> None:
