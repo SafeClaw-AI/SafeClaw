@@ -39,6 +39,8 @@ LAST_NOTE_FILE = STATE_DIR / "last_note.json"
 ENTRY_COMMAND_ENV = "SAFECLAW_PERSONAL_ENTRY_COMMAND"
 ENTRY_COMMAND = os.environ.get(ENTRY_COMMAND_ENV) or r"tools\mvp\safeclaw_personal_mvp.cmd"
 DEFAULT_OWNER_ID = "safeclaw-personal"
+ARCHIVE_NOTE_NAME_REQUIRED_REASON = "标题不能为空。"
+ARCHIVE_NOTE_CONTENT_REQUIRED_REASON = "内容不能为空。"
 
 
 def render_path(path: Path) -> str:
@@ -89,7 +91,7 @@ def validate_archive_date(value: str) -> str:
 def build_archive_output_path(archive_root: Path, archive_date: str, note_name: str) -> Path:
     archive_slug = sanitize_note_name(note_name)
     if not archive_slug:
-        raise ValueError("archive-note requires --name")
+        raise ValueError(ARCHIVE_NOTE_NAME_REQUIRED_REASON)
     month_scope = archive_date[:7]
     return archive_root / month_scope / f"{archive_date}-{archive_slug}.md"
 
@@ -97,7 +99,7 @@ def build_archive_output_path(archive_root: Path, archive_date: str, note_name: 
 def build_task_id(note_name: str, now: datetime) -> str:
     archive_slug = sanitize_note_name(note_name)
     if not archive_slug:
-        raise ValueError("archive-note requires --name")
+        raise ValueError(ARCHIVE_NOTE_NAME_REQUIRED_REASON)
     timestamp = now.strftime("%Y%m%d-%H%M%S")
     return f"task-safeclaw-personal-{timestamp}-{archive_slug}"
 
@@ -249,7 +251,7 @@ def read_content(args: argparse.Namespace) -> str:
             return content_file_path.read_text(encoding="utf-8")
         except OSError as error:
             raise ValueError(f"archive-note content-file missing => {render_path(content_file_path)}") from error
-    raise ValueError("archive-note requires --content or --content-file")
+    raise ValueError(ARCHIVE_NOTE_CONTENT_REQUIRED_REASON)
 
 
 def print_archive_note_failure(reason_text: str) -> int:
@@ -272,7 +274,7 @@ def run_archive_note(args: argparse.Namespace) -> int:
     archive_date = args.date or date.today().isoformat()
     note_name = (args.name or "").strip()
     if not note_name:
-        return print_archive_note_failure("archive-note requires --name")
+        return print_archive_note_failure(ARCHIVE_NOTE_NAME_REQUIRED_REASON)
     try:
         content = read_content(args)
         task_id = build_task_id(note_name, datetime.now())

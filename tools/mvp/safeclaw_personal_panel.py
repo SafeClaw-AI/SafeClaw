@@ -171,9 +171,9 @@ def resolve_personal_panel_error_guidance(output_text: str) -> tuple[str | None,
     lowered_output = output_text.lower()
     if "no last note recorded" in lowered_output or "还没有最近笔记，所以这次没法撤销。" in output_text:
         return ("这次没有可撤销的最近笔记。", "还没有最近笔记。", "先点“写笔记”。")
-    if "archive-note requires --name" in lowered_output:
+    if "archive-note requires --name" in lowered_output or "标题不能为空。" in output_text:
         return ("这次还没写成笔记。", "标题不能为空。", "先填标题，再点“写笔记”。")
-    if "archive-note requires --content" in lowered_output:
+    if "archive-note requires --content" in lowered_output or "内容不能为空。" in output_text:
         return ("这次还没写成笔记。", "内容不能为空。", "先填内容，再点“写笔记”。")
     if "undo target missing" in lowered_output:
         return ("这次没能撤销最近笔记。", "要撤销的归档文件已经不存在。", "先点“查看状态”，确认当前情况。")

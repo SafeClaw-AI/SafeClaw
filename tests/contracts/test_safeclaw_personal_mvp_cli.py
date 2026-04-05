@@ -62,11 +62,11 @@ class SafeclawPersonalMvpCliTest(unittest.TestCase):
 
     def test_archive_note_without_name_explains_human_next_step(self) -> None:
         completed = self.run_personal("archive-note", "--content", "个人最小版回路验证")
-        self.assert_archive_note_failure(completed, "archive-note requires --name")
+        self.assert_archive_note_failure(completed, "标题不能为空。")
 
     def test_archive_note_without_content_explains_human_next_step(self) -> None:
         completed = self.run_personal("archive-note", "--name", ARCHIVE_NAME)
-        self.assert_archive_note_failure(completed, "archive-note requires --content or --content-file")
+        self.assert_archive_note_failure(completed, "内容不能为空。")
 
     def test_archive_note_with_missing_content_file_explains_human_next_step(self) -> None:
         completed = self.run_personal(
