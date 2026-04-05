@@ -196,6 +196,36 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn('下一步：先检查入口是否还在：cmd /c C:\\missing\\safeclaw-personal.cmd', rendered)
         self.assertNotIn("【原始错误】", rendered)
 
+    def test_build_personal_panel_exception_text_guides_permission_block(self) -> None:
+        rendered = build_personal_panel_exception_text(
+            "status",
+            PermissionError("[WinError 5] 拒绝访问。"),
+            ["cmd", "/c", r"C:\blocked\safeclaw-personal.cmd"],
+        )
+        self.assertIn("【查看状态】", rendered)
+        self.assertIn("结果：这次没能完成操作。", rendered)
+        self.assertIn("原因：当前入口程序被系统拦住了。", rendered)
+        self.assertIn('下一步：先确认入口有运行权限，再重试：cmd /c C:\\blocked\\safeclaw-personal.cmd', rendered)
+        self.assertNotIn("PermissionError", rendered)
+        self.assertNotIn("【原始错误】", rendered)
+
+    def test_build_personal_panel_exception_text_hides_exception_type_for_unknown_error(self) -> None:
+        rendered = build_personal_panel_exception_text(
+            "status",
+            RuntimeError("演示失败"),
+            ["cmd", "/c", r"C:\demo\safeclaw-personal.cmd"],
+        )
+        self.assertIn("【查看状态】", rendered)
+        self.assertIn("结果：这次没能完成操作。", rendered)
+        self.assertIn("原因：面板这边刚才没接住这次操作。", rendered)
+        self.assertIn(
+            '下一步：先看下面原始错误；如果再次出现，再检查入口是否还能手动运行：cmd /c C:\\demo\\safeclaw-personal.cmd',
+            rendered,
+        )
+        self.assertIn("【原始错误】", rendered)
+        self.assertIn("演示失败", rendered)
+        self.assertNotIn("RuntimeError", rendered)
+
     def test_run_action_worker_converts_exception_to_rendered_result(self) -> None:
         controller = object.__new__(SafeclawPersonalPanelController)
         controller.entry_command = ["cmd", "/c", r"C:\missing\safeclaw-personal.cmd"]

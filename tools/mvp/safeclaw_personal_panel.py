@@ -271,14 +271,19 @@ def build_personal_panel_exception_text(
     error: Exception,
     entry_command: Sequence[str],
 ) -> str:
+    entry_text = describe_personal_panel_entry_command(entry_command)
     lines = [f"【{get_personal_panel_action_title(action_name)}】"]
     lines.append("结果：这次没能完成操作。")
     if isinstance(error, FileNotFoundError):
         lines.append("原因：当前入口程序找不到了。")
-        lines.append(f"下一步：先检查入口是否还在：{describe_personal_panel_entry_command(entry_command)}")
+        lines.append(f"下一步：先检查入口是否还在：{entry_text}")
         return "\n".join(lines)
-    lines.append(f"原因：程序内部执行失败（{type(error).__name__}）。")
-    lines.append("下一步：先看下面原始错误，再决定怎么处理。")
+    if isinstance(error, PermissionError):
+        lines.append("原因：当前入口程序被系统拦住了。")
+        lines.append(f"下一步：先确认入口有运行权限，再重试：{entry_text}")
+        return "\n".join(lines)
+    lines.append("原因：面板这边刚才没接住这次操作。")
+    lines.append(f"下一步：先看下面原始错误；如果再次出现，再检查入口是否还能手动运行：{entry_text}")
     error_text = str(error).strip()
     if error_text:
         lines.extend(["", "【原始错误】", error_text])
