@@ -169,7 +169,7 @@ def extract_personal_output_value(output_text: str, label: str) -> str | None:
 
 def resolve_personal_panel_error_guidance(output_text: str) -> tuple[str | None, str | None, str | None]:
     lowered_output = output_text.lower()
-    if "no last note recorded" in lowered_output:
+    if "no last note recorded" in lowered_output or "还没有最近笔记，所以这次没法撤销。" in output_text:
         return ("这次没有可撤销的最近笔记。", "还没有最近笔记。", "先点“写笔记”。")
     if "archive-note requires --name" in lowered_output:
         return ("这次还没写成笔记。", "标题不能为空。", "先填标题，再点“写笔记”。")

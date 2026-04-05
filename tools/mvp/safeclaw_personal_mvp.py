@@ -308,7 +308,7 @@ def run_undo(_: argparse.Namespace) -> int:
         return print_last_note_state_failure()
     if note is None:
         print_personal_summary("这次没有可撤销的最近笔记。")
-        print("[personal] no last note recorded; run archive-note first")
+        print("[personal] 还没有最近笔记，所以这次没法撤销。")
         print(f"[personal] next => {ENTRY_COMMAND} archive-note --name <name> --content <text>")
         return 1
     exit_code = run_checked(build_undo_command(note["task_id"]))
