@@ -248,5 +248,115 @@ def assert_json_null_result(
         errors.append(f"{name} missing result=null")
 
 
+def assert_session_passthrough_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    action: str,
+    expected_task_id: str,
+) -> None:
+    """Assert session passthrough command JSON result structure."""
+    if result is None:
+        return
+
+    prepared = result.get("prepared") or []
+    remembered_session = result.get("remembered_session") or {}
+    source_hints = result.get("source_hints") or {}
+    captured_output = str(result.get("captured_output") or "")
+
+    if not prepared or prepared[0] != action:
+        errors.append(f"{name} missing prepared {action}")
+    elif expected_task_id not in captured_output:
+        errors.append(f"{name} missing captured task {expected_task_id}")
+    elif (
+        not isinstance(remembered_session, dict)
+        or remembered_session.get("task_id") != expected_task_id
+    ):
+        errors.append(f"{name} missing remembered session {expected_task_id}")
+    elif not isinstance(source_hints, dict) or source_hints.get("db") != "session":
+        errors.append(f"{name} missing source_hints.db=session")
+    elif source_hints.get("output") != "session":
+        errors.append(f"{name} missing source_hints.output=session")
+    elif source_hints.get("owner_id") != "session":
+        errors.append(f"{name} missing source_hints.owner_id=session")
+    elif source_hints.get("task_context") != "session":
+        errors.append(f"{name} missing source_hints.task_context=session")
+
+
+def assert_run_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+    expected_db_path: str | None = None,
+    expected_output_path: str | None = None,
+    expected_db_source: str,
+    expected_output_source: str,
+    expected_owner_source: str = "default",
+    expected_task_context_source: str = "flag",
+) -> None:
+    """Assert run command JSON result structure."""
+    if result is None:
+        return
+
+    saved_session = result.get("saved_session") or {}
+    remembered_session = result.get("remembered_session") or {}
+    source_hints = result.get("source_hints") or {}
+    captured_output = str(result.get("captured_output") or "").replace("/", chr(92))
+    normalized_saved_db = str(saved_session.get("db") or "").replace("/", chr(92))
+    normalized_saved_output = str(saved_session.get("output") or "").replace("/", chr(92))
+    normalized_expected_db = (
+        None if expected_db_path is None else expected_db_path.replace("/", chr(92))
+    )
+    normalized_expected_output = (
+        None if expected_output_path is None else expected_output_path.replace("/", chr(92))
+    )
+
+    if (
+        not isinstance(saved_session, dict)
+        or saved_session.get("task_id") != expected_task_id
+    ):
+        errors.append(f"{name} missing saved_session task_id={expected_task_id}")
+    elif (
+        normalized_expected_db is not None
+        and normalized_saved_db != normalized_expected_db
+    ):
+        errors.append(f"{name} missing saved_session db={expected_db_path}")
+    elif (
+        normalized_expected_output is not None
+        and normalized_saved_output != normalized_expected_output
+    ):
+        errors.append(f"{name} missing saved_session output={expected_output_path}")
+    elif (
+        not isinstance(remembered_session, dict) or remembered_session != saved_session
+    ):
+        errors.append(f"{name} missing remembered_session mirror")
+    elif (
+        not isinstance(source_hints, dict)
+        or source_hints.get("db") != expected_db_source
+    ):
+        errors.append(f"{name} missing source_hints.db={expected_db_source}")
+    elif source_hints.get("output") != expected_output_source:
+        errors.append(f"{name} missing source_hints.output={expected_output_source}")
+    elif source_hints.get("owner_id") != expected_owner_source:
+        errors.append(f"{name} missing source_hints.owner_id={expected_owner_source}")
+    elif source_hints.get("task_context") != expected_task_context_source:
+        errors.append(
+            f"{name} missing source_hints.task_context={expected_task_context_source}"
+        )
+    elif (
+        normalized_expected_db is not None
+        and normalized_expected_db not in captured_output
+    ):
+        errors.append(f"{name} missing captured db path")
+    elif (
+        normalized_expected_output is not None
+        and normalized_expected_output not in captured_output
+    ):
+        errors.append(f"{name} missing captured output path")
+
+
 # Placeholder for additional assertion functions
 # These will be added in subsequent commits to keep file size manageable
