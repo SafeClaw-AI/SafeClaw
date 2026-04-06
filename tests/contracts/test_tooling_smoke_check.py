@@ -3248,7 +3248,10 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         helper_block = source.split(
             "def append_wrapper_service_retry_missing_task_json_errors(errors: list[str]) -> None:",
             1,
-        )[1].split("def collect_errors() -> list[str]:", 1)[0]
+        )[1].split(
+            "def append_wrapper_service_recover_seed_crash_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
         self.assertIn("assert_command_json_error(", helper_block)
         self.assertIn('"mvp-wrapper-service-retry-missing-task-json"', helper_block)
         self.assertIn('"service-retry"', helper_block)
@@ -3257,6 +3260,38 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_code="missing-task-context"', helper_block)
         self.assertIn('expected_remembered_session_task_id="task-wrapper-service-retry-json"', helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-seed-crash-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_seed_crash_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_seed_crash_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_seed_crash_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_seed_crash_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-seed-crash-json"', helper_block)
+        self.assertIn('"task-wrapper-service-recover"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-recover.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-recover-status-before-json"', helper_block)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -9051,6 +9051,38 @@ def append_wrapper_service_retry_missing_task_json_errors(errors: list[str]) -> 
     )
 
 
+def append_wrapper_service_recover_seed_crash_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-wrapper-service-recover",
+            "--db",
+            "target/mvp/service-recover.db",
+            "--output",
+            "target/mvp/service-recover.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-seed-crash-json",
+        "seed-crash",
+    )
+
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-service-recover-seed-crash-json",
+        expected_task_id="task-wrapper-service-recover",
+        expected_db_path="target/mvp/service-recover.db",
+        expected_output_path="target/mvp/service-recover.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9170,36 +9202,7 @@ def collect_errors() -> list[str]:
     append_wrapper_ps1_service_retry_json_errors(errors)
     append_wrapper_service_retry_invalid_limit_json_errors(errors)
     append_wrapper_service_retry_missing_task_json_errors(errors)
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-crash",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-recover",
-            "--db",
-            "target/mvp/service-recover.db",
-            "--output",
-            "target/mvp/service-recover.txt",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-service-recover-seed-crash-json",
-        "seed-crash",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-recover-seed-crash-json",
-        expected_task_id="task-wrapper-service-recover",
-        expected_db_path="target/mvp/service-recover.db",
-        expected_output_path="target/mvp/service-recover.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
-    )
+    append_wrapper_service_recover_seed_crash_json_errors(errors)
 
     result = assert_command_json_result(
         [
