@@ -218,15 +218,159 @@ def build_smoke_report_pythonpath_env(
     return env
 
 
-def write_smoke_demo_sitecustomize(directory: Path) -> Path:
-    """Write demo sitecustomize.py - placeholder for now."""
+def write_smoke_verify_sitecustomize(directory: Path) -> Path:
+    """
+    为 verify 检查写入 sitecustomize.py
+    Mock subprocess.run 以跳过 MVP operator flow 检查
+    """
     sitecustomize_path = directory / "sitecustomize.py"
-    sitecustomize_path.write_text("# Demo sitecustomize - to be implemented\n", encoding="utf-8")
+    sitecustomize_path.write_text(
+        "import subprocess\n"
+        "subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess("
+        "args=['python', 'tools/checks/check_mvp_operator_flow.py'], "
+        "returncode=0, stdout='MVP operator flow check passed.\\n', stderr='')\n",
+        encoding="utf-8",
+    )
+    return sitecustomize_path
+
+
+def write_smoke_demo_sitecustomize(directory: Path) -> Path:
+    """
+    为 demo 检查写入 sitecustomize.py
+    Mock subprocess.run 以模拟 safeclaw_mvp_entry 和 worker_service_governance_demo 的输出
+    """
+    sitecustomize_path = directory / "sitecustomize.py"
+    sitecustomize_path.write_text(
+        "from __future__ import annotations\n"
+        "\n"
+        "import subprocess\n"
+        "from pathlib import Path\n"
+        "\n"
+        "_ORIGINAL_RUN = subprocess.run\n"
+        "\n"
+        "def _extract_action_args(parts: list[str]) -> list[str]:\n"
+        "    if '--' in parts:\n"
+        "        return parts[parts.index('--') + 1:]\n"
+        "    return parts[1:]\n"
+        "\n"
+        "def _resolve_example_name(command: object) -> str:\n"
+        "    if not isinstance(command, (list, tuple)):\n"
+        "        return ''\n"
+        "    parts = [str(part) for part in command]\n"
+        "    if any(Path(part).name.lower().startswith('safeclaw_mvp_entry') for part in parts):\n"
+        "        return 'safeclaw_mvp_entry'\n"
+        "    if '--example' not in parts:\n"
+        "        return ''\n"
+        "    example_index = parts.index('--example') + 1\n"
+        "    if example_index >= len(parts):\n"
+        "        return ''\n"
+        "    return parts[example_index]\n"
+        "\n"
+        "def _get_flag(parts: list[str], flag: str, default: str = '') -> str:\n"
+        "    if flag not in parts:\n"
+        "        return default\n"
+        "    value_index = parts.index(flag) + 1\n"
+        "    return parts[value_index] if value_index < len(parts) else default\n"
+        "\n"
+        "def _patched_run(command, *args, **kwargs):\n"
+        "    example_name = _resolve_example_name(command)\n"
+        "    if example_name not in {'safeclaw_mvp_entry', 'worker_service_governance_demo'}:\n"
+        "        return _ORIGINAL_RUN(command, *args, **kwargs)\n"
+        "    if example_name == 'worker_service_governance_demo':\n"
+        "        stdout = (\n"
+        "            '[demo] service run resolved => total=2 executed=2 parked=0 skipped=0 failed=0\\n'\n"
+        "            '[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0\\n'\n"
+        "            '[demo] service governance resolved tasks => task-worker-service-governance-a,task-worker-service-governance-b\\n'\n"
+        "            '[demo] snapshot after-resolved => total=2 active=0 parked=0 completed=2\\n'\n"
+        "            '[demo] service run confirmation => total=1 executed=1 parked=0 skipped=0 failed=0\\n'\n"
+        "            '[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0\\n'\n"
+        "            '[demo] service governance confirmation tasks => task-worker-service-governance-confirmation\\n'\n"
+        "            '[demo] snapshot after-confirmation => total=3 active=0 parked=0 completed=3\\n'\n"
+        "            '[demo] db: target\\\\mvp\\\\worker-service-governance-demo.db\\n'\n"
+        "        )\n"
+        "        return subprocess.CompletedProcess(args=command, returncode=0, stdout=stdout, stderr='')\n"
+        "    parts = [str(part) for part in command]\n"
+        "    action_args = _extract_action_args(parts)\n"
+        "    action = action_args[0] if action_args else 'unknown'\n"
+        "    task_id = _get_flag(action_args, '--task-id', 'task-demo')\n"
+        "    effect_id = _get_flag(action_args, '--effect-id', f'effect-{task_id}')\n"
+        "    db_path = _get_flag(action_args, '--db', 'target\\\\mvp\\\\session.db')\n"
+        "    output_path = _get_flag(action_args, '--output', 'target\\\\mvp\\\\session.txt')\n"
+        "    stdout = ''\n"
+        "    if action == 'report':\n"
+        "        stdout = f'[mvp] report target => task={task_id} effect={effect_id}\\n'\n"
+        "    if action.startswith('seed-'):\n"
+        "        stdout = f'[mvp] seed target => task={task_id} db={db_path} output={output_path}\\n'\n"
+        "    return subprocess.CompletedProcess(args=command, returncode=0, stdout=stdout, stderr='')\n"
+        "\n"
+        "subprocess.run = _patched_run\n",
+        encoding="utf-8",
+    )
     return sitecustomize_path
 
 
 def write_smoke_report_sitecustomize(directory: Path) -> Path:
-    """Write report sitecustomize.py - placeholder for now."""
+    """
+    为 report 检查写入 sitecustomize.py
+    Mock subprocess.run 以模拟 report 命令的输出
+    """
     sitecustomize_path = directory / "sitecustomize.py"
-    sitecustomize_path.write_text("# Report sitecustomize - to be implemented\n", encoding="utf-8")
+    sitecustomize_path.write_text(
+        "from __future__ import annotations\n"
+        "\n"
+        "import subprocess\n"
+        "from pathlib import Path\n"
+        "\n"
+        f"_REPORT_FACTS = {SMOKE_WRAPPER_REPORT_STUB_TASK_OUTPUTS!r}\n"
+        "_ORIGINAL_RUN = subprocess.run\n"
+        "\n"
+        "def _extract_action_args(parts: list[str]) -> list[str]:\n"
+        "    if '--' in parts:\n"
+        "        return parts[parts.index('--') + 1:]\n"
+        "    if parts and Path(parts[0]).name.lower().startswith('safeclaw_mvp_entry'):\n"
+        "        return parts[1:]\n"
+        "    return []\n"
+        "\n"
+        "def _resolve_example_name(command: object) -> str:\n"
+        "    if not isinstance(command, (list, tuple)):\n"
+        "        return ''\n"
+        "    parts = [str(part) for part in command]\n"
+        "    if any(Path(part).name.lower().startswith('safeclaw_mvp_entry') for part in parts):\n"
+        "        return 'safeclaw_mvp_entry'\n"
+        "    if '--example' not in parts:\n"
+        "        return ''\n"
+        "    example_index = parts.index('--example') + 1\n"
+        "    if example_index >= len(parts):\n"
+        "        return ''\n"
+        "    return parts[example_index]\n"
+        "\n"
+        "def _get_flag(parts: list[str], flag: str) -> str:\n"
+        "    if flag not in parts:\n"
+        "        return ''\n"
+        "    value_index = parts.index(flag) + 1\n"
+        "    return parts[value_index] if value_index < len(parts) else ''\n"
+        "\n"
+        "def _patched_run(command, *args, **kwargs):\n"
+        "    example_name = _resolve_example_name(command)\n"
+        "    if example_name != 'safeclaw_mvp_entry':\n"
+        "        return _ORIGINAL_RUN(command, *args, **kwargs)\n"
+        "    parts = [str(part) for part in command]\n"
+        "    action_args = _extract_action_args(parts)\n"
+        "    if not action_args or action_args[0] != 'report':\n"
+        "        return _ORIGINAL_RUN(command, *args, **kwargs)\n"
+        "    task_id = _get_flag(action_args, '--task-id')\n"
+        "    if task_id not in _REPORT_FACTS:\n"
+        "        return _ORIGINAL_RUN(command, *args, **kwargs)\n"
+        "    summary_token, worker_state, effect_state = _REPORT_FACTS[task_id]\n"
+        "    stdout_lines = [f'[mvp] report target => task={task_id} effect=effect-{task_id}']\n"
+        "    if summary_token:\n"
+        "        stdout_lines.append(\n"
+        "            f'[mvp] report summary => {summary_token} worker={worker_state} effect={effect_state}'\n"
+        "        )\n"
+        "    stdout = '\\n'.join(stdout_lines) + '\\n'\n"
+        "    return subprocess.CompletedProcess(args=command, returncode=0, stdout=stdout, stderr='')\n"
+        "\n"
+        "subprocess.run = _patched_run\n",
+        encoding="utf-8",
+    )
     return sitecustomize_path
