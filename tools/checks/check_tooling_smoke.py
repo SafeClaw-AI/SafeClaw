@@ -5129,6 +5129,32 @@ def append_wrapper_preflight_unknown_json_errors(errors: list[str]) -> None:
     )
 
 
+def append_wrapper_preflight_ai_reason_text_errors(errors: list[str]) -> None:
+    wrapper_preflight_ai_reason = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_preflight_ai_reason_output = (wrapper_preflight_ai_reason.stdout or "") + (
+        wrapper_preflight_ai_reason.stderr or ""
+    )
+
+    if wrapper_preflight_ai_reason.returncode != 1:
+        errors.append(
+            f"mvp-wrapper-preflight-ai-reason failed: exit={wrapper_preflight_ai_reason.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] preflight => action=ai-reason known=true class=ai-action tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=true requires_sidecar=true degradation=provider_unavailable reason=ERR_AI_PROVIDER_UNAVAILABLE error_code=ERR_AI_PROVIDER_UNAVAILABLE"
+        not in wrapper_preflight_ai_reason_output
+    ):
+        errors.append(
+            "mvp-wrapper-preflight-ai-reason missing provider-unavailable summary"
+        )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -5164,30 +5190,7 @@ def collect_errors() -> list[str]:
     append_wrapper_preflight_allow_json_errors(errors)
     append_wrapper_preflight_unknown_text_errors(errors)
     append_wrapper_preflight_unknown_json_errors(errors)
-
-    wrapper_preflight_ai_reason = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_preflight_ai_reason_output = (wrapper_preflight_ai_reason.stdout or "") + (
-        wrapper_preflight_ai_reason.stderr or ""
-    )
-
-    if wrapper_preflight_ai_reason.returncode != 1:
-        errors.append(
-            f"mvp-wrapper-preflight-ai-reason failed: exit={wrapper_preflight_ai_reason.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] preflight => action=ai-reason known=true class=ai-action tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=true requires_sidecar=true degradation=provider_unavailable reason=ERR_AI_PROVIDER_UNAVAILABLE error_code=ERR_AI_PROVIDER_UNAVAILABLE"
-        not in wrapper_preflight_ai_reason_output
-    ):
-        errors.append(
-            "mvp-wrapper-preflight-ai-reason missing provider-unavailable summary"
-        )
+    append_wrapper_preflight_ai_reason_text_errors(errors)
 
     payload = load_json_payload(
         run_wrapper_command(

@@ -698,6 +698,30 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_action_class="unknown"', helper_block)
         self.assertNotIn('"mvp-wrapper-preflight-ai-reason"', helper_block)
 
+    def test_collect_errors_uses_wrapper_preflight_ai_reason_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_ai_reason_text_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_preflight_ai_reason_text_errors_keeps_ai_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_ai_reason_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"ai-reason"', helper_block)
+        self.assertIn('"mvp-wrapper-preflight-ai-reason missing provider-unavailable summary"', helper_block)
+        self.assertIn("ERR_AI_PROVIDER_UNAVAILABLE", helper_block)
+        self.assertNotIn('"external-send"', helper_block)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
