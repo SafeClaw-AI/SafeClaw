@@ -358,5 +358,65 @@ def assert_run_json_result(
         errors.append(f"{name} missing captured output path")
 
 
+def assert_step_source_hints(
+    steps: object,
+    errors: list[str],
+    name: str,
+    expected: list[tuple[str, dict[str, str]]],
+) -> None:
+    """Assert step source hints in multi-step commands."""
+    if not isinstance(steps, list):
+        errors.append(f"{name} steps 不是列表")
+        return
+
+    for index, (expected_action, expected_hints) in enumerate(expected):
+        if index >= len(steps) or not isinstance(steps[index], dict):
+            errors.append(f"{name} 缺少步骤 {expected_action}")
+            return
+
+        step = steps[index]
+
+        if step.get("action") != expected_action:
+            errors.append(f"{name} 步骤 {index} 不是 {expected_action}")
+            return
+
+        source_hints = step.get("source_hints") or {}
+
+        if not isinstance(source_hints, dict):
+            errors.append(f"{name} 步骤 {expected_action} 缺少 source_hints")
+            return
+
+        for field, expected_value in expected_hints.items():
+            if source_hints.get(field) != expected_value:
+                errors.append(
+                    f"{name} 步骤 {expected_action} source_hints.{field} != {expected_value}"
+                )
+                return
+
+
+def assert_matching_session_alias(
+    payload: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+) -> None:
+    """Assert that session alias matches remembered_session."""
+    if payload is None:
+        return
+
+    remembered_session = payload.get("remembered_session") or {}
+    session = payload.get("session") or {}
+
+    if not isinstance(remembered_session, dict):
+        errors.append(f"{name} remembered_session 不是对象")
+        return
+
+    if not isinstance(session, dict):
+        errors.append(f"{name} session 兼容别名不是对象")
+        return
+
+    if session != remembered_session:
+        errors.append(f"{name} session 兼容别名与 remembered_session 不一致")
+
+
 # Placeholder for additional assertion functions
 # These will be added in subsequent commits to keep file size manageable
