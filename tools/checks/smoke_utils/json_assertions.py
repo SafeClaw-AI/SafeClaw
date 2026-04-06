@@ -112,5 +112,141 @@ def assert_doctor_json_result(
         errors.append(f"{name} db_source 不匹配")
 
 
+def assert_workspace_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_active: bool,
+    expected_name: str | None,
+    expected_db_path: str,
+    expected_output_path: str,
+    expected_changed: bool | None = None,
+) -> None:
+    """Assert workspace command JSON result structure."""
+    if result is None:
+        return
+
+    normalized_db = str(result.get("db") or "").replace("/", chr(92))
+    normalized_output = str(result.get("output") or "").replace("/", chr(92))
+    expected_db = expected_db_path.replace("/", chr(92))
+    expected_output = expected_output_path.replace("/", chr(92))
+
+    if result.get("active") is not expected_active:
+        errors.append(f"{name} missing active={expected_active}")
+    elif result.get("name") != expected_name:
+        errors.append(f"{name} missing name={expected_name}")
+    elif normalized_db != expected_db:
+        errors.append(f"{name} missing db={expected_db_path}")
+    elif normalized_output != expected_output:
+        errors.append(f"{name} missing output={expected_output_path}")
+    elif result.get("path") != "target\mvp\workspace.json":
+        errors.append(f"{name} missing workspace path")
+    elif expected_changed is not None and result.get("changed") is not expected_changed:
+        errors.append(f"{name} missing changed={expected_changed}")
+
+
+def assert_use_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+    expected_source: str,
+) -> None:
+    """Assert use command JSON result structure."""
+    if result is None:
+        return
+
+    if (
+        result.get("task_id") != expected_task_id
+        or result.get("source") != expected_source
+    ):
+        errors.append(f"{name} missing task_id/source")
+    elif result.get("db_source") != "session":
+        errors.append(f"{name} missing db_source=session")
+    elif result.get("output_source") != "task_scope":
+        errors.append(f"{name} missing output_source=task_scope")
+    elif result.get("owner_id_source") != "session":
+        errors.append(f"{name} missing owner_id_source=session")
+
+
+def assert_session_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_task_id: str,
+) -> None:
+    """Assert session command JSON result structure."""
+    if result is None:
+        return
+
+    expected_effect_id = f"effect-{expected_task_id}"
+
+    if result.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing task_id={expected_task_id}")
+    elif result.get("effect_id") != expected_effect_id:
+        errors.append(f"{name} missing effect_id={expected_effect_id}")
+    elif result.get("db") != "target\mvp\session.db":
+        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("output") != "target\mvp\output.txt":
+        errors.append(f"{name} missing output=target\mvp\output.txt")
+    elif result.get("owner_id") != "safeclaw-mvp":
+        errors.append(f"{name} missing owner_id=safeclaw-mvp")
+
+
+def assert_sessions_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_current_task_id: str,
+    expected_previous_task_id: str,
+) -> None:
+    """Assert sessions command JSON result structure."""
+    if result is None:
+        return
+
+    rows = result.get("rows") or []
+    current_session = result.get("current_session") or {}
+
+    if result.get("db") != "target\mvp\session.db":
+        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("db_source") != "session":
+        errors.append(f"{name} missing db_source=session")
+    elif result.get("limit") != 5:
+        errors.append(f"{name} missing limit=5")
+    elif (
+        not isinstance(current_session, dict)
+        or current_session.get("task_id") != expected_current_task_id
+    ):
+        errors.append(f"{name} missing current_session {expected_current_task_id}")
+    elif not rows or rows[0].get("task_id") != expected_current_task_id:
+        errors.append(f"{name} missing recent[0] task={expected_current_task_id}")
+    elif rows[0].get("current") is not True:
+        errors.append(f"{name} missing recent[0] current=true")
+    elif len(rows) < 2 or rows[1].get("task_id") != expected_previous_task_id:
+        errors.append(f"{name} missing recent[1] task={expected_previous_task_id}")
+    elif rows[1].get("current") is not False:
+        errors.append(f"{name} missing recent[1] current=false")
+
+
+def assert_json_null_result(
+    payload: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    action: str,
+) -> None:
+    """Assert JSON response with null result."""
+    if payload is None:
+        return
+
+    if payload.get("ok") is not True or payload.get("action") != action:
+        errors.append(f"{name} missing envelope")
+    elif "result" not in payload or payload.get("result") is not None:
+        errors.append(f"{name} missing result=null")
+
+
 # Placeholder for additional assertion functions
 # These will be added in subsequent commits to keep file size manageable
