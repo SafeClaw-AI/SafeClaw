@@ -9,13 +9,18 @@ from .service_assertions import (
     assert_service_run_json_result,
     assert_service_retry_json_result,
     assert_service_recover_json_result,
+    assert_service_reconcile_json_result,
 )
 from .subprocess_runner import run_wrapper_command, load_json_payload
 from .json_assertions import extract_json_result
 from .test_service_ps1 import (
     append_root_ps1_service_retry_errors,
     append_root_ps1_service_recover_errors,
+    append_root_ps1_service_reconcile_errors,
 )
+
+
+PYTHON = "python"
 
 
 def append_root_service_run_errors(errors: list[str]) -> None:
@@ -160,4 +165,45 @@ def append_root_service_recover_errors(errors: list[str]) -> None:
         expect_report_payload=True,
     )
     append_root_ps1_service_recover_errors(errors)
+
+
+def append_root_service_reconcile_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--probe-mode", "none", "--task-id", "task-readme-root-assumed-cmd", "--json"],
+        errors,
+        "safeclaw-root-cmd-service-reconcile-seed-crash-json",
+        "seed-crash",
+    )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-reconcile-seed-crash-json",
+        expected_action="seed-crash",
+        expected_task_id="task-readme-root-assumed-cmd",
+    )
+    assert_preflight_ai_reason_blocked_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        errors,
+        "safeclaw-root-cmd-service-reconcile-preflight-ai-json",
+        "service-reconcile",
+    )
+    result = assert_command_json_result(
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--json"],
+        errors,
+        "safeclaw-root-cmd-service-reconcile-json",
+        "service-reconcile",
+    )
+    assert_service_reconcile_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-reconcile-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-assumed-cmd",
+        expected_limit=1,
+        expected_decision="executed",
+        expected_steps=["reconcile", "service-status", "report"],
+        expect_report_payload=True,
+    )
+    append_root_ps1_service_reconcile_errors(errors)
 
