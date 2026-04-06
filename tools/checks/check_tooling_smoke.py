@@ -4038,84 +4038,22 @@ def append_root_service_recover_errors(errors: list[str]) -> None:
     append_root_ps1_service_recover_errors(errors)
 
 
-def collect_errors() -> list[str]:
-    errors: list[str] = []
-    reset_smoke_progress()
-    append_smoke_setup_errors(errors)
-    append_wrapper_help_errors(errors)
-
-    append_entrypoint_help_errors(errors)
-
-    append_root_default_entry_errors(errors)
-
-    append_root_workspace_entry_errors(errors)
-    append_root_service_run_errors(errors)
-    append_root_service_retry_errors(errors)
-    append_root_service_recover_errors(errors)
-
-    payload = load_json_payload(
-        run_wrapper_command(
-            [
-                "cmd",
-                "/c",
-                "safeclaw.cmd",
-                "seed-failed",
-                "--reset",
-                "--task-id",
-                "task-readme-root-failed-resume-cmd",
-                "--json",
-            ]
-        ),
+def append_root_cmd_service_resume_invalid_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-failed", "--reset", "--task-id", "task-readme-root-failed-resume-cmd", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json",
-        0,
+        "seed-failed",
     )
-
-    result = (
-        None
-        if payload is None
-        else extract_json_result(
-            payload,
-            errors,
-            "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json",
-            "seed-failed",
-        )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json",
+        expected_action="seed-failed",
+        expected_task_id="task-readme-root-failed-resume-cmd",
     )
-
-    if result is not None:
-        prepared = result.get("prepared") or []
-
-        session = result.get("saved_session") or {}
-
-        source_hints = result.get("source_hints") or {}
-
-        if not prepared or prepared[0] != "seed-failed":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing prepared seed-failed"
-            )
-
-        elif session.get("task_id") != "task-readme-root-failed-resume-cmd":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing saved session task"
-            )
-
-        elif source_hints.get("db") != "workspace":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-not-hibernated-seed-failed-json missing workspace db source"
-            )
-
     assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-resume",
-            "--task-id",
-            "task-readme-root-failed-resume-cmd",
-            "--limit",
-            "1",
-            "--json",
-        ],
+        ["cmd", "/c", "safeclaw.cmd", "service-resume", "--task-id", "task-readme-root-failed-resume-cmd", "--limit", "1", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-not-hibernated-json",
         "service-resume",
@@ -4127,26 +4065,12 @@ def collect_errors() -> list[str]:
         expected_code="resume-target-not-hibernated",
         expected_details_message_substring="resume only works for hibernated tasks",
     )
-
     result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-run",
-            "--reset",
-            "--task-id",
-            "task-readme-root-missing-resume-cmd",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
+        ["cmd", "/c", "safeclaw.cmd", "service-run", "--reset", "--task-id", "task-readme-root-missing-resume-cmd", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-missing-service-run-json",
         "service-run",
     )
-
     assert_service_run_json_result(
         result,
         errors,
@@ -4159,19 +4083,8 @@ def collect_errors() -> list[str]:
         expect_report_payload=True,
         expected_run_db_source="workspace",
     )
-
     assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-resume",
-            "--task-id",
-            "task-readme-root-missing-resume-cmd",
-            "--limit",
-            "1",
-            "--json",
-        ],
+        ["cmd", "/c", "safeclaw.cmd", "service-resume", "--task-id", "task-readme-root-missing-resume-cmd", "--limit", "1", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-missing-json",
         "service-resume",
@@ -4184,112 +4097,33 @@ def collect_errors() -> list[str]:
         expected_details_message_substring="resume requires a hibernated runtime for the selected task",
     )
 
-    payload = load_json_payload(
-        run_wrapper_command(
-            [
-                "cmd",
-                "/c",
-                "safeclaw.cmd",
-                "seed-hibernated",
-                "--reset",
-                "--task-id",
-                "task-readme-root-hibernated-cmd",
-                "--json",
-            ]
-        ),
+
+def append_root_cmd_service_resume_hibernated_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-hibernated", "--reset", "--task-id", "task-readme-root-hibernated-cmd", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-seed-hibernated-json",
-        0,
+        "seed-hibernated",
     )
-
-    result = (
-        None
-        if payload is None
-        else extract_json_result(
-            payload,
-            errors,
-            "safeclaw-root-cmd-service-resume-seed-hibernated-json",
-            "seed-hibernated",
-        )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-resume-seed-hibernated-json",
+        expected_action="seed-hibernated",
+        expected_task_id="task-readme-root-hibernated-cmd",
     )
-
-    if result is not None:
-        prepared = result.get("prepared") or []
-
-        session = result.get("saved_session") or {}
-
-        source_hints = result.get("source_hints") or {}
-
-        if not prepared or prepared[0] != "seed-hibernated":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-seed-hibernated-json missing prepared seed-hibernated"
-            )
-
-        elif session.get("task_id") != "task-readme-root-hibernated-cmd":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-seed-hibernated-json missing saved session task"
-            )
-
-        elif source_hints.get("db") != "workspace":
-            errors.append(
-                "safeclaw-root-cmd-service-resume-seed-hibernated-json missing workspace db source"
-            )
-
-    assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-resume",
-            "--task-id",
-            "task-readme-root-hibernated-cmd",
-            "--limit",
-            "1",
-            "--report",
-            "--preflight",
-            "--preflight-action",
-            "ai-reason",
-            "--json",
-        ],
+    assert_preflight_ai_reason_blocked_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "service-resume", "--task-id", "task-readme-root-hibernated-cmd", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-preflight-ai-json",
         "service-resume",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_degradation_mode="provider_unavailable",
-        expected_top_level_error_requires_model=True,
-        expected_top_level_error_requires_sidecar=True,
-        expected_top_level_error_requested_action="ai-reason",
-        expected_failed_step="preflight",
-        expected_code="preflight-blocked",
-        expected_preflight_requested_action="ai-reason",
-        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_summary_substring="action=ai-reason",
-        expect_top_level_error_summary_matches_preflight=True,
     )
-
     result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-resume",
-            "--task-id",
-            "task-readme-root-hibernated-cmd",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
+        ["cmd", "/c", "safeclaw.cmd", "service-resume", "--task-id", "task-readme-root-hibernated-cmd", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-resume-json",
         "service-resume",
     )
-
     assert_service_resume_json_result(
         result,
         errors,
@@ -4302,122 +4136,39 @@ def collect_errors() -> list[str]:
         expect_report_payload=True,
     )
 
+
+def append_root_service_resume_errors(errors: list[str]) -> None:
+    append_root_cmd_service_resume_invalid_errors(errors)
+    append_root_cmd_service_resume_hibernated_errors(errors)
     append_root_ps1_service_resume_errors(errors)
 
-    append_root_ps1_service_reconcile_errors(errors)
 
-    payload = load_json_payload(
-        run_wrapper_command(
-            [
-                "cmd",
-                "/c",
-                "safeclaw.cmd",
-                "seed-crash",
-                "--reset",
-                "--probe-mode",
-                "none",
-                "--task-id",
-                "task-readme-root-assumed-cmd",
-                "--json",
-            ]
-        ),
+def append_root_service_reconcile_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--probe-mode", "none", "--task-id", "task-readme-root-assumed-cmd", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-seed-crash-json",
-        0,
+        "seed-crash",
     )
-
-    result = (
-        None
-        if payload is None
-        else extract_json_result(
-            payload,
-            errors,
-            "safeclaw-root-cmd-service-reconcile-seed-crash-json",
-            "seed-crash",
-        )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-cmd-service-reconcile-seed-crash-json",
+        expected_action="seed-crash",
+        expected_task_id="task-readme-root-assumed-cmd",
     )
-
-    if result is not None:
-        prepared = result.get("prepared") or []
-
-        session = result.get("saved_session") or {}
-
-        source_hints = result.get("source_hints") or {}
-
-        if not prepared or prepared[0] != "seed-crash":
-            errors.append(
-                "safeclaw-root-cmd-service-reconcile-seed-crash-json missing prepared seed-crash"
-            )
-
-        elif session.get("task_id") != "task-readme-root-assumed-cmd":
-            errors.append(
-                "safeclaw-root-cmd-service-reconcile-seed-crash-json missing saved session task"
-            )
-
-        elif source_hints.get("db") != "workspace":
-            errors.append(
-                "safeclaw-root-cmd-service-reconcile-seed-crash-json missing workspace db source"
-            )
-
-    assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-reconcile",
-            "--task-id",
-            "task-readme-root-assumed-cmd",
-            "--decision",
-            "executed",
-            "--limit",
-            "1",
-            "--report",
-            "--preflight",
-            "--preflight-action",
-            "ai-reason",
-            "--json",
-        ],
+    assert_preflight_ai_reason_blocked_json_error(
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-preflight-ai-json",
         "service-reconcile",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_degradation_mode="provider_unavailable",
-        expected_top_level_error_requires_model=True,
-        expected_top_level_error_requires_sidecar=True,
-        expected_top_level_error_requested_action="ai-reason",
-        expected_failed_step="preflight",
-        expected_code="preflight-blocked",
-        expected_preflight_requested_action="ai-reason",
-        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_summary_substring="action=ai-reason",
-        expect_top_level_error_summary_matches_preflight=True,
     )
-
     result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "service-reconcile",
-            "--task-id",
-            "task-readme-root-assumed-cmd",
-            "--decision",
-            "executed",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-json",
         "service-reconcile",
     )
-
     assert_service_reconcile_json_result(
         result,
         errors,
@@ -4430,9 +4181,10 @@ def collect_errors() -> list[str]:
         expected_steps=["reconcile", "service-status", "report"],
         expect_report_payload=True,
     )
+    append_root_ps1_service_reconcile_errors(errors)
 
-    append_root_ps1_service_recover_errors(errors)
 
+def append_root_verify_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "powershell.exe",
@@ -4461,7 +4213,6 @@ def collect_errors() -> list[str]:
                 "safeclaw-root-cmd-verify-json",
                 "verify",
             )
-
         finally:
             if previous_pythonpath is None:
                 os.environ.pop("PYTHONPATH", None)
@@ -4469,21 +4220,18 @@ def collect_errors() -> list[str]:
                 os.environ["PYTHONPATH"] = previous_pythonpath
     assert_verify_json_result(result, errors, "safeclaw-root-cmd-verify-json")
 
+
+def append_root_workspace_clear_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         ["cmd", "/c", "safeclaw.cmd", "workspace", "--clear", "--json"],
         errors,
         "safeclaw-root-cmd-workspace-clear-json",
         "workspace",
     )
-
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-
         if result.get("path") != "target\mvp\workspace.json":
-            errors.append(
-                "safeclaw-root-cmd-workspace-clear-json missing workspace path"
-            )
-
+            errors.append("safeclaw-root-cmd-workspace-clear-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append(
                 "safeclaw-root-cmd-workspace-clear-json unexpected clear state"
@@ -4504,20 +4252,17 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-workspace-clear-json",
         "workspace",
     )
-
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-
         if result.get("path") != "target\mvp\workspace.json":
-            errors.append(
-                "safeclaw-root-ps1-workspace-clear-json missing workspace path"
-            )
-
+            errors.append("safeclaw-root-ps1-workspace-clear-json missing workspace path")
         elif clear_state != (False, "none"):
             errors.append(
                 "safeclaw-root-ps1-workspace-clear-json unexpected clear state"
             )
 
+
+def append_root_ps1_seed_crash_failed_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -4539,7 +4284,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-seed-crash-json",
         "seed-crash",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4572,7 +4316,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-seed-failed-json",
         "seed-failed",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4584,6 +4327,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_root_ps1_seed_hibernated_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -4605,7 +4350,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-seed-hibernated-json",
         "seed-hibernated",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4617,6 +4361,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_root_ps1_resume_seed_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -4635,7 +4381,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-resume-json-seed-hibernated-json",
         "seed-hibernated",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4647,6 +4392,9 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_root_ps1_resume_errors(errors: list[str]) -> None:
+    append_root_ps1_resume_seed_errors(errors)
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -4667,27 +4415,19 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-resume-json",
         "resume",
     )
-
     if result is not None:
         prepared = result.get("prepared") or []
-
         remembered_session = result.get("remembered_session") or {}
-
         source_hints = result.get("source_hints") or {}
-
         captured_output = str(result.get("captured_output") or "")
-
         if not prepared or prepared[0] != "resume":
             errors.append("safeclaw-root-ps1-resume-json missing prepared resume")
-
         elif "task-root-ps1-resume-json" not in captured_output:
             errors.append(
                 "safeclaw-root-ps1-resume-json missing captured task task-root-ps1-resume-json"
             )
-
         elif result.get("saved_session") is not None:
             errors.append("safeclaw-root-ps1-resume-json should not save session")
-
         elif (
             not isinstance(remembered_session, dict)
             or remembered_session.get("task_id") != "task-root-ps1-resume-json"
@@ -4695,33 +4435,29 @@ def collect_errors() -> list[str]:
             errors.append(
                 "safeclaw-root-ps1-resume-json missing remembered session task-root-ps1-resume-json"
             )
-
         elif remembered_session.get("db") != "target/mvp/root-ps1-resume-json.db":
             errors.append("safeclaw-root-ps1-resume-json missing remembered session db")
-
         elif remembered_session.get("output") != "target/mvp/root-ps1-resume-json.txt":
             errors.append(
                 "safeclaw-root-ps1-resume-json missing remembered session output"
             )
-
         elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
             errors.append("safeclaw-root-ps1-resume-json missing source_hints.db=flag")
-
         elif source_hints.get("output") != "flag":
             errors.append(
                 "safeclaw-root-ps1-resume-json missing source_hints.output=flag"
             )
-
         elif source_hints.get("owner_id") != "session":
             errors.append(
                 "safeclaw-root-ps1-resume-json missing source_hints.owner_id=session"
             )
-
         elif source_hints.get("task_context") != "flag":
             errors.append(
                 "safeclaw-root-ps1-resume-json missing source_hints.task_context=flag"
             )
 
+
+def append_root_cmd_seed_hibernated_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
@@ -4741,7 +4477,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-seed-hibernated-json",
         "seed-hibernated",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4753,6 +4488,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_root_cmd_resume_seed_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -4771,7 +4508,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-resume-json-seed-hibernated-json",
         "seed-hibernated",
     )
-
     assert_run_json_result(
         result,
         errors,
@@ -4783,6 +4519,9 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_root_cmd_resume_errors(errors: list[str]) -> None:
+    append_root_cmd_resume_seed_errors(errors)
     result = assert_command_json_result(
         [
             "cmd",
@@ -4801,27 +4540,19 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-resume-json",
         "resume",
     )
-
     if result is not None:
         prepared = result.get("prepared") or []
-
         remembered_session = result.get("remembered_session") or {}
-
         source_hints = result.get("source_hints") or {}
-
         captured_output = str(result.get("captured_output") or "")
-
         if not prepared or prepared[0] != "resume":
             errors.append("safeclaw-root-cmd-resume-json missing prepared resume")
-
         elif "task-wrapper-root-cmd-resume-json" not in captured_output:
             errors.append(
                 "safeclaw-root-cmd-resume-json missing captured task task-wrapper-root-cmd-resume-json"
             )
-
         elif result.get("saved_session") is not None:
             errors.append("safeclaw-root-cmd-resume-json should not save session")
-
         elif (
             not isinstance(remembered_session, dict)
             or remembered_session.get("task_id") != "task-wrapper-root-cmd-resume-json"
@@ -4829,46 +4560,39 @@ def collect_errors() -> list[str]:
             errors.append(
                 "safeclaw-root-cmd-resume-json missing remembered session task-wrapper-root-cmd-resume-json"
             )
-
         elif remembered_session.get("db") != "target/mvp/root-cmd-resume-json.db":
             errors.append("safeclaw-root-cmd-resume-json missing remembered session db")
-
         elif remembered_session.get("output") != "target/mvp/root-cmd-resume-json.txt":
             errors.append(
                 "safeclaw-root-cmd-resume-json missing remembered session output"
             )
-
         elif not isinstance(source_hints, dict) or source_hints.get("db") != "flag":
             errors.append("safeclaw-root-cmd-resume-json missing source_hints.db=flag")
-
         elif source_hints.get("output") != "flag":
             errors.append(
                 "safeclaw-root-cmd-resume-json missing source_hints.output=flag"
             )
-
         elif source_hints.get("owner_id") != "session":
             errors.append(
                 "safeclaw-root-cmd-resume-json missing source_hints.owner_id=session"
             )
-
         elif source_hints.get("task_context") != "flag":
             errors.append(
                 "safeclaw-root-cmd-resume-json missing source_hints.task_context=flag"
             )
 
+
+def append_root_forget_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         ["cmd", "/c", "safeclaw.cmd", "forget", "--json"],
         errors,
         "safeclaw-root-cmd-forget-json",
         "forget",
     )
-
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-
         if result.get("path") != "target\mvp\last_session.json":
             errors.append("safeclaw-root-cmd-forget-json missing session path")
-
         elif forget_state not in {(True, "removed"), (False, "none")}:
             errors.append("safeclaw-root-cmd-forget-json unexpected forget state")
 
@@ -4886,23 +4610,21 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-forget-json",
         "forget",
     )
-
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-
         if result.get("path") != "target\mvp\last_session.json":
             errors.append("safeclaw-root-ps1-forget-json missing session path")
-
         elif forget_state != (False, "none"):
             errors.append("safeclaw-root-ps1-forget-json unexpected forget state")
 
+
+def append_root_cmd_preflight_local_action_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         ["cmd", "/c", "safeclaw.cmd", "preflight", "--action", "service-run", "--json"],
         errors,
         "safeclaw-root-cmd-preflight-service-run-json",
         "preflight",
     )
-
     assert_preflight_json_result(
         result,
         errors,
@@ -4937,7 +4659,6 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-preflight-demo-json",
         "preflight",
     )
-
     assert_preflight_json_result(
         result,
         errors,
@@ -4966,6 +4687,8 @@ def collect_errors() -> list[str]:
         expected_reason="current_mvp_action_is_local_only",
     )
 
+
+def append_root_cmd_preflight_ai_reason_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -4982,26 +4705,20 @@ def collect_errors() -> list[str]:
         "safeclaw-root-cmd-preflight-ai-reason-json",
         1,
     )
-
     result = None
-
     if payload is not None:
         if payload.get("ok") is not False or payload.get("action") != "preflight":
             errors.append(
                 "safeclaw-root-cmd-preflight-ai-reason-json unexpected top-level payload"
             )
-
         else:
             candidate = payload.get("result")
-
             if not isinstance(candidate, dict):
                 errors.append(
                     "safeclaw-root-cmd-preflight-ai-reason-json missing result payload"
                 )
-
             else:
                 result = candidate
-
     assert_preflight_json_result(
         result,
         errors,
@@ -5033,6 +4750,8 @@ def collect_errors() -> list[str]:
         expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
     )
 
+
+def append_root_ps1_preflight_ai_reason_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -5051,26 +4770,20 @@ def collect_errors() -> list[str]:
         "safeclaw-root-ps1-preflight-ai-reason-json",
         1,
     )
-
     result = None
-
     if payload is not None:
         if payload.get("ok") is not False or payload.get("action") != "preflight":
             errors.append(
                 "safeclaw-root-ps1-preflight-ai-reason-json unexpected top-level payload"
             )
-
         else:
             candidate = payload.get("result")
-
             if not isinstance(candidate, dict):
                 errors.append(
                     "safeclaw-root-ps1-preflight-ai-reason-json missing result payload"
                 )
-
             else:
                 result = candidate
-
     assert_preflight_json_result(
         result,
         errors,
@@ -5102,209 +4815,105 @@ def collect_errors() -> list[str]:
         expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
     )
 
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "safeclaw.ps1",
+
+def append_root_ps1_preflight_local_action_errors(errors: list[str]) -> None:
+    for action, name in (
+        ("service-run", "safeclaw-root-ps1-preflight-service-run-json"),
+        ("demo", "safeclaw-root-ps1-preflight-demo-json"),
+    ):
+        result = assert_command_json_result(
+            [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "safeclaw.ps1",
+                "preflight",
+                "--action",
+                action,
+                "--json",
+            ],
+            errors,
+            name,
             "preflight",
-            "--action",
-            "service-run",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-preflight-service-run-json",
-        "preflight",
-    )
+        )
+        assert_preflight_json_result(
+            result,
+            errors,
+            name,
+            expected_requested_action=action,
+            expected_known=True,
+            expected_action_class="local-action",
+            expected_tier="TIER_1",
+            expected_writes_state=True,
+            expected_permission_context_source="action-template",
+            expected_target_scope="scope:target/mvp/output.txt",
+            expected_requires_write=True,
+            expected_doctor_bypass=False,
+            expected_permission_context_applied=True,
+            expected_permission_tier="TIER_1",
+            expected_permission_policy="confirm",
+            expected_permission_reason="write_scope_requires_confirmation",
+            expected_permission_enforced=False,
+            expected_action_allowed=True,
+            expected_action_decision="allow",
+            expected_action_reason="current_mvp_action_is_local_only",
+            expected_allowed=True,
+            expected_decision="allow",
+            expected_offline_ready=True,
+            expected_degradation_mode="local_only_ok",
+            expected_reason="current_mvp_action_is_local_only",
+        )
+    for command, name in (
+        (
+            ["cmd", "/c", "safeclaw.cmd", "demo", "--preflight", "--preflight-action", "ai-reason", "--json"],
+            "safeclaw-root-cmd-demo-preflight-ai-json",
+        ),
+        (
+            [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "safeclaw.ps1",
+                "demo",
+                "--preflight",
+                "--preflight-action",
+                "ai-reason",
+                "--json",
+            ],
+            "safeclaw-root-ps1-demo-preflight-ai-json",
+        ),
+    ):
+        assert_preflight_ai_reason_blocked_json_error(command, errors, name, "demo")
 
-    assert_preflight_json_result(
-        result,
-        errors,
-        "safeclaw-root-ps1-preflight-service-run-json",
-        expected_requested_action="service-run",
-        expected_known=True,
-        expected_action_class="local-action",
-        expected_tier="TIER_1",
-        expected_writes_state=True,
-        expected_permission_context_source="action-template",
-        expected_target_scope="scope:target/mvp/output.txt",
-        expected_requires_write=True,
-        expected_doctor_bypass=False,
-        expected_permission_context_applied=True,
-        expected_permission_tier="TIER_1",
-        expected_permission_policy="confirm",
-        expected_permission_reason="write_scope_requires_confirmation",
-        expected_permission_enforced=False,
-        expected_action_allowed=True,
-        expected_action_decision="allow",
-        expected_action_reason="current_mvp_action_is_local_only",
-        expected_allowed=True,
-        expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
-    assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            "safeclaw.cmd",
-            "demo",
-            "--preflight",
-            "--preflight-action",
-            "ai-reason",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-cmd-demo-preflight-ai-json",
-        "demo",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_degradation_mode="provider_unavailable",
-        expected_top_level_error_requires_model=True,
-        expected_top_level_error_requires_sidecar=True,
-        expected_top_level_error_requested_action="ai-reason",
-        expected_failed_step="preflight",
-        expected_code="preflight-blocked",
-        expected_preflight_requested_action="ai-reason",
-        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_summary_substring="action=ai-reason",
-        expect_top_level_error_summary_matches_preflight=True,
-    )
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "safeclaw.ps1",
-            "preflight",
-            "--action",
-            "demo",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-preflight-demo-json",
-        "preflight",
-    )
-    assert_preflight_json_result(
-        result,
-        errors,
-        "safeclaw-root-ps1-preflight-demo-json",
-        expected_requested_action="demo",
-        expected_known=True,
-        expected_action_class="local-action",
-        expected_tier="TIER_1",
-        expected_writes_state=True,
-        expected_permission_context_source="action-template",
-        expected_target_scope="scope:target/mvp/output.txt",
-        expected_requires_write=True,
-        expected_doctor_bypass=False,
-        expected_permission_context_applied=True,
-        expected_permission_tier="TIER_1",
-        expected_permission_policy="confirm",
-        expected_permission_reason="write_scope_requires_confirmation",
-        expected_permission_enforced=False,
-        expected_action_allowed=True,
-        expected_action_decision="allow",
-        expected_action_reason="current_mvp_action_is_local_only",
-        expected_allowed=True,
-        expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
-    assert_command_json_error(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "safeclaw.ps1",
-            "demo",
-            "--preflight",
-            "--preflight-action",
-            "ai-reason",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-demo-preflight-ai-json",
-        "demo",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_degradation_mode="provider_unavailable",
-        expected_top_level_error_requires_model=True,
-        expected_top_level_error_requires_sidecar=True,
-        expected_top_level_error_requested_action="ai-reason",
-        expected_failed_step="preflight",
-        expected_code="preflight-blocked",
-        expected_preflight_requested_action="ai-reason",
-        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_summary_substring="action=ai-reason",
-        expect_top_level_error_summary_matches_preflight=True,
-    )
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
-            "doctor",
-            "--db",
-            "target\mvp\doctor-wrapper-cmd.db",
-            "--output",
-            "target\mvp\doctor-wrapper-cmd.txt",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-cmd-doctor-json",
-        "doctor",
-    )
 
-    assert_doctor_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-doctor-json",
-        expected_db_path="target\mvp\doctor-wrapper-cmd.db",
-        expected_output_path="target\mvp\doctor-wrapper-cmd.txt",
-    )
+def append_wrapper_doctor_shell_json_errors(errors: list[str]) -> None:
+    for command, name, db_path, output_path in (
+        (
+            ["cmd", "/c", "tools\\mvp\\safeclaw_mvp.cmd", "doctor", "--db", "target\\mvp\\doctor-wrapper-cmd.db", "--output", "target\\mvp\\doctor-wrapper-cmd.txt", "--json"],
+            "mvp-wrapper-cmd-doctor-json",
+            "target\\mvp\\doctor-wrapper-cmd.db",
+            "target\\mvp\\doctor-wrapper-cmd.txt",
+        ),
+        (
+            ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "tools\\mvp\\safeclaw_mvp.ps1", "doctor", "--db", "target\\mvp\\doctor-wrapper-ps1.db", "--output", "target\\mvp\\doctor-wrapper-ps1.txt", "--json"],
+            "mvp-wrapper-ps1-doctor-json",
+            "target\\mvp\\doctor-wrapper-ps1.db",
+            "target\\mvp\\doctor-wrapper-ps1.txt",
+        ),
+    ):
+        result = assert_command_json_result(command, errors, name, "doctor")
+        assert_doctor_json_result(
+            result,
+            errors,
+            name,
+            expected_db_path=db_path,
+            expected_output_path=output_path,
+        )
 
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
-            "doctor",
-            "--db",
-            "target\mvp\doctor-wrapper-ps1.db",
-            "--output",
-            "target\mvp\doctor-wrapper-ps1.txt",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-doctor-json",
-        "doctor",
-    )
 
-    assert_doctor_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-doctor-json",
-        expected_db_path="target\mvp\doctor-wrapper-ps1.db",
-        expected_output_path="target\mvp\doctor-wrapper-ps1.txt",
-    )
-
+def append_wrapper_doctor_text_errors(errors: list[str]) -> None:
     wrapper_doctor = subprocess.run(
         [
             PYTHON,
@@ -5319,65 +4928,34 @@ def collect_errors() -> list[str]:
         capture_output=True,
         text=True,
     )
-
-    wrapper_doctor_output = (wrapper_doctor.stdout or "") + (
-        wrapper_doctor.stderr or ""
-    )
-
+    wrapper_doctor_output = (wrapper_doctor.stdout or "") + (wrapper_doctor.stderr or "")
     if wrapper_doctor.returncode != 0:
         errors.append(f"mvp-wrapper-doctor 执行失败: exit={wrapper_doctor.returncode}")
-
-    elif (
-        "[mvp-wrapper] doctor entry => ok cmd=tools\\mvp\\safeclaw_mvp.cmd ps1=tools\\mvp\\safeclaw_mvp.ps1 py=tools\\mvp\\safeclaw_mvp.py"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor 输出缺少入口检查")
-
-    elif "[mvp-wrapper] doctor cargo => ok" not in wrapper_doctor_output:
-        errors.append("mvp-wrapper-doctor 输出缺少 cargo 检查")
-
-    elif "[mvp-wrapper] doctor toolchain => ok" not in wrapper_doctor_output:
-        errors.append("mvp-wrapper-doctor 输出缺少 toolchain 检查")
-
-    elif "[mvp-wrapper] doctor linker => ok" not in wrapper_doctor_output:
-        errors.append("mvp-wrapper-doctor 输出缺少 linker 检查")
-
-    elif (
-        "[mvp-wrapper] doctor session_path => target\\mvp\\last_session.json"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor 输出缺少 session_path")
-
-    elif (
-        "[mvp-wrapper] doctor source => db=flag output=flag"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor 输出缺少来源提示")
-
-    elif (
-        "[mvp-wrapper] doctor runtime => mode=local_mvp offline_ready=true llm_required=false sidecar_required=false"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor ???? runtime profile ??")
-
-    elif (
-        "[mvp-wrapper] doctor model => status=not-configured required=false configured=false degradation=local_only_ok"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor ???? model provider ??")
-
-    elif (
-        "[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false detail=sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it"
-        not in wrapper_doctor_output
-    ):
-        errors.append("mvp-wrapper-doctor ???? sidecar ??")
-
-    elif "[mvp-wrapper] doctor budget =>" in wrapper_doctor_output:
+        return
+    expected_checks = [
+        (
+            "[mvp-wrapper] doctor entry => ok cmd=tools\\mvp\\safeclaw_mvp.cmd ps1=tools\\mvp\\safeclaw_mvp.ps1 py=tools\\mvp\\safeclaw_mvp.py",
+            "mvp-wrapper-doctor 输出缺少入口检查",
+        ),
+        ("[mvp-wrapper] doctor cargo => ok", "mvp-wrapper-doctor 输出缺少 cargo 检查"),
+        ("[mvp-wrapper] doctor toolchain => ok", "mvp-wrapper-doctor 输出缺少 toolchain 检查"),
+        ("[mvp-wrapper] doctor linker => ok", "mvp-wrapper-doctor 输出缺少 linker 检查"),
+        ("[mvp-wrapper] doctor session_path => target\\mvp\\last_session.json", "mvp-wrapper-doctor 输出缺少 session_path"),
+        ("[mvp-wrapper] doctor source => db=flag output=flag", "mvp-wrapper-doctor 输出缺少来源提示"),
+        ("[mvp-wrapper] doctor runtime => mode=local_mvp offline_ready=true llm_required=false sidecar_required=false", "mvp-wrapper-doctor ???? runtime profile ??"),
+        ("[mvp-wrapper] doctor model => status=not-configured required=false configured=false degradation=local_only_ok", "mvp-wrapper-doctor ???? model provider ??"),
+        ("[mvp-wrapper] doctor sidecar => status=not-configured required=false configured=false detail=sidecar lifecycle is specified for later phases; current local MVP wrapper does not depend on it", "mvp-wrapper-doctor ???? sidecar ??"),
+        ("[mvp-wrapper] doctor summary => ready", "mvp-wrapper-doctor 输出缺少聚合状态提示"),
+    ]
+    for snippet, error_message in expected_checks:
+        if snippet not in wrapper_doctor_output:
+            errors.append(error_message)
+            return
+    if "[mvp-wrapper] doctor budget =>" in wrapper_doctor_output:
         errors.append("mvp-wrapper-doctor 意外暴露 budget 文本")
 
-    elif "[mvp-wrapper] doctor summary => ready" not in wrapper_doctor_output:
-        errors.append("mvp-wrapper-doctor 输出缺少聚合状态提示")
 
+def append_wrapper_doctor_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5393,122 +4971,78 @@ def collect_errors() -> list[str]:
         "mvp-wrapper-doctor-json",
         "doctor",
     )
-
     assert_doctor_json_result(
         result,
         errors,
         "mvp-wrapper-doctor-json",
-        expected_db_path="target\mvp\doctor-check.db",
-        expected_output_path="target\mvp\doctor-check.txt",
+        expected_db_path="target\\mvp\\doctor-check.db",
+        expected_output_path="target\\mvp\\doctor-check.txt",
     )
 
+
+def append_wrapper_preflight_text_errors(errors: list[str]) -> None:
     wrapper_preflight = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-run"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
     )
-
     wrapper_preflight_output = (wrapper_preflight.stdout or "") + (
         wrapper_preflight.stderr or ""
     )
-
     if wrapper_preflight.returncode != 0:
         errors.append(
             f"mvp-wrapper-preflight failed: exit={wrapper_preflight.returncode}"
         )
-
     elif (
         "[mvp-wrapper] preflight => action=service-run known=true class=local-action tier=TIER_1 writes_state=true target_scope=scope:target/mvp/output.txt requires_write=true doctor_bypass=false perm_ctx=true perm_ctx_src=action-template enforce_perm=false perm=confirm perm_tier=TIER_1 perm_reason=write_scope_requires_confirmation decision=allow allowed=true offline_ready=true requires_model=false requires_sidecar=false degradation=local_only_ok reason=current_mvp_action_is_local_only"
         not in wrapper_preflight_output
     ):
         errors.append("mvp-wrapper-preflight missing allow summary")
 
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "preflight",
-            "--action",
-            "service-run",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-preflight-json",
-        "preflight",
-    )
 
-    assert_preflight_json_result(
-        result,
-        errors,
-        "mvp-wrapper-preflight-json",
-        expected_requested_action="service-run",
-        expected_known=True,
-        expected_action_class="local-action",
-        expected_tier="TIER_1",
-        expected_writes_state=True,
-        expected_permission_context_source="action-template",
-        expected_target_scope="scope:target/mvp/output.txt",
-        expected_requires_write=True,
-        expected_doctor_bypass=False,
-        expected_permission_context_applied=True,
-        expected_permission_tier="TIER_1",
-        expected_permission_policy="confirm",
-        expected_permission_reason="write_scope_requires_confirmation",
-        expected_permission_enforced=False,
-        expected_action_allowed=True,
-        expected_action_decision="allow",
-        expected_action_reason="current_mvp_action_is_local_only",
-        expected_allowed=True,
-        expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
+def append_wrapper_preflight_allow_json_errors(errors: list[str]) -> None:
+    for command, name in (
+        (
+            [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "service-run", "--json"],
+            "mvp-wrapper-preflight-json",
+        ),
+        (
+            ["cmd", "/c", "tools\\mvp\\safeclaw_mvp.cmd", "preflight", "--action", "service-run", "--json"],
+            "mvp-wrapper-cmd-preflight-json",
+        ),
+    ):
+        result = assert_command_json_result(command, errors, name, "preflight")
+        assert_preflight_json_result(
+            result,
+            errors,
+            name,
+            expected_requested_action="service-run",
+            expected_known=True,
+            expected_action_class="local-action",
+            expected_tier="TIER_1",
+            expected_writes_state=True,
+            expected_permission_context_source="action-template",
+            expected_target_scope="scope:target/mvp/output.txt",
+            expected_requires_write=True,
+            expected_doctor_bypass=False,
+            expected_permission_context_applied=True,
+            expected_permission_tier="TIER_1",
+            expected_permission_policy="confirm",
+            expected_permission_reason="write_scope_requires_confirmation",
+            expected_permission_enforced=False,
+            expected_action_allowed=True,
+            expected_action_decision="allow",
+            expected_action_reason="current_mvp_action_is_local_only",
+            expected_allowed=True,
+            expected_decision="allow",
+            expected_offline_ready=True,
+            expected_degradation_mode="local_only_ok",
+            expected_reason="current_mvp_action_is_local_only",
+        )
 
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
-            "preflight",
-            "--action",
-            "service-run",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-cmd-preflight-json",
-        "preflight",
-    )
 
-    assert_preflight_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-preflight-json",
-        expected_requested_action="service-run",
-        expected_known=True,
-        expected_action_class="local-action",
-        expected_tier="TIER_1",
-        expected_writes_state=True,
-        expected_permission_context_source="action-template",
-        expected_target_scope="scope:target/mvp/output.txt",
-        expected_requires_write=True,
-        expected_doctor_bypass=False,
-        expected_permission_context_applied=True,
-        expected_permission_tier="TIER_1",
-        expected_permission_policy="confirm",
-        expected_permission_reason="write_scope_requires_confirmation",
-        expected_permission_enforced=False,
-        expected_action_allowed=True,
-        expected_action_decision="allow",
-        expected_action_reason="current_mvp_action_is_local_only",
-        expected_allowed=True,
-        expected_decision="allow",
-        expected_offline_ready=True,
-        expected_degradation_mode="local_only_ok",
-        expected_reason="current_mvp_action_is_local_only",
-    )
-
+def append_wrapper_preflight_unknown_text_errors(errors: list[str]) -> None:
     wrapper_preflight_unknown = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "external-send"],
         cwd=REPO_ROOT,
@@ -5531,30 +5065,8 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-preflight-unknown missing deny summary")
 
-    wrapper_preflight_ai_reason = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
 
-    wrapper_preflight_ai_reason_output = (wrapper_preflight_ai_reason.stdout or "") + (
-        wrapper_preflight_ai_reason.stderr or ""
-    )
-
-    if wrapper_preflight_ai_reason.returncode != 1:
-        errors.append(
-            f"mvp-wrapper-preflight-ai-reason failed: exit={wrapper_preflight_ai_reason.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] preflight => action=ai-reason known=true class=ai-action tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=true requires_sidecar=true degradation=provider_unavailable reason=ERR_AI_PROVIDER_UNAVAILABLE error_code=ERR_AI_PROVIDER_UNAVAILABLE"
-        not in wrapper_preflight_ai_reason_output
-    ):
-        errors.append(
-            "mvp-wrapper-preflight-ai-reason missing provider-unavailable summary"
-        )
-
+def append_wrapper_preflight_unknown_json_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -5615,6 +5127,67 @@ def collect_errors() -> list[str]:
         expected_degradation_mode="deny_unknown",
         expected_reason="unknown_action_defaults_to_strict_deny",
     )
+
+
+def collect_errors() -> list[str]:
+    errors: list[str] = []
+    reset_smoke_progress()
+    append_smoke_setup_errors(errors)
+    append_wrapper_help_errors(errors)
+
+    append_entrypoint_help_errors(errors)
+
+    append_root_default_entry_errors(errors)
+
+    append_root_workspace_entry_errors(errors)
+    append_root_service_run_errors(errors)
+    append_root_service_retry_errors(errors)
+    append_root_service_recover_errors(errors)
+    append_root_service_resume_errors(errors)
+    append_root_service_reconcile_errors(errors)
+    append_root_verify_errors(errors)
+    append_root_workspace_clear_errors(errors)
+    append_root_ps1_seed_crash_failed_errors(errors)
+    append_root_ps1_seed_hibernated_errors(errors)
+    append_root_ps1_resume_errors(errors)
+    append_root_cmd_seed_hibernated_errors(errors)
+    append_root_cmd_resume_errors(errors)
+    append_root_forget_errors(errors)
+    append_root_cmd_preflight_local_action_errors(errors)
+    append_root_cmd_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_local_action_errors(errors)
+    append_wrapper_doctor_shell_json_errors(errors)
+    append_wrapper_doctor_text_errors(errors)
+    append_wrapper_doctor_json_errors(errors)
+    append_wrapper_preflight_text_errors(errors)
+    append_wrapper_preflight_allow_json_errors(errors)
+    append_wrapper_preflight_unknown_text_errors(errors)
+    append_wrapper_preflight_unknown_json_errors(errors)
+
+    wrapper_preflight_ai_reason = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "preflight", "--action", "ai-reason"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_preflight_ai_reason_output = (wrapper_preflight_ai_reason.stdout or "") + (
+        wrapper_preflight_ai_reason.stderr or ""
+    )
+
+    if wrapper_preflight_ai_reason.returncode != 1:
+        errors.append(
+            f"mvp-wrapper-preflight-ai-reason failed: exit={wrapper_preflight_ai_reason.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] preflight => action=ai-reason known=true class=ai-action tier=TIER_2 writes_state=false target_scope=none requires_write=false doctor_bypass=false perm_ctx=false perm_ctx_src=none enforce_perm=false perm=not_evaluated perm_tier=TIER_0 perm_reason=permission_context_not_provided decision=deny allowed=false offline_ready=false requires_model=true requires_sidecar=true degradation=provider_unavailable reason=ERR_AI_PROVIDER_UNAVAILABLE error_code=ERR_AI_PROVIDER_UNAVAILABLE"
+        not in wrapper_preflight_ai_reason_output
+    ):
+        errors.append(
+            "mvp-wrapper-preflight-ai-reason missing provider-unavailable summary"
+        )
 
     payload = load_json_payload(
         run_wrapper_command(
