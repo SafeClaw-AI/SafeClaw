@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
 
 def load_json_payload(
@@ -19,6 +20,26 @@ def load_json_payload(
 
     try:
         payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        errors.append(f"{name} 输出不是合法 JSON: {error}")
+        return None
+
+    if not isinstance(payload, dict):
+        errors.append(f"{name} 输出不是对象 JSON")
+        return None
+
+    return payload
+
+
+def load_json_file_payload(
+    path: Path, errors: list[str], name: str
+) -> dict[str, object] | None:
+    """Load and validate JSON payload from file."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        errors.append(f"{name} 读取失败: {exc}")
+        return None
     except json.JSONDecodeError as error:
         errors.append(f"{name} 输出不是合法 JSON: {error}")
         return None
@@ -416,6 +437,30 @@ def assert_matching_session_alias(
 
     if session != remembered_session:
         errors.append(f"{name} session 兼容别名与 remembered_session 不一致")
+
+
+def assert_workspace_seed_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_action: str,
+    expected_task_id: str,
+) -> None:
+    """Assert workspace seed command JSON result structure."""
+    if result is None:
+        return
+
+    prepared = result.get("prepared") or []
+    session = result.get("saved_session") or {}
+    source_hints = result.get("source_hints") or {}
+
+    if not prepared or prepared[0] != expected_action:
+        errors.append(f"{name} missing prepared {expected_action}")
+    elif session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing saved session task")
+    elif source_hints.get("db") != "workspace":
+        errors.append(f"{name} missing workspace db source")
 
 
 # Placeholder for additional assertion functions
