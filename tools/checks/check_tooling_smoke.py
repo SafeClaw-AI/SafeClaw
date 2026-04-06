@@ -5221,44 +5221,7 @@ def append_wrapper_preflight_ai_reason_json_errors(errors: list[str]) -> None:
     )
 
 
-def collect_errors() -> list[str]:
-    errors: list[str] = []
-    reset_smoke_progress()
-    append_smoke_setup_errors(errors)
-    append_wrapper_help_errors(errors)
-
-    append_entrypoint_help_errors(errors)
-
-    append_root_default_entry_errors(errors)
-
-    append_root_workspace_entry_errors(errors)
-    append_root_service_run_errors(errors)
-    append_root_service_retry_errors(errors)
-    append_root_service_recover_errors(errors)
-    append_root_service_resume_errors(errors)
-    append_root_service_reconcile_errors(errors)
-    append_root_verify_errors(errors)
-    append_root_workspace_clear_errors(errors)
-    append_root_ps1_seed_crash_failed_errors(errors)
-    append_root_ps1_seed_hibernated_errors(errors)
-    append_root_ps1_resume_errors(errors)
-    append_root_cmd_seed_hibernated_errors(errors)
-    append_root_cmd_resume_errors(errors)
-    append_root_forget_errors(errors)
-    append_root_cmd_preflight_local_action_errors(errors)
-    append_root_cmd_preflight_ai_reason_errors(errors)
-    append_root_ps1_preflight_ai_reason_errors(errors)
-    append_root_ps1_preflight_local_action_errors(errors)
-    append_wrapper_doctor_shell_json_errors(errors)
-    append_wrapper_doctor_text_errors(errors)
-    append_wrapper_doctor_json_errors(errors)
-    append_wrapper_preflight_text_errors(errors)
-    append_wrapper_preflight_allow_json_errors(errors)
-    append_wrapper_preflight_unknown_text_errors(errors)
-    append_wrapper_preflight_unknown_json_errors(errors)
-    append_wrapper_preflight_ai_reason_text_errors(errors)
-    append_wrapper_preflight_ai_reason_json_errors(errors)
-
+def append_wrapper_preflight_status_text_errors(errors: list[str]) -> None:
     wrapper_preflight_status = subprocess.run(
         [
             PYTHON,
@@ -5287,6 +5250,8 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-preflight-status missing inferred status summary")
 
+
+def append_wrapper_preflight_status_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5329,6 +5294,8 @@ def collect_errors() -> list[str]:
         expected_reason="current_mvp_action_is_local_only",
     )
 
+
+def append_wrapper_preflight_scope_text_errors(errors: list[str]) -> None:
     wrapper_preflight_scope = subprocess.run(
         [
             PYTHON,
@@ -5360,6 +5327,8 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-preflight-scope missing permission summary")
 
+
+def append_wrapper_preflight_scope_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5405,6 +5374,8 @@ def collect_errors() -> list[str]:
         expected_reason="current_mvp_action_is_local_only",
     )
 
+
+def append_wrapper_preflight_scope_enforced_text_errors(errors: list[str]) -> None:
     wrapper_preflight_scope_enforced = subprocess.run(
         [
             PYTHON,
@@ -5439,6 +5410,8 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-preflight-scope-enforced missing permission gate summary"
         )
 
+
+def append_wrapper_preflight_scope_enforced_json_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -5504,6 +5477,8 @@ def collect_errors() -> list[str]:
         expected_reason="write_scope_requires_confirmation",
     )
 
+
+def append_wrapper_preflight_enforce_without_context_json_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -5566,6 +5541,8 @@ def collect_errors() -> list[str]:
         expected_reason="write_scope_requires_confirmation",
     )
 
+
+def append_wrapper_preflight_bypass_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5612,6 +5589,8 @@ def collect_errors() -> list[str]:
         expected_reason="doctor_bypass_privileged_context",
     )
 
+
+def append_wrapper_doctor_no_cargo_path_json_errors(errors: list[str]) -> None:
     wrapper_env = os.environ.copy()
 
     wrapper_env["PATH"] = os.pathsep.join(
@@ -5663,6 +5642,8 @@ def collect_errors() -> list[str]:
         expected_output_path="target\mvp\doctor-no-path.txt",
     )
 
+
+def append_wrapper_workspace_default_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--json"],
         errors,
@@ -5680,6 +5661,8 @@ def collect_errors() -> list[str]:
         expected_output_path="target\mvp\output.txt",
     )
 
+
+def append_wrapper_workspace_activate_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--name", "demo", "--json"],
         errors,
@@ -5698,6 +5681,8 @@ def collect_errors() -> list[str]:
         expected_changed=True,
     )
 
+
+def append_wrapper_cmd_workspace_activate_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
@@ -5724,6 +5709,8 @@ def collect_errors() -> list[str]:
         expected_changed=True,
     )
 
+
+def append_wrapper_workspace_doctor_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "doctor", "--json"],
         errors,
@@ -5743,6 +5730,8 @@ def collect_errors() -> list[str]:
         expected_workspace_name="demo",
     )
 
+
+def append_wrapper_workspace_run_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5769,6 +5758,8 @@ def collect_errors() -> list[str]:
         expected_output_source="workspace",
     )
 
+
+def append_wrapper_workspace_clear_after_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "workspace", "--clear", "--json"],
         errors,
@@ -5778,15 +5769,13 @@ def collect_errors() -> list[str]:
 
     if result is not None:
         if result.get("path") != "target\mvp\workspace.json":
-            errors.append(
-                "mvp-wrapper-workspace-clear-after-json missing workspace path"
-            )
+            errors.append("mvp-wrapper-workspace-clear-after-json missing workspace path")
 
         elif (result.get("cleared"), result.get("reason")) != (True, "removed"):
-            errors.append(
-                "mvp-wrapper-workspace-clear-after-json unexpected clear state"
-            )
+            errors.append("mvp-wrapper-workspace-clear-after-json unexpected clear state")
 
+
+def append_wrapper_cmd_workspace_clear_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "workspace", "--clear", "--json"],
         errors,
@@ -5799,6 +5788,9 @@ def collect_errors() -> list[str]:
             errors.append("mvp-wrapper-cmd-workspace-clear-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append("mvp-wrapper-cmd-workspace-clear-json unexpected clear state")
+
+
+def append_wrapper_forget_after_workspace_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget", "--json"],
         errors,
@@ -5817,6 +5809,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-forget-after-workspace-json unexpected forget state"
             )
 
+
+def append_wrapper_service_status_seed_run_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -5847,6 +5841,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_text_errors(errors: list[str]) -> None:
     wrapper_service_status = subprocess.run(
         [
             PYTHON,
@@ -5967,6 +5963,8 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-service-status missing lease freshness visibility")
 
+
+def append_wrapper_cmd_service_status_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
         errors,
@@ -6011,6 +6009,8 @@ def collect_errors() -> list[str]:
         expected_service_coordination_summary="no_followup_needed",
     )
 
+
+def append_wrapper_ps1_service_status_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -6063,6 +6063,8 @@ def collect_errors() -> list[str]:
         expected_service_coordination_summary="no_followup_needed",
     )
 
+
+def append_wrapper_service_status_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             PYTHON,
@@ -6078,6 +6080,8 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="invalid --limit: bogus",
     )
 
+
+def append_wrapper_service_status_hibernated_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6108,6 +6112,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_hibernated_state_setup_errors(errors: list[str]) -> None:
     hibernated_db_path = REPO_ROOT / "target" / "mvp" / "service-status-hibernated.db"
 
     future_updated_at = time.strftime(
@@ -6127,6 +6133,8 @@ def collect_errors() -> list[str]:
 
         connection.commit()
 
+
+def append_wrapper_service_status_hibernated_text_errors(errors: list[str]) -> None:
     wrapper_service_status_hibernated = subprocess.run(
         [
             PYTHON,
@@ -6180,6 +6188,8 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-service-status-hibernated missing hibernated next hints"
         )
 
+
+def append_wrapper_service_status_hibernated_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6311,6 +6321,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-status-hibernated-json missing next_command=service-resume"
             )
 
+
+def append_wrapper_service_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6341,6 +6353,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_cmd_service_resume_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
@@ -6373,6 +6387,8 @@ def collect_errors() -> list[str]:
         expect_report_payload=True,
     )
 
+
+def append_wrapper_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6403,6 +6419,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_resume_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6471,11 +6489,13 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-resume-json missing source_hints.task_context=flag"
             )
 
+
+def append_wrapper_cmd_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            "tools\\mvp\\safeclaw_mvp.cmd",
             "seed-hibernated",
             "--reset",
             "--task-id",
@@ -6502,11 +6522,13 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_cmd_resume_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            "tools\\mvp\\safeclaw_mvp.cmd",
             "resume",
             "--db",
             "target/mvp/cmd-resume-json.db",
@@ -6575,11 +6597,13 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-cmd-resume-json missing source_hints.task_context=flag"
             )
 
+
+def append_wrapper_cmd_seed_hibernated_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            "tools\\mvp\\safeclaw_mvp.cmd",
             "seed-hibernated",
             "--reset",
             "--task-id",
@@ -6606,6 +6630,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_resume_not_hibernated_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6636,11 +6662,13 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_cmd_service_resume_not_hibernated_errors(errors: list[str]) -> None:
     assert_command_failure_output(
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            "tools\\mvp\\safeclaw_mvp.cmd",
             "service-resume",
             "--db",
             "target/mvp/service-resume-not-hibernated.db",
@@ -6656,6 +6684,8 @@ def collect_errors() -> list[str]:
         expected_exit=1,
     )
 
+
+def append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6686,6 +6716,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6716,6 +6748,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_ps1_service_resume_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -6747,6 +6781,8 @@ def collect_errors() -> list[str]:
         expected_limit=1,
     )
 
+
+def append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6777,6 +6813,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -6811,6 +6849,8 @@ def collect_errors() -> list[str]:
         expect_report_payload=True,
     )
 
+
+def append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "cmd",
@@ -6837,6 +6877,8 @@ def collect_errors() -> list[str]:
         expected_details_message_substring="resume only works for hibernated tasks",
     )
 
+
+def append_wrapper_service_resume_missing_run_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6867,6 +6909,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_resume_missing_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             PYTHON,
@@ -6892,6 +6936,8 @@ def collect_errors() -> list[str]:
         expected_details_message_substring="resume requires a hibernated runtime for the selected task",
     )
 
+
+def append_wrapper_service_status_active_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -6922,6 +6968,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_active_state_setup_errors(errors: list[str]) -> None:
     active_db_path = REPO_ROOT / "target" / "mvp" / "service-status-active.db"
 
     future_expires_at_ms = int(time.time() * 1000) + 45_000
@@ -6944,6 +6992,8 @@ def collect_errors() -> list[str]:
 
         connection.commit()
 
+
+def append_wrapper_service_status_active_text_errors(errors: list[str]) -> None:
     wrapper_service_status_active = subprocess.run(
         [
             PYTHON,
@@ -7029,6 +7079,8 @@ def collect_errors() -> list[str]:
     elif "wait_ms=" not in wrapper_service_status_active_output:
         errors.append("mvp-wrapper-service-status-active missing wait_ms visibility")
 
+
+def append_wrapper_service_status_active_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7279,6 +7331,8 @@ def collect_errors() -> list[str]:
                     "mvp-wrapper-service-status-active-json missing next_summary active payload"
                 )
 
+
+def append_wrapper_service_status_scope_a_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7309,6 +7363,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_scope_b_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7338,6 +7394,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_scope_use_json_errors(errors: list[str]) -> None:
     scope_db_path = REPO_ROOT / "target" / "mvp" / "service-status-scope.db"
 
     shared_scope = "scope:target/mvp/service-status-shared.txt"
@@ -7420,6 +7478,8 @@ def collect_errors() -> list[str]:
         elif use_scope_result.get("db") != "target/mvp/service-status-scope.db":
             errors.append("mvp-wrapper-service-status-scope-use-json missing scope db")
 
+
+def append_wrapper_service_status_scope_text_errors(errors: list[str]) -> None:
     wrapper_service_status_scope = subprocess.run(
         [
             PYTHON,
@@ -7460,12 +7520,11 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-service-status-scope missing same-scope peer visibility"
         )
 
-    elif (
-        "task=task-wrapper-service-status-scope-a"
-        not in wrapper_service_status_scope_output
-    ):
+    elif "task=task-wrapper-service-status-scope-a" not in wrapper_service_status_scope_output:
         errors.append("mvp-wrapper-service-status-scope missing scope task a")
 
+
+def append_wrapper_service_status_scope_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7584,6 +7643,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-status-scope-json missing next_summary retry"
             )
 
+
+def append_wrapper_service_status_quarantine_a_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7614,6 +7675,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_quarantine_b_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7643,6 +7706,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_status_quarantine_use_json_errors(errors: list[str]) -> None:
     quarantine_db_path = REPO_ROOT / "target" / "mvp" / "service-status-quarantine.db"
 
     shared_scope = "scope:target/mvp/service-status-quarantine-shared.txt"
@@ -7717,6 +7782,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-status-quarantine-use-json missing quarantine db"
             )
 
+
+def append_wrapper_service_status_quarantine_text_errors(errors: list[str]) -> None:
     wrapper_service_status_quarantine = subprocess.run(
         [
             PYTHON,
@@ -7765,6 +7832,8 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-service-status-quarantine missing quarantine next command"
         )
 
+
+def append_wrapper_service_status_quarantine_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -7788,10 +7857,8 @@ def collect_errors() -> list[str]:
 
         current_session = result.get("current_session") or {}
 
-        if (
-            not isinstance(current_session, dict)
-            or current_session.get("task_id")
-            != "task-wrapper-service-status-quarantine-b"
+        if not isinstance(current_session, dict) or (
+            current_session.get("task_id") != "task-wrapper-service-status-quarantine-b"
         ):
             errors.append(
                 "mvp-wrapper-service-status-quarantine-json missing current_session task-wrapper-service-status-quarantine-b"
@@ -7935,6 +8002,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-status-quarantine-json missing next_command=quarantine-source report"
             )
 
+
+def append_wrapper_service_run_text_errors(errors: list[str]) -> None:
     wrapper_service_run = subprocess.run(
         [
             PYTHON,
@@ -7967,9 +8036,7 @@ def collect_errors() -> list[str]:
     elif "[mvp-wrapper] service-run => run" not in wrapper_service_run_output:
         errors.append("mvp-wrapper-service-run missing run step marker")
 
-    elif (
-        "[mvp-wrapper] service-run => service-status" not in wrapper_service_run_output
-    ):
+    elif "[mvp-wrapper] service-run => service-status" not in wrapper_service_run_output:
         errors.append("mvp-wrapper-service-run missing service-status step marker")
 
     elif (
@@ -7984,11 +8051,11 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-service-run missing service-status output")
 
-    elif (
-        "[mvp-wrapper] service workers => succeeded=1" not in wrapper_service_run_output
-    ):
+    elif "[mvp-wrapper] service workers => succeeded=1" not in wrapper_service_run_output:
         errors.append("mvp-wrapper-service-run missing worker summary")
 
+
+def append_wrapper_service_run_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
@@ -8055,6 +8122,8 @@ def collect_errors() -> list[str]:
         expected_limit=1,
     )
 
+
+def append_wrapper_service_run_preflight_text_errors(errors: list[str]) -> None:
     wrapper_service_run_preflight = subprocess.run(
         [
             PYTHON,
@@ -8108,6 +8177,8 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-service-run-preflight missing service-status step marker"
         )
 
+
+def append_wrapper_service_run_preflight_ai_reason_text_errors(errors: list[str]) -> None:
     wrapper_service_run_preflight_ai_reason = subprocess.run(
         [
             PYTHON,
@@ -8164,6 +8235,8 @@ def collect_errors() -> list[str]:
             "mvp-wrapper-service-run-preflight-ai-reason missing failed preflight marker"
         )
 
+
+def append_wrapper_service_run_preflight_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -8226,6 +8299,8 @@ def collect_errors() -> list[str]:
         expected_reason="current_mvp_action_is_local_only",
     )
 
+
+def append_wrapper_service_run_preflight_ai_reason_json_errors(errors: list[str]) -> None:
     details = assert_command_json_error(
         [
             PYTHON,
@@ -8322,6 +8397,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-run-preflight-ai-json missing preflight step action"
             )
 
+
+def append_wrapper_service_run_enforced_json_errors(errors: list[str]) -> None:
     details = assert_command_json_error(
         [
             PYTHON,
@@ -8413,6 +8490,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-run-enforced-json missing preflight step action"
             )
 
+
+def append_wrapper_cmd_service_run_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "cmd",
@@ -8430,6 +8509,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-cmd-service-run-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_ps1_service_run_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "powershell.exe",
@@ -8449,6 +8530,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-ps1-service-run-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_cmd_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "cmd",
@@ -8466,6 +8549,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-cmd-service-retry-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_ps1_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "powershell.exe",
@@ -8485,6 +8570,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-ps1-service-retry-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "cmd",
@@ -8502,6 +8589,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-cmd-service-recover-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_ps1_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "powershell.exe",
@@ -8521,6 +8610,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-ps1-service-recover-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_cmd_service_status_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "cmd",
@@ -8538,6 +8629,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-cmd-service-status-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_ps1_service_status_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             "powershell.exe",
@@ -8557,6 +8650,8 @@ def collect_errors() -> list[str]:
         error_message_label="mvp-wrapper-ps1-service-status-invalid-limit-json missing invalid --limit",
     )
 
+
+def append_wrapper_service_run_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             PYTHON,
@@ -8572,6 +8667,8 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="invalid --limit: bogus",
     )
 
+
+def append_wrapper_service_retry_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -8602,6 +8699,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_service_retry_status_before_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -8730,6 +8829,8 @@ def collect_errors() -> list[str]:
                 "mvp-wrapper-service-retry-status-before-json missing coordination.status=ready"
             )
 
+
+def append_wrapper_service_retry_text_errors(errors: list[str]) -> None:
     wrapper_service_retry = subprocess.run(
         [
             PYTHON,
@@ -8777,12 +8878,11 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-service-retry missing service-status output")
 
-    elif (
-        "[mvp-wrapper] service workers => succeeded=1"
-        not in wrapper_service_retry_output
-    ):
+    elif "[mvp-wrapper] service workers => succeeded=1" not in wrapper_service_retry_output:
         errors.append("mvp-wrapper-service-retry missing worker summary")
 
+
+def append_wrapper_service_retry_json_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -8813,6 +8913,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "cmd",
@@ -8842,6 +8944,8 @@ def collect_errors() -> list[str]:
         expected_limit=1,
     )
 
+
+def append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             PYTHON,
@@ -8872,6 +8976,8 @@ def collect_errors() -> list[str]:
         expected_output_source="flag",
     )
 
+
+def append_wrapper_ps1_service_retry_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -8903,6 +9009,8 @@ def collect_errors() -> list[str]:
         expected_limit=1,
     )
 
+
+def append_wrapper_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             PYTHON,
@@ -8918,6 +9026,8 @@ def collect_errors() -> list[str]:
         expected_error_message_substring="invalid --limit: bogus",
     )
 
+
+def append_wrapper_service_retry_missing_task_json_errors(errors: list[str]) -> None:
     assert_command_json_error(
         [
             PYTHON,
@@ -8939,6 +9049,127 @@ def collect_errors() -> list[str]:
         reject_legacy_session=True,
         legacy_session_label="mvp-wrapper-service-retry-missing-task-json should not keep legacy session",
     )
+
+
+def collect_errors() -> list[str]:
+    errors: list[str] = []
+    reset_smoke_progress()
+    append_smoke_setup_errors(errors)
+    append_wrapper_help_errors(errors)
+
+    append_entrypoint_help_errors(errors)
+
+    append_root_default_entry_errors(errors)
+
+    append_root_workspace_entry_errors(errors)
+    append_root_service_run_errors(errors)
+    append_root_service_retry_errors(errors)
+    append_root_service_recover_errors(errors)
+    append_root_service_resume_errors(errors)
+    append_root_service_reconcile_errors(errors)
+    append_root_verify_errors(errors)
+    append_root_workspace_clear_errors(errors)
+    append_root_ps1_seed_crash_failed_errors(errors)
+    append_root_ps1_seed_hibernated_errors(errors)
+    append_root_ps1_resume_errors(errors)
+    append_root_cmd_seed_hibernated_errors(errors)
+    append_root_cmd_resume_errors(errors)
+    append_root_forget_errors(errors)
+    append_root_cmd_preflight_local_action_errors(errors)
+    append_root_cmd_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_local_action_errors(errors)
+    append_wrapper_doctor_shell_json_errors(errors)
+    append_wrapper_doctor_text_errors(errors)
+    append_wrapper_doctor_json_errors(errors)
+    append_wrapper_preflight_text_errors(errors)
+    append_wrapper_preflight_allow_json_errors(errors)
+    append_wrapper_preflight_unknown_text_errors(errors)
+    append_wrapper_preflight_unknown_json_errors(errors)
+    append_wrapper_preflight_ai_reason_text_errors(errors)
+    append_wrapper_preflight_ai_reason_json_errors(errors)
+    append_wrapper_preflight_status_text_errors(errors)
+    append_wrapper_preflight_status_json_errors(errors)
+    append_wrapper_preflight_scope_text_errors(errors)
+    append_wrapper_preflight_scope_json_errors(errors)
+    append_wrapper_preflight_scope_enforced_text_errors(errors)
+    append_wrapper_preflight_scope_enforced_json_errors(errors)
+    append_wrapper_preflight_enforce_without_context_json_errors(errors)
+    append_wrapper_preflight_bypass_json_errors(errors)
+    append_wrapper_doctor_no_cargo_path_json_errors(errors)
+    append_wrapper_workspace_default_json_errors(errors)
+    append_wrapper_workspace_activate_json_errors(errors)
+    append_wrapper_cmd_workspace_activate_json_errors(errors)
+    append_wrapper_workspace_doctor_json_errors(errors)
+    append_wrapper_workspace_run_json_errors(errors)
+    append_wrapper_workspace_clear_after_json_errors(errors)
+    append_wrapper_cmd_workspace_clear_json_errors(errors)
+    append_wrapper_forget_after_workspace_json_errors(errors)
+    append_wrapper_service_status_seed_run_json_errors(errors)
+    append_wrapper_service_status_text_errors(errors)
+    append_wrapper_cmd_service_status_json_errors(errors)
+    append_wrapper_ps1_service_status_json_errors(errors)
+    append_wrapper_service_status_invalid_limit_json_errors(errors)
+    append_wrapper_service_status_hibernated_seed_failed_json_errors(errors)
+    append_wrapper_service_status_hibernated_state_setup_errors(errors)
+    append_wrapper_service_status_hibernated_text_errors(errors)
+    append_wrapper_service_status_hibernated_json_errors(errors)
+    append_wrapper_service_resume_json_seed_hibernated_json_errors(errors)
+    append_wrapper_cmd_service_resume_json_errors(errors)
+    append_wrapper_resume_json_seed_hibernated_json_errors(errors)
+    append_wrapper_resume_json_errors(errors)
+    append_wrapper_cmd_resume_json_seed_hibernated_json_errors(errors)
+    append_wrapper_cmd_resume_json_errors(errors)
+    append_wrapper_cmd_seed_hibernated_json_errors(errors)
+    append_wrapper_service_resume_not_hibernated_seed_failed_json_errors(errors)
+    append_wrapper_cmd_service_resume_not_hibernated_errors(errors)
+    append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors(errors)
+    append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors(errors)
+    append_wrapper_ps1_service_resume_json_errors(errors)
+    append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors(errors)
+    append_wrapper_ps1_service_resume_report_json_errors(errors)
+    append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors)
+    append_wrapper_service_resume_missing_run_json_errors(errors)
+    append_wrapper_service_resume_missing_json_errors(errors)
+    append_wrapper_service_status_active_seed_failed_json_errors(errors)
+    append_wrapper_service_status_active_state_setup_errors(errors)
+    append_wrapper_service_status_active_text_errors(errors)
+    append_wrapper_service_status_active_json_errors(errors)
+    append_wrapper_service_status_scope_a_seed_failed_json_errors(errors)
+    append_wrapper_service_status_scope_b_seed_failed_json_errors(errors)
+    append_wrapper_service_status_scope_use_json_errors(errors)
+    append_wrapper_service_status_scope_text_errors(errors)
+    append_wrapper_service_status_scope_json_errors(errors)
+    append_wrapper_service_status_quarantine_a_seed_failed_json_errors(errors)
+    append_wrapper_service_status_quarantine_b_seed_failed_json_errors(errors)
+    append_wrapper_service_status_quarantine_use_json_errors(errors)
+    append_wrapper_service_status_quarantine_text_errors(errors)
+    append_wrapper_service_status_quarantine_json_errors(errors)
+    append_wrapper_service_run_text_errors(errors)
+    append_wrapper_service_run_json_errors(errors)
+    append_wrapper_service_run_preflight_text_errors(errors)
+    append_wrapper_service_run_preflight_ai_reason_text_errors(errors)
+    append_wrapper_service_run_preflight_json_errors(errors)
+    append_wrapper_service_run_preflight_ai_reason_json_errors(errors)
+    append_wrapper_service_run_enforced_json_errors(errors)
+    append_wrapper_cmd_service_run_invalid_limit_json_errors(errors)
+    append_wrapper_ps1_service_run_invalid_limit_json_errors(errors)
+    append_wrapper_cmd_service_retry_invalid_limit_json_errors(errors)
+    append_wrapper_ps1_service_retry_invalid_limit_json_errors(errors)
+    append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors)
+    append_wrapper_ps1_service_recover_invalid_limit_json_errors(errors)
+    append_wrapper_cmd_service_status_invalid_limit_json_errors(errors)
+    append_wrapper_ps1_service_status_invalid_limit_json_errors(errors)
+    append_wrapper_service_run_invalid_limit_json_errors(errors)
+    append_wrapper_service_retry_seed_failed_json_errors(errors)
+    append_wrapper_service_retry_status_before_json_errors(errors)
+    append_wrapper_service_retry_text_errors(errors)
+    append_wrapper_service_retry_json_seed_failed_json_errors(errors)
+    append_wrapper_cmd_service_retry_json_errors(errors)
+    append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors)
+    append_wrapper_ps1_service_retry_json_errors(errors)
+    append_wrapper_service_retry_invalid_limit_json_errors(errors)
+    append_wrapper_service_retry_missing_task_json_errors(errors)
 
     result = assert_command_json_result(
         [

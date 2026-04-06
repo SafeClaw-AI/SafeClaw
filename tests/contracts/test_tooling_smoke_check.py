@@ -747,6 +747,2517 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_requires_model=True', helper_block)
         self.assertNotIn('"external-send"', helper_block)
 
+    def test_collect_errors_uses_wrapper_preflight_status_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_status_text_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_preflight_status_text_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_status_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"service-status"', helper_block)
+        self.assertIn(
+            '"mvp-wrapper-preflight-status missing inferred status summary"',
+            helper_block,
+        )
+        self.assertIn("read_scope_allowed", helper_block)
+        self.assertNotIn('"mvp-wrapper-preflight-scope"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_status_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_status_json_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_preflight_status_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_status_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-preflight-status-json"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertIn('expected_permission_policy="allow"', helper_block)
+        self.assertIn('expected_permission_reason="read_scope_allowed"', helper_block)
+        self.assertNotIn('"mvp-wrapper-preflight-scope-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_scope_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_scope_text_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_preflight_scope_text_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_scope_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"demo.workspace"', helper_block)
+        self.assertIn(
+            '"mvp-wrapper-preflight-scope missing permission summary"',
+            helper_block,
+        )
+        self.assertIn("write_scope_requires_confirmation", helper_block)
+        self.assertNotIn('"mvp-wrapper-preflight-scope-enforced"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_scope_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_scope_json_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_preflight_scope_json_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_scope_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-preflight-scope-json"', helper_block)
+        self.assertIn('"demo.workspace"', helper_block)
+        self.assertIn('expected_permission_policy="confirm"', helper_block)
+        self.assertIn(
+            'expected_permission_reason="write_scope_requires_confirmation"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-preflight-scope-enforced-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_scope_enforced_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_scope_enforced_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_preflight_scope_enforced_text_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_scope_enforced_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"demo.workspace"', helper_block)
+        self.assertIn(
+            '"mvp-wrapper-preflight-scope-enforced missing permission gate summary"',
+            helper_block,
+        )
+        self.assertIn("decision=confirm", helper_block)
+        self.assertNotIn('"mvp-wrapper-preflight-scope-enforced-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_scope_enforced_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_scope_enforced_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_preflight_scope_enforced_json_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_scope_enforced_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-preflight-scope-enforced-json"', helper_block)
+        self.assertIn('"demo.workspace"', helper_block)
+        self.assertIn("payload.get(\"ok\") is not False", helper_block)
+        self.assertIn("expected_permission_enforced=True", helper_block)
+        self.assertIn("expected_allowed=False", helper_block)
+        self.assertIn('expected_decision="confirm"', helper_block)
+        self.assertNotIn('"mvp-wrapper-preflight-enforce-without-context-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_enforce_without_context_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_enforce_without_context_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_preflight_enforce_without_context_json_errors_keeps_rejection_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_enforce_without_context_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-preflight-enforce-without-context-json"', helper_block)
+        self.assertIn('"service-run"', helper_block)
+        self.assertIn('expected_permission_context_source="action-template"', helper_block)
+        self.assertIn("expected_permission_enforced=True", helper_block)
+        self.assertIn("expected_allowed=False", helper_block)
+        self.assertNotIn('"demo.workspace"', helper_block)
+
+    def test_collect_errors_uses_wrapper_preflight_bypass_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_preflight_bypass_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_preflight_bypass_json_errors_keeps_bypass_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_preflight_bypass_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-preflight-bypass-json"', helper_block)
+        self.assertIn('"demo.workspace"', helper_block)
+        self.assertIn('"service-run"', helper_block)
+        self.assertIn("expected_doctor_bypass=True", helper_block)
+        self.assertIn('expected_permission_reason="doctor_bypass_privileged_context"', helper_block)
+        self.assertNotIn("wrapper_env = os.environ.copy()", helper_block)
+
+    def test_collect_errors_uses_wrapper_doctor_no_cargo_path_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_doctor_no_cargo_path_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_doctor_no_cargo_path_json_errors_keeps_path_override(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_doctor_no_cargo_path_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('wrapper_env["PATH"]', helper_block)
+        self.assertIn('if ".cargo" not in entry.lower()', helper_block)
+        self.assertIn("env=wrapper_env", helper_block)
+        self.assertIn('"mvp-wrapper-doctor-no-cargo-path-json"', helper_block)
+        self.assertIn('"target/mvp/doctor-no-path.db"', helper_block)
+        self.assertNotIn('"mvp-wrapper-workspace-default-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_workspace_default_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_workspace_default_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_workspace_default_json_errors_keeps_default_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_workspace_default_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-workspace-default-json"', helper_block)
+        self.assertIn('"workspace"', helper_block)
+        self.assertIn("expected_active=False", helper_block)
+        self.assertIn('expected_db_path="target\\mvp\\session.db"', helper_block)
+        self.assertIn('expected_output_path="target\\mvp\\output.txt"', helper_block)
+        self.assertNotIn('"mvp-wrapper-workspace-activate-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_workspace_activate_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_workspace_activate_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_workspace_activate_json_errors_keeps_activate_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_workspace_activate_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-workspace-activate-json"', helper_block)
+        self.assertIn('"workspace"', helper_block)
+        self.assertIn('"demo"', helper_block)
+        self.assertIn("expected_active=True", helper_block)
+        self.assertIn("expected_changed=True", helper_block)
+        self.assertIn(
+            'expected_db_path="target\\mvp\\workspaces\\demo\\session.db"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-cmd-workspace-activate-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_workspace_activate_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_workspace_activate_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_workspace_activate_json_errors_keeps_activate_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_workspace_activate_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-workspace-activate-json"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('"demo"', helper_block)
+        self.assertIn("expected_active=True", helper_block)
+        self.assertIn("expected_changed=True", helper_block)
+        self.assertNotIn('"mvp-wrapper-workspace-doctor-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_workspace_doctor_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_workspace_doctor_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_workspace_doctor_json_errors_keeps_doctor_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_workspace_doctor_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-workspace-doctor-json"', helper_block)
+        self.assertIn('"doctor"', helper_block)
+        self.assertIn('expected_db_path="target\\mvp\\workspaces\\demo\\session.db"', helper_block)
+        self.assertIn("expected_workspace_active=True", helper_block)
+        self.assertIn('expected_workspace_name="demo"', helper_block)
+        self.assertNotIn('"mvp-wrapper-workspace-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_workspace_run_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_workspace_run_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_workspace_run_json_errors_keeps_run_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_workspace_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-workspace-run-json"', helper_block)
+        self.assertIn('"run"', helper_block)
+        self.assertIn('"task-wrapper-workspace"', helper_block)
+        self.assertIn('expected_db_path="target\\mvp\\workspaces\\demo\\session.db"', helper_block)
+        self.assertIn('expected_db_source="workspace"', helper_block)
+        self.assertIn('expected_output_source="workspace"', helper_block)
+        self.assertNotIn('"mvp-wrapper-workspace-clear-after-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_workspace_clear_after_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_workspace_clear_after_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_workspace_clear_after_json_errors_keeps_clear_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_workspace_clear_after_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-workspace-clear-after-json"', helper_block)
+        self.assertIn('"workspace"', helper_block)
+        self.assertIn('"target\\mvp\\workspace.json"', helper_block)
+        self.assertIn('(result.get("cleared"), result.get("reason")) != (True, "removed")', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-workspace-clear-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_workspace_clear_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_workspace_clear_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_workspace_clear_json_errors_keeps_clear_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_workspace_clear_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-workspace-clear-json"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('result.get("path") != "target\\mvp\\workspace.json"', helper_block)
+        self.assertIn('clear_state not in {(True, "removed"), (False, "none")}', helper_block)
+        self.assertNotIn('"mvp-wrapper-forget-after-workspace-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_forget_after_workspace_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_forget_after_workspace_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_forget_after_workspace_json_errors_keeps_forget_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_forget_after_workspace_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-forget-after-workspace-json"', helper_block)
+        self.assertIn('"forget"', helper_block)
+        self.assertIn('result.get("path") != "target\\mvp\\last_session.json"', helper_block)
+        self.assertIn(
+            '(result.get("forgot"), result.get("reason")) != (True, "removed")',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-status-seed-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_seed_run_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_seed_run_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_seed_run_json_errors_keeps_run_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_seed_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-seed-run-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn("wrapper_service_status = subprocess.run(", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_text_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status missing runtime summary"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status 意外暴露 budget 文本"', helper_block)
+        self.assertIn('"task-wrapper-service-status"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-status-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_status_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_status_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_status_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_status_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-service-status-json"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-status.db"', helper_block)
+        self.assertIn(
+            'expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-ps1-service-status-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_status_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_status_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_status_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_status_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-ps1-service-status-json"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_db="target\\\\mvp\\\\service-status.db"', helper_block)
+        self.assertIn(
+            'expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-status-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_invalid_limit_json_errors_keeps_error_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-invalid-limit-json"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertIn('"bogus"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit: bogus"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-hibernated-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_hibernated_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_hibernated_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_hibernated_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_hibernated_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-hibernated-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-hibernated"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-hibernated.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn("hibernated_db_path = REPO_ROOT", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_hibernated_state_setup_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_hibernated_state_setup_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_hibernated_state_setup_errors_keeps_state_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_hibernated_state_setup_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn(
+            'hibernated_db_path = REPO_ROOT / "target" / "mvp" / "service-status-hibernated.db"',
+            helper_block,
+        )
+        self.assertIn('future_updated_at = time.strftime(', helper_block)
+        self.assertIn("with sqlite3.connect(hibernated_db_path) as connection:", helper_block)
+        self.assertIn(
+            '"UPDATE task_snapshots SET worker_state = ?1, updated_at = ?2 WHERE task_id = ?3"',
+            helper_block,
+        )
+        self.assertIn(
+            '"UPDATE orchestrator_leases SET released_at_ms = ?1 WHERE task_id = ?2"',
+            helper_block,
+        )
+        self.assertNotIn("wrapper_service_status_hibernated = subprocess.run(", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_hibernated_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_hibernated_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_hibernated_text_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_hibernated_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-hibernated missing hibernated worker summary"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-hibernated missing hibernated coordination summary"', helper_block)
+        self.assertIn('"task-wrapper-service-status-hibernated"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_hibernated_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-hibernated-json"', helper_block)
+        self.assertIn('coordination.get("status") != "hibernated"', helper_block)
+        self.assertIn('recent_tasks[0].get("next_action") != "inspect"', helper_block)
+        self.assertIn('recent_tasks[0].get("next_blocker") != "manual_review_needed"', helper_block)
+        self.assertIn(
+            'recent_tasks[0].get("next_command")',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-resume-json-seed-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_json_seed_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_json_seed_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_json_seed_hibernated_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-json-seed-hibernated-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-resume-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_resume_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_resume_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_resume_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_resume_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-service-resume-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-json"', helper_block)
+        self.assertIn('expected_steps=["resume", "service-status", "report"]', helper_block)
+        self.assertIn("expect_report_payload=True", helper_block)
+        self.assertNotIn('"mvp-wrapper-resume-json-seed-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_resume_json_seed_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_resume_json_seed_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_resume_json_seed_hibernated_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-resume-json-seed-hibernated-json"', helper_block)
+        self.assertIn('"task-wrapper-resume-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/resume-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-resume-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_resume_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_resume_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_resume_json_errors_keeps_resume_labels(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_resume_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-resume-json"', helper_block)
+        self.assertIn('"task-wrapper-resume-json"', helper_block)
+        self.assertIn('result.get("saved_session") is not None', helper_block)
+        self.assertIn('source_hints.get("task_context") != "flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-resume-json-seed-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_resume_json_seed_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_resume_json_seed_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_resume_json_seed_hibernated_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_resume_json_seed_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-resume-json-seed-hibernated-json"', helper_block)
+        self.assertIn('"task-wrapper-cmd-resume-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/cmd-resume-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-resume-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_resume_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_resume_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_resume_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_resume_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-resume-json"', helper_block)
+        self.assertIn('"task-wrapper-cmd-resume-json"', helper_block)
+        self.assertIn('result.get("saved_session") is not None', helper_block)
+        self.assertIn('source_hints.get("task_context") != "flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-seed-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_seed_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_seed_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_seed_hibernated_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_seed_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-seed-hibernated-json"', helper_block)
+        self.assertIn('"task-wrapper-cmd-seed-hibernated-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/cmd-seed-hibernated-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-resume-not-hibernated-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_not_hibernated_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_not_hibernated_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_not_hibernated_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_not_hibernated_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-not-hibernated-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-not-hibernated"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-not-hibernated.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-resume-not-hibernated"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_resume_not_hibernated_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_resume_not_hibernated_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_resume_not_hibernated_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_resume_not_hibernated_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-service-resume-not-hibernated"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-not-hibernated"', helper_block)
+        self.assertIn("expected_exit=1", helper_block)
+        self.assertIn("missing resume hint", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_not_hibernated_json_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-not-hibernated-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-not-hibernated-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-resume-not-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_json_seed_hibernated_ps1_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-json-seed-hibernated-ps1-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-ps1-service-resume-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_resume_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_resume_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_resume_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_resume_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-ps1-service-resume-json"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-resume-json.db"', helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-resume-json"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_report_json_seed_hibernated_ps1_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-report-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-report-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-ps1-service-resume-report-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_resume_report_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_resume_report_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_resume_report_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-ps1-service-resume-report-json"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-resume-report-json.db"', helper_block)
+        self.assertIn('expected_steps=["resume", "service-status", "report"]', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-resume-not-hibernated-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_resume_not_hibernated_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_resume_not_hibernated_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-service-resume-not-hibernated-json"', helper_block)
+        self.assertIn('"resume-target-not-hibernated"', helper_block)
+        self.assertIn('"resume_target_not_hibernated"', helper_block)
+        self.assertIn('expected_details_message_substring="resume only works for hibernated tasks"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-resume-missing-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_missing_run_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_missing_run_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_missing_run_json_errors_keeps_run_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_missing_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-missing-run-json"', helper_block)
+        self.assertIn('"task-wrapper-service-resume-missing"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-resume-missing.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-resume-missing-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_resume_missing_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_resume_missing_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_resume_missing_json_errors_keeps_resume_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_resume_missing_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-resume-missing-json"', helper_block)
+        self.assertIn('"resume-target-missing"', helper_block)
+        self.assertIn('"hibernated_runtime_missing"', helper_block)
+        self.assertIn(
+            'expected_details_message_substring="resume requires a hibernated runtime for the selected task"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-status-active-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_active_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_active_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_active_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_active_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-active-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-active"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-active.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn("active_db_path = REPO_ROOT", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_active_state_setup_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_active_state_setup_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_active_state_setup_errors_keeps_state_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_active_state_setup_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn(
+            'active_db_path = REPO_ROOT / "target" / "mvp" / "service-status-active.db"',
+            helper_block,
+        )
+        self.assertIn("future_expires_at_ms = int(time.time() * 1000) + 45_000", helper_block)
+        self.assertIn("with sqlite3.connect(active_db_path) as connection:", helper_block)
+        self.assertIn("UPDATE orchestrator_leases", helper_block)
+        self.assertIn("SET expires_at_ms = ?1,", helper_block)
+        self.assertIn("released_at_ms = NULL", helper_block)
+        self.assertIn("WHERE task_id = ?2", helper_block)
+        self.assertNotIn("wrapper_service_status_active = subprocess.run(", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_active_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_active_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_active_text_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_active_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-active missing active queue summary"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-active missing coordination summary"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-active missing active next hint"', helper_block)
+        self.assertIn("task=task-wrapper-service-status-active", helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-active-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_active_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_active_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_active_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_active_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-active-json"', helper_block)
+        self.assertIn('recent_tasks[0].get("next_action") != "inspect"', helper_block)
+        self.assertIn('(result.get("coordination") or {}).get("status") != "stalled"', helper_block)
+        self.assertIn('next_summary = recent_tasks[0].get("next_summary")', helper_block)
+        self.assertIn('recent_tasks[0].get("next_command")', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-scope-a-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_scope_a_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_scope_a_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_scope_a_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_scope_a_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def ", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-scope-a-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-scope-a"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-scope.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-scope-b-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_scope_b_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_scope_b_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_scope_b_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_scope_b_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("scope_db_path = REPO_ROOT", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-scope-b-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-scope-b"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-scope.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn("scope_db_path = REPO_ROOT", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-scope-use-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_scope_use_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_scope_use_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_scope_use_json_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_scope_use_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_status_scope = subprocess.run", 1)[0]
+        self.assertIn("scope_db_path = REPO_ROOT", helper_block)
+        self.assertIn('shared_scope = "scope:target/mvp/service-status-shared.txt"', helper_block)
+        self.assertIn('with sqlite3.connect(scope_db_path) as connection:', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-scope-use-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-scope-a"', helper_block)
+        self.assertNotIn("wrapper_service_status_scope = subprocess.run", helper_block)
+        self.assertNotIn(
+            '"mvp-wrapper-service-status-scope missing contended coordination summary"',
+            helper_block,
+        )
+
+    def test_collect_errors_uses_wrapper_service_status_scope_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_scope_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_scope_text_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_scope_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("result = assert_command_json_result(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-scope missing contended coordination summary"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-scope missing same-scope peer visibility"', helper_block)
+        self.assertIn('"mvp-wrapper-service-status-scope missing scope task a"', helper_block)
+        self.assertIn('"target/mvp/service-status-scope.db"', helper_block)
+        self.assertIn("task=task-wrapper-service-status-scope-a", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-scope-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_scope_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_scope_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_scope_json_errors_keeps_scope_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_scope_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            'result = assert_command_json_result(\n        [\n            PYTHON,\n            "tools/mvp/safeclaw_mvp.py",\n            "seed-failed",',
+            1,
+        )[0]
+        self.assertIn('"mvp-wrapper-service-status-scope-json"', helper_block)
+        self.assertIn('current_session.get("task_id") != "task-wrapper-service-status-scope-a"', helper_block)
+        self.assertIn('coordination.get("status") != "contended"', helper_block)
+        self.assertIn('recent_tasks[0].get("next_action") != "retry"', helper_block)
+        self.assertIn('"task-wrapper-service-status-scope-b"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-quarantine-a-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_quarantine_a_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_quarantine_a_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_quarantine_a_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_quarantine_a_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_service_status_quarantine_b_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn('"mvp-wrapper-service-status-quarantine-a-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-quarantine-a"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-quarantine.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-quarantine-b-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_quarantine_b_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_quarantine_b_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_quarantine_b_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_quarantine_b_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("quarantine_db_path = REPO_ROOT", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-quarantine-b-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-quarantine-b"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-status-quarantine.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn("quarantine_db_path = REPO_ROOT", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-quarantine-use-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_quarantine_use_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_quarantine_use_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_quarantine_use_json_errors_keeps_quarantine_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_quarantine_use_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_status_quarantine = subprocess.run", 1)[0]
+        self.assertIn("quarantine_db_path = REPO_ROOT", helper_block)
+        self.assertIn(
+            'shared_scope = "scope:target/mvp/service-status-quarantine-shared.txt"',
+            helper_block,
+        )
+        self.assertIn("with sqlite3.connect(quarantine_db_path) as connection:", helper_block)
+        self.assertIn('"mvp-wrapper-service-status-quarantine-use-json"', helper_block)
+        self.assertIn('"task-wrapper-service-status-quarantine-b"', helper_block)
+        self.assertNotIn("wrapper_service_status_quarantine = subprocess.run", helper_block)
+        self.assertNotIn(
+            '"mvp-wrapper-service-status-quarantine missing quarantined coordination summary"',
+            helper_block,
+        )
+
+    def test_collect_errors_uses_wrapper_service_status_quarantine_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_quarantine_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_quarantine_text_errors_keeps_quarantine_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_quarantine_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("result = assert_command_json_result(", 1)[0]
+        self.assertIn(
+            '"mvp-wrapper-service-status-quarantine missing quarantined coordination summary"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-status-quarantine missing quarantine visibility"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-status-quarantine missing quarantine next command"',
+            helper_block,
+        )
+        self.assertIn('"target/mvp/service-status-quarantine.db"', helper_block)
+        self.assertIn("task-wrapper-service-status-quarantine-a", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-status-quarantine-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_status_quarantine_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_status_quarantine_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_status_quarantine_json_errors_keeps_quarantine_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_status_quarantine_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_run = subprocess.run", 1)[0]
+        self.assertIn('"mvp-wrapper-service-status-quarantine-json"', helper_block)
+        self.assertIn(
+            'current_session.get("task_id") != "task-wrapper-service-status-quarantine-b"',
+            helper_block,
+        )
+        self.assertIn('coordination.get("status") != "quarantined"', helper_block)
+        self.assertIn('recent_tasks[0].get("next_action") != "inspect"', helper_block)
+        self.assertIn('"task-wrapper-service-status-quarantine-a"', helper_block)
+        self.assertNotIn("wrapper_service_run = subprocess.run", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_service_run_text_errors(errors)", normalized_source)
+
+    def test_append_wrapper_service_run_text_errors_keeps_service_run_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("result = assert_command_json_result(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-run missing run step marker"', helper_block)
+        self.assertIn(
+            '"mvp-wrapper-service-run missing service-status step marker"',
+            helper_block,
+        )
+        self.assertIn('"mvp-wrapper-service-run missing run acceptance output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-run missing service-status output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-run missing worker summary"', helper_block)
+        self.assertIn('"target/mvp/service-run.db"', helper_block)
+        self.assertIn('"task-wrapper-service-run"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_service_run_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_service_run_json_errors_keeps_service_run_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_run_preflight = subprocess.run", 1)[0]
+        self.assertIn('"mvp-wrapper-cmd-service-run-json"', helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-run-json"', helper_block)
+        self.assertIn("assert_service_run_json_result(", helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-run-json"', helper_block)
+        self.assertIn('expected_db_source="flag"', helper_block)
+        self.assertNotIn("wrapper_service_run_preflight = subprocess.run", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-run-preflight-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_preflight_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_preflight_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_preflight_text_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_preflight_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_run_preflight_ai_reason = subprocess.run", 1)[0]
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight missing preflight step marker"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight missing preflight summary"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight missing run step marker"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight missing service-status step marker"',
+            helper_block,
+        )
+        self.assertIn('"target/mvp/service-run-preflight.db"', helper_block)
+        self.assertIn('"task-wrapper-service-run-preflight"', helper_block)
+        self.assertNotIn("wrapper_service_run_preflight_ai_reason = subprocess.run", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-run-preflight-ai-reason"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_preflight_ai_reason_text_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_preflight_ai_reason_text_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_preflight_ai_reason_text_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_preflight_ai_reason_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("result = assert_command_json_result(", 1)[0]
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-reason missing preflight step marker"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-reason missing provider-unavailable preflight summary"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-reason missing failed preflight marker"',
+            helper_block,
+        )
+        self.assertIn('"target/mvp/service-run-preflight-ai.db"', helper_block)
+        self.assertIn('"task-wrapper-service-run-preflight-ai"', helper_block)
+        self.assertIn('"ai-reason"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-run-preflight-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_preflight_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_preflight_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_preflight_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_preflight_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("details = assert_command_json_error(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-run-preflight-json"', helper_block)
+        self.assertIn("assert_service_run_json_result(", helper_block)
+        self.assertIn("assert_preflight_json_result(", helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-run-preflight-json"', helper_block)
+        self.assertIn('expected_steps=["preflight", "run", "service-status"]', helper_block)
+        self.assertIn(
+            'expected_target_scope="scope:target/mvp/service-run-preflight-json.txt"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-run-preflight-ai-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_preflight_ai_reason_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_preflight_ai_reason_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_preflight_ai_reason_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_preflight_ai_reason_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"task-wrapper-service-run-enforced"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn("assert_preflight_json_result(", helper_block)
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-json missing preflight payload"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-json missing isolated preflight step"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-preflight-ai-json missing preflight step action"',
+            helper_block,
+        )
+        self.assertIn('"target/mvp/service-run-preflight-ai-json.db"', helper_block)
+        self.assertIn('"task-wrapper-service-run-preflight-ai-json"', helper_block)
+        self.assertIn('expected_top_level_error_code="preflight-blocked"', helper_block)
+        self.assertIn('expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-run-enforced-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_enforced_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_enforced_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_enforced_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_enforced_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-cmd-service-run-invalid-limit-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn("assert_preflight_json_result(", helper_block)
+        self.assertIn(
+            '"mvp-wrapper-service-run-enforced-json missing preflight payload"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-enforced-json missing isolated preflight step"',
+            helper_block,
+        )
+        self.assertIn(
+            '"mvp-wrapper-service-run-enforced-json missing preflight step action"',
+            helper_block,
+        )
+        self.assertIn('"target/mvp/service-run-enforced.db"', helper_block)
+        self.assertIn('"task-wrapper-service-run-enforced"', helper_block)
+        self.assertIn("expected_permission_enforced=True", helper_block)
+        self.assertIn('expected_decision="confirm"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-run-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_run_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_run_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_run_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_run_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-ps1-service-run-invalid-limit-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-run-invalid-limit-json"', helper_block)
+        self.assertIn('"service-run"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-cmd-service-run-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-ps1-service-run-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_run_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_run_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_run_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_run_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-cmd-service-retry-invalid-limit-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-run-invalid-limit-json"', helper_block)
+        self.assertIn('"service-run"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-ps1-service-run-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-cmd-service-retry-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_retry_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_retry_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_retry_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-ps1-service-retry-invalid-limit-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-retry-invalid-limit-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-cmd-service-retry-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-ps1-service-retry-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_retry_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_retry_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_retry_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-cmd-service-recover-invalid-limit-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-retry-invalid-limit-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-ps1-service-retry-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-cmd-service-recover-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_recover_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_recover_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_ps1_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-recover-invalid-limit-json"', helper_block)
+        self.assertIn('"service-recover"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-cmd-service-recover-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-ps1-service-recover-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_recover_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_recover_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_recover_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_cmd_service_status_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-recover-invalid-limit-json"', helper_block)
+        self.assertIn('"service-recover"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-ps1-service-recover-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-cmd-service-status-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_status_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_cmd_service_status_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_cmd_service_status_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_status_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_ps1_service_status_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-status-invalid-limit-json"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-cmd-service-status-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-ps1-service-status-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_status_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_service_status_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_service_status_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_status_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_service_run_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-status-invalid-limit-json"', helper_block)
+        self.assertIn('"service-status"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
+        self.assertIn(
+            'error_message_label="mvp-wrapper-ps1-service-status-invalid-limit-json missing invalid --limit"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-service-run-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_run_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_run_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-service-retry-seed-failed-json"', 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-service-run-invalid-limit-json"', helper_block)
+        self.assertIn('"service-run"', helper_block)
+        self.assertIn('"tools/mvp/safeclaw_mvp.py"', helper_block)
+        self.assertIn('"bogus"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit: bogus"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split('"mvp-wrapper-service-retry-status-before-json"', 1)[0]
+        self.assertIn('"mvp-wrapper-service-retry-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-retry"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-retry.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-status-before-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_status_before_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_status_before_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_status_before_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_status_before_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_retry = subprocess.run(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-retry-status-before-json"', helper_block)
+        self.assertIn('"target/mvp/service-retry.db"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry-status-before-json missing queue.expired=1"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry-status-before-json missing next_command=service-retry"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry-status-before-json missing coordination.status=ready"', helper_block)
+        self.assertNotIn("wrapper_service_retry = subprocess.run(", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_service_retry_text_errors(errors)", normalized_source)
+
+    def test_append_wrapper_service_retry_text_errors_keeps_service_retry_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("result = assert_command_json_result(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-retry missing retry step marker"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry missing service-status step marker"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry missing retry success output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry missing service-status output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-retry missing worker summary"', helper_block)
+        self.assertIn('"target/mvp/service-retry.db"', helper_block)
+        self.assertIn('"task-wrapper-service-retry"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-json-seed-failed-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_json_seed_failed_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_json_seed_failed_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_json_seed_failed_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_json_seed_failed_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn('"mvp-wrapper-service-retry-json-seed-failed-json"', helper_block)
+        self.assertIn('"task-wrapper-service-retry-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-retry-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-service-retry-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_retry_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_cmd_service_retry_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_cmd_service_retry_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-retry-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-retry-json.db"', helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-retry-json"', helper_block)
+        self.assertIn("expected_limit=1", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-json-seed-failed-ps1-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_json_seed_failed_ps1_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_json_seed_failed_ps1_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_ps1_service_retry_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn('"mvp-wrapper-service-retry-json-seed-failed-ps1-json"', helper_block)
+        self.assertIn('"task-wrapper-service-retry-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-retry-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-ps1-service-retry-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_service_retry_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_ps1_service_retry_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_ps1_service_retry_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_service_retry_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-service-retry-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-retry-json.db"', helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-retry-json"', helper_block)
+        self.assertIn("expected_limit=1", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def append_wrapper_service_retry_missing_task_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-service-retry-invalid-limit-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn("PYTHON", helper_block)
+        self.assertIn('"tools/mvp/safeclaw_mvp.py"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit: bogus"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-retry-missing-task-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_retry_missing_task_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_retry_missing_task_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_retry_missing_task_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_retry_missing_task_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def collect_errors() -> list[str]:", 1)[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-service-retry-missing-task-json"', helper_block)
+        self.assertIn('"service-retry"', helper_block)
+        self.assertIn('"target/mvp/service-retry-missing.db"', helper_block)
+        self.assertIn('expected_failed_step="retry"', helper_block)
+        self.assertIn('expected_code="missing-task-context"', helper_block)
+        self.assertIn('expected_remembered_session_task_id="task-wrapper-service-retry-json"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-recover-seed-crash-json"', helper_block)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
