@@ -463,5 +463,180 @@ def assert_workspace_seed_json_result(
         errors.append(f"{name} missing workspace db source")
 
 
-# Placeholder for additional assertion functions
-# These will be added in subsequent commits to keep file size manageable
+def assert_json_error_fields(
+    error: dict[str, object] | None,
+    details: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_error_message_substring: str | None = None,
+    error_message_label: str | None = None,
+    expected_top_level_error_code: str | None = None,
+    expected_top_level_error_reason: str | None = None,
+    expected_top_level_error_error_code: str | None = None,
+    expect_top_level_error_error_code_absent: bool = False,
+    expected_top_level_error_degradation_mode: str | None = None,
+    expected_top_level_error_requires_model: bool | None = None,
+    expected_top_level_error_requires_sidecar: bool | None = None,
+    expected_top_level_error_requested_action: str | None = None,
+    expected_code: str | None = None,
+    expected_failed_step: str | None = None,
+    expected_details_message_substring: str | None = None,
+    details_message_field: str = "error_message",
+    details_message_label: str | None = None,
+    expected_remembered_session_task_id: str | None = None,
+    remembered_session_label: str | None = None,
+    expect_no_remembered_session: bool = False,
+    expected_preflight_requested_action: str | None = None,
+    expected_preflight_reason: str | None = None,
+    expected_preflight_error_code: str | None = None,
+    expect_preflight_error_code_absent: bool = False,
+    expected_preflight_summary_substring: str | None = None,
+    expect_top_level_error_summary_matches_preflight: bool = False,
+) -> None:
+    """Assert JSON error fields with comprehensive validation."""
+    if error is None:
+        return
+
+    if expected_error_message_substring is not None:
+        if expected_error_message_substring not in str(error.get("message", "")):
+            errors.append(error_message_label or f"{name} 输出缺少错误信息")
+            return
+
+    if expected_top_level_error_code is not None:
+        if error.get("code") != expected_top_level_error_code:
+            errors.append(f"{name} missing error.code={expected_top_level_error_code}")
+            return
+
+    if expected_top_level_error_reason is not None:
+        if error.get("reason") != expected_top_level_error_reason:
+            errors.append(
+                f"{name} missing error.reason={expected_top_level_error_reason}"
+            )
+            return
+
+    if expected_top_level_error_error_code is not None:
+        if error.get("error_code") != expected_top_level_error_error_code:
+            errors.append(
+                f"{name} missing error.error_code={expected_top_level_error_error_code}"
+            )
+            return
+
+    if expect_top_level_error_error_code_absent:
+        if error.get("error_code") is not None:
+            errors.append(f"{name} expected no error.error_code")
+            return
+
+    if expected_top_level_error_degradation_mode is not None:
+        if error.get("degradation_mode") != expected_top_level_error_degradation_mode:
+            errors.append(
+                f"{name} missing error.degradation_mode={expected_top_level_error_degradation_mode}"
+            )
+            return
+
+    if expected_top_level_error_requires_model is not None:
+        if error.get("requires_model") is not expected_top_level_error_requires_model:
+            errors.append(
+                f"{name} missing error.requires_model={expected_top_level_error_requires_model}"
+            )
+            return
+
+    if expected_top_level_error_requires_sidecar is not None:
+        if (
+            error.get("requires_sidecar")
+            is not expected_top_level_error_requires_sidecar
+        ):
+            errors.append(
+                f"{name} missing error.requires_sidecar={expected_top_level_error_requires_sidecar}"
+            )
+            return
+
+    if expected_top_level_error_requested_action is not None:
+        if error.get("requested_action") != expected_top_level_error_requested_action:
+            errors.append(
+                f"{name} missing error.requested_action={expected_top_level_error_requested_action}"
+            )
+            return
+
+    if details is None:
+        return
+
+    if expected_failed_step is not None:
+        if details.get("failed_step") != expected_failed_step:
+            errors.append(f"{name} 缺少失败步骤 {expected_failed_step}")
+            return
+
+    if expected_code is not None:
+        if details.get("code") != expected_code:
+            errors.append(f"{name} 缺少错误代码 {expected_code}")
+            return
+
+    if expected_details_message_substring is not None:
+        if expected_details_message_substring not in str(
+            details.get(details_message_field, "")
+        ):
+            errors.append(details_message_label or f"{name} 缺少错误明细")
+            return
+
+    if expect_no_remembered_session:
+        if details.get("remembered_session") is not None:
+            errors.append(f"{name} remembered_session 预期为空")
+            return
+
+    if expected_remembered_session_task_id is not None:
+        remembered_session = details.get("remembered_session") or {}
+
+        if (
+            not isinstance(remembered_session, dict)
+            or remembered_session.get("task_id") != expected_remembered_session_task_id
+        ):
+            errors.append(
+                remembered_session_label
+                or f"{name} remembered_session 缺少 {expected_remembered_session_task_id}"
+            )
+            return
+
+    if expected_preflight_requested_action is not None:
+        if (
+            details.get("preflight_requested_action")
+            != expected_preflight_requested_action
+        ):
+            errors.append(
+                f"{name} missing preflight_requested_action={expected_preflight_requested_action}"
+            )
+            return
+
+    if expected_preflight_reason is not None:
+        if details.get("preflight_reason") != expected_preflight_reason:
+            errors.append(
+                f"{name} missing preflight_reason={expected_preflight_reason}"
+            )
+            return
+
+    if expected_preflight_error_code is not None:
+        if details.get("preflight_error_code") != expected_preflight_error_code:
+            errors.append(
+                f"{name} missing preflight_error_code={expected_preflight_error_code}"
+            )
+            return
+
+    if expect_preflight_error_code_absent:
+        if details.get("preflight_error_code") is not None:
+            errors.append(f"{name} expected no preflight_error_code")
+            return
+
+    if expected_preflight_summary_substring is not None:
+        if expected_preflight_summary_substring not in str(
+            details.get("preflight_summary", "")
+        ):
+            errors.append(
+                f"{name} missing preflight_summary substring {expected_preflight_summary_substring}"
+            )
+            return
+
+    if expect_top_level_error_summary_matches_preflight:
+        if error.get("summary") != details.get("preflight_summary"):
+            errors.append(
+                f"{name} missing mirrored error.summary from preflight_summary"
+            )
+
