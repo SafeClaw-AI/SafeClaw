@@ -10,6 +10,8 @@ from .service_assertions import (
     assert_service_retry_json_result,
     assert_service_resume_json_result,
     assert_service_run_json_result,
+    assert_service_reconcile_json_result,
+    assert_service_recover_json_result,
 )
 
 
@@ -255,3 +257,158 @@ def append_root_ps1_service_resume_errors(errors: list[str]) -> None:
         expected_steps=["resume", "service-status", "report"],
         expect_report_payload=True,
     )
+def append_root_ps1_service_reconcile_errors(errors: list[str]) -> None:
+    root_ps1 = [
+        "powershell.exe",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "safeclaw.ps1",
+    ]
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--probe-mode",
+            "none",
+            "--task-id",
+            "task-readme-root-assumed-ps1",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-reconcile-seed-crash-json",
+        "seed-crash",
+    )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-reconcile-seed-crash-json",
+        expected_action="seed-crash",
+        expected_task_id="task-readme-root-assumed-ps1",
+    )
+    assert_preflight_ai_reason_blocked_json_error(
+        [
+            *root_ps1,
+            "service-reconcile",
+            "--task-id",
+            "task-readme-root-assumed-ps1",
+            "--decision",
+            "executed",
+            "--limit",
+            "1",
+            "--report",
+            "--preflight",
+            "--preflight-action",
+            "ai-reason",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-reconcile-preflight-ai-json",
+        "service-reconcile",
+    )
+    result = assert_command_json_result(
+        [
+            *root_ps1,
+            "service-reconcile",
+            "--task-id",
+            "task-readme-root-assumed-ps1",
+            "--decision",
+            "executed",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-reconcile-json",
+        "service-reconcile",
+    )
+    assert_service_reconcile_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-reconcile-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-assumed-ps1",
+        expected_limit=1,
+        expected_decision="executed",
+        expected_steps=["reconcile", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
+def append_root_ps1_service_recover_errors(errors: list[str]) -> None:
+    root_ps1 = [
+        "powershell.exe",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "safeclaw.ps1",
+    ]
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "seed-crash",
+            "--reset",
+            "--task-id",
+            "task-readme-root-uncertain-ps1",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-recover-seed-crash-json",
+        "seed-crash",
+    )
+    assert_workspace_seed_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-recover-seed-crash-json",
+        expected_action="seed-crash",
+        expected_task_id="task-readme-root-uncertain-ps1",
+    )
+    assert_preflight_ai_reason_blocked_json_error(
+        [
+            *root_ps1,
+            "service-recover",
+            "--task-id",
+            "task-readme-root-uncertain-ps1",
+            "--limit",
+            "1",
+            "--report",
+            "--preflight",
+            "--preflight-action",
+            "ai-reason",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-recover-preflight-ai-json",
+        "service-recover",
+    )
+    result = assert_command_json_result(
+        [
+            *root_ps1,
+            "service-recover",
+            "--task-id",
+            "task-readme-root-uncertain-ps1",
+            "--limit",
+            "1",
+            "--report",
+            "--json",
+        ],
+        errors,
+        "safeclaw-root-ps1-service-recover-json",
+        "service-recover",
+    )
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "safeclaw-root-ps1-service-recover-json",
+        expected_db="target/mvp/workspaces/readme-root/session.db",
+        expected_db_source="session",
+        expected_task_id="task-readme-root-uncertain-ps1",
+        expected_limit=1,
+        expected_steps=["recover", "service-status", "report"],
+        expect_report_payload=True,
+    )
+
