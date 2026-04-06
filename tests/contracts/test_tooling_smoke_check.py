@@ -3283,7 +3283,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_service_recover_seed_crash_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_service_recover_status_before_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3292,6 +3292,35 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_db_path="target/mvp/service-recover.db"', helper_block)
         self.assertIn('expected_output_source="flag"', helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-status-before-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_status_before_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_status_before_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_status_before_json_errors_keeps_status_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_status_before_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("wrapper_service_recover = subprocess.run(", 1)[0]
+        self.assertIn('"mvp-wrapper-service-recover-status-before-json"', helper_block)
+        self.assertIn('"target/mvp/service-recover.db"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-status-before-json missing queue.expired=1"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-status-before-json missing next_command=service-recover"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-status-before-json missing coordination.status=ready"', helper_block)
+        self.assertNotIn("wrapper_service_recover = subprocess.run(", helper_block)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
