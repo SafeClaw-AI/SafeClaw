@@ -59,8 +59,7 @@ REQUIRED_FILES = [
 LEGACY_REQUIRED_STATES = {"legacy-only", "dual-readable"}
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 REFERENCE_REQUIRED_FILES = [
-    REPO_ROOT / "docs" / "reference" / "01-反屎山AI研发执行总纲（Codex专用浓缩对照版）.md",
-    REPO_ROOT / "docs" / "reference" / "02-仓库卫生与命名规范.md",
+    REPO_ROOT / "docs" / "reference" / "01-反屎山工程规范.md",
 ]
 ROOT_TEXT_POLICY_FILES = [
     REPO_ROOT / ".gitattributes",
@@ -74,7 +73,7 @@ ROOT_FILE_SECTION_TITLES = (
     "四、迁移前临时保留的根文件",
 )
 DIRECTORY_LOCK_REQUIRED_MARKERS = (
-    "docs/reference/02-仓库卫生与命名规范.md",
+    "docs/reference/01-反屎山工程规范.md",
     "docs/reference/",
     "高优先级参考规范",
 )

@@ -20,7 +20,7 @@ GROUP_RULES: "OrderedDict[str, dict[str, tuple[str, ...]]]" = OrderedDict(
                     "PUSH_LOG.md",
                     "docs/README.md",
                     "docs/30-方案/02-V4-目录锁定清单.md",
-                    "docs/reference/02-仓库卫生与命名规范.md",
+                    "docs/reference/01-反屎山工程规范.md",
                     "tools/checks/check_public_docs.py",
                     "tools/mvp/chancellor_panel.py",
                     "tests/contracts/test_chancellor_panel.py",

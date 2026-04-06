@@ -27,8 +27,7 @@ class ScaffoldCheckTest(unittest.TestCase):
 
     def test_reference_required_files_are_stable(self) -> None:
         expected = [
-            "docs/reference/01-反屎山AI研发执行总纲（Codex专用浓缩对照版）.md",
-            "docs/reference/02-仓库卫生与命名规范.md",
+            "docs/reference/01-反屎山工程规范.md",
         ]
         self.assertEqual(
             [path.relative_to(REPO_ROOT).as_posix() for path in REFERENCE_REQUIRED_FILES],

@@ -33,8 +33,8 @@ class WorktreeGroupsTest(unittest.TestCase):
 
     def test_parse_status_line_strips_wrapping_quotes(self) -> None:
         self.assertEqual(
-            parse_status_line(' M "docs/reference/02-仓库卫生与命名规范.md"'),
-            ("M", "docs/reference/02-仓库卫生与命名规范.md"),
+            parse_status_line(' M "docs/reference/01-反屎山工程规范.md"'),
+            ("M", "docs/reference/01-反屎山工程规范.md"),
         )
 
     def test_classify_path_groups_current_governance_clusters(self) -> None:

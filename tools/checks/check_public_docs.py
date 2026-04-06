@@ -17,7 +17,7 @@ SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
 DEVLOG_FILE = REPO_ROOT / "docs" / "DEVLOG.md"
 IMPLEMENTATION_STRATEGY_FILE = REPO_ROOT / "docs" / "IMPLEMENTATION_STRATEGY.md"
-REFERENCE_HYGIENE_FILE = REPO_ROOT / "docs" / "reference" / "02-仓库卫生与命名规范.md"
+REFERENCE_HYGIENE_FILE = REPO_ROOT / "docs" / "reference" / "01-反屎山工程规范.md"
 SPECS_README_FILE = REPO_ROOT / "specs" / "README.md"
 CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
@@ -280,9 +280,9 @@ REQUIRED_MARKERS = {
         "tests/contracts/",
     ],
     REFERENCE_HYGIENE_FILE: [
-        "docs/chancellor-mode/v2/",
-        "后期拼接融合参考",
-        "不属于 SafeClaw 当前开发范围",
+        "先分类,再落盘",
+        "绝对红线禁令",
+        "自动化门禁",
     ],
     CHANCELLOR_ENTRY_BASELINE_FILE: [
         BOUNDARY_NOTE_DECISION,

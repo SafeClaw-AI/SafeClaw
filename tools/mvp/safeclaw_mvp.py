@@ -27,6 +27,18 @@ LINKER = (
     r"C:\Users\tianduan999\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders."
     r"WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin\x86_64-w64-mingw32-gcc.exe"
 )
+CARGO_SAFECLAW_MVP_ENTRY_PREFIX = [
+    "cargo",
+    f"+{TOOLCHAIN}",
+    "run",
+    "-p",
+    "safeclaw-sqlite",
+    "--example",
+    "safeclaw_mvp_entry",
+    "--quiet",
+    "--",
+]
+SAFECLAW_MVP_ENTRY_EXE_RELATIVE_PATH = Path("target/debug/examples/safeclaw_mvp_entry.exe")
 SESSION_ACTIONS = {"run", "report", "status", "seed-crash", "seed-hibernated", "recover", "seed-failed", "retry", "resume", "reconcile", "undo"}
 WRITES_SESSION = {"run", "seed-crash", "seed-hibernated", "seed-failed"}
 READS_SESSION = {"report", "status", "recover", "retry", "resume", "reconcile", "undo"}
@@ -265,6 +277,18 @@ def build_rust_env() -> tuple[dict[str, str], str | None, str | None]:
     env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = LINKER
     return env, cargo_exe, rustc_exe
 
+
+
+def resolve_safeclaw_mvp_runtime_command(
+    command: list[str],
+    repo_root: Path = REPO_ROOT,
+) -> list[str]:
+    if command[: len(CARGO_SAFECLAW_MVP_ENTRY_PREFIX)] != CARGO_SAFECLAW_MVP_ENTRY_PREFIX:
+        return list(command)
+    example_path = repo_root / SAFECLAW_MVP_ENTRY_EXE_RELATIVE_PATH
+    if not example_path.exists():
+        return list(command)
+    return [str(example_path), *command[len(CARGO_SAFECLAW_MVP_ENTRY_PREFIX) :]]
 
 
 def main(argv: list[str]) -> int:
@@ -3240,14 +3264,8 @@ def run_sqlite_example_capture(
 ) -> tuple[int, str]:
     env, cargo_exe, _ = build_rust_env()
     action_name = action or example
-    if cargo_exe is None:
-        message = "cargo executable not found; checked PATH and ~/.cargo/bin"
-        if replay_output:
-            print(f"[mvp-wrapper] cargo => error action={action_name} error={message}", file=sys.stderr)
-        return 1, message
-
     command = [
-        cargo_exe,
+        "cargo",
         f"+{TOOLCHAIN}",
         "run",
         "-p",
@@ -3258,10 +3276,20 @@ def run_sqlite_example_capture(
     ]
     if example_args:
         command.extend(["--", *example_args])
+    else:
+        command.append("--")
+    runtime_command = resolve_safeclaw_mvp_runtime_command(command)
+    if runtime_command == command:
+        if cargo_exe is None:
+            message = "cargo executable not found; checked PATH and ~/.cargo/bin"
+            if replay_output:
+                print(f"[mvp-wrapper] cargo => error action={action_name} error={message}", file=sys.stderr)
+            return 1, message
+        runtime_command = [cargo_exe, *command[1:]]
 
     try:
         completed = subprocess.run(
-            command,
+            runtime_command,
             cwd=REPO_ROOT,
             env=env,
             capture_output=True,

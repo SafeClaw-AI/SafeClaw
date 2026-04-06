@@ -12,8 +12,8 @@
 - `check_public_docs.py`：公开文档对齐检查
 - `check_scaffold.py`：仓库骨架检查，并把 `docs/reference/` + `docs/30-方案/02-V4-目录锁定清单.md` 落成 fail-closed 根目录/命名护栏；legacy 阶段根台账文件仍须保留
 - `check_reference_redlines.py`：把 `docs/reference/01` 中已机器化的红线直接落成代码门禁；当前先拦无主 TODO、空异常处理、多异常 `except` 必须绑定并真正使用 `as error`、`OSError` / `json.JSONDecodeError` / `FileExistsError` / `KeyError` / `RuntimeError` / `SyntaxError` 必须绑定并保留上下文，以及高风险 `OSError/json.JSONDecodeError` 不能直接静默降级为 `None/False`
-- `check_tooling_smoke.py`：工具烟测
-- `check_mvp_operator_flow.py`: practical MVP operator flow check covering `doctor / service-run / report / service-retry / service-recover`
+- `check_tooling_smoke.py`：工具烟测；当前会为每条子命令打印 `start/done` 心跳，方便定位长跑与占锁卡点；若父进程被外部打断，当前子命令也会尽快终止，避免继续占 `target/mvp/.wrapper-check.lock`
+- `check_mvp_operator_flow.py`: practical MVP operator flow check covering `doctor / service-run / report / service-retry / service-recover`；当前也会打印 `[operator-flow NNN] start/done` 阶段心跳，方便直接看清 `verify` 卡在哪一步
 - `check_examples_smoke.py`：高层示例烟测，并要求覆盖 `safeclaw-sqlite/examples/*.rs` 全量示例
 - `check_generated_sync.py`：生成产物同步检查
 - `selfcheck.py`：串起全部门禁的统一入口

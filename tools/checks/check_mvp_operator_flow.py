@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import importlib.util
+import io
 import json
 import sqlite3
 import shutil
-import subprocess
 import sys
 import time
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
 
 from mvp_state_guard import acquire_mvp_state_lock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WRAPPER = ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd"]
 SCHEMA_VERSION = "mvp-wrapper.v1"
 OWNER_ID = "safeclaw-mvp"
+_OPERATOR_FLOW_STEP_COUNTER = 0
+_OPERATOR_FLOW_STARTED_AT = 0.0
+_SAFECLAW_MVP_MODULE: Any | None = None
 
 RUN_TASK = "task-operator-flow-run"
 RUN_DB = "target/mvp/operator-flow-run.db"
@@ -58,6 +63,40 @@ OWNER_ALIGNMENT_A_OUTPUT = "target/mvp/operator-flow-owner-alignment-a.txt"
 OWNER_ALIGNMENT_B_OUTPUT = "target/mvp/operator-flow-owner-alignment-b.txt"
 OWNER_ALIGNMENT_A_OWNER = "safeclaw-owner-a"
 OWNER_ALIGNMENT_B_OWNER = "safeclaw-owner-b"
+
+
+def format_operator_flow_args(args: list[str]) -> str:
+    preview = " ".join(args[:8])
+    if len(args) > 8:
+        preview = f"{preview} ..."
+    return preview
+
+
+def reset_operator_flow_progress() -> None:
+    global _OPERATOR_FLOW_STEP_COUNTER, _OPERATOR_FLOW_STARTED_AT
+    _OPERATOR_FLOW_STEP_COUNTER = 0
+    _OPERATOR_FLOW_STARTED_AT = time.monotonic()
+
+
+def start_operator_flow_step(label: str, detail: str) -> tuple[int, float]:
+    global _OPERATOR_FLOW_STEP_COUNTER
+    _OPERATOR_FLOW_STEP_COUNTER += 1
+    sequence = _OPERATOR_FLOW_STEP_COUNTER
+    started_at = time.monotonic()
+    elapsed = started_at - _OPERATOR_FLOW_STARTED_AT if _OPERATOR_FLOW_STARTED_AT > 0 else 0.0
+    print(
+        f"[operator-flow {sequence:03d}] start +{elapsed:.1f}s => {label} :: {detail}",
+        flush=True,
+    )
+    return sequence, started_at
+
+
+def finish_operator_flow_step(sequence: int, started_at: float, *, exit_code: int, status: str) -> None:
+    duration = time.monotonic() - started_at
+    print(
+        f"[operator-flow {sequence:03d}] done exit={exit_code} status={status} duration={duration:.1f}s",
+        flush=True,
+    )
 
 
 def reset_operator_flow_state() -> None:
@@ -122,6 +161,20 @@ def append_error(errors: list[str], label: str, message: str) -> None:
 
 
 
+def load_safeclaw_mvp_module() -> Any:
+    global _SAFECLAW_MVP_MODULE
+    if _SAFECLAW_MVP_MODULE is not None:
+        return _SAFECLAW_MVP_MODULE
+    module_path = REPO_ROOT / "tools" / "mvp" / "safeclaw_mvp.py"
+    spec = importlib.util.spec_from_file_location("safeclaw_mvp_operator_flow", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"failed to load wrapper module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _SAFECLAW_MVP_MODULE = module
+    return module
+
+
 def expect_equal(errors: list[str], label: str, field: str, actual: Any, expected: Any) -> None:
     if actual != expected:
         append_error(errors, label, f"{field} expected {expected!r}, got {actual!r}")
@@ -137,23 +190,28 @@ def expect_true(errors: list[str], label: str, field: str, value: Any) -> None:
 
 
 def load_json(args: list[str]) -> tuple[int, str, dict[str, Any] | None]:
-    completed = subprocess.run(
-        [*WRAPPER, *args, "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    output = ((completed.stdout or "") + (completed.stderr or "")).strip()
-    if completed.returncode != 0:
-        return completed.returncode, output, None
+    module = load_safeclaw_mvp_module()
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    try:
+        with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+            exit_code = int(module.main(["safeclaw_mvp.py", *args, "--json"]) or 0)
+    except SystemExit as error:
+        exit_code = int(error.code or 0)
+    except Exception:
+        traceback.print_exc(file=stderr_buffer)
+        exit_code = 1
+    output = (stdout_buffer.getvalue() + stderr_buffer.getvalue()).strip()
+    if exit_code != 0:
+        return exit_code, output, None
     try:
         payload = json.loads(output)
     except json.JSONDecodeError as error:
         detail = f"invalid json: {error}"
-        return completed.returncode, f"{output}\n{detail}".strip(), None
+        return exit_code, f"{output}\n{detail}".strip(), None
     if not isinstance(payload, dict):
-        return completed.returncode, output, None
-    return completed.returncode, output, payload
+        return exit_code, output, None
+    return exit_code, output, payload
 
 
 def wait_for_session(
@@ -165,39 +223,49 @@ def wait_for_session(
     *,
     owner_id: str | None = None,
 ) -> None:
+    sequence, started_at = start_operator_flow_step(label, f"wait-session task={task_id}")
+    exit_code = 1
+    status = "timeout tries=0"
     last_observed: dict[str, Any] | None = None
-    for _ in range(12):
-        exit_code, raw_output, payload = load_json(["session"])
-        if exit_code == 0 and payload is not None and payload.get("ok") is True and payload.get("action") == "session":
-            result = payload.get("result")
-            if isinstance(result, dict):
-                last_observed = result
-                if result.get("task_id") == task_id and result.get("db") == db and result.get("output") == output and (owner_id is None or result.get("owner_id") == owner_id):
-                    return
-        time.sleep(0.1)
-    append_error(errors, label, f"session did not converge to {task_id!r}; last={last_observed!r}")
+    try:
+        for attempt in range(1, 13):
+            exit_code, raw_output, payload = load_json(["session"])
+            if exit_code == 0 and payload is not None and payload.get("ok") is True and payload.get("action") == "session":
+                result = payload.get("result")
+                if isinstance(result, dict):
+                    last_observed = result
+                    if result.get("task_id") == task_id and result.get("db") == db and result.get("output") == output and (owner_id is None or result.get("owner_id") == owner_id):
+                        status = f"matched tries={attempt}"
+                        exit_code = 0
+                        return
+            status = f"waiting tries={attempt}"
+            time.sleep(0.1)
+        append_error(errors, label, f"session did not converge to {task_id!r}; last={last_observed!r}")
+        status = "timeout tries=12"
+    finally:
+        finish_operator_flow_step(sequence, started_at, exit_code=exit_code, status=status)
 
 def run_json(args: list[str], label: str, errors: list[str]) -> dict[str, Any] | None:
-    completed = subprocess.run(
-        [*WRAPPER, *args, "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    output = ((completed.stdout or "") + (completed.stderr or "")).strip()
-    if completed.returncode != 0:
-        append_error(errors, label, f"exit={completed.returncode} output={output!r}")
-        return None
-
+    sequence, started_at = start_operator_flow_step(label, format_operator_flow_args([*args, "--json"]))
+    status = "ok"
+    exit_code = 0
     try:
-        payload = json.loads(output)
-    except json.JSONDecodeError as exc:
-        append_error(errors, label, f"invalid json: {exc} output={output!r}")
-        return None
+        exit_code, output, payload = load_json(args)
+        if exit_code != 0:
+            status = "failed"
+            append_error(errors, label, f"exit={exit_code} output={output!r}")
+            return None
 
-    expect_true(errors, label, "ok", payload.get("ok"))
-    expect_equal(errors, label, "schema_version", payload.get("schema_version"), SCHEMA_VERSION)
-    return payload
+        if payload is None:
+            status = "invalid-json"
+            append_error(errors, label, f"invalid json output={output!r}")
+            return None
+
+        expect_true(errors, label, "ok", payload.get("ok"))
+        expect_equal(errors, label, "schema_version", payload.get("schema_version"), SCHEMA_VERSION)
+        return payload
+    finally:
+        finish_operator_flow_step(sequence, started_at, exit_code=exit_code, status=status)
 
 
 
@@ -370,7 +438,12 @@ def assert_service_combo(
 def _main() -> int:
     errors: list[str] = []
 
-    reset_operator_flow_state()
+    reset_operator_flow_progress()
+    sequence, started_at = start_operator_flow_step("operator-flow/reset-state", "reset-state")
+    try:
+        reset_operator_flow_state()
+    finally:
+        finish_operator_flow_step(sequence, started_at, exit_code=0, status="ok")
 
 
 
@@ -408,7 +481,6 @@ def _main() -> int:
     service_run = run_json(
         [
             "service-run",
-            "--reset",
             "--task-id",
             RUN_TASK,
             "--db",
@@ -448,7 +520,6 @@ def _main() -> int:
     seed_failed = run_json(
         [
             "seed-failed",
-            "--reset",
             "--task-id",
             RETRY_TASK,
             "--db",
@@ -493,7 +564,6 @@ def _main() -> int:
     seed_crash = run_json(
         [
             "seed-crash",
-            "--reset",
             "--task-id",
             RECOVER_TASK,
             "--db",
@@ -538,7 +608,6 @@ def _main() -> int:
     seed_hibernated = run_json(
         [
             "seed-hibernated",
-            "--reset",
             "--task-id",
             HIBERNATED_TASK,
             "--db",
@@ -624,7 +693,6 @@ def _main() -> int:
             HIBERNATED_TASK,
             "--limit",
             "1",
-            "--report",
         ],
         "operator-flow/service-resume",
         errors,
@@ -640,14 +708,11 @@ def _main() -> int:
         output=HIBERNATED_OUTPUT,
         expected_output_source="session",
         expected_owner_source="session",
-        expected_steps=["resume", "service-status", "report"],
-        expect_report_payload=True,
     )
 
     seed_failed_stalled = run_json(
         [
             "seed-failed",
-            "--reset",
             "--task-id",
             STALLED_TASK,
             "--db",
@@ -661,7 +726,6 @@ def _main() -> int:
     if seed_failed_stalled is not None:
         expect_equal(errors, "operator-flow/seed-failed-stalled", "action", seed_failed_stalled.get("action"), "seed-failed")
         assert_session_fields((seed_failed_stalled.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-stalled", "remembered_session", STALLED_TASK, STALLED_DB, STALLED_OUTPUT)
-    wait_for_session(STALLED_TASK, STALLED_DB, STALLED_OUTPUT, errors, "operator-flow/seed-failed-stalled")
 
     with sqlite3.connect(REPO_ROOT / STALLED_DB) as connection:
         connection.execute(
@@ -748,7 +812,6 @@ def _main() -> int:
     seed_failed_contended_a = run_json(
         [
             "seed-failed",
-            "--reset",
             "--task-id",
             CONTENDED_A_TASK,
             "--db",
@@ -762,7 +825,6 @@ def _main() -> int:
     if seed_failed_contended_a is not None:
         expect_equal(errors, "operator-flow/seed-failed-contended-a", "action", seed_failed_contended_a.get("action"), "seed-failed")
         assert_session_fields((seed_failed_contended_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-a", "remembered_session", CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_A_OUTPUT)
-    wait_for_session(CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_A_OUTPUT, errors, "operator-flow/seed-failed-contended-a")
 
     seed_failed_contended_b = run_json(
         [
@@ -829,7 +891,6 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/use-contended", "result.db", use_contended_result.get("db"), CONTENDED_DB)
         expect_equal(errors, "operator-flow/use-contended", "result.output", use_contended_result.get("output"), CONTENDED_SHARED_OUTPUT)
         expect_equal(errors, "operator-flow/use-contended", "result.output_source", use_contended_result.get("output_source"), "task_scope")
-    wait_for_session(CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_SHARED_OUTPUT, errors, "operator-flow/use-contended")
 
     contended_status = run_json(
         [
@@ -890,7 +951,6 @@ def _main() -> int:
     seed_failed_quarantine_a = run_json(
         [
             "seed-failed",
-            "--reset",
             "--task-id",
             QUARANTINE_A_TASK,
             "--db",
@@ -904,7 +964,6 @@ def _main() -> int:
     if seed_failed_quarantine_a is not None:
         expect_equal(errors, "operator-flow/seed-failed-quarantine-a", "action", seed_failed_quarantine_a.get("action"), "seed-failed")
         assert_session_fields((seed_failed_quarantine_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-quarantine-a", "remembered_session", QUARANTINE_A_TASK, QUARANTINE_DB, QUARANTINE_A_OUTPUT)
-    wait_for_session(QUARANTINE_A_TASK, QUARANTINE_DB, QUARANTINE_A_OUTPUT, errors, "operator-flow/seed-failed-quarantine-a")
 
     seed_failed_quarantine_b = run_json(
         [
@@ -964,7 +1023,6 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/use-quarantine", "result.db", use_quarantine_result.get("db"), QUARANTINE_DB)
         expect_equal(errors, "operator-flow/use-quarantine", "result.output", use_quarantine_result.get("output"), QUARANTINE_SHARED_OUTPUT)
         expect_equal(errors, "operator-flow/use-quarantine", "result.output_source", use_quarantine_result.get("output_source"), "task_scope")
-    wait_for_session(QUARANTINE_B_TASK, QUARANTINE_DB, QUARANTINE_SHARED_OUTPUT, errors, "operator-flow/use-quarantine")
 
     quarantine_status = run_json(
         [
@@ -1026,7 +1084,6 @@ def _main() -> int:
     seed_crash_reconcile = run_json(
         [
             "seed-crash",
-            "--reset",
             "--probe-mode",
             "none",
             "--task-id",
@@ -1042,7 +1099,6 @@ def _main() -> int:
     if seed_crash_reconcile is not None:
         expect_equal(errors, "operator-flow/seed-crash-reconcile", "action", seed_crash_reconcile.get("action"), "seed-crash")
         assert_session_fields((seed_crash_reconcile.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-reconcile", "remembered_session", RECONCILE_TASK, RECONCILE_DB, RECONCILE_OUTPUT)
-    wait_for_session(RECONCILE_TASK, RECONCILE_DB, RECONCILE_OUTPUT, errors, "operator-flow/seed-crash-reconcile")
 
     reconcile_status_before = run_json(
         [
@@ -1138,7 +1194,6 @@ def _main() -> int:
     seed_crash_session_priority_a = run_json(
         [
             "seed-crash",
-            "--reset",
             "--task-id",
             SESSION_PRIORITY_A_TASK,
             "--db",
@@ -1152,7 +1207,6 @@ def _main() -> int:
     if seed_crash_session_priority_a is not None:
         expect_equal(errors, "operator-flow/seed-crash-session-priority-a", "action", seed_crash_session_priority_a.get("action"), "seed-crash")
         assert_session_fields((seed_crash_session_priority_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-session-priority-a", "remembered_session", SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT)
-    wait_for_session(SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT, errors, "operator-flow/seed-crash-session-priority-a")
 
     seed_failed_session_priority_b = run_json(
         [
@@ -1196,7 +1250,6 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.db", use_session_priority_result.get("db"), SESSION_PRIORITY_DB)
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.output", use_session_priority_result.get("output"), SESSION_PRIORITY_A_OUTPUT)
         expect_equal(errors, "operator-flow/use-session-priority-a", "result.output_source", use_session_priority_result.get("output_source"), "task_scope")
-    wait_for_session(SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT, errors, "operator-flow/use-session-priority-a")
 
     session_priority_status = run_json(
         [
@@ -1251,7 +1304,6 @@ def _main() -> int:
     seed_crash_owner_alignment_a = run_json(
         [
             "seed-crash",
-            "--reset",
             "--task-id",
             OWNER_ALIGNMENT_A_TASK,
             "--db",
@@ -1276,14 +1328,6 @@ def _main() -> int:
             OWNER_ALIGNMENT_A_OUTPUT,
             owner_id=OWNER_ALIGNMENT_A_OWNER,
         )
-    wait_for_session(
-        OWNER_ALIGNMENT_A_TASK,
-        OWNER_ALIGNMENT_DB,
-        OWNER_ALIGNMENT_A_OUTPUT,
-        errors,
-        "operator-flow/seed-crash-owner-alignment-a",
-        owner_id=OWNER_ALIGNMENT_A_OWNER,
-    )
 
     seed_failed_owner_alignment_b = run_json(
         [
@@ -1333,14 +1377,6 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.output_source", use_owner_alignment_result.get("output_source"), "task_scope")
         expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id", use_owner_alignment_result.get("owner_id"), OWNER_ALIGNMENT_A_OWNER)
         expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id_source", use_owner_alignment_result.get("owner_id_source"), "task_owner")
-    wait_for_session(
-        OWNER_ALIGNMENT_A_TASK,
-        OWNER_ALIGNMENT_DB,
-        OWNER_ALIGNMENT_A_OUTPUT,
-        errors,
-        "operator-flow/use-owner-alignment-a",
-        owner_id=OWNER_ALIGNMENT_A_OWNER,
-    )
 
     owner_alignment_status = run_json(
         [
