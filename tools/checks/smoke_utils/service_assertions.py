@@ -1070,3 +1070,56 @@ def assert_service_reconcile_json_result(
         expected_limit=expected_limit,
     )
 
+def assert_default_service_status_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_db: str,
+    expected_db_source: str = "default",
+    expected_limit: int = 5,
+) -> None:
+    if result is None:
+        return
+    runtime_profile = result.get("runtime_profile") or {}
+    model_provider = result.get("model_provider") or {}
+    sidecar = result.get("sidecar") or {}
+    offline_gate = result.get("offline_gate") or {}
+    actual_db = str(result.get("db") or "").replace("\\", "/")
+    if actual_db != expected_db.replace("\\", "/"):
+        errors.append(f"{name} missing db={expected_db}")
+    elif result.get("db_source") != expected_db_source:
+        errors.append(f"{name} missing db_source={expected_db_source}")
+    elif result.get("limit") != expected_limit:
+        errors.append(f"{name} missing limit={expected_limit}")
+    elif result.get("current_session") is not None:
+        errors.append(f"{name} unexpected current_session")
+    elif result.get("current_db") is not False:
+        errors.append(f"{name} missing current_db=false")
+    elif not isinstance(runtime_profile, dict) or runtime_profile.get("mode") != "local_mvp":
+        errors.append(f"{name} missing runtime_profile.mode=local_mvp")
+    elif runtime_profile.get("offline_ready") is not True:
+        errors.append(f"{name} missing runtime_profile.offline_ready=true")
+    elif not isinstance(model_provider, dict) or model_provider.get("status") != "not-configured":
+        errors.append(f"{name} missing model_provider.status=not-configured")
+    elif model_provider.get("degradation_mode") != "local_only_ok":
+        errors.append(f"{name} missing model_provider.degradation_mode=local_only_ok")
+    elif not isinstance(sidecar, dict) or sidecar.get("status") != "not-configured":
+        errors.append(f"{name} missing sidecar.status=not-configured")
+    elif not isinstance(offline_gate, dict) or offline_gate.get("status") != "blocked":
+        errors.append(f"{name} missing offline_gate.status=blocked")
+    elif offline_gate.get("reason") != "ERR_AI_PROVIDER_UNAVAILABLE":
+        errors.append(f"{name} missing offline_gate.reason=ERR_AI_PROVIDER_UNAVAILABLE")
+    elif offline_gate.get("summary") != "ai_actions_require_provider":
+        errors.append(f"{name} missing offline_gate.summary=ai_actions_require_provider")
+    elif offline_gate.get("requested_action") != "ai-reason":
+        errors.append(f"{name} missing offline_gate.requested_action=ai-reason")
+    elif offline_gate.get("requires_model") is not True:
+        errors.append(f"{name} missing offline_gate.requires_model=true")
+    elif offline_gate.get("requires_sidecar") is not True:
+        errors.append(f"{name} missing offline_gate.requires_sidecar=true")
+    elif offline_gate.get("error_code") != "ERR_AI_PROVIDER_UNAVAILABLE":
+        errors.append(f"{name} missing offline_gate.error_code=ERR_AI_PROVIDER_UNAVAILABLE")
+    elif offline_gate.get("next_command") != "safeclaw.cmd preflight --action ai-reason":
+        errors.append(f"{name} missing offline_gate.next_command")
+
