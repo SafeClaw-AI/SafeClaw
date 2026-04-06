@@ -376,3 +376,127 @@ def assert_workspace_json_result(
         errors.append(f"{name} missing changed={expected_changed}")
 
 
+def assert_command_failure_output(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    *,
+    expected_substring: str,
+    missing_output_label: str,
+    expected_exit: int | None = None,
+) -> None:
+    completed = run_wrapper_command(command)
+
+    output = (completed.stdout or "") + (completed.stderr or "")
+
+    if expected_exit is None:
+        if completed.returncode == 0:
+            errors.append(f"{name} missing non-zero exit")
+
+            return
+
+    elif completed.returncode != expected_exit:
+        errors.append(f"{name} failed: exit={completed.returncode}")
+
+        return
+
+    if expected_substring not in output:
+        errors.append(missing_output_label)
+
+def assert_command_json_error(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    action: str,
+    *,
+    expected_exit: int = 2,
+    reject_legacy_session: bool = False,
+    legacy_session_label: str | None = None,
+    **error_expectations: object,
+) -> dict[str, object] | None:
+    payload = load_json_payload(
+        run_wrapper_command(command), errors, name, expected_exit
+    )
+
+    if payload is None:
+        return None
+
+    error, details = extract_json_error(payload, errors, name, action)
+
+    assert_json_error_fields(error, details, errors, name, **error_expectations)
+
+    if (
+        reject_legacy_session
+        and details is not None
+        and details.get("session") is not None
+    ):
+        errors.append(legacy_session_label or f"{name} should not keep legacy session")
+
+    return details
+def assert_command_json_result(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    action: str,
+    *,
+    expected_exit: int = 0,
+    env: dict[str, str] | None = None,
+) -> dict[str, object] | None:
+    payload = load_json_payload(
+        run_wrapper_command(command, env=env), errors, name, expected_exit
+    )
+
+    if payload is None:
+        return None
+
+    return extract_json_result(payload, errors, name, action)
+def assert_workspace_seed_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    expected_action: str,
+    expected_task_id: str,
+) -> None:
+    if result is None:
+        return
+
+    prepared = result.get("prepared") or []
+    session = result.get("saved_session") or {}
+    source_hints = result.get("source_hints") or {}
+
+    if not prepared or prepared[0] != expected_action:
+        errors.append(f"{name} missing prepared {expected_action}")
+    elif session.get("task_id") != expected_task_id:
+        errors.append(f"{name} missing saved session task")
+    elif source_hints.get("db") != "workspace":
+        errors.append(f"{name} missing workspace db source")
+
+def assert_preflight_ai_reason_blocked_json_error(
+    command: list[str],
+    errors: list[str],
+    name: str,
+    action: str,
+) -> None:
+    assert_command_json_error(
+        command,
+        errors,
+        name,
+        action,
+        expected_exit=1,
+        expected_error_message_substring="failed step=preflight",
+        expected_top_level_error_code="preflight-blocked",
+        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_top_level_error_degradation_mode="provider_unavailable",
+        expected_top_level_error_requires_model=True,
+        expected_top_level_error_requires_sidecar=True,
+        expected_top_level_error_requested_action="ai-reason",
+        expected_failed_step="preflight",
+        expected_code="preflight-blocked",
+        expected_preflight_requested_action="ai-reason",
+        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
+        expected_preflight_summary_substring="action=ai-reason",
+        expect_top_level_error_summary_matches_preflight=True,
+    )
