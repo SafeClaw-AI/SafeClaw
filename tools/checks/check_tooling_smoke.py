@@ -5155,43 +5155,7 @@ def append_wrapper_preflight_ai_reason_text_errors(errors: list[str]) -> None:
         )
 
 
-def collect_errors() -> list[str]:
-    errors: list[str] = []
-    reset_smoke_progress()
-    append_smoke_setup_errors(errors)
-    append_wrapper_help_errors(errors)
-
-    append_entrypoint_help_errors(errors)
-
-    append_root_default_entry_errors(errors)
-
-    append_root_workspace_entry_errors(errors)
-    append_root_service_run_errors(errors)
-    append_root_service_retry_errors(errors)
-    append_root_service_recover_errors(errors)
-    append_root_service_resume_errors(errors)
-    append_root_service_reconcile_errors(errors)
-    append_root_verify_errors(errors)
-    append_root_workspace_clear_errors(errors)
-    append_root_ps1_seed_crash_failed_errors(errors)
-    append_root_ps1_seed_hibernated_errors(errors)
-    append_root_ps1_resume_errors(errors)
-    append_root_cmd_seed_hibernated_errors(errors)
-    append_root_cmd_resume_errors(errors)
-    append_root_forget_errors(errors)
-    append_root_cmd_preflight_local_action_errors(errors)
-    append_root_cmd_preflight_ai_reason_errors(errors)
-    append_root_ps1_preflight_ai_reason_errors(errors)
-    append_root_ps1_preflight_local_action_errors(errors)
-    append_wrapper_doctor_shell_json_errors(errors)
-    append_wrapper_doctor_text_errors(errors)
-    append_wrapper_doctor_json_errors(errors)
-    append_wrapper_preflight_text_errors(errors)
-    append_wrapper_preflight_allow_json_errors(errors)
-    append_wrapper_preflight_unknown_text_errors(errors)
-    append_wrapper_preflight_unknown_json_errors(errors)
-    append_wrapper_preflight_ai_reason_text_errors(errors)
-
+def append_wrapper_preflight_ai_reason_json_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
             [
@@ -5255,6 +5219,45 @@ def collect_errors() -> list[str]:
         expected_requires_sidecar=True,
         expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
     )
+
+
+def collect_errors() -> list[str]:
+    errors: list[str] = []
+    reset_smoke_progress()
+    append_smoke_setup_errors(errors)
+    append_wrapper_help_errors(errors)
+
+    append_entrypoint_help_errors(errors)
+
+    append_root_default_entry_errors(errors)
+
+    append_root_workspace_entry_errors(errors)
+    append_root_service_run_errors(errors)
+    append_root_service_retry_errors(errors)
+    append_root_service_recover_errors(errors)
+    append_root_service_resume_errors(errors)
+    append_root_service_reconcile_errors(errors)
+    append_root_verify_errors(errors)
+    append_root_workspace_clear_errors(errors)
+    append_root_ps1_seed_crash_failed_errors(errors)
+    append_root_ps1_seed_hibernated_errors(errors)
+    append_root_ps1_resume_errors(errors)
+    append_root_cmd_seed_hibernated_errors(errors)
+    append_root_cmd_resume_errors(errors)
+    append_root_forget_errors(errors)
+    append_root_cmd_preflight_local_action_errors(errors)
+    append_root_cmd_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_ai_reason_errors(errors)
+    append_root_ps1_preflight_local_action_errors(errors)
+    append_wrapper_doctor_shell_json_errors(errors)
+    append_wrapper_doctor_text_errors(errors)
+    append_wrapper_doctor_json_errors(errors)
+    append_wrapper_preflight_text_errors(errors)
+    append_wrapper_preflight_allow_json_errors(errors)
+    append_wrapper_preflight_unknown_text_errors(errors)
+    append_wrapper_preflight_unknown_json_errors(errors)
+    append_wrapper_preflight_ai_reason_text_errors(errors)
+    append_wrapper_preflight_ai_reason_json_errors(errors)
 
     wrapper_preflight_status = subprocess.run(
         [
