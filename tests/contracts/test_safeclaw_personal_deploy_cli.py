@@ -18,8 +18,10 @@ ARCHIVE_FILE = TEST_PERSONAL_ROOT / "archive" / "2026-04" / "2026-04-02-deployed
 
 class SafeclawPersonalDeployCliTest(unittest.TestCase):
     def setUp(self) -> None:
-        shutil.rmtree(TEST_DEPLOY_ROOT, ignore_errors=True)
-        shutil.rmtree(TEST_PERSONAL_ROOT, ignore_errors=True)
+        if TEST_DEPLOY_ROOT.exists():
+            shutil.rmtree(TEST_DEPLOY_ROOT)
+        if TEST_PERSONAL_ROOT.exists():
+            shutil.rmtree(TEST_PERSONAL_ROOT)
 
     def run_deployer(self, *args: str, release_id: str | None = None) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()

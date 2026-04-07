@@ -147,8 +147,10 @@ def run_smoke_subprocess(
                         f"tooling smoke parent exited while running {format_smoke_command(command)}"
                     )
                 continue
-    except BaseException:
+    except BaseException as error:
         _terminate_smoke_process(process)
+        if isinstance(error, KeyboardInterrupt):
+            raise
         raise
 
     completed = _ORIGINAL_SUBPROCESS_MODULE.CompletedProcess(

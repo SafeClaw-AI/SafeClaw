@@ -11,6 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from tools.checks.reference_bypass_governance import collect_bypass_whitelist_errors
+from tools.checks.reference_governance import collect_structural_governance_errors
+
 TODO_METADATA_REQUIREMENTS = ("owner", "due", "req")
 TODO_METADATA_PATTERNS = {
     "owner": re.compile(r"(?:\bowner\s*=\s*[A-Za-z0-9_.-]+)|(?:责任人\s*[:=]\s*[^,，\s]+)", re.IGNORECASE),
@@ -2471,6 +2474,8 @@ def collect_silent_fallback_exception_errors() -> list[str]:
 
 def collect_errors() -> list[str]:
     errors: list[str] = []
+    errors.extend(collect_structural_governance_errors())
+    errors.extend(collect_bypass_whitelist_errors())
     errors.extend(collect_todo_metadata_errors())
     errors.extend(collect_empty_exception_errors())
     errors.extend(collect_uncontextualized_exception_errors())

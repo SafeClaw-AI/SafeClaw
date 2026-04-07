@@ -60,6 +60,8 @@ LEGACY_REQUIRED_STATES = {"legacy-only", "dual-readable"}
 DIRECTORY_LOCK_FILE = REPO_ROOT / "docs" / "30-方案" / "02-V4-目录锁定清单.md"
 REFERENCE_REQUIRED_FILES = [
     REPO_ROOT / "docs" / "reference" / "01-反屎山工程规范.md",
+    REPO_ROOT / "docs" / "reference" / "02-结构性债务台账.md",
+    REPO_ROOT / "docs" / "reference" / "03-绕过白名单.md",
 ]
 ROOT_TEXT_POLICY_FILES = [
     REPO_ROOT / ".gitattributes",

@@ -108,6 +108,7 @@ SafeClaw 采用双层文档结构：
   - [扩展接口](specs/spi/base_fields.json) - 插件标准接口
 - **[tests/contracts/](tests/contracts/)** - 合同测试
 - **[tools/](tools/)** - 工具链与检查脚本
+- **[tools/checks/](tools/checks/)** - 协议层门禁与总验收入口
 
 内部设计文档不在公开仓库中。如需了解核心设计理念，请参考公开的协议层规范。
 

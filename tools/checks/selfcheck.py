@@ -21,8 +21,6 @@ LEDGER_POLICY_CHECKS: list[tuple[str, str]] = [
 CONTRACT_TESTS_CHECK_NAME = "Contract tests"
 CONTRACT_TESTS_COMMAND = [
     PYTHON,
-    "-W",
-    "ignore::DeprecationWarning",
     "-u",
     "-m",
     "unittest",
@@ -69,7 +67,7 @@ ASYNC_TAIL_CHECKS: list[tuple[str, list[str]]] = [
 ]
 CHECKS: list[tuple[str, list[str]]] = [*SEQUENTIAL_CHECKS, *ASYNC_TAIL_CHECKS]
 SUBPROCESS_ENV_OVERRIDES: dict[str, str] = {
-    "PYTHONWARNINGS": "ignore::DeprecationWarning",
+    "PYTHONWARNINGS": "default",
 }
 
 

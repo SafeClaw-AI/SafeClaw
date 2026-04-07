@@ -30,7 +30,7 @@ def append_smoke_setup_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("mvp-wrapper-workspace-clear-before-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append(
@@ -44,7 +44,7 @@ def append_smoke_setup_errors(errors: list[str]) -> None:
     )
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append("mvp-wrapper-forget-before-json missing session path")
         elif forget_state not in {(True, "removed"), (False, "none")}:
             errors.append("mvp-wrapper-forget-before-json unexpected forget state")

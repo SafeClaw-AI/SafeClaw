@@ -506,8 +506,10 @@ def run_smoke_subprocess(
                         f"tooling smoke parent exited while running {format_smoke_command(command)}"
                     )
                 continue
-    except BaseException:
+    except BaseException as error:
         _terminate_smoke_process(process)
+        if isinstance(error, KeyboardInterrupt):
+            raise
         raise
     completed = _ORIGINAL_SUBPROCESS_MODULE.CompletedProcess(
         args=command,
@@ -725,12 +727,12 @@ def assert_doctor_json_result(
     elif result.get("linker", {}).get("ok") is not True:
         errors.append(f"{name} missing linker ok")
 
-    elif result.get("session_path") != "target\mvp\last_session.json":
+    elif result.get("session_path") != r"target\mvp\last_session.json":
         errors.append(f"{name} missing session_path")
 
     elif (
         not isinstance(workspace_info, dict)
-        or workspace_info.get("path") != "target\mvp\workspace.json"
+        or workspace_info.get("path") != r"target\mvp\workspace.json"
     ):
         errors.append(f"{name} missing workspace_path")
 
@@ -1021,7 +1023,7 @@ def assert_workspace_json_result(
     elif normalized_output != expected_output:
         errors.append(f"{name} missing output={expected_output_path}")
 
-    elif result.get("path") != "target\mvp\workspace.json":
+    elif result.get("path") != r"target\mvp\workspace.json":
         errors.append(f"{name} missing workspace path")
 
     elif expected_changed is not None and result.get("changed") is not expected_changed:
@@ -2446,11 +2448,11 @@ def assert_session_json_result(
     elif result.get("effect_id") != expected_effect_id:
         errors.append(f"{name} missing effect_id={expected_effect_id}")
 
-    elif result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
 
-    elif result.get("output") != "target\mvp\output.txt":
-        errors.append(f"{name} missing output=target\mvp\output.txt")
+    elif result.get("output") != r"target\mvp\output.txt":
+        errors.append(fr"{name} missing output=target\mvp\output.txt")
 
     elif result.get("owner_id") != "safeclaw-mvp":
         errors.append(f"{name} missing owner_id=safeclaw-mvp")
@@ -2471,8 +2473,8 @@ def assert_sessions_json_result(
 
     current_session = result.get("current_session") or {}
 
-    if result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
+    if result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
 
     elif result.get("db_source") != "session":
         errors.append(f"{name} missing db_source=session")
@@ -3579,7 +3581,7 @@ def append_smoke_setup_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("mvp-wrapper-workspace-clear-before-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append(
@@ -3593,7 +3595,7 @@ def append_smoke_setup_errors(errors: list[str]) -> None:
     )
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append("mvp-wrapper-forget-before-json missing session path")
         elif forget_state not in {(True, "removed"), (False, "none")}:
             errors.append("mvp-wrapper-forget-before-json unexpected forget state")
@@ -3776,8 +3778,8 @@ def append_root_default_runtime_errors(errors: list[str]) -> None:
         result,
         errors,
         "safeclaw-root-cmd-doctor-default-json",
-        expected_db_path="target\mvp\session.db",
-        expected_output_path="target\mvp\output.txt",
+        expected_db_path=r"target\mvp\session.db",
+        expected_output_path=r"target\mvp\output.txt",
         expected_db_source="default",
         expected_output_source="default",
         expected_workspace_active=False,
@@ -3826,8 +3828,8 @@ def append_root_default_runtime_errors(errors: list[str]) -> None:
         result,
         errors,
         "safeclaw-root-ps1-doctor-json",
-        expected_db_path="target\mvp\session.db",
-        expected_output_path="target\mvp\output.txt",
+        expected_db_path=r"target\mvp\session.db",
+        expected_output_path=r"target\mvp\output.txt",
         expected_db_source="default",
         expected_output_source="default",
         expected_workspace_active=False,
@@ -3882,8 +3884,8 @@ def append_root_workspace_entry_errors(errors: list[str]) -> None:
         result,
         errors,
         "safeclaw-root-cmd-doctor-json",
-        expected_db_path="target\mvp\workspaces\readme-root\session.db",
-        expected_output_path="target\mvp\workspaces\readme-root\output.txt",
+        expected_db_path=r"target\mvp\workspaces\readme-root\session.db",
+        expected_output_path=r"target\mvp\workspaces\readme-root\output.txt",
         expected_db_source="workspace",
         expected_output_source="workspace",
         expected_workspace_active=True,
@@ -4230,7 +4232,7 @@ def append_root_workspace_clear_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("safeclaw-root-cmd-workspace-clear-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append(
@@ -4254,7 +4256,7 @@ def append_root_workspace_clear_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("safeclaw-root-ps1-workspace-clear-json missing workspace path")
         elif clear_state != (False, "none"):
             errors.append(
@@ -4591,7 +4593,7 @@ def append_root_forget_errors(errors: list[str]) -> None:
     )
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append("safeclaw-root-cmd-forget-json missing session path")
         elif forget_state not in {(True, "removed"), (False, "none")}:
             errors.append("safeclaw-root-cmd-forget-json unexpected forget state")
@@ -4612,7 +4614,7 @@ def append_root_forget_errors(errors: list[str]) -> None:
     )
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append("safeclaw-root-ps1-forget-json missing session path")
         elif forget_state != (False, "none"):
             errors.append("safeclaw-root-ps1-forget-json unexpected forget state")
@@ -5638,8 +5640,8 @@ def append_wrapper_doctor_no_cargo_path_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-doctor-no-cargo-path-json",
-        expected_db_path="target\mvp\doctor-no-path.db",
-        expected_output_path="target\mvp\doctor-no-path.txt",
+        expected_db_path=r"target\mvp\doctor-no-path.db",
+        expected_output_path=r"target\mvp\doctor-no-path.txt",
     )
 
 
@@ -5657,8 +5659,8 @@ def append_wrapper_workspace_default_json_errors(errors: list[str]) -> None:
         "mvp-wrapper-workspace-default-json",
         expected_active=False,
         expected_name=None,
-        expected_db_path="target\mvp\session.db",
-        expected_output_path="target\mvp\output.txt",
+        expected_db_path=r"target\mvp\session.db",
+        expected_output_path=r"target\mvp\output.txt",
     )
 
 
@@ -5676,8 +5678,8 @@ def append_wrapper_workspace_activate_json_errors(errors: list[str]) -> None:
         "mvp-wrapper-workspace-activate-json",
         expected_active=True,
         expected_name="demo",
-        expected_db_path="target\mvp\workspaces\demo\session.db",
-        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_path=r"target\mvp\workspaces\demo\session.db",
+        expected_output_path=r"target\mvp\workspaces\demo\output.txt",
         expected_changed=True,
     )
 
@@ -5687,7 +5689,7 @@ def append_wrapper_cmd_workspace_activate_json_errors(errors: list[str]) -> None
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "workspace",
             "--name",
             "demo",
@@ -5704,8 +5706,8 @@ def append_wrapper_cmd_workspace_activate_json_errors(errors: list[str]) -> None
         "mvp-wrapper-cmd-workspace-activate-json",
         expected_active=True,
         expected_name="demo",
-        expected_db_path="target\mvp\workspaces\demo\session.db",
-        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_path=r"target\mvp\workspaces\demo\session.db",
+        expected_output_path=r"target\mvp\workspaces\demo\output.txt",
         expected_changed=True,
     )
 
@@ -5722,8 +5724,8 @@ def append_wrapper_workspace_doctor_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-workspace-doctor-json",
-        expected_db_path="target\mvp\workspaces\demo\session.db",
-        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_path=r"target\mvp\workspaces\demo\session.db",
+        expected_output_path=r"target\mvp\workspaces\demo\output.txt",
         expected_db_source="workspace",
         expected_output_source="workspace",
         expected_workspace_active=True,
@@ -5752,8 +5754,8 @@ def append_wrapper_workspace_run_json_errors(errors: list[str]) -> None:
         errors,
         "mvp-wrapper-workspace-run-json",
         expected_task_id="task-wrapper-workspace",
-        expected_db_path="target\mvp\workspaces\demo\session.db",
-        expected_output_path="target\mvp\workspaces\demo\output.txt",
+        expected_db_path=r"target\mvp\workspaces\demo\session.db",
+        expected_output_path=r"target\mvp\workspaces\demo\output.txt",
         expected_db_source="workspace",
         expected_output_source="workspace",
     )
@@ -5768,7 +5770,7 @@ def append_wrapper_workspace_clear_after_json_errors(errors: list[str]) -> None:
     )
 
     if result is not None:
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("mvp-wrapper-workspace-clear-after-json missing workspace path")
 
         elif (result.get("cleared"), result.get("reason")) != (True, "removed"):
@@ -5777,14 +5779,14 @@ def append_wrapper_workspace_clear_after_json_errors(errors: list[str]) -> None:
 
 def append_wrapper_cmd_workspace_clear_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "workspace", "--clear", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "workspace", "--clear", "--json"],
         errors,
         "mvp-wrapper-cmd-workspace-clear-json",
         "workspace",
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("mvp-wrapper-cmd-workspace-clear-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append("mvp-wrapper-cmd-workspace-clear-json unexpected clear state")
@@ -5799,7 +5801,7 @@ def append_wrapper_forget_after_workspace_json_errors(errors: list[str]) -> None
     )
 
     if result is not None:
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append(
                 "mvp-wrapper-forget-after-workspace-json missing session path"
             )
@@ -5966,7 +5968,7 @@ def append_wrapper_service_status_text_errors(errors: list[str]) -> None:
 
 def append_wrapper_cmd_service_status_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-status", "--json"],
         errors,
         "mvp-wrapper-cmd-service-status-json",
         "service-status",
@@ -5976,7 +5978,7 @@ def append_wrapper_cmd_service_status_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-cmd-service-status-json",
-        expected_db="target\mvp\service-status.db",
+        expected_db=r"target\mvp\service-status.db",
         expected_db_source="session",
         expected_task_id="task-wrapper-service-status",
         expected_target_scope="scope:target/mvp/service-status.txt",
@@ -6359,7 +6361,7 @@ def append_wrapper_cmd_service_resume_json_errors(errors: list[str]) -> None:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-resume",
             "--db",
             "target/mvp/service-resume-json.db",
@@ -6756,7 +6758,7 @@ def append_wrapper_ps1_service_resume_json_errors(errors: list[str]) -> None:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-resume",
             "--db",
             "target/mvp/service-resume-json.db",
@@ -6775,7 +6777,7 @@ def append_wrapper_ps1_service_resume_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-ps1-service-resume-json",
-        expected_db="target\mvp\service-resume-json.db",
+        expected_db=r"target\mvp\service-resume-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-resume-json",
         expected_limit=1,
@@ -6821,7 +6823,7 @@ def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> N
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-resume",
             "--db",
             "target/mvp/service-resume-report-json.db",
@@ -6841,7 +6843,7 @@ def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> N
         result,
         errors,
         "mvp-wrapper-ps1-service-resume-report-json",
-        expected_db="target\mvp\service-resume-report-json.db",
+        expected_db=r"target\mvp\service-resume-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-resume-report-json",
         expected_limit=1,
@@ -6855,7 +6857,7 @@ def append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors: list[st
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-resume",
             "--db",
             "target/mvp/service-resume-not-hibernated-json.db",
@@ -8060,7 +8062,7 @@ def append_wrapper_service_run_json_errors(errors: list[str]) -> None:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-run",
             "--reset",
             "--task-id",
@@ -8082,7 +8084,7 @@ def append_wrapper_service_run_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-cmd-service-run-json",
-        expected_db="target\mvp\service-run-json.db",
+        expected_db=r"target\mvp\service-run-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-run-json",
         expected_limit=1,
@@ -8263,7 +8265,7 @@ def append_wrapper_service_run_preflight_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-service-run-preflight-json",
-        expected_db="target\mvp\service-run-preflight-json.db",
+        expected_db=r"target\mvp\service-run-preflight-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-run-preflight-json",
         expected_limit=1,
@@ -8496,7 +8498,7 @@ def append_wrapper_cmd_service_run_invalid_limit_json_errors(errors: list[str]) 
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-run",
             "--limit",
             "bad",
@@ -8517,7 +8519,7 @@ def append_wrapper_ps1_service_run_invalid_limit_json_errors(errors: list[str]) 
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-run",
             "--limit",
             "bad",
@@ -8576,7 +8578,7 @@ def append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors: list[st
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-recover",
             "--limit",
             "bad",
@@ -8919,7 +8921,7 @@ def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-retry",
             "--db",
             "target/mvp/service-retry-json.db",
@@ -8938,7 +8940,7 @@ def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-cmd-service-retry-json",
-        expected_db="target\mvp\service-retry-json.db",
+        expected_db=r"target\mvp\service-retry-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-retry-json",
         expected_limit=1,
@@ -8984,7 +8986,7 @@ def append_wrapper_ps1_service_retry_json_errors(errors: list[str]) -> None:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-retry",
             "--db",
             "target/mvp/service-retry-json.db",
@@ -9003,7 +9005,7 @@ def append_wrapper_ps1_service_retry_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-ps1-service-retry-json",
-        expected_db="target\mvp\service-retry-json.db",
+        expected_db=r"target\mvp\service-retry-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-retry-json",
         expected_limit=1,
@@ -9327,7 +9329,7 @@ def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-cmd-service-recover-json",
-        expected_db="target\mvp\service-recover-json.db",
+        expected_db=r"target\mvp\service-recover-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-recover-json",
         expected_limit=1,
@@ -9373,7 +9375,7 @@ def append_wrapper_ps1_service_recover_json_errors(errors: list[str]) -> None:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-recover",
             "--db",
             "target/mvp/service-recover-json.db",
@@ -9392,7 +9394,7 @@ def append_wrapper_ps1_service_recover_json_errors(errors: list[str]) -> None:
         result,
         errors,
         "mvp-wrapper-ps1-service-recover-json",
-        expected_db="target\mvp\service-recover-json.db",
+        expected_db=r"target\mvp\service-recover-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-recover-json",
         expected_limit=1,
@@ -9592,7 +9594,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-service-demo ???? confirmation governance")
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
         errors,
         "mvp-wrapper-cmd-service-demo-json",
         "service-demo",
@@ -9658,7 +9660,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "run",
             "--reset",
             "--task-id",
@@ -9691,7 +9693,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "run",
             "--reset",
             "--task-id",
@@ -9836,7 +9838,7 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-status-json 缺少 task_context=session")
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "status", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-status-fail-json",
         "status",
@@ -9853,7 +9855,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--bogus",
             "--json",
@@ -9869,7 +9871,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--db", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "status", "--db", "--json"],
         errors,
         "mvp-wrapper-cmd-status-missing-db-json",
         "status",
@@ -9886,7 +9888,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--db",
             "--json",
@@ -10036,7 +10038,7 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-sessions-json 输出缺少旧任务 task-wrapper-a")
 
     wrapper_cmd_session = subprocess.run(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -10057,7 +10059,7 @@ def collect_errors() -> list[str]:
     ):
         errors.append("mvp-wrapper-cmd-session missing current session task-wrapper-b")
 
-    elif "path=target\mvp\last_session.json" not in wrapper_cmd_session_output:
+    elif r"path=target\mvp\last_session.json" not in wrapper_cmd_session_output:
         errors.append("mvp-wrapper-cmd-session missing remembered session path")
 
     result = assert_command_json_result(
@@ -10066,7 +10068,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--json",
         ],
@@ -10083,7 +10085,7 @@ def collect_errors() -> list[str]:
     )
 
     wrapper_cmd_sessions = subprocess.run(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "sessions"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -10099,7 +10101,7 @@ def collect_errors() -> list[str]:
         )
 
     elif (
-        "[mvp-wrapper] sessions => db=target\mvp\session.db limit=5 source=session"
+        r"[mvp-wrapper] sessions => db=target\mvp\session.db limit=5 source=session"
         not in wrapper_cmd_sessions_output
     ):
         errors.append("mvp-wrapper-cmd-sessions missing db source=session")
@@ -10128,7 +10130,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "sessions",
             "--json",
         ],
@@ -10146,7 +10148,7 @@ def collect_errors() -> list[str]:
     )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "use", "--index", "1", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "use", "--index", "1", "--json"],
         errors,
         "mvp-wrapper-cmd-use-json",
         "use",
@@ -10166,7 +10168,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--json",
         ],
@@ -10189,7 +10191,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "use",
             "--index",
             "0",
@@ -10209,7 +10211,7 @@ def collect_errors() -> list[str]:
     )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "status", "--json"],
         errors,
         "mvp-wrapper-cmd-status-json",
         "status",
@@ -10224,7 +10226,7 @@ def collect_errors() -> list[str]:
     )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
         errors,
         "mvp-wrapper-cmd-report-json",
         "report",
@@ -10239,7 +10241,7 @@ def collect_errors() -> list[str]:
     )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
         errors,
         "mvp-wrapper-cmd-session-json",
         "session",
@@ -10253,7 +10255,7 @@ def collect_errors() -> list[str]:
     )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "sessions", "--json"],
         errors,
         "mvp-wrapper-cmd-sessions-json",
         "sessions",
@@ -10273,7 +10275,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--json",
         ],
@@ -10326,7 +10328,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry",
             "--db",
             "target/mvp/retry-json.db",
@@ -10418,7 +10420,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover",
             "--db",
             "target/mvp/recover-json.db",
@@ -10480,7 +10482,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--db",
             "target/mvp/recover-json.db",
@@ -10546,7 +10548,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/recover-json.db",
@@ -10642,7 +10644,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--db",
             "target/mvp/status-explicit-crash.db",
@@ -10753,7 +10755,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/report-explicit-crash.db",
@@ -10864,7 +10866,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/session-explicit-crash.db",
@@ -10946,7 +10948,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--json",
         ],
@@ -11017,7 +11019,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/sessions-explicit-crash.db",
@@ -11099,7 +11101,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "sessions",
             "--json",
         ],
@@ -11232,7 +11234,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/status-session-crash.db",
@@ -11313,7 +11315,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--json",
         ],
@@ -11420,7 +11422,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/report-session-crash.db",
@@ -11501,7 +11503,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--json",
         ],
@@ -11608,7 +11610,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/recover-session-crash.db",
@@ -11689,7 +11691,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover",
             "--json",
         ],
@@ -11806,7 +11808,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/cmd-recover-session-crash.db",
@@ -11883,7 +11885,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "recover", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "recover", "--json"],
         errors,
         "mvp-wrapper-cmd-recover-session-crash-json",
         "recover",
@@ -11998,7 +12000,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/retry-session.db",
@@ -12079,7 +12081,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry",
             "--json",
         ],
@@ -12183,7 +12185,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/cmd-retry-session.db",
@@ -12259,7 +12261,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "retry", "--json"],
         errors,
         "mvp-wrapper-cmd-retry-session-json",
         "retry",
@@ -12360,7 +12362,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/status-failed-session.db",
@@ -12441,7 +12443,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--json",
         ],
@@ -12513,7 +12515,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "status", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "status", "--json"],
         errors,
         "mvp-wrapper-cmd-status-failed-session-json",
         "status",
@@ -12617,7 +12619,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/report-failed-session.db",
@@ -12698,7 +12700,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--json",
         ],
@@ -12770,7 +12772,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
         errors,
         "mvp-wrapper-cmd-report-failed-session-json",
         "report",
@@ -12874,7 +12876,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/session-failed.db",
@@ -12955,7 +12957,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--json",
         ],
@@ -12991,7 +12993,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session", "--json"],
         errors,
         "mvp-wrapper-cmd-session-failed-json",
         "session",
@@ -13059,7 +13061,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/sessions-failed.db",
@@ -13140,7 +13142,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "sessions",
             "--json",
         ],
@@ -13231,7 +13233,7 @@ def collect_errors() -> list[str]:
             )
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "sessions", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "sessions", "--json"],
         errors,
         "mvp-wrapper-cmd-sessions-failed-json",
         "sessions",
@@ -13354,7 +13356,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "status",
             "--db",
             "target/mvp/status-explicit-failed.db",
@@ -13466,7 +13468,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--db",
             "target/mvp/report-explicit-failed.db",
@@ -13576,7 +13578,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "status",
             "--db",
             "target/mvp/cmd-status-explicit-failed.db",
@@ -13686,7 +13688,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "report",
             "--db",
             "target/mvp/cmd-report-explicit-failed.db",
@@ -13932,7 +13934,7 @@ def collect_errors() -> list[str]:
                 errors.append("mvp-wrapper-report-json 缺少 task_context=session")
 
     wrapper_cmd_forget = subprocess.run(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "forget"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "forget"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -13948,20 +13950,20 @@ def collect_errors() -> list[str]:
         )
 
     elif (
-        "[mvp-wrapper] forgot => reason=removed path=target\mvp\last_session.json"
+        r"[mvp-wrapper] forgot => reason=removed path=target\mvp\last_session.json"
         not in wrapper_cmd_forget_output
     ):
         errors.append("mvp-wrapper-cmd-forget missing removed path")
 
     result = assert_command_json_result(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "forget", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "forget", "--json"],
         errors,
         "mvp-wrapper-cmd-forget-json",
         "forget",
     )
     if result is not None:
         forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != "target\mvp\last_session.json":
+        if result.get("path") != r"target\mvp\last_session.json":
             errors.append("mvp-wrapper-cmd-forget-json missing session path")
         elif forget_state not in {(True, "removed"), (False, "none")}:
             errors.append("mvp-wrapper-cmd-forget-json unexpected forget state")
@@ -13971,7 +13973,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--json",
         ],
@@ -14082,7 +14084,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-session-after-forget 输出缺少 none/path")
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "report", "--json"],
         errors,
         "mvp-wrapper-cmd-report-without-session-json",
         "report",
@@ -14098,7 +14100,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "report",
             "--json",
         ],
@@ -14123,7 +14125,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "recover", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "recover", "--json"],
         errors,
         "mvp-wrapper-cmd-recover-without-session-json",
         "recover",
@@ -14139,7 +14141,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover",
             "--json",
         ],
@@ -14164,7 +14166,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "retry", "--json"],
         errors,
         "mvp-wrapper-cmd-retry-without-session-json",
         "retry",
@@ -14180,7 +14182,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry",
             "--json",
         ],
@@ -14239,7 +14241,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "resume",
             "--db",
             "target/mvp/resume-missing-cmd.db",
@@ -14260,7 +14262,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "resume",
             "--db",
             "target/mvp/resume-missing-ps1.db",
@@ -14279,7 +14281,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "reconcile",
             "--db",
             "target/mvp/reconcile-missing-cmd.db",
@@ -14302,7 +14304,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "reconcile",
             "--db",
             "target/mvp/reconcile-missing-ps1.db",
@@ -14393,7 +14395,7 @@ def collect_errors() -> list[str]:
         )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "report", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "report", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-report-invalid-json",
         "report",
@@ -14438,7 +14440,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "recover", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "recover", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-recover-invalid-json",
         "recover",
@@ -14455,7 +14457,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover",
             "--bogus",
             "--json",
@@ -14483,7 +14485,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "retry", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-retry-invalid-json",
         "retry",
@@ -14500,7 +14502,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry",
             "--bogus",
             "--json",
@@ -14528,7 +14530,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-invalid-session-json",
         "session",
@@ -14541,7 +14543,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--bogus",
             "--json",
@@ -14553,7 +14555,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "doctor", "--db", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "doctor", "--db", "--json"],
         errors,
         "mvp-wrapper-cmd-invalid-doctor-json",
         "doctor",
@@ -14566,7 +14568,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "doctor",
             "--db",
             "--json",
@@ -14581,7 +14583,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "sessions",
             "--limit",
             "bad",
@@ -14599,7 +14601,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "sessions",
             "--limit",
             "bad",
@@ -14681,7 +14683,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-run",
             "--reset",
             "--task-id",
@@ -14704,7 +14706,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-cmd-service-run-report-json",
-        expected_db="target\mvp\service-run-report-json.db",
+        expected_db=r"target\mvp\service-run-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-run-report-json",
         expected_limit=1,
@@ -14718,7 +14720,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-run",
             "--reset",
             "--task-id",
@@ -14741,7 +14743,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-ps1-service-run-report-json",
-        expected_db="target\mvp\service-run-report-json.db",
+        expected_db=r"target\mvp\service-run-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-run-report-json",
         expected_limit=1,
@@ -14783,7 +14785,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-retry",
             "--db",
             "target/mvp/service-retry-report-json.db",
@@ -14803,7 +14805,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-cmd-service-retry-report-json",
-        expected_db="target\mvp\service-retry-report-json.db",
+        expected_db=r"target\mvp\service-retry-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-retry-report-json",
         expected_limit=1,
@@ -14847,7 +14849,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-retry",
             "--db",
             "target/mvp/service-retry-report-json.db",
@@ -14867,7 +14869,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-ps1-service-retry-report-json",
-        expected_db="target\mvp\service-retry-report-json.db",
+        expected_db=r"target\mvp\service-retry-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-retry-report-json",
         expected_limit=1,
@@ -14909,7 +14911,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-recover",
             "--db",
             "target/mvp/service-recover-report-json.db",
@@ -14929,7 +14931,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-cmd-service-recover-report-json",
-        expected_db="target\mvp\service-recover-report-json.db",
+        expected_db=r"target\mvp\service-recover-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-recover-report-json",
         expected_limit=1,
@@ -14973,7 +14975,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-recover",
             "--db",
             "target/mvp/service-recover-report-json.db",
@@ -14993,7 +14995,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-ps1-service-recover-report-json",
-        expected_db="target\mvp\service-recover-report-json.db",
+        expected_db=r"target\mvp\service-recover-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-recover-report-json",
         expected_limit=1,
@@ -15212,7 +15214,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "service-reconcile",
             "--db",
             "target/mvp/service-reconcile-json.db",
@@ -15234,7 +15236,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-cmd-service-reconcile-json",
-        expected_db="target\mvp\service-reconcile-json.db",
+        expected_db=r"target\mvp\service-reconcile-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-reconcile-json",
         expected_limit=1,
@@ -15347,7 +15349,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "service-reconcile",
             "--db",
             "target/mvp/service-reconcile-report-json.db",
@@ -15369,7 +15371,7 @@ def collect_errors() -> list[str]:
         result,
         errors,
         "mvp-wrapper-ps1-service-reconcile-report-json",
-        expected_db="target\mvp\service-reconcile-report-json.db",
+        expected_db=r"target\mvp\service-reconcile-report-json.db",
         expected_db_source="flag",
         expected_task_id="task-wrapper-service-reconcile-report-json",
         expected_limit=1,
@@ -15381,7 +15383,7 @@ def collect_errors() -> list[str]:
     with tempfile.TemporaryDirectory() as verify_mock_dir:
         write_smoke_verify_sitecustomize(Path(verify_mock_dir))
         wrapper_cmd_verify = subprocess.run(
-            ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "verify", "--json"],
+            ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "verify", "--json"],
             env=build_smoke_pythonpath_env(Path(verify_mock_dir)),
             cwd=REPO_ROOT,
             capture_output=True,
@@ -15425,7 +15427,7 @@ def collect_errors() -> list[str]:
     assert_verify_json_result(result, errors, "mvp-wrapper-verify-json")
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "verify", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "verify", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-verify-invalid-json",
         "verify",
@@ -15438,7 +15440,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "verify",
             "--bogus",
             "--json",
@@ -15466,7 +15468,7 @@ def collect_errors() -> list[str]:
     )
 
     assert_command_failure_output(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "not-real-action"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "not-real-action"],
         errors,
         "mvp-wrapper-cmd-passthrough-fail",
         expected_substring="[mvp-wrapper] cargo => failed action=not-real-action exit=1",
@@ -15499,7 +15501,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "demo",
             "--bogus",
         ],
@@ -15574,7 +15576,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "session",
             "--json",
         ],
@@ -15599,7 +15601,7 @@ def collect_errors() -> list[str]:
     )
 
     if (
-        "[mvp-wrapper] session repair => dropped invalid target\mvp\last_session.json"
+        r"[mvp-wrapper] session repair => dropped invalid target\mvp\last_session.json"
         not in wrapper_ps1_session_after_corrupt_output
     ):
         errors.append(
@@ -15612,7 +15614,7 @@ def collect_errors() -> list[str]:
         )
 
     wrapper_cmd_session_after_ps1_repair = subprocess.run(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "session"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -15628,7 +15630,7 @@ def collect_errors() -> list[str]:
         )
 
     elif (
-        "[mvp-wrapper] session => none path=target\mvp\last_session.json"
+        r"[mvp-wrapper] session => none path=target\mvp\last_session.json"
         not in wrapper_cmd_session_after_ps1_repair_output
     ):
         errors.append("mvp-wrapper-cmd-session-after-ps1-repair missing none/path")
@@ -15722,7 +15724,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "seed-crash",
             "--reset",
             "--task-id",
@@ -15839,7 +15841,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "seed-failed",
             "--reset",
             "--task-id",
@@ -16293,7 +16295,7 @@ def collect_errors() -> list[str]:
             )
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-demo-fail-json",
         "demo",
@@ -16313,7 +16315,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "demo",
             "--bogus",
             "--json",
@@ -16624,7 +16626,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover-demo",
             "--bogus",
         ],
@@ -16661,7 +16663,7 @@ def collect_errors() -> list[str]:
         [
             "cmd",
             "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
+            r"tools\mvp\safeclaw_mvp.cmd",
             "recover-demo",
             "--bogus",
             "--json",
@@ -16685,7 +16687,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "recover-demo",
             "--bogus",
             "--json",
@@ -16946,7 +16948,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry-demo",
             "--bogus",
         ],
@@ -16980,7 +16982,7 @@ def collect_errors() -> list[str]:
         errors.append("mvp-wrapper-retry-demo-fail 输出缺少组合动作失败承接提示")
 
     assert_command_json_error(
-        ["cmd", "/c", "tools\mvp\safeclaw_mvp.cmd", "retry-demo", "--bogus", "--json"],
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "retry-demo", "--bogus", "--json"],
         errors,
         "mvp-wrapper-cmd-retry-demo-fail-json",
         "retry-demo",
@@ -17000,7 +17002,7 @@ def collect_errors() -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
+            r"tools\mvp\safeclaw_mvp.ps1",
             "retry-demo",
             "--bogus",
             "--json",

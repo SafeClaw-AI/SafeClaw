@@ -36,8 +36,8 @@ class ChancellorPanelTest(unittest.TestCase):
             {
                 "mode": "M2-P0-4 产品价值闭环验收",
                 "stability": "稳态",
-                "next_step": "仍是收第一条 GUI 真实日用反馈",
-                "summary": "当前处于 M2-P0-4 产品价值闭环验收；状态稳态；下一步仍是收第一条 GUI 真实日用反馈",
+                "next_step": "继续推进 M2-P0-4 产品价值闭环验收",
+                "summary": "当前处于 M2-P0-4 产品价值闭环验收；状态稳态；下一步继续推进 M2-P0-4 产品价值闭环验收",
             },
         )
 

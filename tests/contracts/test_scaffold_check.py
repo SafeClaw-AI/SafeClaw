@@ -28,6 +28,8 @@ class ScaffoldCheckTest(unittest.TestCase):
     def test_reference_required_files_are_stable(self) -> None:
         expected = [
             "docs/reference/01-反屎山工程规范.md",
+            "docs/reference/02-结构性债务台账.md",
+            "docs/reference/03-绕过白名单.md",
         ]
         self.assertEqual(
             [path.relative_to(REPO_ROOT).as_posix() for path in REFERENCE_REQUIRED_FILES],

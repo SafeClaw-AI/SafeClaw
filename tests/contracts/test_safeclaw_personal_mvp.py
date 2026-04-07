@@ -15,6 +15,10 @@ if str(REPO_ROOT) not in sys.path:
 from tools.mvp.safeclaw_personal_mvp import (  # noqa: E402
     ARCHIVE_ROOT,
     DB_PATH,
+    RUNTIME_CARGO_MISSING_NEXT,
+    RUNTIME_CARGO_MISSING_REASON,
+    RUNTIME_LINKER_MISSING_NEXT,
+    RUNTIME_LINKER_MISSING_REASON,
     build_archive_note_command,
     build_archive_output_path,
     build_task_id,
@@ -122,8 +126,8 @@ class SafeclawPersonalMvpTest(unittest.TestCase):
             [call.args[0] for call in print_mock.call_args_list],
             [
                 "[personal] summary => 当前机器还没准备好个人归档运行环境。",
-                "[personal] missing cargo in PATH",
-                "[personal] next => 先安装 Rust cargo，再重试当前命令。",
+                f"[personal] {RUNTIME_CARGO_MISSING_REASON}",
+                f"[personal] next => {RUNTIME_CARGO_MISSING_NEXT}",
             ],
         )
 
@@ -138,11 +142,8 @@ class SafeclawPersonalMvpTest(unittest.TestCase):
             [call.args[0] for call in print_mock.call_args_list],
             [
                 "[personal] summary => 当前机器还没准备好个人归档运行环境。",
-                "[personal] missing GNU linker => "
-                "C:\\Users\\tianduan999\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders."
-                "WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\"
-                "x86_64-w64-mingw32-gcc.exe",
-                "[personal] next => 先检查 GNU linker 路径是否存在，再重试当前命令。",
+                f"[personal] {RUNTIME_LINKER_MISSING_REASON}",
+                f"[personal] next => {RUNTIME_LINKER_MISSING_NEXT}",
             ],
         )
 

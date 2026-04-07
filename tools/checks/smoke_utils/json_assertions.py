@@ -161,7 +161,7 @@ def assert_workspace_json_result(
         errors.append(f"{name} missing db={expected_db_path}")
     elif normalized_output != expected_output:
         errors.append(f"{name} missing output={expected_output_path}")
-    elif result.get("path") != "target\mvp\workspace.json":
+    elif result.get("path") != r"target\mvp\workspace.json":
         errors.append(f"{name} missing workspace path")
     elif expected_changed is not None and result.get("changed") is not expected_changed:
         errors.append(f"{name} missing changed={expected_changed}")
@@ -209,10 +209,10 @@ def assert_session_json_result(
         errors.append(f"{name} missing task_id={expected_task_id}")
     elif result.get("effect_id") != expected_effect_id:
         errors.append(f"{name} missing effect_id={expected_effect_id}")
-    elif result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
-    elif result.get("output") != "target\mvp\output.txt":
-        errors.append(f"{name} missing output=target\mvp\output.txt")
+    elif result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
+    elif result.get("output") != r"target\mvp\output.txt":
+        errors.append(fr"{name} missing output=target\mvp\output.txt")
     elif result.get("owner_id") != "safeclaw-mvp":
         errors.append(f"{name} missing owner_id=safeclaw-mvp")
 
@@ -232,8 +232,8 @@ def assert_sessions_json_result(
     rows = result.get("rows") or []
     current_session = result.get("current_session") or {}
 
-    if result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
+    if result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
     elif result.get("db_source") != "session":
         errors.append(f"{name} missing db_source=session")
     elif result.get("limit") != 5:
@@ -819,11 +819,11 @@ def assert_session_json_result(
     elif result.get("effect_id") != expected_effect_id:
         errors.append(f"{name} missing effect_id={expected_effect_id}")
 
-    elif result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
+    elif result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
 
-    elif result.get("output") != "target\mvp\output.txt":
-        errors.append(f"{name} missing output=target\mvp\output.txt")
+    elif result.get("output") != r"target\mvp\output.txt":
+        errors.append(fr"{name} missing output=target\mvp\output.txt")
 
     elif result.get("owner_id") != "safeclaw-mvp":
         errors.append(f"{name} missing owner_id=safeclaw-mvp")
@@ -843,8 +843,8 @@ def assert_sessions_json_result(
 
     current_session = result.get("current_session") or {}
 
-    if result.get("db") != "target\mvp\session.db":
-        errors.append(f"{name} missing db=target\mvp\session.db")
+    if result.get("db") != r"target\mvp\session.db":
+        errors.append(fr"{name} missing db=target\mvp\session.db")
 
     elif result.get("db_source") != "session":
         errors.append(f"{name} missing db_source=session")

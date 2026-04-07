@@ -1026,8 +1026,8 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-workspace-default-json"', helper_block)
         self.assertIn('"workspace"', helper_block)
         self.assertIn("expected_active=False", helper_block)
-        self.assertIn('expected_db_path="target\\mvp\\session.db"', helper_block)
-        self.assertIn('expected_output_path="target\\mvp\\output.txt"', helper_block)
+        self.assertIn('expected_db_path=r"target\\mvp\\session.db"', helper_block)
+        self.assertIn('expected_output_path=r"target\\mvp\\output.txt"', helper_block)
         self.assertNotIn('"mvp-wrapper-workspace-activate-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_workspace_activate_json_helper(
@@ -1058,7 +1058,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("expected_active=True", helper_block)
         self.assertIn("expected_changed=True", helper_block)
         self.assertIn(
-            'expected_db_path="target\\mvp\\workspaces\\demo\\session.db"',
+            'expected_db_path=r"target\\mvp\\workspaces\\demo\\session.db"',
             helper_block,
         )
         self.assertNotIn('"mvp-wrapper-cmd-workspace-activate-json"', helper_block)
@@ -1117,7 +1117,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )[1].split("def ", 1)[0]
         self.assertIn('"mvp-wrapper-workspace-doctor-json"', helper_block)
         self.assertIn('"doctor"', helper_block)
-        self.assertIn('expected_db_path="target\\mvp\\workspaces\\demo\\session.db"', helper_block)
+        self.assertIn('expected_db_path=r"target\\mvp\\workspaces\\demo\\session.db"', helper_block)
         self.assertIn("expected_workspace_active=True", helper_block)
         self.assertIn('expected_workspace_name="demo"', helper_block)
         self.assertNotIn('"mvp-wrapper-workspace-run-json"', helper_block)
@@ -1147,7 +1147,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-workspace-run-json"', helper_block)
         self.assertIn('"run"', helper_block)
         self.assertIn('"task-wrapper-workspace"', helper_block)
-        self.assertIn('expected_db_path="target\\mvp\\workspaces\\demo\\session.db"', helper_block)
+        self.assertIn('expected_db_path=r"target\\mvp\\workspaces\\demo\\session.db"', helper_block)
         self.assertIn('expected_db_source="workspace"', helper_block)
         self.assertIn('expected_output_source="workspace"', helper_block)
         self.assertNotIn('"mvp-wrapper-workspace-clear-after-json"', helper_block)
@@ -1205,7 +1205,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-cmd-workspace-clear-json"', helper_block)
         self.assertIn('"cmd"', helper_block)
         self.assertIn("safeclaw_mvp.cmd", helper_block)
-        self.assertIn('result.get("path") != "target\\mvp\\workspace.json"', helper_block)
+        self.assertIn('result.get("path") != r"target\\mvp\\workspace.json"', helper_block)
         self.assertIn('clear_state not in {(True, "removed"), (False, "none")}', helper_block)
         self.assertNotIn('"mvp-wrapper-forget-after-workspace-json"', helper_block)
 
@@ -1233,7 +1233,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )[1].split("def ", 1)[0]
         self.assertIn('"mvp-wrapper-forget-after-workspace-json"', helper_block)
         self.assertIn('"forget"', helper_block)
-        self.assertIn('result.get("path") != "target\\mvp\\last_session.json"', helper_block)
+        self.assertIn('result.get("path") != r"target\\mvp\\last_session.json"', helper_block)
         self.assertIn(
             '(result.get("forgot"), result.get("reason")) != (True, "removed")',
             helper_block,
@@ -1319,7 +1319,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-cmd-service-status-json"', helper_block)
         self.assertIn('"cmd"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-status.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-status.db"', helper_block)
         self.assertIn(
             'expected_next_summary="ready_now:action=ok,reason=execution_already_confirmed"',
             helper_block,
@@ -1837,7 +1837,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-ps1-service-resume-json"', helper_block)
         self.assertIn('"powershell.exe"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-resume-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-resume-json.db"', helper_block)
         self.assertIn('expected_task_id="task-wrapper-service-resume-json"', helper_block)
         self.assertNotIn('"mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json"', helper_block)
 
@@ -1894,7 +1894,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-ps1-service-resume-report-json"', helper_block)
         self.assertIn('"powershell.exe"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-resume-report-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-resume-report-json.db"', helper_block)
         self.assertIn('expected_steps=["resume", "service-status", "report"]', helper_block)
         self.assertNotIn('"mvp-wrapper-cmd-service-resume-not-hibernated-json"', helper_block)
 
@@ -3128,7 +3128,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"service-retry"', helper_block)
         self.assertIn('"cmd"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-retry-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-retry-json.db"', helper_block)
         self.assertIn('expected_task_id="task-wrapper-service-retry-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-retry-json-seed-failed-ps1-json"', helper_block)
@@ -3189,7 +3189,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"service-retry"', helper_block)
         self.assertIn('"powershell.exe"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-retry-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-retry-json.db"', helper_block)
         self.assertIn('expected_task_id="task-wrapper-service-retry-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-retry-invalid-limit-json"', helper_block)
@@ -3411,7 +3411,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"service-recover"', helper_block)
         self.assertIn('"cmd"', helper_block)
         self.assertIn("safeclaw_mvp.cmd", helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-recover-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-recover-json.db"', helper_block)
         self.assertIn('expected_task_id="task-wrapper-service-recover-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-json-seed-crash-ps1-json"', helper_block)
@@ -3472,7 +3472,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"service-recover"', helper_block)
         self.assertIn('"powershell.exe"', helper_block)
         self.assertIn('"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
-        self.assertIn('expected_db="target\\mvp\\service-recover-json.db"', helper_block)
+        self.assertIn('expected_db=r"target\\mvp\\service-recover-json.db"', helper_block)
         self.assertIn('expected_task_id="task-wrapper-service-recover-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-invalid-limit-json"', helper_block)

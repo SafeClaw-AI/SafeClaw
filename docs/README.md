@@ -19,6 +19,9 @@
 - `docs/30-方案/06-V4-ledger-compat-index-spec.md`：台账兼容索引规则，定义新旧路径映射与读取优先级
 - `docs/30-方案/08-V4-ledger-index-manifest.json`：台账索引最小机读真源，供后续脚本读取
 - `docs/30-方案/20-V4-reference-compliance-rebaseline-record-20260329_030242.md`：当前 reference 合规纠偏快照，说明旧审计里哪些说法已过期
+- `docs/reference/01-反屎山工程规范.md`：治理阈值与红线真源
+- `docs/reference/02-结构性债务台账.md`：当前结构性债务白名单、核心业务路径与到期日台账
+- `docs/reference/03-绕过白名单.md`：当前允许保留的 `# noqa` / warning filter 等绕过登记表
 - `docs/chancellor-mode/v2/`：外部丞相模式历史方案与后期拼接融合参考目录，不属于 SafeClaw 当前开发范围
 - `docs/chancellor-mode/v2/01-m1b-exit-and-m2-panel-entry.md`：外部丞相模式的历史基线决议快照，保留作后期拼接融合参考
 - `docs/chancellor-mode/v2/02-m2-panel-command-truth-source.md`：外部丞相模式四命令字段快照，保留作后期拼接融合参考

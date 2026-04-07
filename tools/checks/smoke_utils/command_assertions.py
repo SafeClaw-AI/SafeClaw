@@ -73,12 +73,12 @@ def assert_doctor_json_result(
     elif result.get("linker", {}).get("ok") is not True:
         errors.append(f"{name} missing linker ok")
 
-    elif result.get("session_path") != "target\mvp\last_session.json":
+    elif result.get("session_path") != r"target\mvp\last_session.json":
         errors.append(f"{name} missing session_path")
 
     elif (
         not isinstance(workspace_info, dict)
-        or workspace_info.get("path") != "target\mvp\workspace.json"
+        or workspace_info.get("path") != r"target\mvp\workspace.json"
     ):
         errors.append(f"{name} missing workspace_path")
 
@@ -369,7 +369,7 @@ def assert_workspace_json_result(
     elif normalized_output != expected_output:
         errors.append(f"{name} missing output={expected_output_path}")
 
-    elif result.get("path") != "target\mvp\workspace.json":
+    elif result.get("path") != r"target\mvp\workspace.json":
         errors.append(f"{name} missing workspace path")
 
     elif expected_changed is not None and result.get("changed") is not expected_changed:

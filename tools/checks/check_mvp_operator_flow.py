@@ -151,7 +151,7 @@ def reset_operator_flow_state() -> None:
     ]:
         path = state_root / relative_path
         if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
+            shutil.rmtree(path)
         else:
             path.unlink(missing_ok=True)
 
@@ -198,8 +198,8 @@ def load_json(args: list[str]) -> tuple[int, str, dict[str, Any] | None]:
             exit_code = int(module.main(["safeclaw_mvp.py", *args, "--json"]) or 0)
     except SystemExit as error:
         exit_code = int(error.code or 0)
-    except Exception:
-        traceback.print_exc(file=stderr_buffer)
+    except Exception as error:
+        traceback.print_exception(error, file=stderr_buffer)
         exit_code = 1
     output = (stdout_buffer.getvalue() + stderr_buffer.getvalue()).strip()
     if exit_code != 0:
@@ -452,7 +452,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/workspace-clear-before", "action", workspace_clear_before.get("action"), "workspace")
         clear_result = workspace_clear_before.get("result") or {}
         clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
-        if clear_result.get("path") != "target\mvp\workspace.json":
+        if clear_result.get("path") != r"target\mvp\workspace.json":
             append_error(errors, "operator-flow/workspace-clear-before", "missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             append_error(errors, "operator-flow/workspace-clear-before", f"unexpected clear state {clear_state!r}")
@@ -1408,7 +1408,7 @@ def _main() -> int:
         expect_equal(errors, "operator-flow/workspace-clear-after", "action", workspace_clear_after.get("action"), "workspace")
         clear_result = workspace_clear_after.get("result") or {}
         clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
-        if clear_result.get("path") != "target\mvp\workspace.json":
+        if clear_result.get("path") != r"target\mvp\workspace.json":
             append_error(errors, "operator-flow/workspace-clear-after", "missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             append_error(errors, "operator-flow/workspace-clear-after", f"unexpected clear state {clear_state!r}")

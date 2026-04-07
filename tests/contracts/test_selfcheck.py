@@ -58,14 +58,14 @@ class SelfcheckTest(unittest.TestCase):
     def test_async_tail_starts_at_tooling_smoke_boundary(self) -> None:
         self.assertEqual(ASYNC_TAIL_START_CHECK_NAME, TOOLING_SMOKE_CHECK_NAME)
 
-    def test_selfcheck_subprocess_env_front_loads_warning_filter(self) -> None:
-        self.assertEqual(SUBPROCESS_ENV_OVERRIDES, {"PYTHONWARNINGS": "ignore::DeprecationWarning"})
+    def test_selfcheck_subprocess_env_pins_default_warning_behavior(self) -> None:
+        self.assertEqual(SUBPROCESS_ENV_OVERRIDES, {"PYTHONWARNINGS": "default"})
 
-    def test_build_check_env_keeps_existing_env_and_overrides_warning_filter(self) -> None:
-        with mock.patch.dict("os.environ", {"FOO": "bar", "PYTHONWARNINGS": "default"}, clear=True):
+    def test_build_check_env_keeps_existing_env_and_resets_warning_behavior(self) -> None:
+        with mock.patch.dict("os.environ", {"FOO": "bar", "PYTHONWARNINGS": "error"}, clear=True):
             env = build_check_env()
         self.assertEqual(env["FOO"], "bar")
-        self.assertEqual(env["PYTHONWARNINGS"], "ignore::DeprecationWarning")
+        self.assertEqual(env["PYTHONWARNINGS"], "default")
 
 
 if __name__ == "__main__":

@@ -14,4 +14,5 @@
 
 - `selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py`
 - 然后依次跑 `check_ledger_alignment.py`、`check_consistency.py`、`check_versions.py`、`check_structure.py`、`check_scaffold.py`、`check_public_docs.py`
+- 随后的 `check_reference_redlines.py` 还会继续锁 `docs/reference/01-反屎山工程规范.md`、`docs/reference/02-结构性债务台账.md` 与 `docs/reference/03-绕过白名单.md`
 - `tests/contracts/` 会显式后置在这条 ledger policy chain 之后

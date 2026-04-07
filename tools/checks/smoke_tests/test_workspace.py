@@ -12,7 +12,7 @@ def append_root_workspace_clear_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("safeclaw-root-cmd-workspace-clear-json missing workspace path")
         elif clear_state not in {(True, "removed"), (False, "none")}:
             errors.append(
@@ -36,7 +36,7 @@ def append_root_workspace_clear_errors(errors: list[str]) -> None:
     )
     if result is not None:
         clear_state = (result.get("cleared"), result.get("reason"))
-        if result.get("path") != "target\mvp\workspace.json":
+        if result.get("path") != r"target\mvp\workspace.json":
             errors.append("safeclaw-root-ps1-workspace-clear-json missing workspace path")
         elif clear_state != (False, "none"):
             errors.append(

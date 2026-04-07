@@ -98,9 +98,9 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "历史流水",
             ],
             REFERENCE_HYGIENE_FILE: [
-                "docs/chancellor-mode/v2/",
-                "后期拼接融合参考",
-                "不属于 SafeClaw 当前开发范围",
+                "先分类,再落盘",
+                "绝对红线禁令",
+                "自动化门禁",
             ],
         }
 

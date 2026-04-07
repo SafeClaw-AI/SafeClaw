@@ -26,7 +26,8 @@ from tools.mvp.safeclaw_personal_panel import build_personal_panel_result_text  
 
 class SafeclawPersonalMvpCliTest(unittest.TestCase):
     def setUp(self) -> None:
-        shutil.rmtree(TEST_ROOT, ignore_errors=True)
+        if TEST_ROOT.exists():
+            shutil.rmtree(TEST_ROOT)
 
     def run_personal(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
