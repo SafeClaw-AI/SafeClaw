@@ -39,6 +39,9 @@ from tooling_smoke_service_reconcile_success import (
 from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
+from tooling_smoke_service_demo_invalid_json import (
+    append_wrapper_service_demo_invalid_json_errors as _append_wrapper_service_demo_invalid_json_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9588,17 +9591,11 @@ def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> N
 
 
 def append_wrapper_service_demo_invalid_json_errors(errors: list[str]) -> None:
-    details = assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--bogus", "--json"],
+    _append_wrapper_service_demo_invalid_json_errors(
         errors,
-        "mvp-wrapper-service-demo-invalid-json",
-        "service-demo",
-        expected_error_message_substring="unknown argument: --bogus",
-        expect_no_remembered_session=True,
+        python_executable=PYTHON,
+        assert_command_json_error=assert_command_json_error,
     )
-
-    if details is not None and details.get("remembered_session") is not None:
-        errors.append("mvp-wrapper-service-demo-invalid-json ???? remembered_session")
 
 
 def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:

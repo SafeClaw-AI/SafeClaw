@@ -3617,7 +3617,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def append_wrapper_service_demo_invalid_json_errors(errors: list[str]) -> None:",
+            "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("os.environ.copy()", helper_block)
@@ -3643,22 +3643,18 @@ class ToolingSmokeCheckTest(unittest.TestCase):
     def test_append_wrapper_service_demo_invalid_json_errors_keeps_labels(
         self,
     ) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        helper_block = source.split(
-            "def append_wrapper_service_demo_invalid_json_errors(errors: list[str]) -> None:",
-            1,
-        )[1].split(
-            "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
-            1,
-        )[0]
+        helper_block = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_service_demo_invalid_json.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("details = assert_command_json_error(", helper_block)
         self.assertIn('expect_no_remembered_session=True', helper_block)
         self.assertIn('"mvp-wrapper-service-demo-invalid-json"', helper_block)
         self.assertIn('"service-demo"', helper_block)
         self.assertIn('details.get("remembered_session") is not None', helper_block)
-        self.assertNotIn('"mvp-wrapper-cmd-run-json"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-demo-no-tool-path-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_cmd_run_json_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
