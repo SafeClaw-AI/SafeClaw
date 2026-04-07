@@ -9558,6 +9558,20 @@ def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> N
     )
 
 
+def append_wrapper_service_demo_invalid_json_errors(errors: list[str]) -> None:
+    details = assert_command_json_error(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--bogus", "--json"],
+        errors,
+        "mvp-wrapper-service-demo-invalid-json",
+        "service-demo",
+        expected_error_message_substring="unknown argument: --bogus",
+        expect_no_remembered_session=True,
+    )
+
+    if details is not None and details.get("remembered_session") is not None:
+        errors.append("mvp-wrapper-service-demo-invalid-json ???? remembered_session")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9689,18 +9703,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_demo_text_errors(errors)
     append_wrapper_cmd_service_demo_json_errors(errors)
     append_wrapper_service_demo_no_tool_path_json_errors(errors)
-
-    details = assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--bogus", "--json"],
-        errors,
-        "mvp-wrapper-service-demo-invalid-json",
-        "service-demo",
-        expected_error_message_substring="unknown argument: --bogus",
-        expect_no_remembered_session=True,
-    )
-
-    if details is not None and details.get("remembered_session") is not None:
-        errors.append("mvp-wrapper-service-demo-invalid-json ???? remembered_session")
+    append_wrapper_service_demo_invalid_json_errors(errors)
 
     space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
 
