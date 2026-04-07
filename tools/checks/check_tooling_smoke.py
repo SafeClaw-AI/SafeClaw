@@ -9842,6 +9842,90 @@ def append_wrapper_use_session_success_errors(errors: list[str]) -> None:
                 errors.append("mvp-wrapper-report-json 缺少 task_context=session")
 
 
+def append_wrapper_cmd_forget_recovery_errors(errors: list[str]) -> None:
+    wrapper_cmd_forget = subprocess.run(
+        ["cmd", "/c", "tools\\mvp\\safeclaw_mvp.cmd", "forget"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_cmd_forget_output = (wrapper_cmd_forget.stdout or "") + (
+        wrapper_cmd_forget.stderr or ""
+    )
+
+    if wrapper_cmd_forget.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-cmd-forget failed: exit={wrapper_cmd_forget.returncode}"
+        )
+
+    elif (
+        r"[mvp-wrapper] forgot => reason=removed path=target\mvp\last_session.json"
+        not in wrapper_cmd_forget_output
+    ):
+        errors.append("mvp-wrapper-cmd-forget missing removed path")
+
+    result = assert_command_json_result(
+        ["cmd", "/c", "tools\\mvp\\safeclaw_mvp.cmd", "forget", "--json"],
+        errors,
+        "mvp-wrapper-cmd-forget-json",
+        "forget",
+    )
+    if result is not None:
+        forget_state = (result.get("forgot"), result.get("reason"))
+        if result.get("path") != r"target\mvp\last_session.json":
+            errors.append("mvp-wrapper-cmd-forget-json missing session path")
+        elif forget_state not in {(True, "removed"), (False, "none")}:
+            errors.append("mvp-wrapper-cmd-forget-json unexpected forget state")
+    wrapper_ps1_session_after_cmd_forget_json = subprocess.run(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "tools\\mvp\\safeclaw_mvp.ps1",
+            "session",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = load_json_payload(
+        wrapper_ps1_session_after_cmd_forget_json,
+        errors,
+        "mvp-wrapper-ps1-session-after-cmd-forget-json",
+        expected_exit=0,
+    )
+
+    assert_json_null_result(
+        payload, errors, "mvp-wrapper-ps1-session-after-cmd-forget-json", "session"
+    )
+
+    wrapper_restore_after_cmd_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--task-id", "task-wrapper-b"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_restore_after_cmd_forget_output = (
+        wrapper_restore_after_cmd_forget.stdout or ""
+    ) + (wrapper_restore_after_cmd_forget.stderr or "")
+
+    if wrapper_restore_after_cmd_forget.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-restore-after-cmd-forget failed: exit={wrapper_restore_after_cmd_forget.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] activated => task=task-wrapper-b effect=effect-task-wrapper-b"
+        not in wrapper_restore_after_cmd_forget_output
+    ):
+        errors.append("mvp-wrapper-restore-after-cmd-forget missing task-wrapper-b")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -10024,88 +10108,7 @@ def collect_errors() -> list[str]:
         assert_run_json_result=assert_run_json_result,
     )
     append_wrapper_use_session_success_errors(errors)
-
-    wrapper_cmd_forget = subprocess.run(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "forget"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_cmd_forget_output = (wrapper_cmd_forget.stdout or "") + (
-        wrapper_cmd_forget.stderr or ""
-    )
-
-    if wrapper_cmd_forget.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-cmd-forget failed: exit={wrapper_cmd_forget.returncode}"
-        )
-
-    elif (
-        r"[mvp-wrapper] forgot => reason=removed path=target\mvp\last_session.json"
-        not in wrapper_cmd_forget_output
-    ):
-        errors.append("mvp-wrapper-cmd-forget missing removed path")
-
-    result = assert_command_json_result(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "forget", "--json"],
-        errors,
-        "mvp-wrapper-cmd-forget-json",
-        "forget",
-    )
-    if result is not None:
-        forget_state = (result.get("forgot"), result.get("reason"))
-        if result.get("path") != r"target\mvp\last_session.json":
-            errors.append("mvp-wrapper-cmd-forget-json missing session path")
-        elif forget_state not in {(True, "removed"), (False, "none")}:
-            errors.append("mvp-wrapper-cmd-forget-json unexpected forget state")
-    wrapper_ps1_session_after_cmd_forget_json = subprocess.run(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "session",
-            "--json",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    payload = load_json_payload(
-        wrapper_ps1_session_after_cmd_forget_json,
-        errors,
-        "mvp-wrapper-ps1-session-after-cmd-forget-json",
-        expected_exit=0,
-    )
-
-    assert_json_null_result(
-        payload, errors, "mvp-wrapper-ps1-session-after-cmd-forget-json", "session"
-    )
-
-    wrapper_restore_after_cmd_forget = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--task-id", "task-wrapper-b"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_restore_after_cmd_forget_output = (
-        wrapper_restore_after_cmd_forget.stdout or ""
-    ) + (wrapper_restore_after_cmd_forget.stderr or "")
-
-    if wrapper_restore_after_cmd_forget.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-restore-after-cmd-forget failed: exit={wrapper_restore_after_cmd_forget.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] activated => task=task-wrapper-b effect=effect-task-wrapper-b"
-        not in wrapper_restore_after_cmd_forget_output
-    ):
-        errors.append("mvp-wrapper-restore-after-cmd-forget missing task-wrapper-b")
+    append_wrapper_cmd_forget_recovery_errors(errors)
 
     wrapper_forget = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
