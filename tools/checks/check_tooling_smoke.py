@@ -45,6 +45,9 @@ from tooling_smoke_service_demo_invalid_json import (
 from tooling_smoke_service_demo_cmd_json import (
     append_wrapper_cmd_service_demo_json_errors as _append_wrapper_cmd_service_demo_json_errors,
 )
+from tooling_smoke_service_demo_text import (
+    append_wrapper_service_demo_text_errors as _append_wrapper_service_demo_text_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9513,33 +9516,12 @@ def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -
 
 
 def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:
-    wrapper_service_demo = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
+    _append_wrapper_service_demo_text_errors(
+        errors,
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
     )
-
-    wrapper_service_demo_output = (wrapper_service_demo.stdout or "") + (
-        wrapper_service_demo.stderr or ""
-    )
-
-    if wrapper_service_demo.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-service-demo ????: exit={wrapper_service_demo.returncode}"
-        )
-
-    elif (
-        "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0"
-        not in wrapper_service_demo_output
-    ):
-        errors.append("mvp-wrapper-service-demo ???? resolved governance")
-
-    elif (
-        "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
-        not in wrapper_service_demo_output
-    ):
-        errors.append("mvp-wrapper-service-demo ???? confirmation governance")
 
 
 def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:

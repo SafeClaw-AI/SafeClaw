@@ -3546,17 +3546,13 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("append_wrapper_service_demo_text_errors(errors)", normalized_source)
 
     def test_append_wrapper_service_demo_text_errors_keeps_labels(self) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        helper_block = source.split(
-            "def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:",
-            1,
-        )[1].split(
-            "def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:",
-            1,
-        )[0]
-        self.assertIn("subprocess.run(", helper_block)
+        helper_block = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_service_demo_text.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("subprocess_module.run(", helper_block)
         self.assertIn('"service-demo"', helper_block)
         self.assertIn('"mvp-wrapper-service-demo', helper_block)
         self.assertIn(
