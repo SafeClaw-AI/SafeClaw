@@ -5,20 +5,13 @@ import io
 import inspect
 import json
 import subprocess
-import sys
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-TOOLS_CHECKS_ROOT = REPO_ROOT / "tools" / "checks"
-if str(TOOLS_CHECKS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TOOLS_CHECKS_ROOT))
-
-import tools.checks.check_mvp_operator_flow as operator_flow  # noqa: E402
+from tests.contracts import REPO_ROOT
+import tools.checks.check_mvp_operator_flow as operator_flow
 
 
 class MvpOperatorFlowCheckTest(unittest.TestCase):

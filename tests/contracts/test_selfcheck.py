@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from tools.checks.selfcheck import (  # noqa: E402
+from tests.contracts import REPO_ROOT
+from tools.checks.selfcheck import (
     ASYNC_TAIL_CHECKS,
     ASYNC_TAIL_START_CHECK_NAME,
     CHECKS,

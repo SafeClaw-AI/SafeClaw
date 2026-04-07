@@ -10,18 +10,16 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from tests.contracts import REPO_ROOT
+
 PERSONAL_MVP = REPO_ROOT / "tools" / "mvp" / "safeclaw_personal_mvp.py"
 TEST_ROOT = REPO_ROOT / "target" / "test-safeclaw-personal-cli"
 ARCHIVE_DATE = "2026-04-02"
 ARCHIVE_NAME = "CLI Roundtrip"
 ARCHIVE_FILE = TEST_ROOT / "archive" / "2026-04" / "2026-04-02-cli-roundtrip.md"
 
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from tools.mvp.safeclaw_personal_mvp import run_checked  # noqa: E402
-from tools.mvp.safeclaw_personal_panel import build_personal_panel_result_text  # noqa: E402
+from tools.mvp.safeclaw_personal_mvp import run_checked
+from tools.mvp.safeclaw_personal_panel import build_personal_panel_result_text
 
 
 class SafeclawPersonalMvpCliTest(unittest.TestCase):

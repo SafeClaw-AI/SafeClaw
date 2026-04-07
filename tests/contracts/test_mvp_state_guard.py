@@ -3,18 +3,14 @@ from __future__ import annotations
 import errno
 import io
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-import tools.checks.mvp_state_guard as mvp_state_guard  # noqa: E402
-from tools.checks.mvp_state_guard import (  # noqa: E402
+from tests.contracts import REPO_ROOT
+import tools.checks.mvp_state_guard as mvp_state_guard
+from tools.checks.mvp_state_guard import (
     WINDOWS_STILL_ACTIVE,
     _process_is_running,
     _process_is_running_with_signal,

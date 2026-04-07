@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from tools.checks.worktree_groups import (  # noqa: E402
+from tests.contracts import REPO_ROOT
+from tools.checks.worktree_groups import (
     BOUNDARY_GOVERNANCE_GROUP,
     PERSONAL_DEPLOY_GROUP,
     SELFCHECK_GOVERNANCE_GROUP,

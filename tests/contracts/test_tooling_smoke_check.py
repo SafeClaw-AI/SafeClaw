@@ -11,15 +11,9 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-TOOLS_CHECKS_ROOT = REPO_ROOT / "tools" / "checks"
-if str(TOOLS_CHECKS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TOOLS_CHECKS_ROOT))
-
-import tools.checks.check_tooling_smoke as tooling_smoke  # noqa: E402
-import tools.mvp.safeclaw_mvp as safeclaw_mvp  # noqa: E402
+from tests.contracts import REPO_ROOT
+import tools.checks.check_tooling_smoke as tooling_smoke
+import tools.mvp.safeclaw_mvp as safeclaw_mvp
 
 
 def normalize_source_whitespace(source: str) -> str:

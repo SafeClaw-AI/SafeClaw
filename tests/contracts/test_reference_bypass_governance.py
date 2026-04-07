@@ -22,7 +22,7 @@ class ReferenceBypassGovernanceTest(unittest.TestCase):
         by_type = {entry.bypass_key for entry in whitelist}
         self.assertEqual(
             by_type,
-            {NOQA_BYPASS},
+            set(),
         )
         self.assertEqual(BYPASS_KEY_TO_LABEL[NOQA_BYPASS], "# noqa")
 

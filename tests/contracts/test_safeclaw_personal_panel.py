@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from queue import Queue
 from unittest.mock import patch
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from tools.mvp.safeclaw_personal_panel import (  # noqa: E402
+from tests.contracts import REPO_ROOT
+from tools.mvp.safeclaw_personal_panel import (
     PERSONAL_PANEL_ENTRY_PATH_ENV,
     SafeclawPersonalPanelController,
     build_archive_note_panel_arguments,

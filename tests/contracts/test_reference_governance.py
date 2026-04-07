@@ -5,7 +5,8 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from tools.checks.reference_governance import (  # noqa: E402
+from tests.contracts import REPO_ROOT
+from tools.checks.reference_governance import (
     COMPLEXITY_RULE,
     FUNCTION_NONEMPTY_LINES_RULE,
     GovernanceThresholds,
