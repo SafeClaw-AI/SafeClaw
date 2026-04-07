@@ -22,6 +22,9 @@ from tooling_smoke_invalid_argument import append_wrapper_invalid_argument_error
 from tooling_smoke_missing_task_context import (
     append_wrapper_missing_task_context_errors,
 )
+from tooling_smoke_service_run_report import (
+    append_wrapper_service_run_report_errors,
+)
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
     append_wrapper_ps1_explicit_targeting_errors,
@@ -10130,127 +10133,13 @@ def collect_errors() -> list[str]:
         subprocess_module=subprocess,
         assert_command_json_error=assert_command_json_error,
     )
-
-    wrapper_service_run_report = subprocess.run(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "service-run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-run-report",
-            "--db",
-            "target/mvp/service-run-report.db",
-            "--output",
-            "target/mvp/service-run-report.txt",
-            "--limit",
-            "1",
-            "--report",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_service_run_report_output = (wrapper_service_run_report.stdout or "") + (
-        wrapper_service_run_report.stderr or ""
-    )
-
-    if wrapper_service_run_report.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-service-run-report failed: exit={wrapper_service_run_report.returncode}"
-        )
-
-    elif "[mvp-wrapper] service-run => run" not in wrapper_service_run_report_output:
-        errors.append("mvp-wrapper-service-run-report missing run step marker")
-
-    elif (
-        "[mvp-wrapper] service-run => service-status"
-        not in wrapper_service_run_report_output
-    ):
-        errors.append(
-            "mvp-wrapper-service-run-report missing service-status step marker"
-        )
-
-    elif "[mvp-wrapper] service-run => report" not in wrapper_service_run_report_output:
-        errors.append("mvp-wrapper-service-run-report missing report step marker")
-
-    elif (
-        "[mvp] report target => task=task-wrapper-service-run-report effect=effect-task-wrapper-service-run-report"
-        not in wrapper_service_run_report_output
-    ):
-        errors.append("mvp-wrapper-service-run-report missing report output")
-
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            r"tools\mvp\safeclaw_mvp.cmd",
-            "service-run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-run-report-json",
-            "--db",
-            "target/mvp/service-run-report-json.db",
-            "--output",
-            "target/mvp/service-run-report-json.txt",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
+    append_wrapper_service_run_report_errors(
         errors,
-        "mvp-wrapper-cmd-service-run-report-json",
-        "service-run",
-    )
-
-    assert_service_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-service-run-report-json",
-        expected_db=r"target\mvp\service-run-report-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-run-report-json",
-        expected_limit=1,
-        expected_steps=["run", "service-status", "report"],
-        expect_report_payload=True,
-    )
-
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "service-run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-run-report-json",
-            "--db",
-            "target/mvp/service-run-report-json.db",
-            "--output",
-            "target/mvp/service-run-report-json.txt",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-service-run-report-json",
-        "service-run",
-    )
-
-    assert_service_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-service-run-report-json",
-        expected_db=r"target\mvp\service-run-report-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-run-report-json",
-        expected_limit=1,
-        expected_steps=["run", "service-status", "report"],
-        expect_report_payload=True,
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_result=assert_command_json_result,
+        assert_service_run_json_result=assert_service_run_json_result,
     )
 
     result = assert_command_json_result(

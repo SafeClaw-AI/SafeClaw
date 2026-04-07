@@ -3588,6 +3588,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"invalid-argument"', source)
         self.assertNotIn('"mvp-wrapper-service-run-report"', source)
 
+    def test_collect_errors_uses_wrapper_service_run_report_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_run_report_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_run_report_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_service_run_report.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-service-run-report missing report output"', source)
+        self.assertIn('"mvp-wrapper-ps1-service-run-report-json"', source)
+        self.assertIn('"task-wrapper-service-run-report-json"', source)
+        self.assertNotIn('"mvp-wrapper-service-retry-report-json-seed-failed-json"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
