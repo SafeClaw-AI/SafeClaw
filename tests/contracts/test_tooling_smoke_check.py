@@ -3731,12 +3731,41 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def ensure_space_wrapper_dir_exists() -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_run_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn('space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"', helper_block)
         self.assertIn("space_wrapper_dir.mkdir(parents=True, exist_ok=True)", helper_block)
         self.assertNotIn("append_wrapper_cmd_run_json_errors(errors)", helper_block)
+
+    def test_collect_errors_uses_wrapper_run_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_run_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_run_json_errors_keeps_labels(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn("assert_run_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-run-json"', helper_block)
+        self.assertIn('"task-wrapper-json"', helper_block)
+        self.assertIn('"run"', helper_block)
+        self.assertIn('"tools/mvp/safeclaw_mvp.py"', helper_block)
+        self.assertIn('expected_task_id="task-wrapper-json"', helper_block)
+        self.assertIn('expected_db_source="default"', helper_block)
+        self.assertIn('expected_output_source="default"', helper_block)
+        self.assertNotIn('"mvp-wrapper-cmd-run-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(

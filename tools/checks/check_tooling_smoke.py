@@ -9645,6 +9645,32 @@ def ensure_space_wrapper_dir_exists() -> None:
     space_wrapper_dir.mkdir(parents=True, exist_ok=True)
 
 
+def append_wrapper_run_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-json",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-run-json",
+        "run",
+    )
+
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-run-json",
+        expected_task_id="task-wrapper-json",
+        expected_db_source="default",
+        expected_output_source="default",
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9781,30 +9807,7 @@ def collect_errors() -> list[str]:
     ensure_space_wrapper_dir_exists()
     append_wrapper_cmd_run_json_errors(errors)
     append_wrapper_ps1_run_json_errors(errors)
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-json",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-run-json",
-        "run",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-run-json",
-        expected_task_id="task-wrapper-json",
-        expected_db_source="default",
-        expected_output_source="default",
-    )
+    append_wrapper_run_json_errors(errors)
     append_wrapper_session_listing_errors(
         errors,
         repo_root=REPO_ROOT,
