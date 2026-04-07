@@ -12,6 +12,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
 
+import mvp_operator_flow_helpers as flow_helpers
 from mvp_state_guard import acquire_mvp_state_lock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -448,35 +449,13 @@ def _main() -> int:
 
 
     workspace_clear_before = run_json(["workspace", "--clear"], "operator-flow/workspace-clear-before", errors)
-    if workspace_clear_before is not None:
-        expect_equal(errors, "operator-flow/workspace-clear-before", "action", workspace_clear_before.get("action"), "workspace")
-        clear_result = workspace_clear_before.get("result") or {}
-        clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
-        if clear_result.get("path") != r"target\mvp\workspace.json":
-            append_error(errors, "operator-flow/workspace-clear-before", "missing workspace path")
-        elif clear_state not in {(True, "removed"), (False, "none")}:
-            append_error(errors, "operator-flow/workspace-clear-before", f"unexpected clear state {clear_state!r}")
+    flow_helpers.assert_workspace_clear_result(workspace_clear_before, errors, "operator-flow/workspace-clear-before")
 
     forget_before = run_json(["forget"], "operator-flow/forget-before", errors)
-    if forget_before is not None:
-        expect_equal(errors, "operator-flow/forget-before", "action", forget_before.get("action"), "forget")
-        forget_result = forget_before.get("result") or {}
-        forget_reason = forget_result.get("reason")
-        forgot = forget_result.get("forgot")
-        if (forgot, forget_reason) not in {(True, "removed"), (True, "already-absent"), (False, "none")}:
-            append_error(errors, "operator-flow/forget-before", f"unexpected forget state forgot={forgot!r} reason={forget_reason!r}")
+    flow_helpers.assert_forget_result(forget_before, errors, "operator-flow/forget-before")
 
     doctor = run_json(["doctor"], "operator-flow/doctor", errors)
-    if doctor is not None:
-        expect_equal(errors, "operator-flow/doctor", "action", doctor.get("action"), "doctor")
-        doctor_result = doctor.get("result") or {}
-        expect_equal(errors, "operator-flow/doctor", "result.status", doctor_result.get("status"), "ready")
-        expect_equal(errors, "operator-flow/doctor", "result.session", doctor_result.get("session"), None)
-        expect_equal(errors, "operator-flow/doctor", "result.db.source", ((doctor_result.get("db") or {}).get("source")), "default")
-        expect_equal(errors, "operator-flow/doctor", "result.output.source", ((doctor_result.get("output") or {}).get("source")), "default")
-        expect_true(errors, "operator-flow/doctor", "entrypoints.cmd.exists", (((doctor_result.get("entrypoints") or {}).get("cmd") or {}).get("exists")))
-        expect_true(errors, "operator-flow/doctor", "entrypoints.ps1.exists", (((doctor_result.get("entrypoints") or {}).get("ps1") or {}).get("exists")))
-        expect_true(errors, "operator-flow/doctor", "entrypoints.py.exists", (((doctor_result.get("entrypoints") or {}).get("py") or {}).get("exists")))
+    flow_helpers.assert_doctor_result(doctor, errors, "operator-flow/doctor")
 
     service_run = run_json(
         [
@@ -508,14 +487,7 @@ def _main() -> int:
     wait_for_session(RUN_TASK, RUN_DB, RUN_OUTPUT, errors, "operator-flow/service-run")
 
     report = run_json(["report"], "operator-flow/report", errors)
-    if report is not None:
-        expect_equal(errors, "operator-flow/report", "action", report.get("action"), "report")
-        report_result = report.get("result") or {}
-        assert_session_fields(report_result.get("remembered_session"), errors, "operator-flow/report", "remembered_session", RUN_TASK, RUN_DB, RUN_OUTPUT)
-        expect_equal(errors, "operator-flow/report", "source_hints.db", ((report_result.get("source_hints") or {}).get("db")), "session")
-        expect_equal(errors, "operator-flow/report", "source_hints.output", ((report_result.get("source_hints") or {}).get("output")), "session")
-        expect_equal(errors, "operator-flow/report", "source_hints.owner_id", ((report_result.get("source_hints") or {}).get("owner_id")), "session")
-        expect_equal(errors, "operator-flow/report", "source_hints.task_context", ((report_result.get("source_hints") or {}).get("task_context")), "session")
+    flow_helpers.assert_report_result(report, errors, "operator-flow/report", RUN_TASK, RUN_DB, RUN_OUTPUT)
 
     seed_failed = run_json(
         [
@@ -530,9 +502,7 @@ def _main() -> int:
         "operator-flow/seed-failed",
         errors,
     )
-    if seed_failed is not None:
-        expect_equal(errors, "operator-flow/seed-failed", "action", seed_failed.get("action"), "seed-failed")
-        assert_session_fields((seed_failed.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed", "remembered_session", RETRY_TASK, RETRY_DB, RETRY_OUTPUT)
+    flow_helpers.assert_seed_result(seed_failed, errors, "operator-flow/seed-failed", "seed-failed", RETRY_TASK, RETRY_DB, RETRY_OUTPUT)
     wait_for_session(RETRY_TASK, RETRY_DB, RETRY_OUTPUT, errors, "operator-flow/seed-failed")
 
     service_retry = run_json(
@@ -574,9 +544,7 @@ def _main() -> int:
         "operator-flow/seed-crash",
         errors,
     )
-    if seed_crash is not None:
-        expect_equal(errors, "operator-flow/seed-crash", "action", seed_crash.get("action"), "seed-crash")
-        assert_session_fields((seed_crash.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash", "remembered_session", RECOVER_TASK, RECOVER_DB, RECOVER_OUTPUT)
+    flow_helpers.assert_seed_result(seed_crash, errors, "operator-flow/seed-crash", "seed-crash", RECOVER_TASK, RECOVER_DB, RECOVER_OUTPUT)
     wait_for_session(RECOVER_TASK, RECOVER_DB, RECOVER_OUTPUT, errors, "operator-flow/seed-crash")
 
     service_recover = run_json(
@@ -618,9 +586,15 @@ def _main() -> int:
         "operator-flow/seed-hibernated",
         errors,
     )
-    if seed_hibernated is not None:
-        expect_equal(errors, "operator-flow/seed-hibernated", "action", seed_hibernated.get("action"), "seed-hibernated")
-        assert_session_fields((seed_hibernated.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-hibernated", "remembered_session", HIBERNATED_TASK, HIBERNATED_DB, HIBERNATED_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_hibernated,
+        errors,
+        "operator-flow/seed-hibernated",
+        "seed-hibernated",
+        HIBERNATED_TASK,
+        HIBERNATED_DB,
+        HIBERNATED_OUTPUT,
+    )
     wait_for_session(HIBERNATED_TASK, HIBERNATED_DB, HIBERNATED_OUTPUT, errors, "operator-flow/seed-hibernated")
 
     hibernated_status = run_json(
@@ -634,55 +608,14 @@ def _main() -> int:
         "operator-flow/service-status-hibernated",
         errors,
     )
-    if hibernated_status is not None:
-        result = hibernated_status.get("result") or {}
-        coordination = result.get("coordination") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-status-hibernated", "result.db", result.get("db"), HIBERNATED_DB)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "result.limit", result.get("limit"), 1)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "current_session.task_id", current_session.get("task_id"), HIBERNATED_TASK)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "workers.hibernated", ((result.get("workers") or {}).get("hibernated")), 1)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.status", coordination.get("status"), "hibernated")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.reason", coordination.get("reason"), "hibernated_waiting_for_resume")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.summary", coordination.get("summary"), "inspect_and_resume_or_expire")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.task_id", coordination.get("task_id"), HIBERNATED_TASK)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.target_scope", coordination.get("target_scope"), f"scope:{HIBERNATED_OUTPUT}")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_action", coordination.get("next_action"), "inspect")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_task_id", coordination.get("next_task_id"), HIBERNATED_TASK)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.next_blocker", coordination.get("next_blocker"), "manual_review_needed")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-hibernated", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
-        if not recent_tasks:
-            append_error(errors, "operator-flow/service-status-hibernated", "recent task missing")
-        else:
-            task = recent_tasks[0]
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.task_id", task.get("task_id"), HIBERNATED_TASK)
-            expect_true(errors, "operator-flow/service-status-hibernated", "recent.current", task.get("current"))
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.worker_state", task.get("worker_state"), "hibernated")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.lease_state", task.get("lease_state"), "expired")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_action", task.get("next_action"), "inspect")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_reason", task.get("next_reason"), "hibernated_waiting_for_resume")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_blocker", task.get("next_blocker"), "manual_review_needed")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=manual_review_needed,reason=hibernated_waiting_for_resume")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_task_id", task.get("next_task_id"), HIBERNATED_TASK)
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.next_command", task.get("next_command"), f'safeclaw.cmd service-resume --db "{HIBERNATED_DB}" --task-id "{HIBERNATED_TASK}" --limit 1 --report')
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_status", task.get("coordination_status"), "hibernated")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_reason", task.get("coordination_reason"), "hibernated_waiting_for_resume")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.coordination_summary", task.get("coordination_summary"), "inspect_and_resume_or_expire")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), False)
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "none")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), "")
-            expect_equal(errors, "operator-flow/service-status-hibernated", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 0)
+    flow_helpers.assert_hibernated_status(
+        hibernated_status,
+        errors,
+        "operator-flow/service-status-hibernated",
+        HIBERNATED_TASK,
+        HIBERNATED_DB,
+        HIBERNATED_OUTPUT,
+    )
 
     service_resume = run_json(
         [
@@ -723,9 +656,15 @@ def _main() -> int:
         "operator-flow/seed-failed-stalled",
         errors,
     )
-    if seed_failed_stalled is not None:
-        expect_equal(errors, "operator-flow/seed-failed-stalled", "action", seed_failed_stalled.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_stalled.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-stalled", "remembered_session", STALLED_TASK, STALLED_DB, STALLED_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_stalled,
+        errors,
+        "operator-flow/seed-failed-stalled",
+        "seed-failed",
+        STALLED_TASK,
+        STALLED_DB,
+        STALLED_OUTPUT,
+    )
 
     with sqlite3.connect(REPO_ROOT / STALLED_DB) as connection:
         connection.execute(
@@ -750,64 +689,14 @@ def _main() -> int:
         "operator-flow/service-status-stalled",
         errors,
     )
-    if stalled_status is not None:
-        result = stalled_status.get("result") or {}
-        coordination = result.get("coordination") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-status-stalled", "result.db", result.get("db"), STALLED_DB)
-        expect_equal(errors, "operator-flow/service-status-stalled", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-status-stalled", "result.limit", result.get("limit"), 1)
-        expect_equal(errors, "operator-flow/service-status-stalled", "current_session.task_id", current_session.get("task_id"), STALLED_TASK)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.status", coordination.get("status"), "stalled")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.reason", coordination.get("reason"), "active_lease_without_recent_heartbeat")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.summary", coordination.get("summary"), "inspect_owner_or_wait_for_lease_expiry")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.task_id", coordination.get("task_id"), STALLED_TASK)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.target_scope", coordination.get("target_scope"), f"scope:{STALLED_OUTPUT}")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_action", coordination.get("next_action"), "inspect")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_task_id", coordination.get("next_task_id"), STALLED_TASK)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.next_blocker", coordination.get("next_blocker"), "active_lease")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-stalled", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
-        if not recent_tasks:
-            append_error(errors, "operator-flow/service-status-stalled", "recent task missing")
-        else:
-            task = recent_tasks[0]
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.task_id", task.get("task_id"), STALLED_TASK)
-            expect_true(errors, "operator-flow/service-status-stalled", "recent.current", task.get("current"))
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.effect_status", task.get("effect_status"), "prepared")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_state", task.get("lease_state"), "active")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_owner_id", task.get("lease_owner_id"), OWNER_ID)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_fencing_token", task.get("lease_fencing_token"), 1)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.lease_freshness", task.get("lease_freshness"), "lost")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_action", task.get("next_action"), "inspect")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_reason", task.get("next_reason"), "lease_still_active")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_blocker", task.get("next_blocker"), "active_lease")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_task_id", task.get("next_task_id"), STALLED_TASK)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{STALLED_DB}" --task-id "{STALLED_TASK}"')
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_status", task.get("coordination_status"), "stalled")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_reason", task.get("coordination_reason"), "active_lease_without_recent_heartbeat")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.coordination_summary", task.get("coordination_summary"), "inspect_owner_or_wait_for_lease_expiry")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), False)
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "none")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), "")
-            expect_equal(errors, "operator-flow/service-status-stalled", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 0)
-            lease_remaining_ms = task.get("lease_remaining_ms")
-            if not isinstance(lease_remaining_ms, int) or lease_remaining_ms <= 0:
-                append_error(errors, "operator-flow/service-status-stalled", f"recent.lease_remaining_ms expected positive int, got {lease_remaining_ms!r}")
-            next_summary = task.get("next_summary")
-            if not isinstance(next_summary, str) or not next_summary.startswith("wait:remaining_ms="):
-                append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing wait prefix: {next_summary!r}")
-            elif ",blocker=active_lease,reason=lease_still_active" not in next_summary:
-                append_error(errors, "operator-flow/service-status-stalled", f"recent.next_summary missing active-lease payload: {next_summary!r}")
+    flow_helpers.assert_stalled_status(
+        stalled_status,
+        errors,
+        "operator-flow/service-status-stalled",
+        STALLED_TASK,
+        STALLED_DB,
+        STALLED_OUTPUT,
+    )
 
     seed_failed_contended_a = run_json(
         [
@@ -822,9 +711,15 @@ def _main() -> int:
         "operator-flow/seed-failed-contended-a",
         errors,
     )
-    if seed_failed_contended_a is not None:
-        expect_equal(errors, "operator-flow/seed-failed-contended-a", "action", seed_failed_contended_a.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_contended_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-a", "remembered_session", CONTENDED_A_TASK, CONTENDED_DB, CONTENDED_A_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_contended_a,
+        errors,
+        "operator-flow/seed-failed-contended-a",
+        "seed-failed",
+        CONTENDED_A_TASK,
+        CONTENDED_DB,
+        CONTENDED_A_OUTPUT,
+    )
 
     seed_failed_contended_b = run_json(
         [
@@ -839,9 +734,15 @@ def _main() -> int:
         "operator-flow/seed-failed-contended-b",
         errors,
     )
-    if seed_failed_contended_b is not None:
-        expect_equal(errors, "operator-flow/seed-failed-contended-b", "action", seed_failed_contended_b.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_contended_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-contended-b", "remembered_session", CONTENDED_B_TASK, CONTENDED_DB, CONTENDED_B_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_contended_b,
+        errors,
+        "operator-flow/seed-failed-contended-b",
+        "seed-failed",
+        CONTENDED_B_TASK,
+        CONTENDED_DB,
+        CONTENDED_B_OUTPUT,
+    )
 
     contended_scope = f"scope:{CONTENDED_SHARED_OUTPUT}"
     with sqlite3.connect(REPO_ROOT / CONTENDED_DB) as connection:
@@ -884,13 +785,14 @@ def _main() -> int:
         "operator-flow/use-contended",
         errors,
     )
-    if use_contended is not None:
-        expect_equal(errors, "operator-flow/use-contended", "action", use_contended.get("action"), "use")
-        use_contended_result = use_contended.get("result") or {}
-        expect_equal(errors, "operator-flow/use-contended", "result.task_id", use_contended_result.get("task_id"), CONTENDED_A_TASK)
-        expect_equal(errors, "operator-flow/use-contended", "result.db", use_contended_result.get("db"), CONTENDED_DB)
-        expect_equal(errors, "operator-flow/use-contended", "result.output", use_contended_result.get("output"), CONTENDED_SHARED_OUTPUT)
-        expect_equal(errors, "operator-flow/use-contended", "result.output_source", use_contended_result.get("output_source"), "task_scope")
+    flow_helpers.assert_use_result(
+        use_contended,
+        errors,
+        "operator-flow/use-contended",
+        CONTENDED_A_TASK,
+        CONTENDED_DB,
+        CONTENDED_SHARED_OUTPUT,
+    )
 
     contended_status = run_json(
         [
@@ -903,50 +805,15 @@ def _main() -> int:
         "operator-flow/service-status-contended",
         errors,
     )
-    if contended_status is not None:
-        result = contended_status.get("result") or {}
-        coordination = result.get("coordination") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-status-contended", "result.db", result.get("db"), CONTENDED_DB)
-        expect_equal(errors, "operator-flow/service-status-contended", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-status-contended", "result.limit", result.get("limit"), 2)
-        expect_equal(errors, "operator-flow/service-status-contended", "current_session.task_id", current_session.get("task_id"), CONTENDED_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.status", coordination.get("status"), "contended")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.reason", coordination.get("reason"), "same_scope_peer_active")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.summary", coordination.get("summary"), "wait_for_scope_peer_release")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.task_id", coordination.get("task_id"), CONTENDED_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.target_scope", coordination.get("target_scope"), contended_scope)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_action", coordination.get("next_action"), "retry")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_task_id", coordination.get("next_task_id"), CONTENDED_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.next_blocker", coordination.get("next_blocker"), "none")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 1)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 1)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), CONTENDED_B_TASK)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-contended", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
-        if not recent_tasks:
-            append_error(errors, "operator-flow/service-status-contended", "recent task missing")
-        else:
-            task = recent_tasks[0]
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.task_id", task.get("task_id"), CONTENDED_A_TASK)
-            expect_true(errors, "operator-flow/service-status-contended", "recent.current", task.get("current"))
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.effect_status", task.get("effect_status"), "prepared")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.lease_state", task.get("lease_state"), "expired")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_action", task.get("next_action"), "retry")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_reason", task.get("next_reason"), "failed_state_ready_for_retry")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_blocker", task.get("next_blocker"), "none")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_summary", task.get("next_summary"), "ready_now:action=retry,reason=failed_state_ready_for_retry")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_task_id", task.get("next_task_id"), CONTENDED_A_TASK)
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.next_command", task.get("next_command"), f'safeclaw.cmd service-retry --db "{CONTENDED_DB}" --task-id "{CONTENDED_A_TASK}" --limit 1 --report')
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_status", task.get("coordination_status"), "contended")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_reason", task.get("coordination_reason"), "same_scope_peer_active")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.coordination_summary", task.get("coordination_summary"), "wait_for_scope_peer_release")
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_peer_count", task.get("scope_peer_count"), 1)
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 1)
-            expect_equal(errors, "operator-flow/service-status-contended", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), CONTENDED_B_TASK)
+    flow_helpers.assert_contended_status(
+        contended_status,
+        errors,
+        "operator-flow/service-status-contended",
+        CONTENDED_A_TASK,
+        CONTENDED_B_TASK,
+        CONTENDED_DB,
+        contended_scope,
+    )
 
     seed_failed_quarantine_a = run_json(
         [
@@ -961,9 +828,15 @@ def _main() -> int:
         "operator-flow/seed-failed-quarantine-a",
         errors,
     )
-    if seed_failed_quarantine_a is not None:
-        expect_equal(errors, "operator-flow/seed-failed-quarantine-a", "action", seed_failed_quarantine_a.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_quarantine_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-quarantine-a", "remembered_session", QUARANTINE_A_TASK, QUARANTINE_DB, QUARANTINE_A_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_quarantine_a,
+        errors,
+        "operator-flow/seed-failed-quarantine-a",
+        "seed-failed",
+        QUARANTINE_A_TASK,
+        QUARANTINE_DB,
+        QUARANTINE_A_OUTPUT,
+    )
 
     seed_failed_quarantine_b = run_json(
         [
@@ -978,9 +851,15 @@ def _main() -> int:
         "operator-flow/seed-failed-quarantine-b",
         errors,
     )
-    if seed_failed_quarantine_b is not None:
-        expect_equal(errors, "operator-flow/seed-failed-quarantine-b", "action", seed_failed_quarantine_b.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_quarantine_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-quarantine-b", "remembered_session", QUARANTINE_B_TASK, QUARANTINE_DB, QUARANTINE_B_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_quarantine_b,
+        errors,
+        "operator-flow/seed-failed-quarantine-b",
+        "seed-failed",
+        QUARANTINE_B_TASK,
+        QUARANTINE_DB,
+        QUARANTINE_B_OUTPUT,
+    )
 
     with sqlite3.connect(REPO_ROOT / QUARANTINE_DB) as connection:
         connection.execute(
@@ -1016,13 +895,14 @@ def _main() -> int:
         "operator-flow/use-quarantine",
         errors,
     )
-    if use_quarantine is not None:
-        expect_equal(errors, "operator-flow/use-quarantine", "action", use_quarantine.get("action"), "use")
-        use_quarantine_result = use_quarantine.get("result") or {}
-        expect_equal(errors, "operator-flow/use-quarantine", "result.task_id", use_quarantine_result.get("task_id"), QUARANTINE_B_TASK)
-        expect_equal(errors, "operator-flow/use-quarantine", "result.db", use_quarantine_result.get("db"), QUARANTINE_DB)
-        expect_equal(errors, "operator-flow/use-quarantine", "result.output", use_quarantine_result.get("output"), QUARANTINE_SHARED_OUTPUT)
-        expect_equal(errors, "operator-flow/use-quarantine", "result.output_source", use_quarantine_result.get("output_source"), "task_scope")
+    flow_helpers.assert_use_result(
+        use_quarantine,
+        errors,
+        "operator-flow/use-quarantine",
+        QUARANTINE_B_TASK,
+        QUARANTINE_DB,
+        QUARANTINE_SHARED_OUTPUT,
+    )
 
     quarantine_status = run_json(
         [
@@ -1035,51 +915,15 @@ def _main() -> int:
         "operator-flow/service-status-quarantine",
         errors,
     )
-    if quarantine_status is not None:
-        result = quarantine_status.get("result") or {}
-        coordination = result.get("coordination") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-status-quarantine", "result.db", result.get("db"), QUARANTINE_DB)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "result.limit", result.get("limit"), 2)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "current_session.task_id", current_session.get("task_id"), QUARANTINE_B_TASK)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.status", coordination.get("status"), "quarantined")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.reason", coordination.get("reason"), "peer_executed_assumed_scope_quarantine")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.summary", coordination.get("summary"), "wait_for_scope_reconcile")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.task_id", coordination.get("task_id"), QUARANTINE_B_TASK)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.target_scope", coordination.get("target_scope"), f"scope:{QUARANTINE_SHARED_OUTPUT}")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_action", coordination.get("next_action"), "inspect")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_task_id", coordination.get("next_task_id"), QUARANTINE_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.next_blocker", coordination.get("next_blocker"), "scope_quarantine")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 1)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), True)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "peer")
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), QUARANTINE_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-quarantine", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 1)
-        if not recent_tasks:
-            append_error(errors, "operator-flow/service-status-quarantine", "recent task missing")
-        else:
-            task = recent_tasks[0]
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.task_id", task.get("task_id"), QUARANTINE_B_TASK)
-            expect_true(errors, "operator-flow/service-status-quarantine", "recent.current", task.get("current"))
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.effect_status", task.get("effect_status"), "prepared")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.lease_state", task.get("lease_state"), "expired")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_action", task.get("next_action"), "inspect")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_reason", task.get("next_reason"), "scope_quarantined_by_peer")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_blocker", task.get("next_blocker"), "scope_quarantine")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=scope_quarantine,reason=scope_quarantined_by_peer")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_task_id", task.get("next_task_id"), QUARANTINE_A_TASK)
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{QUARANTINE_DB}" --task-id "{QUARANTINE_A_TASK}"')
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_status", task.get("coordination_status"), "quarantined")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_reason", task.get("coordination_reason"), "peer_executed_assumed_scope_quarantine")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.coordination_summary", task.get("coordination_summary"), "wait_for_scope_reconcile")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), True)
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "peer")
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), QUARANTINE_A_TASK)
-            expect_equal(errors, "operator-flow/service-status-quarantine", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 1)
+    flow_helpers.assert_quarantine_status(
+        quarantine_status,
+        errors,
+        "operator-flow/service-status-quarantine",
+        QUARANTINE_B_TASK,
+        QUARANTINE_A_TASK,
+        QUARANTINE_DB,
+        f"scope:{QUARANTINE_SHARED_OUTPUT}",
+    )
 
     seed_crash_reconcile = run_json(
         [
@@ -1096,9 +940,15 @@ def _main() -> int:
         "operator-flow/seed-crash-reconcile",
         errors,
     )
-    if seed_crash_reconcile is not None:
-        expect_equal(errors, "operator-flow/seed-crash-reconcile", "action", seed_crash_reconcile.get("action"), "seed-crash")
-        assert_session_fields((seed_crash_reconcile.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-reconcile", "remembered_session", RECONCILE_TASK, RECONCILE_DB, RECONCILE_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_crash_reconcile,
+        errors,
+        "operator-flow/seed-crash-reconcile",
+        "seed-crash",
+        RECONCILE_TASK,
+        RECONCILE_DB,
+        RECONCILE_OUTPUT,
+    )
 
     reconcile_status_before = run_json(
         [
@@ -1111,57 +961,14 @@ def _main() -> int:
         "operator-flow/service-reconcile-status-before",
         errors,
     )
-    if reconcile_status_before is not None:
-        result = reconcile_status_before.get("result") or {}
-        coordination = result.get("coordination") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.db", result.get("db"), RECONCILE_DB)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "result.limit", result.get("limit"), 1)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "current_session.task_id", current_session.get("task_id"), RECONCILE_TASK)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.status", coordination.get("status"), "quarantined")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.reason", coordination.get("reason"), "self_executed_assumed_scope_quarantine")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.summary", coordination.get("summary"), "reconcile_self_before_scope_write")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.task_id", coordination.get("task_id"), RECONCILE_TASK)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.target_scope", coordination.get("target_scope"), f"scope:{RECONCILE_OUTPUT}")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_action", coordination.get("next_action"), "inspect")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_task_id", coordination.get("next_task_id"), RECONCILE_TASK)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.next_blocker", coordination.get("next_blocker"), "scope_quarantine")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), True)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "self")
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), RECONCILE_TASK)
-        expect_equal(errors, "operator-flow/service-reconcile-status-before", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 1)
-        if not recent_tasks:
-            append_error(errors, "operator-flow/service-reconcile-status-before", "recent task missing")
-        else:
-            task = recent_tasks[0]
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.task_id", task.get("task_id"), RECONCILE_TASK)
-            expect_true(errors, "operator-flow/service-reconcile-status-before", "recent.current", task.get("current"))
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.effect_status", task.get("effect_status"), "executed_assumed")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.lease_state", task.get("lease_state"), "expired")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_action", task.get("next_action"), "inspect")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_reason", task.get("next_reason"), "executed_assumed_requires_reconcile")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_blocker", task.get("next_blocker"), "scope_quarantine")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_summary", task.get("next_summary"), "blocked:action=inspect,blocker=scope_quarantine,reason=executed_assumed_requires_reconcile")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_task_id", task.get("next_task_id"), RECONCILE_TASK)
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.next_command", task.get("next_command"), f'safeclaw.cmd report --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}"')
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_status", task.get("coordination_status"), "quarantined")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_reason", task.get("coordination_reason"), "self_executed_assumed_scope_quarantine")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.coordination_summary", task.get("coordination_summary"), "reconcile_self_before_scope_write")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_peer_count", task.get("scope_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_active_peer_count", task.get("scope_active_peer_count"), 0)
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_active_peer_task_id", task.get("scope_active_peer_task_id"), "")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_active", task.get("scope_quarantine_active"), True)
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_source", task.get("scope_quarantine_source"), "self")
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_task_id", task.get("scope_quarantine_task_id"), RECONCILE_TASK)
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.scope_quarantine_count", task.get("scope_quarantine_count"), 1)
-            reconcile_commands = task.get("reconcile_commands") or {}
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.reconcile_commands.executed", reconcile_commands.get("executed"), f'safeclaw.cmd service-reconcile --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}" --decision executed --limit 1 --report')
-            expect_equal(errors, "operator-flow/service-reconcile-status-before", "recent.reconcile_commands.not_executed", reconcile_commands.get("not_executed"), f'safeclaw.cmd service-reconcile --db "{RECONCILE_DB}" --task-id "{RECONCILE_TASK}" --decision not-executed --limit 1 --report')
+    flow_helpers.assert_reconcile_status_before(
+        reconcile_status_before,
+        errors,
+        "operator-flow/service-reconcile-status-before",
+        RECONCILE_TASK,
+        RECONCILE_DB,
+        RECONCILE_OUTPUT,
+    )
 
     service_reconcile = run_json(
         [
@@ -1204,9 +1011,15 @@ def _main() -> int:
         "operator-flow/seed-crash-session-priority-a",
         errors,
     )
-    if seed_crash_session_priority_a is not None:
-        expect_equal(errors, "operator-flow/seed-crash-session-priority-a", "action", seed_crash_session_priority_a.get("action"), "seed-crash")
-        assert_session_fields((seed_crash_session_priority_a.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-crash-session-priority-a", "remembered_session", SESSION_PRIORITY_A_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_A_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_crash_session_priority_a,
+        errors,
+        "operator-flow/seed-crash-session-priority-a",
+        "seed-crash",
+        SESSION_PRIORITY_A_TASK,
+        SESSION_PRIORITY_DB,
+        SESSION_PRIORITY_A_OUTPUT,
+    )
 
     seed_failed_session_priority_b = run_json(
         [
@@ -1221,9 +1034,15 @@ def _main() -> int:
         "operator-flow/seed-failed-session-priority-b",
         errors,
     )
-    if seed_failed_session_priority_b is not None:
-        expect_equal(errors, "operator-flow/seed-failed-session-priority-b", "action", seed_failed_session_priority_b.get("action"), "seed-failed")
-        assert_session_fields((seed_failed_session_priority_b.get("result") or {}).get("remembered_session"), errors, "operator-flow/seed-failed-session-priority-b", "remembered_session", SESSION_PRIORITY_B_TASK, SESSION_PRIORITY_DB, SESSION_PRIORITY_B_OUTPUT)
+    flow_helpers.assert_seed_result(
+        seed_failed_session_priority_b,
+        errors,
+        "operator-flow/seed-failed-session-priority-b",
+        "seed-failed",
+        SESSION_PRIORITY_B_TASK,
+        SESSION_PRIORITY_DB,
+        SESSION_PRIORITY_B_OUTPUT,
+    )
 
     with sqlite3.connect(REPO_ROOT / SESSION_PRIORITY_DB) as connection:
         connection.execute(
@@ -1243,13 +1062,14 @@ def _main() -> int:
         "operator-flow/use-session-priority-a",
         errors,
     )
-    if use_session_priority_a is not None:
-        expect_equal(errors, "operator-flow/use-session-priority-a", "action", use_session_priority_a.get("action"), "use")
-        use_session_priority_result = use_session_priority_a.get("result") or {}
-        expect_equal(errors, "operator-flow/use-session-priority-a", "result.task_id", use_session_priority_result.get("task_id"), SESSION_PRIORITY_A_TASK)
-        expect_equal(errors, "operator-flow/use-session-priority-a", "result.db", use_session_priority_result.get("db"), SESSION_PRIORITY_DB)
-        expect_equal(errors, "operator-flow/use-session-priority-a", "result.output", use_session_priority_result.get("output"), SESSION_PRIORITY_A_OUTPUT)
-        expect_equal(errors, "operator-flow/use-session-priority-a", "result.output_source", use_session_priority_result.get("output_source"), "task_scope")
+    flow_helpers.assert_use_result(
+        use_session_priority_a,
+        errors,
+        "operator-flow/use-session-priority-a",
+        SESSION_PRIORITY_A_TASK,
+        SESSION_PRIORITY_DB,
+        SESSION_PRIORITY_A_OUTPUT,
+    )
 
     session_priority_status = run_json(
         [
@@ -1262,44 +1082,15 @@ def _main() -> int:
         "operator-flow/service-status-session-priority",
         errors,
     )
-    if session_priority_status is not None:
-        result = session_priority_status.get("result") or {}
-        coordination = result.get("coordination") or {}
-        current_session = result.get("current_session") or {}
-        recent_tasks = result.get("recent_tasks") or []
-        expect_equal(errors, "operator-flow/service-status-session-priority", "result.db", result.get("db"), SESSION_PRIORITY_DB)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "result.db_source", result.get("db_source"), "flag")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "result.limit", result.get("limit"), 2)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "current_session.task_id", current_session.get("task_id"), SESSION_PRIORITY_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "current_session.output", current_session.get("output"), SESSION_PRIORITY_A_OUTPUT)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.status", coordination.get("status"), "ready")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.reason", coordination.get("reason"), "uncertain_state_ready_for_recover")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.summary", coordination.get("summary"), "recover_now")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.task_id", coordination.get("task_id"), SESSION_PRIORITY_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.target_scope", coordination.get("target_scope"), f"scope:{SESSION_PRIORITY_A_OUTPUT}")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_action", coordination.get("next_action"), "recover")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_task_id", coordination.get("next_task_id"), SESSION_PRIORITY_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.next_blocker", coordination.get("next_blocker"), "none")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_peer_count", coordination.get("scope_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_active_peer_count", coordination.get("scope_active_peer_count"), 0)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_active_peer_task_id", coordination.get("scope_active_peer_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_active", coordination.get("scope_quarantine_active"), False)
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_source", coordination.get("scope_quarantine_source"), "none")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_task_id", coordination.get("scope_quarantine_task_id"), "")
-        expect_equal(errors, "operator-flow/service-status-session-priority", "coordination.scope_quarantine_count", coordination.get("scope_quarantine_count"), 0)
-        if len(recent_tasks) < 2:
-            append_error(errors, "operator-flow/service-status-session-priority", f"expected at least 2 recent tasks, got {len(recent_tasks)!r}")
-        else:
-            recent_newer = recent_tasks[0]
-            recent_current = recent_tasks[1]
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].task_id", recent_newer.get("task_id"), SESSION_PRIORITY_B_TASK)
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].current", recent_newer.get("current"), False)
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].next_action", recent_newer.get("next_action"), "retry")
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[0].coordination_summary", recent_newer.get("coordination_summary"), "retry_now")
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].task_id", recent_current.get("task_id"), SESSION_PRIORITY_A_TASK)
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].current", recent_current.get("current"), True)
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].next_action", recent_current.get("next_action"), "recover")
-            expect_equal(errors, "operator-flow/service-status-session-priority", "recent[1].coordination_summary", recent_current.get("coordination_summary"), "recover_now")
+    flow_helpers.assert_session_priority_status(
+        session_priority_status,
+        errors,
+        "operator-flow/service-status-session-priority",
+        SESSION_PRIORITY_A_TASK,
+        SESSION_PRIORITY_B_TASK,
+        SESSION_PRIORITY_DB,
+        SESSION_PRIORITY_A_OUTPUT,
+    )
 
     seed_crash_owner_alignment_a = run_json(
         [
@@ -1316,18 +1107,16 @@ def _main() -> int:
         "operator-flow/seed-crash-owner-alignment-a",
         errors,
     )
-    if seed_crash_owner_alignment_a is not None:
-        expect_equal(errors, "operator-flow/seed-crash-owner-alignment-a", "action", seed_crash_owner_alignment_a.get("action"), "seed-crash")
-        assert_session_fields(
-            (seed_crash_owner_alignment_a.get("result") or {}).get("remembered_session"),
-            errors,
-            "operator-flow/seed-crash-owner-alignment-a",
-            "remembered_session",
-            OWNER_ALIGNMENT_A_TASK,
-            OWNER_ALIGNMENT_DB,
-            OWNER_ALIGNMENT_A_OUTPUT,
-            owner_id=OWNER_ALIGNMENT_A_OWNER,
-        )
+    flow_helpers.assert_seed_result(
+        seed_crash_owner_alignment_a,
+        errors,
+        "operator-flow/seed-crash-owner-alignment-a",
+        "seed-crash",
+        OWNER_ALIGNMENT_A_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_A_OUTPUT,
+        owner_id=OWNER_ALIGNMENT_A_OWNER,
+    )
 
     seed_failed_owner_alignment_b = run_json(
         [
@@ -1344,18 +1133,16 @@ def _main() -> int:
         "operator-flow/seed-failed-owner-alignment-b",
         errors,
     )
-    if seed_failed_owner_alignment_b is not None:
-        expect_equal(errors, "operator-flow/seed-failed-owner-alignment-b", "action", seed_failed_owner_alignment_b.get("action"), "seed-failed")
-        assert_session_fields(
-            (seed_failed_owner_alignment_b.get("result") or {}).get("remembered_session"),
-            errors,
-            "operator-flow/seed-failed-owner-alignment-b",
-            "remembered_session",
-            OWNER_ALIGNMENT_B_TASK,
-            OWNER_ALIGNMENT_DB,
-            OWNER_ALIGNMENT_B_OUTPUT,
-            owner_id=OWNER_ALIGNMENT_B_OWNER,
-        )
+    flow_helpers.assert_seed_result(
+        seed_failed_owner_alignment_b,
+        errors,
+        "operator-flow/seed-failed-owner-alignment-b",
+        "seed-failed",
+        OWNER_ALIGNMENT_B_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_B_OUTPUT,
+        owner_id=OWNER_ALIGNMENT_B_OWNER,
+    )
 
     use_owner_alignment_a = run_json(
         [
@@ -1368,15 +1155,16 @@ def _main() -> int:
         "operator-flow/use-owner-alignment-a",
         errors,
     )
-    if use_owner_alignment_a is not None:
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "action", use_owner_alignment_a.get("action"), "use")
-        use_owner_alignment_result = use_owner_alignment_a.get("result") or {}
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.task_id", use_owner_alignment_result.get("task_id"), OWNER_ALIGNMENT_A_TASK)
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.db", use_owner_alignment_result.get("db"), OWNER_ALIGNMENT_DB)
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.output", use_owner_alignment_result.get("output"), OWNER_ALIGNMENT_A_OUTPUT)
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.output_source", use_owner_alignment_result.get("output_source"), "task_scope")
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id", use_owner_alignment_result.get("owner_id"), OWNER_ALIGNMENT_A_OWNER)
-        expect_equal(errors, "operator-flow/use-owner-alignment-a", "result.owner_id_source", use_owner_alignment_result.get("owner_id_source"), "task_owner")
+    flow_helpers.assert_use_result(
+        use_owner_alignment_a,
+        errors,
+        "operator-flow/use-owner-alignment-a",
+        OWNER_ALIGNMENT_A_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_A_OUTPUT,
+        owner_id=OWNER_ALIGNMENT_A_OWNER,
+        owner_id_source="task_owner",
+    )
 
     owner_alignment_status = run_json(
         [
@@ -1389,29 +1177,22 @@ def _main() -> int:
         "operator-flow/service-status-owner-alignment",
         errors,
     )
-    if owner_alignment_status is not None:
-        result = owner_alignment_status.get("result") or {}
-        current_session = result.get("current_session") or {}
-        expect_equal(errors, "operator-flow/service-status-owner-alignment", "result.db", result.get("db"), OWNER_ALIGNMENT_DB)
-        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.task_id", current_session.get("task_id"), OWNER_ALIGNMENT_A_TASK)
-        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.output", current_session.get("output"), OWNER_ALIGNMENT_A_OUTPUT)
-        expect_equal(errors, "operator-flow/service-status-owner-alignment", "current_session.owner_id", current_session.get("owner_id"), OWNER_ALIGNMENT_A_OWNER)
+    flow_helpers.assert_owner_alignment_status(
+        owner_alignment_status,
+        errors,
+        "operator-flow/service-status-owner-alignment",
+        OWNER_ALIGNMENT_A_TASK,
+        OWNER_ALIGNMENT_DB,
+        OWNER_ALIGNMENT_A_OUTPUT,
+        OWNER_ALIGNMENT_A_OWNER,
+    )
     forget_after = run_json(["forget"], "operator-flow/forget-after", errors)
-    if forget_after is not None:
-        expect_equal(errors, "operator-flow/forget-after", "action", forget_after.get("action"), "forget")
-        expect_true(errors, "operator-flow/forget-after", "result.forgot", (forget_after.get("result") or {}).get("forgot"))
+    flow_helpers.assert_forget_after_result(forget_after, errors, "operator-flow/forget-after")
 
 
 
     workspace_clear_after = run_json(["workspace", "--clear"], "operator-flow/workspace-clear-after", errors)
-    if workspace_clear_after is not None:
-        expect_equal(errors, "operator-flow/workspace-clear-after", "action", workspace_clear_after.get("action"), "workspace")
-        clear_result = workspace_clear_after.get("result") or {}
-        clear_state = (clear_result.get("cleared"), clear_result.get("reason"))
-        if clear_result.get("path") != r"target\mvp\workspace.json":
-            append_error(errors, "operator-flow/workspace-clear-after", "missing workspace path")
-        elif clear_state not in {(True, "removed"), (False, "none")}:
-            append_error(errors, "operator-flow/workspace-clear-after", f"unexpected clear state {clear_state!r}")
+    flow_helpers.assert_workspace_clear_result(workspace_clear_after, errors, "operator-flow/workspace-clear-after")
 
     if errors:
         print("MVP operator flow check failed.", flush=True)
