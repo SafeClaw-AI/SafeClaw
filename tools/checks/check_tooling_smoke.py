@@ -9926,6 +9926,76 @@ def append_wrapper_cmd_forget_recovery_errors(errors: list[str]) -> None:
         errors.append("mvp-wrapper-restore-after-cmd-forget missing task-wrapper-b")
 
 
+def append_wrapper_forget_success_errors(errors: list[str]) -> None:
+    wrapper_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_forget_output = (wrapper_forget.stdout or "") + (
+        wrapper_forget.stderr or ""
+    )
+
+    if wrapper_forget.returncode != 0:
+        errors.append(f"mvp-wrapper-forget 执行失败: exit={wrapper_forget.returncode}")
+
+    elif (
+        "[mvp-wrapper] forgot => reason=removed path=target\\mvp\\last_session.json"
+        not in wrapper_forget_output
+    ):
+        errors.append("mvp-wrapper-forget 输出缺少会话清空标记")
+
+    wrapper_forget_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = load_json_payload(
+        wrapper_forget_json, errors, "mvp-wrapper-forget-json", expected_exit=0
+    )
+
+    if payload is not None:
+        result = extract_json_result(
+            payload, errors, "mvp-wrapper-forget-json", "forget"
+        )
+
+        if result is not None:
+            if (
+                result.get("forgot") is not False
+                or result.get("path") != "target\\mvp\\last_session.json"
+            ):
+                errors.append("mvp-wrapper-forget-json 输出不符合预期")
+
+            elif result.get("reason") != "none":
+                errors.append("mvp-wrapper-forget-json 输出缺少 reason=none")
+
+    wrapper_session_after_forget = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_session_after_forget_output = (
+        wrapper_session_after_forget.stdout or ""
+    ) + (wrapper_session_after_forget.stderr or "")
+
+    if wrapper_session_after_forget.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-session-after-forget 执行失败: exit={wrapper_session_after_forget.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] session => none path=target\\mvp\\last_session.json"
+        not in wrapper_session_after_forget_output
+    ):
+        errors.append("mvp-wrapper-session-after-forget 输出缺少 none/path")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -10109,74 +10179,7 @@ def collect_errors() -> list[str]:
     )
     append_wrapper_use_session_success_errors(errors)
     append_wrapper_cmd_forget_recovery_errors(errors)
-
-    wrapper_forget = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_forget_output = (wrapper_forget.stdout or "") + (
-        wrapper_forget.stderr or ""
-    )
-
-    if wrapper_forget.returncode != 0:
-        errors.append(f"mvp-wrapper-forget 执行失败: exit={wrapper_forget.returncode}")
-
-    elif (
-        "[mvp-wrapper] forgot => reason=removed path=target\\mvp\\last_session.json"
-        not in wrapper_forget_output
-    ):
-        errors.append("mvp-wrapper-forget 输出缺少会话清空标记")
-
-    wrapper_forget_json = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "forget", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    payload = load_json_payload(
-        wrapper_forget_json, errors, "mvp-wrapper-forget-json", expected_exit=0
-    )
-
-    if payload is not None:
-        result = extract_json_result(
-            payload, errors, "mvp-wrapper-forget-json", "forget"
-        )
-
-        if result is not None:
-            if (
-                result.get("forgot") is not False
-                or result.get("path") != "target\\mvp\\last_session.json"
-            ):
-                errors.append("mvp-wrapper-forget-json 输出不符合预期")
-
-            elif result.get("reason") != "none":
-                errors.append("mvp-wrapper-forget-json 输出缺少 reason=none")
-
-    wrapper_session_after_forget = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_session_after_forget_output = (
-        wrapper_session_after_forget.stdout or ""
-    ) + (wrapper_session_after_forget.stderr or "")
-
-    if wrapper_session_after_forget.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-session-after-forget 执行失败: exit={wrapper_session_after_forget.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] session => none path=target\\mvp\\last_session.json"
-        not in wrapper_session_after_forget_output
-    ):
-        errors.append("mvp-wrapper-session-after-forget 输出缺少 none/path")
+    append_wrapper_forget_success_errors(errors)
     append_wrapper_missing_task_context_errors(
         errors,
         python_executable=PYTHON,

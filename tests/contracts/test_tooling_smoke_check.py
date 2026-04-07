@@ -3819,7 +3819,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_cmd_forget_recovery_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_forget_success_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("mvp-wrapper-cmd-forget missing removed path", helper_block)
@@ -3837,6 +3837,38 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"task-wrapper-b"', helper_block)
         self.assertNotIn("mvp-wrapper-forget-json 输出不符合预期", helper_block)
         self.assertNotIn("mvp-wrapper-session-after-forget 输出缺少 none/path", helper_block)
+
+    def test_collect_errors_uses_wrapper_forget_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_forget_success_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_forget_success_errors_keeps_boundary(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_forget_success_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("mvp-wrapper-forget 输出缺少会话清空标记", helper_block)
+        self.assertIn("mvp-wrapper-forget-json 输出不符合预期", helper_block)
+        self.assertIn("mvp-wrapper-forget-json 输出缺少 reason=none", helper_block)
+        self.assertIn("mvp-wrapper-session-after-forget 输出缺少 none/path", helper_block)
+        self.assertIn('"forget"', helper_block)
+        self.assertIn('"session"', helper_block)
+        self.assertNotIn("mvp-wrapper-cmd-forget-json missing session path", helper_block)
+        self.assertNotIn(
+            "mvp-wrapper-restore-after-cmd-forget missing task-wrapper-b",
+            helper_block,
+        )
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
