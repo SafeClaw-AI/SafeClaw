@@ -20,6 +20,7 @@ from mvp_state_guard import _process_is_running, acquire_mvp_state_lock
 from tooling_smoke_explicit_failed import append_wrapper_explicit_failed_errors
 from tooling_smoke_codegen_artifacts import append_codegen_artifact_errors
 from tooling_smoke_invalid_argument import append_wrapper_invalid_argument_errors
+from tooling_smoke_schema_diff import append_schema_diff_errors
 from tooling_smoke_missing_task_context import (
     append_wrapper_missing_task_context_errors,
 )
@@ -10733,66 +10734,13 @@ def collect_errors() -> list[str]:
         repo_root=REPO_ROOT,
     )
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_root = Path(temp_dir)
-
-        old_path = temp_root / "old.json"
-
-        new_path = temp_root / "new.json"
-
-        json_out = temp_root / "diff.json"
-
-        old_path.write_text(json.dumps({"version": "0.1.1", "a": 1}), encoding="utf-8")
-
-        new_path.write_text(
-            json.dumps({"version": "0.1.2", "a": 2, "b": 3}), encoding="utf-8"
-        )
-
-        json_run = subprocess.run(
-            [
-                PYTHON,
-                "tools/schema_diff/main.py",
-                str(old_path),
-                str(new_path),
-                "--json-out",
-                str(json_out),
-            ],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        if json_run.returncode != 0:
-            errors.append(f"schema-diff json 输出执行失败: exit={json_run.returncode}")
-
-        elif not json_out.exists():
-            errors.append("schema-diff 未生成 JSON 输出文件")
-
-        else:
-            payload = load_json_file_payload(json_out, errors, "schema-diff JSON 输出")
-
-            if payload is not None:
-                if payload.get("mode") != "file":
-                    errors.append("schema-diff JSON 输出 mode 不正确")
-
-                if "added_keys" not in payload or "changed_keys" not in payload:
-                    errors.append("schema-diff JSON 输出缺少关键字段")
-
-        fail_run = subprocess.run(
-            [
-                PYTHON,
-                "tools/schema_diff/main.py",
-                str(old_path),
-                str(new_path),
-                "--fail-on-diff",
-            ],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        if fail_run.returncode == 0:
-            errors.append("schema-diff 在存在差异时未按预期返回非 0")
+    append_schema_diff_errors(
+        errors,
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        load_json_file_payload=load_json_file_payload,
+    )
 
     return errors
 

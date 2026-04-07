@@ -4603,6 +4603,38 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             source,
         )
 
+    def test_collect_errors_uses_schema_diff_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_schema_diff_errors( errors,", normalized_source)
+
+    def test_append_schema_diff_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_schema_diff.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"tools/schema_diff/main.py"', source)
+        self.assertIn('"old.json"', source)
+        self.assertIn('"new.json"', source)
+        self.assertIn('"diff.json"', source)
+        self.assertNotIn('"generated"', source)
+        self.assertNotIn('"stable_ids.json"', source)
+
+    def test_append_schema_diff_errors_keeps_json_and_fail_on_diff_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_schema_diff.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"schema-diff JSON 输出"', source)
+        self.assertIn('"--json-out"', source)
+        self.assertIn('"mode"', source)
+        self.assertIn('"added_keys"', source)
+        self.assertIn('"changed_keys"', source)
+        self.assertIn('"--fail-on-diff"', source)
+        self.assertIn('"schema-diff 在存在差异时未按预期返回非 0"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
