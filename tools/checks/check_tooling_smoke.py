@@ -57,6 +57,9 @@ from tooling_smoke_cmd_run_json import (
 from tooling_smoke_ps1_run_json import (
     append_wrapper_ps1_run_json_errors as _append_wrapper_ps1_run_json_errors,
 )
+from tooling_smoke_run_json import (
+    append_wrapper_run_json_errors as _append_wrapper_run_json_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9583,28 +9586,11 @@ def ensure_space_wrapper_dir_exists() -> None:
 
 
 def append_wrapper_run_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-json",
-            "--json",
-        ],
+    _append_wrapper_run_json_errors(
         errors,
-        "mvp-wrapper-run-json",
-        "run",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-run-json",
-        expected_task_id="task-wrapper-json",
-        expected_db_source="default",
-        expected_output_source="default",
+        python_executable=PYTHON,
+        assert_command_json_result=assert_command_json_result,
+        assert_run_json_result=assert_run_json_result,
     )
 
 
