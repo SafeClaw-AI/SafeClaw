@@ -35,6 +35,7 @@ from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
 from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_errors
+from tooling_smoke_wrapper_session_repair import append_wrapper_session_repair_errors
 from tooling_smoke_wrapper_verify import append_wrapper_verify_errors
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
@@ -10506,109 +10507,14 @@ def collect_errors() -> list[str]:
         assert_command_failure_output=assert_command_failure_output,
     )
 
-    wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
-
-    wrapper_session_file.parent.mkdir(parents=True, exist_ok=True)
-
-    wrapper_session_file.write_text("{broken", encoding="utf-8")
-
-    wrapper_session_after_corrupt = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_session_after_corrupt_output = (
-        wrapper_session_after_corrupt.stdout or ""
-    ) + (wrapper_session_after_corrupt.stderr or "")
-
-    if wrapper_session_after_corrupt.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-session-after-corrupt 执行失败: exit={wrapper_session_after_corrupt.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] session repair => dropped invalid target\\mvp\\last_session.json"
-        not in wrapper_session_after_corrupt_output
-    ):
-        errors.append("mvp-wrapper-session-after-corrupt 输出缺少损坏会话修复提示")
-
-    elif (
-        "[mvp-wrapper] session => none path=target\\mvp\\last_session.json"
-        not in wrapper_session_after_corrupt_output
-    ):
-        errors.append("mvp-wrapper-session-after-corrupt 输出缺少 none/path")
-
-    elif wrapper_session_file.exists():
-        errors.append("mvp-wrapper-session-after-corrupt 未移除损坏会话文件")
-
-    wrapper_session_file.write_text("{broken", encoding="utf-8")
-
-    wrapper_ps1_session_after_corrupt_json = subprocess.run(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "session",
-            "--json",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_ps1_session_after_corrupt_output = (
-        wrapper_ps1_session_after_corrupt_json.stdout or ""
-    ) + (wrapper_ps1_session_after_corrupt_json.stderr or "")
-
-    payload = load_json_payload(
-        wrapper_ps1_session_after_corrupt_json,
+    append_wrapper_session_repair_errors(
         errors,
-        "mvp-wrapper-ps1-session-after-corrupt-json",
-        expected_exit=0,
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        load_json_payload=load_json_payload,
+        assert_json_null_result=assert_json_null_result,
     )
-
-    assert_json_null_result(
-        payload, errors, "mvp-wrapper-ps1-session-after-corrupt-json", "session"
-    )
-
-    if (
-        r"[mvp-wrapper] session repair => dropped invalid target\mvp\last_session.json"
-        not in wrapper_ps1_session_after_corrupt_output
-    ):
-        errors.append(
-            "mvp-wrapper-ps1-session-after-corrupt-json missing repair notice"
-        )
-
-    elif wrapper_session_file.exists():
-        errors.append(
-            "mvp-wrapper-ps1-session-after-corrupt-json did not remove invalid file"
-        )
-
-    wrapper_cmd_session_after_ps1_repair = subprocess.run(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "session"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_cmd_session_after_ps1_repair_output = (
-        wrapper_cmd_session_after_ps1_repair.stdout or ""
-    ) + (wrapper_cmd_session_after_ps1_repair.stderr or "")
-
-    if wrapper_cmd_session_after_ps1_repair.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-cmd-session-after-ps1-repair failed: exit={wrapper_cmd_session_after_ps1_repair.returncode}"
-        )
-
-    elif (
-        r"[mvp-wrapper] session => none path=target\mvp\last_session.json"
-        not in wrapper_cmd_session_after_ps1_repair_output
-    ):
-        errors.append("mvp-wrapper-cmd-session-after-ps1-repair missing none/path")
 
     wrapper_seed_crash_json = subprocess.run(
         [

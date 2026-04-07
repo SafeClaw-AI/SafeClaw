@@ -3771,6 +3771,37 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('_cmd_command("not-real-action")', source)
         self.assertIn('_ps1_command("demo", "--bogus")', source)
 
+    def test_collect_errors_uses_wrapper_session_repair_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_session_repair_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_session_repair_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_session_repair.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("mvp-wrapper-session-after-corrupt 输出缺少损坏会话修复提示", source)
+        self.assertIn('"mvp-wrapper-ps1-session-after-corrupt-json"', source)
+        self.assertIn("mvp-wrapper-cmd-session-after-ps1-repair missing none/path", source)
+        self.assertNotIn('"mvp-wrapper-seed-crash-json"', source)
+
+    def test_append_wrapper_session_repair_errors_keeps_invalid_file_flow(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_session_repair.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'wrapper_session_file = ctx.repo_root / "target" / "mvp" / "last_session.json"',
+            source,
+        )
+        self.assertIn('wrapper_session_file.write_text("{broken", encoding="utf-8")', source)
+        self.assertIn('_ps1_command("session", "--json")', source)
+        self.assertIn('_cmd_command("session")', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
