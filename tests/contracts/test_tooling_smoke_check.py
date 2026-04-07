@@ -3512,6 +3512,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"retry blocked before expiry => true"', source)
         self.assertNotIn('"mvp-wrapper-status-failed-session-seed-failed-json"', source)
 
+    def test_collect_errors_uses_wrapper_failed_session_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_failed_session_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_failed_session_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_failed_session.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-ps1-status-failed-session-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-sessions-failed-json"', source)
+        self.assertIn('("coordination_summary", "retry_now", None)', source)
+        self.assertNotIn('"mvp-wrapper-status-explicit-failed-seed-json"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
