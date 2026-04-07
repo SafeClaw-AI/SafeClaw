@@ -36,6 +36,9 @@ from tooling_smoke_service_reconcile_report import (
 )
 from tooling_smoke_wrapper_demo_success import append_wrapper_demo_success_errors
 from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_errors
+from tooling_smoke_wrapper_recover_demo_success import (
+    append_wrapper_recover_demo_success_errors,
+)
 from tooling_smoke_wrapper_session_repair import append_wrapper_session_repair_errors
 from tooling_smoke_wrapper_state_recovery import append_wrapper_state_recovery_errors
 from tooling_smoke_wrapper_verify import append_wrapper_verify_errors
@@ -9430,6 +9433,23 @@ def append_wrapper_ps1_service_recover_json_errors(errors: list[str]) -> None:
     )
 
 
+def append_wrapper_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:
+    assert_command_json_error(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-recover",
+            "--limit",
+            "bogus",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-invalid-limit-json",
+        "service-recover",
+        expected_error_message_substring="invalid --limit: bogus",
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9556,21 +9576,7 @@ def collect_errors() -> list[str]:
     append_wrapper_cmd_service_recover_json_errors(errors)
     append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors)
     append_wrapper_ps1_service_recover_json_errors(errors)
-
-    assert_command_json_error(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "service-recover",
-            "--limit",
-            "bogus",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-service-recover-invalid-limit-json",
-        "service-recover",
-        expected_error_message_substring="invalid --limit: bogus",
-    )
+    append_wrapper_service_recover_invalid_limit_json_errors(errors)
 
     assert_command_json_error(
         [
@@ -10964,122 +10970,15 @@ def collect_errors() -> list[str]:
             ],
         )
 
-    wrapper_recover_demo = subprocess.run(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "recover-demo",
-            "--task-id",
-            "task-wrapper-recover-demo",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_recover_demo_output = (wrapper_recover_demo.stdout or "") + (
-        wrapper_recover_demo.stderr or ""
-    )
-
-    if wrapper_recover_demo.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-recover-demo 执行失败: exit={wrapper_recover_demo.returncode}"
-        )
-
-    elif "[mvp-wrapper] recover-demo => seed-crash" not in wrapper_recover_demo_output:
-        errors.append("mvp-wrapper-recover-demo 输出缺少 seed-crash 标记")
-
-    elif "[mvp-wrapper] recover-demo => recover" not in wrapper_recover_demo_output:
-        errors.append("mvp-wrapper-recover-demo 输出缺少 recover 标记")
-
-    elif "[mvp-wrapper] recover-demo => report" not in wrapper_recover_demo_output:
-        errors.append("mvp-wrapper-recover-demo 输出缺少 report 标记")
-
-    elif (
-        "[mvp] report target => task=task-wrapper-recover-demo effect=effect-task-wrapper-recover-demo"
-        not in wrapper_recover_demo_output
-    ):
-        errors.append(
-            "mvp-wrapper-recover-demo 输出缺少 task-wrapper-recover-demo report 目标"
-        )
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "recover-demo",
-            "--task-id",
-            "task-wrapper-recover-demo-json",
-            "--json",
-        ],
+    append_wrapper_recover_demo_success_errors(
         errors,
-        "mvp-wrapper-recover-demo-json",
-        "recover-demo",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_result=assert_command_json_result,
+        assert_matching_session_alias=assert_matching_session_alias,
+        assert_step_source_hints=assert_step_source_hints,
     )
-
-    if result is not None:
-        steps = result.get("steps") or []
-
-        session = result.get("session") or {}
-
-        remembered_session = result.get("remembered_session") or {}
-
-        if [step.get("action") for step in steps] != [
-            "seed-crash",
-            "recover",
-            "report",
-        ]:
-            errors.append("mvp-wrapper-recover-demo-json 步骤序列不正确")
-
-        elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
-            errors.append(
-                "mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json"
-            )
-
-        elif session.get("task_id") != "task-wrapper-recover-demo-json":
-            errors.append(
-                "mvp-wrapper-recover-demo-json 缺少兼容 session task-wrapper-recover-demo-json"
-            )
-
-        else:
-            assert_matching_session_alias(
-                result, errors, "mvp-wrapper-recover-demo-json"
-            )
-
-            assert_step_source_hints(
-                steps,
-                errors,
-                "mvp-wrapper-recover-demo-json",
-                [
-                    (
-                        "seed-crash",
-                        {
-                            "db": "default",
-                            "output": "default",
-                            "owner_id": "default",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "recover",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "report",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                ],
-            )
 
     result = assert_command_json_result(
         [

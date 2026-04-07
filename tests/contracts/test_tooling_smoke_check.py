@@ -3458,7 +3458,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_ps1_service_recover_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3470,6 +3470,39 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_task_id="task-wrapper-service-recover-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-invalid-limit-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_invalid_limit_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_invalid_limit_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_invalid_limit_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-invalid-limit-json"', helper_block)
+        self.assertIn('"service-recover"', helper_block)
+        self.assertIn("PYTHON", helper_block)
+        self.assertIn('"tools/mvp/safeclaw_mvp.py"', helper_block)
+        self.assertIn('expected_error_message_substring="invalid --limit: bogus"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-recover-missing-task-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
@@ -3870,6 +3903,45 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('_DEMO_TASK_ID = "task-wrapper-demo-json"', source)
         self.assertIn(
             '"mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json"',
+            source,
+        )
+
+    def test_collect_errors_uses_wrapper_recover_demo_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_recover_demo_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_recover_demo_success_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-recover-demo"', source)
+        self.assertIn('"mvp-wrapper-recover-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-preflight-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-json"', source)
+
+    def test_append_wrapper_recover_demo_success_errors_keeps_session_links(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_RECOVER_DEMO_TASK_ID = "task-wrapper-recover-demo-json"', source)
+        self.assertIn(
+            '"mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json"',
             source,
         )
 
