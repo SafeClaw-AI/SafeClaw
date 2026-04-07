@@ -25,6 +25,9 @@ from tooling_smoke_missing_task_context import (
 from tooling_smoke_service_run_report import (
     append_wrapper_service_run_report_errors,
 )
+from tooling_smoke_service_retry_report import (
+    append_wrapper_service_retry_report_errors,
+)
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
     append_wrapper_ps1_explicit_targeting_errors,
@@ -10141,131 +10144,12 @@ def collect_errors() -> list[str]:
         assert_command_json_result=assert_command_json_result,
         assert_service_run_json_result=assert_service_run_json_result,
     )
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-failed",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-retry-report-json",
-            "--db",
-            "target/mvp/service-retry-report-json.db",
-            "--output",
-            "target/mvp/service-retry-report-json.txt",
-            "--json",
-        ],
+    append_wrapper_service_retry_report_errors(
         errors,
-        "mvp-wrapper-service-retry-report-json-seed-failed-json",
-        "seed-failed",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-retry-report-json-seed-failed-json",
-        expected_task_id="task-wrapper-service-retry-report-json",
-        expected_db_path="target/mvp/service-retry-report-json.db",
-        expected_output_path="target/mvp/service-retry-report-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
-    )
-
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            r"tools\mvp\safeclaw_mvp.cmd",
-            "service-retry",
-            "--db",
-            "target/mvp/service-retry-report-json.db",
-            "--task-id",
-            "task-wrapper-service-retry-report-json",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-cmd-service-retry-report-json",
-        "service-retry",
-    )
-
-    assert_service_retry_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-service-retry-report-json",
-        expected_db=r"target\mvp\service-retry-report-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-retry-report-json",
-        expected_limit=1,
-        expected_steps=["retry", "service-status", "report"],
-        expect_report_payload=True,
-    )
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-failed",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-retry-report-json",
-            "--db",
-            "target/mvp/service-retry-report-json.db",
-            "--output",
-            "target/mvp/service-retry-report-json.txt",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-service-retry-report-json-seed-failed-ps1-json",
-        "seed-failed",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-retry-report-json-seed-failed-ps1-json",
-        expected_task_id="task-wrapper-service-retry-report-json",
-        expected_db_path="target/mvp/service-retry-report-json.db",
-        expected_output_path="target/mvp/service-retry-report-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
-    )
-
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "service-retry",
-            "--db",
-            "target/mvp/service-retry-report-json.db",
-            "--task-id",
-            "task-wrapper-service-retry-report-json",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-service-retry-report-json",
-        "service-retry",
-    )
-
-    assert_service_retry_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-service-retry-report-json",
-        expected_db=r"target\mvp\service-retry-report-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-retry-report-json",
-        expected_limit=1,
-        expected_steps=["retry", "service-status", "report"],
-        expect_report_payload=True,
+        python_executable=PYTHON,
+        assert_command_json_result=assert_command_json_result,
+        assert_run_json_result=assert_run_json_result,
+        assert_service_retry_json_result=assert_service_retry_json_result,
     )
 
     result = assert_command_json_result(
