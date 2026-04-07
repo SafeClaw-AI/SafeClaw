@@ -45,6 +45,9 @@ from tooling_smoke_wrapper_demo_preflight_failure import (
 from tooling_smoke_wrapper_demo_invalid_argument import (
     append_wrapper_demo_invalid_argument_errors,
 )
+from tooling_smoke_wrapper_demo_underlying_failure import (
+    append_wrapper_demo_underlying_failure_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_success import (
     append_wrapper_demo_preflight_success_errors,
 )
@@ -10332,48 +10335,12 @@ def collect_errors() -> list[str]:
         python_executable=PYTHON,
         assert_command_json_error=assert_command_json_error,
     )
-
-    details = assert_command_json_error(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "demo",
-            "--task-id",
-            "task-wrapper-demo-underlying-fail",
-            "--output",
-            "target/mvp",
-            "--json",
-        ],
+    append_wrapper_demo_underlying_failure_errors(
         errors,
-        "mvp-wrapper-demo-underlying-fail-json",
-        "demo",
-        expected_exit=1,
-        expected_error_message_substring="failed step=run",
-        error_message_label="mvp-wrapper-demo-underlying-fail-json 缺少组合动作失败消息",
-        expected_failed_step="run",
-        expected_remembered_session_task_id="task-wrapper-demo-json",
-        remembered_session_label="mvp-wrapper-demo-underlying-fail-json remembered_session 缺少 task-wrapper-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-demo-underlying-fail-json 不应继续返回旧 session 字段",
+        python_executable=PYTHON,
+        assert_command_json_error=assert_command_json_error,
+        assert_step_source_hints=assert_step_source_hints,
     )
-
-    if details is not None:
-        assert_step_source_hints(
-            details.get("steps"),
-            errors,
-            "mvp-wrapper-demo-underlying-fail-json",
-            [
-                (
-                    "run",
-                    {
-                        "db": "default",
-                        "output": "flag",
-                        "owner_id": "default",
-                        "task_context": "flag",
-                    },
-                )
-            ],
-        )
 
     append_wrapper_recover_demo_success_errors(
         errors,

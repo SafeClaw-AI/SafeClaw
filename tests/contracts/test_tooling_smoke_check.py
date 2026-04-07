@@ -4449,6 +4449,51 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
         self.assertIn("reject_legacy_session=True", source)
 
+    def test_collect_errors_uses_wrapper_demo_underlying_failure_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_demo_underlying_failure_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_demo_underlying_failure_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_underlying_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo-underlying-fail-json"', source)
+        self.assertIn('"task-wrapper-demo-underlying-fail"', source)
+        self.assertNotIn('"mvp-wrapper-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-enforced-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-fail-json"', source)
+
+    def test_append_wrapper_demo_underlying_failure_errors_keeps_failure_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_underlying_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('expected_error_message_substring="failed step=run"', source)
+        self.assertIn(
+            '"mvp-wrapper-demo-underlying-fail-json remembered_session 缺少 task-wrapper-demo-json"',
+            source,
+        )
+        self.assertIn('"output": "flag"', source)
+        self.assertIn('"task_context": "flag"', source)
+        self.assertIn("assert_step_source_hints(", source)
+
     def test_collect_errors_uses_wrapper_recover_demo_success_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"
