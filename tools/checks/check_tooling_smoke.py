@@ -34,6 +34,7 @@ from tooling_smoke_service_recover_report import (
 from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
+from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_errors
 from tooling_smoke_wrapper_verify import append_wrapper_verify_errors
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
@@ -10496,77 +10497,14 @@ def collect_errors() -> list[str]:
         assert_command_json_error=assert_command_json_error,
     )
 
-    assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "sessions", "--limit", "bad", "--json"],
+    append_wrapper_failure_path_errors(
         errors,
-        "mvp-wrapper-invalid-sessions-json",
-        "sessions",
-        expected_error_message_substring="invalid --limit",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_error=assert_command_json_error,
+        assert_command_failure_output=assert_command_failure_output,
     )
-
-    assert_command_failure_output(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "not-real-action"],
-        errors,
-        "mvp-wrapper-cmd-passthrough-fail",
-        expected_substring="[mvp-wrapper] cargo => failed action=not-real-action exit=1",
-        missing_output_label="mvp-wrapper-cmd-passthrough-fail missing failed action marker",
-    )
-
-    wrapper_passthrough_fail = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "not-real-action"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_passthrough_fail_output = (wrapper_passthrough_fail.stdout or "") + (
-        wrapper_passthrough_fail.stderr or ""
-    )
-
-    if wrapper_passthrough_fail.returncode == 0:
-        errors.append("mvp-wrapper-passthrough-fail 未按预期返回非 0")
-
-    elif (
-        "[mvp-wrapper] cargo => failed action=not-real-action exit=1"
-        not in wrapper_passthrough_fail_output
-    ):
-        errors.append("mvp-wrapper-passthrough-fail 输出缺少透传失败承接提示")
-
-    assert_command_failure_output(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "demo",
-            "--bogus",
-        ],
-        errors,
-        "mvp-wrapper-ps1-demo-fail",
-        expected_exit=2,
-        expected_substring="[mvp-wrapper] demo => failed step=run exit=2",
-        missing_output_label="mvp-wrapper-ps1-demo-fail missing failed step marker",
-    )
-
-    wrapper_demo_fail = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_demo_fail_output = (wrapper_demo_fail.stdout or "") + (
-        wrapper_demo_fail.stderr or ""
-    )
-
-    if wrapper_demo_fail.returncode != 2:
-        errors.append(
-            f"mvp-wrapper-demo-fail 执行失败: exit={wrapper_demo_fail.returncode}"
-        )
-
-    elif "[mvp-wrapper] demo => failed step=run exit=2" not in wrapper_demo_fail_output:
-        errors.append("mvp-wrapper-demo-fail 输出缺少组合动作失败承接提示")
 
     wrapper_session_file = REPO_ROOT / "target" / "mvp" / "last_session.json"
 

@@ -3743,6 +3743,34 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("write_smoke_verify_sitecustomize(Path(verify_mock_dir))", source)
         self.assertIn("build_smoke_pythonpath_env(Path(verify_mock_dir))", source)
 
+    def test_collect_errors_uses_wrapper_failure_path_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_failure_path_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_failure_path_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_failure_paths.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-invalid-sessions-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-passthrough-fail"', source)
+        self.assertIn('"mvp-wrapper-ps1-demo-fail"', source)
+        self.assertIn("mvp-wrapper-demo-fail 输出缺少组合动作失败承接提示", source)
+        self.assertNotIn('"mvp-wrapper-session-after-corrupt"', source)
+
+    def test_append_wrapper_failure_path_errors_keeps_commands(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_failure_paths.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_py_command(ctx.python_executable, "sessions", "--limit", "bad", "--json")', source)
+        self.assertIn('_cmd_command("not-real-action")', source)
+        self.assertIn('_ps1_command("demo", "--bogus")', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
