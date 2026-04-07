@@ -3802,6 +3802,43 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('_ps1_command("session", "--json")', source)
         self.assertIn('_cmd_command("session")', source)
 
+    def test_collect_errors_uses_wrapper_state_recovery_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_state_recovery_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_state_recovery_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_state_recovery.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-seed-crash-json"', source)
+        self.assertIn('"mvp-wrapper-recover-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-seed-crash-json"', source)
+        self.assertIn('"mvp-wrapper-seed-failed-json"', source)
+        self.assertIn('"mvp-wrapper-retry-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-seed-failed-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo"', source)
+
+    def test_append_wrapper_state_recovery_errors_keeps_session_links(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_state_recovery.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_CRASH_TASK_ID = "task-wrapper-seed-crash-json"', source)
+        self.assertIn('_FAILED_TASK_ID = "task-wrapper-seed-failed-json"', source)
+        self.assertIn(
+            '"mvp-wrapper-recover-json 缺少 remembered session task-wrapper-seed-crash-json"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-retry-json 缺少 remembered session task-wrapper-seed-failed-json"',
+            source,
+        )
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
