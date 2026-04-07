@@ -9214,6 +9214,63 @@ def append_wrapper_service_recover_status_before_json_errors(errors: list[str]) 
             )
 
 
+def append_wrapper_service_recover_text_errors(errors: list[str]) -> None:
+    wrapper_service_recover = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover.db",
+            "--task-id",
+            "task-wrapper-service-recover",
+            "--limit",
+            "1",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_service_recover_output = (wrapper_service_recover.stdout or "") + (
+        wrapper_service_recover.stderr or ""
+    )
+
+    if wrapper_service_recover.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-service-recover failed: exit={wrapper_service_recover.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] service-recover => recover" not in wrapper_service_recover_output
+    ):
+        errors.append("mvp-wrapper-service-recover missing recover step marker")
+
+    elif (
+        "[mvp-wrapper] service-recover => service-status"
+        not in wrapper_service_recover_output
+    ):
+        errors.append("mvp-wrapper-service-recover missing service-status step marker")
+
+    elif (
+        "[mvp] recover result => from=Uncertain, worker=Succeeded, effect=Executed, completed=true"
+        not in wrapper_service_recover_output
+    ):
+        errors.append("mvp-wrapper-service-recover missing recover success output")
+
+    elif (
+        "[mvp-wrapper] service-status => db=target/mvp/service-recover.db limit=1 source=flag"
+        not in wrapper_service_recover_output
+    ):
+        errors.append("mvp-wrapper-service-recover missing service-status output")
+
+    elif (
+        "[mvp-wrapper] service workers => succeeded=1"
+        not in wrapper_service_recover_output
+    ):
+        errors.append("mvp-wrapper-service-recover missing worker summary")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9335,61 +9392,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_retry_missing_task_json_errors(errors)
     append_wrapper_service_recover_seed_crash_json_errors(errors)
     append_wrapper_service_recover_status_before_json_errors(errors)
-
-    wrapper_service_recover = subprocess.run(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "service-recover",
-            "--db",
-            "target/mvp/service-recover.db",
-            "--task-id",
-            "task-wrapper-service-recover",
-            "--limit",
-            "1",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_service_recover_output = (wrapper_service_recover.stdout or "") + (
-        wrapper_service_recover.stderr or ""
-    )
-
-    if wrapper_service_recover.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-service-recover failed: exit={wrapper_service_recover.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] service-recover => recover" not in wrapper_service_recover_output
-    ):
-        errors.append("mvp-wrapper-service-recover missing recover step marker")
-
-    elif (
-        "[mvp-wrapper] service-recover => service-status"
-        not in wrapper_service_recover_output
-    ):
-        errors.append("mvp-wrapper-service-recover missing service-status step marker")
-
-    elif (
-        "[mvp] recover result => from=Uncertain, worker=Succeeded, effect=Executed, completed=true"
-        not in wrapper_service_recover_output
-    ):
-        errors.append("mvp-wrapper-service-recover missing recover success output")
-
-    elif (
-        "[mvp-wrapper] service-status => db=target/mvp/service-recover.db limit=1 source=flag"
-        not in wrapper_service_recover_output
-    ):
-        errors.append("mvp-wrapper-service-recover missing service-status output")
-
-    elif (
-        "[mvp-wrapper] service workers => succeeded=1"
-        not in wrapper_service_recover_output
-    ):
-        errors.append("mvp-wrapper-service-recover missing worker summary")
+    append_wrapper_service_recover_text_errors(errors)
 
     result = assert_command_json_result(
         [

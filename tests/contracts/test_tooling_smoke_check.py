@@ -3314,13 +3314,42 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         helper_block = source.split(
             "def append_wrapper_service_recover_status_before_json_errors(errors: list[str]) -> None:",
             1,
-        )[1].split("wrapper_service_recover = subprocess.run(", 1)[0]
+        )[1].split(
+            "def append_wrapper_service_recover_text_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
         self.assertIn('"mvp-wrapper-service-recover-status-before-json"', helper_block)
         self.assertIn('"target/mvp/service-recover.db"', helper_block)
         self.assertIn('"mvp-wrapper-service-recover-status-before-json missing queue.expired=1"', helper_block)
         self.assertIn('"mvp-wrapper-service-recover-status-before-json missing next_command=service-recover"', helper_block)
         self.assertIn('"mvp-wrapper-service-recover-status-before-json missing coordination.status=ready"', helper_block)
         self.assertNotIn("wrapper_service_recover = subprocess.run(", helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_service_recover_text_errors(errors)", normalized_source)
+
+    def test_append_wrapper_service_recover_text_errors_keeps_service_recover_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split("def collect_errors() -> list[str]:", 1)[0]
+        self.assertIn('"mvp-wrapper-service-recover missing recover step marker"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover missing service-status step marker"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover missing recover success output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover missing service-status output"', helper_block)
+        self.assertIn('"mvp-wrapper-service-recover missing worker summary"', helper_block)
+        self.assertIn('"target/mvp/service-recover.db"', helper_block)
+        self.assertIn('"task-wrapper-service-recover"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-recover-json-seed-crash-json"', helper_block)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
