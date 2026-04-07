@@ -3652,16 +3652,12 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("append_wrapper_cmd_run_json_errors(errors)", normalized_source)
 
     def test_append_wrapper_cmd_run_json_errors_keeps_labels(self) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        helper_block = source.split(
-            "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
-            1,
-        )[1].split(
-            "def append_wrapper_ps1_run_json_errors(errors: list[str]) -> None:",
-            1,
-        )[0]
+        helper_block = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_cmd_run_json.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("assert_command_json_result(", helper_block)
         self.assertIn("assert_run_json_result(", helper_block)
         self.assertIn('"mvp-wrapper-cmd-run-json"', helper_block)

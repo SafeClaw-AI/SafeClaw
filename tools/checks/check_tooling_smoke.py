@@ -51,6 +51,9 @@ from tooling_smoke_service_demo_text import (
 from tooling_smoke_service_demo_no_tool_path_json import (
     append_wrapper_service_demo_no_tool_path_json_errors as _append_wrapper_service_demo_no_tool_path_json_errors,
 )
+from tooling_smoke_cmd_run_json import (
+    append_wrapper_cmd_run_json_errors as _append_wrapper_cmd_run_json_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9556,35 +9559,10 @@ def append_wrapper_service_demo_invalid_json_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            r"tools\mvp\safeclaw_mvp.cmd",
-            "run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-cmd-space",
-            "--db",
-            "target/mvp/space wrapper/run wrapper cmd.db",
-            "--output",
-            "target/mvp/space wrapper/run wrapper cmd.txt",
-            "--json",
-        ],
+    _append_wrapper_cmd_run_json_errors(
         errors,
-        "mvp-wrapper-cmd-run-json",
-        "run",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-run-json",
-        expected_task_id="task-wrapper-cmd-space",
-        expected_db_path="target/mvp/space wrapper/run wrapper cmd.db",
-        expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+        assert_command_json_result=assert_command_json_result,
+        assert_run_json_result=assert_run_json_result,
     )
 
 
