@@ -31,6 +31,9 @@ from tooling_smoke_service_retry_report import (
 from tooling_smoke_service_recover_report import (
     append_wrapper_service_recover_report_errors,
 )
+from tooling_smoke_service_reconcile_report import (
+    append_wrapper_service_reconcile_report_errors,
+)
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
     append_wrapper_ps1_explicit_targeting_errors,
@@ -10470,73 +10473,12 @@ def collect_errors() -> list[str]:
         expected_decision="executed",
     )
 
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-crash",
-            "--reset",
-            "--probe-mode",
-            "none",
-            "--task-id",
-            "task-wrapper-service-reconcile-report-json",
-            "--db",
-            "target/mvp/service-reconcile-report-json.db",
-            "--output",
-            "target/mvp/service-reconcile-report-json.txt",
-            "--json",
-        ],
+    append_wrapper_service_reconcile_report_errors(
         errors,
-        "mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json",
-        "seed-crash",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json",
-        expected_task_id="task-wrapper-service-reconcile-report-json",
-        expected_db_path="target/mvp/service-reconcile-report-json.db",
-        expected_output_path="target/mvp/service-reconcile-report-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
-    )
-
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "service-reconcile",
-            "--db",
-            "target/mvp/service-reconcile-report-json.db",
-            "--task-id",
-            "task-wrapper-service-reconcile-report-json",
-            "--decision",
-            "executed",
-            "--limit",
-            "1",
-            "--report",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-service-reconcile-report-json",
-        "service-reconcile",
-    )
-
-    assert_service_reconcile_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-service-reconcile-report-json",
-        expected_db=r"target\mvp\service-reconcile-report-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-reconcile-report-json",
-        expected_limit=1,
-        expected_decision="executed",
-        expected_steps=["reconcile", "service-status", "report"],
-        expect_report_payload=True,
+        python_executable=PYTHON,
+        assert_command_json_result=assert_command_json_result,
+        assert_run_json_result=assert_run_json_result,
+        assert_service_reconcile_json_result=assert_service_reconcile_json_result,
     )
 
     with tempfile.TemporaryDirectory() as verify_mock_dir:
