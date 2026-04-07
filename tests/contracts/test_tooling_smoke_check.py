@@ -3493,7 +3493,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_service_recover_invalid_limit_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_error(", helper_block)
@@ -3503,6 +3503,40 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"tools/mvp/safeclaw_mvp.py"', helper_block)
         self.assertIn('expected_error_message_substring="invalid --limit: bogus"', helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-missing-task-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_missing_task_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_missing_task_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_missing_task_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_error(", helper_block)
+        self.assertIn('"mvp-wrapper-service-recover-missing-task-json"', helper_block)
+        self.assertIn('"service-recover"', helper_block)
+        self.assertIn('"target/mvp/service-recover-missing.db"', helper_block)
+        self.assertIn('expected_failed_step="recover"', helper_block)
+        self.assertIn('expected_code="missing-task-context"', helper_block)
+        self.assertIn('expected_remembered_session_task_id="task-wrapper-service-recover-json"', helper_block)
+        self.assertNotIn('"mvp-wrapper-service-demo"', helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(

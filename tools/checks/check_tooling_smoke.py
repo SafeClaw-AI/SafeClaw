@@ -9450,6 +9450,30 @@ def append_wrapper_service_recover_invalid_limit_json_errors(errors: list[str]) 
     )
 
 
+def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -> None:
+    assert_command_json_error(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover-missing.db",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-service-recover-missing-task-json",
+        "service-recover",
+        expected_error_message_substring="failed step=recover",
+        expected_failed_step="recover",
+        expected_code="missing-task-context",
+        expected_details_message_substring="missing task context",
+        expected_remembered_session_task_id="task-wrapper-service-recover-json",
+        remembered_session_label="mvp-wrapper-service-recover-missing-task-json missing task-wrapper-service-recover-json",
+        reject_legacy_session=True,
+        legacy_session_label="mvp-wrapper-service-recover-missing-task-json should not keep legacy session",
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9577,28 +9601,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors)
     append_wrapper_ps1_service_recover_json_errors(errors)
     append_wrapper_service_recover_invalid_limit_json_errors(errors)
-
-    assert_command_json_error(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "service-recover",
-            "--db",
-            "target/mvp/service-recover-missing.db",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-service-recover-missing-task-json",
-        "service-recover",
-        expected_error_message_substring="failed step=recover",
-        expected_failed_step="recover",
-        expected_code="missing-task-context",
-        expected_details_message_substring="missing task context",
-        expected_remembered_session_task_id="task-wrapper-service-recover-json",
-        remembered_session_label="mvp-wrapper-service-recover-missing-task-json missing task-wrapper-service-recover-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-service-recover-missing-task-json should not keep legacy session",
-    )
+    append_wrapper_service_recover_missing_task_json_errors(errors)
 
     wrapper_service_demo = subprocess.run(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo"],
