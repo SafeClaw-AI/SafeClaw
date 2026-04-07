@@ -3642,6 +3642,41 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertLess(cmd_index, second_seed_index)
         self.assertLess(second_seed_index, ps1_index)
 
+    def test_collect_errors_uses_wrapper_service_recover_report_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_report_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_report_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_service_recover_report.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-service-recover-report-json-seed-crash-json"', source)
+        self.assertIn('"mvp-wrapper-ps1-service-recover-report-json"', source)
+        self.assertIn('"task-wrapper-service-recover-report-json"', source)
+        self.assertNotIn('"mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json"', source)
+
+    def test_append_wrapper_service_recover_report_errors_keeps_seed_order(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_service_recover_report.py"
+        ).read_text(encoding="utf-8")
+        first_seed_index = source.index(
+            '"mvp-wrapper-service-recover-report-json-seed-crash-json"'
+        )
+        cmd_index = source.index('"mvp-wrapper-cmd-service-recover-report-json"')
+        second_seed_index = source.index(
+            '"mvp-wrapper-service-recover-report-json-seed-crash-ps1-json"'
+        )
+        ps1_index = source.index('"mvp-wrapper-ps1-service-recover-report-json"')
+        self.assertLess(first_seed_index, cmd_index)
+        self.assertLess(cmd_index, second_seed_index)
+        self.assertLess(second_seed_index, ps1_index)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
