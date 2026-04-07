@@ -9366,6 +9366,39 @@ def append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors: list[
     )
 
 
+def append_wrapper_ps1_service_recover_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "tools\mvp\safeclaw_mvp.ps1",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover-json.db",
+            "--task-id",
+            "task-wrapper-service-recover-json",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-ps1-service-recover-json",
+        "service-recover",
+    )
+
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-service-recover-json",
+        expected_db="target\mvp\service-recover-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-recover-json",
+        expected_limit=1,
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9491,37 +9524,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_recover_json_seed_crash_json_errors(errors)
     append_wrapper_cmd_service_recover_json_errors(errors)
     append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors)
-
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "tools\mvp\safeclaw_mvp.ps1",
-            "service-recover",
-            "--db",
-            "target/mvp/service-recover-json.db",
-            "--task-id",
-            "task-wrapper-service-recover-json",
-            "--limit",
-            "1",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-service-recover-json",
-        "service-recover",
-    )
-
-    assert_service_recover_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-service-recover-json",
-        expected_db="target\mvp\service-recover-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-recover-json",
-        expected_limit=1,
-    )
+    append_wrapper_ps1_service_recover_json_errors(errors)
 
     assert_command_json_error(
         [
