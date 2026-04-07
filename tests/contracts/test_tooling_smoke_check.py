@@ -53,11 +53,11 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("build_smoke_pythonpath_env(Path(verify_mock_dir))", window)
 
     def test_wrapper_cmd_verify_uses_success_json_guard(self) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd", "verify", "--json"', source)
-        self.assertNotIn('"tools\\mvp\\safeclaw_mvp.cmd", "verify"],', source)
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_verify.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_cmd_command("verify", "--json")', source)
+        self.assertNotIn('_cmd_command("verify")', source)
         self.assertIn("write_smoke_verify_sitecustomize", source)
         self.assertIn("build_smoke_pythonpath_env", source)
 
@@ -3718,6 +3718,30 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
         ps1_index = source.index('"mvp-wrapper-ps1-service-reconcile-report-json"')
         self.assertLess(seed_index, ps1_index)
+
+    def test_collect_errors_uses_wrapper_verify_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_verify_errors( errors,", normalized_source)
+
+    def test_append_wrapper_verify_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_verify.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-cmd-verify-json"', source)
+        self.assertIn('"mvp-wrapper-ps1-verify-invalid-json"', source)
+        self.assertIn('"mvp-wrapper-verify-invalid-json"', source)
+        self.assertNotIn('"mvp-wrapper-invalid-sessions-json"', source)
+
+    def test_append_wrapper_verify_errors_keeps_sitecustomize_guard(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_verify.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("with tempfile.TemporaryDirectory() as verify_mock_dir:", source)
+        self.assertIn("write_smoke_verify_sitecustomize(Path(verify_mock_dir))", source)
+        self.assertIn("build_smoke_pythonpath_env(Path(verify_mock_dir))", source)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

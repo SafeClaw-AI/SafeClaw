@@ -34,6 +34,7 @@ from tooling_smoke_service_recover_report import (
 from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
+from tooling_smoke_wrapper_verify import append_wrapper_verify_errors
 from tooling_smoke_ps1_explicit_crash import append_wrapper_ps1_explicit_crash_errors
 from tooling_smoke_ps1_explicit_targeting import (
     append_wrapper_ps1_explicit_targeting_errors,
@@ -10481,83 +10482,18 @@ def collect_errors() -> list[str]:
         assert_service_reconcile_json_result=assert_service_reconcile_json_result,
     )
 
-    with tempfile.TemporaryDirectory() as verify_mock_dir:
-        write_smoke_verify_sitecustomize(Path(verify_mock_dir))
-        wrapper_cmd_verify = subprocess.run(
-            ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "verify", "--json"],
-            env=build_smoke_pythonpath_env(Path(verify_mock_dir)),
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-    wrapper_cmd_verify_payload = load_json_payload(
-        wrapper_cmd_verify,
+    append_wrapper_verify_errors(
         errors,
-        "mvp-wrapper-cmd-verify-json",
-        0,
-    )
-    wrapper_cmd_verify_result = None
-    if wrapper_cmd_verify_payload is not None:
-        wrapper_cmd_verify_result = extract_json_result(
-            wrapper_cmd_verify_payload,
-            errors,
-            "mvp-wrapper-cmd-verify-json",
-            "verify",
-        )
-
-    assert_verify_json_result(
-        wrapper_cmd_verify_result, errors, "mvp-wrapper-cmd-verify-json"
-    )
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "-c",
-            "import subprocess; from tools.mvp import safeclaw_mvp as m; "
-            "m.subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess("
-            "args=['python', 'tools/checks/check_mvp_operator_flow.py'], "
-            "returncode=0, stdout='MVP operator flow check passed.\\n', stderr=''); "
-            "raise SystemExit(m.run_verify(['--json']))",
-        ],
-        errors,
-        "mvp-wrapper-verify-json",
-        "verify",
-    )
-
-    assert_verify_json_result(result, errors, "mvp-wrapper-verify-json")
-
-    assert_command_json_error(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "verify", "--bogus", "--json"],
-        errors,
-        "mvp-wrapper-cmd-verify-invalid-json",
-        "verify",
-        expected_error_message_substring="unknown argument: --bogus",
-    )
-
-    assert_command_json_error(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "verify",
-            "--bogus",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-verify-invalid-json",
-        "verify",
-        expected_error_message_substring="unknown argument: --bogus",
-    )
-
-    assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "verify", "--bogus", "--json"],
-        errors,
-        "mvp-wrapper-verify-invalid-json",
-        "verify",
-        expected_error_message_substring="unknown argument: --bogus",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        build_smoke_pythonpath_env=build_smoke_pythonpath_env,
+        write_smoke_verify_sitecustomize=write_smoke_verify_sitecustomize,
+        load_json_payload=load_json_payload,
+        extract_json_result=extract_json_result,
+        assert_verify_json_result=assert_verify_json_result,
+        assert_command_json_result=assert_command_json_result,
+        assert_command_json_error=assert_command_json_error,
     )
 
     assert_command_json_error(
