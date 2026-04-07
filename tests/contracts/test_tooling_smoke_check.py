@@ -3471,6 +3471,28 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-invalid-limit-json"', helper_block)
 
+    def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_ps1_explicit_crash_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_ps1_explicit_crash_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_ps1_explicit_crash.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-ps1-status-explicit-crash-json"', source)
+        self.assertIn('"mvp-wrapper-ps1-sessions-explicit-crash-json"', source)
+        self.assertIn('"QueueForManualReview"', source)
+        self.assertNotIn('"mvp-wrapper-status-session-crash-seed-json"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
