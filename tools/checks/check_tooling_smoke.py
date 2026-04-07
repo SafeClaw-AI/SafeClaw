@@ -39,6 +39,9 @@ from tooling_smoke_service_reconcile_success import (
 from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
+from tooling_smoke_wrapper_demo_preflight_failure import (
+    append_wrapper_demo_preflight_failure_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_success import (
     append_wrapper_demo_preflight_success_errors,
 )
@@ -10315,180 +10318,12 @@ def collect_errors() -> list[str]:
         assert_preflight_json_result=assert_preflight_json_result,
     )
 
-    details = assert_command_json_error(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "demo",
-            "--task-id",
-            "task-wrapper-demo-enforced",
-            "--output",
-            "target/mvp/demo-enforced.txt",
-            "--enforce-permission",
-            "--json",
-        ],
+    append_wrapper_demo_preflight_failure_errors(
         errors,
-        "mvp-wrapper-demo-enforced-json",
-        "demo",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="write_scope_requires_confirmation",
-        expect_top_level_error_error_code_absent=True,
-        expected_top_level_error_degradation_mode="local_only_ok",
-        expected_top_level_error_requires_model=False,
-        expected_top_level_error_requires_sidecar=False,
-        expected_top_level_error_requested_action="demo",
-        expected_code="preflight-blocked",
-        expected_failed_step="preflight",
-        expected_preflight_requested_action="demo",
-        expected_preflight_reason="write_scope_requires_confirmation",
-        expect_preflight_error_code_absent=True,
-        expected_preflight_summary_substring="action=demo",
-        expect_top_level_error_summary_matches_preflight=True,
+        python_executable=PYTHON,
+        assert_command_json_error=assert_command_json_error,
+        assert_preflight_json_result=assert_preflight_json_result,
     )
-
-    if isinstance(details, dict):
-        preflight_payload = details.get("preflight")
-
-        if not isinstance(preflight_payload, dict):
-            errors.append("mvp-wrapper-demo-enforced-json missing preflight payload")
-
-        else:
-            assert_preflight_json_result(
-                preflight_payload,
-                errors,
-                "mvp-wrapper-demo-enforced-json preflight",
-                expected_requested_action="demo",
-                expected_known=True,
-                expected_action_class="local-action",
-                expected_tier="TIER_1",
-                expected_writes_state=True,
-                expected_permission_context_source="prepared-action",
-                expected_target_scope="scope:target/mvp/demo-enforced.txt",
-                expected_requires_write=True,
-                expected_doctor_bypass=False,
-                expected_permission_context_applied=True,
-                expected_permission_tier="TIER_1",
-                expected_permission_policy="confirm",
-                expected_permission_reason="write_scope_requires_confirmation",
-                expected_permission_enforced=True,
-                expected_action_allowed=True,
-                expected_action_decision="allow",
-                expected_action_reason="current_mvp_action_is_local_only",
-                expected_allowed=False,
-                expected_decision="confirm",
-                expected_offline_ready=True,
-                expected_degradation_mode="local_only_ok",
-                expected_reason="write_scope_requires_confirmation",
-            )
-
-        steps = details.get("steps") or []
-
-        if (
-            not isinstance(steps, list)
-            or len(steps) != 1
-            or not isinstance(steps[0], dict)
-        ):
-            errors.append(
-                "mvp-wrapper-demo-enforced-json missing isolated preflight step"
-            )
-
-        elif steps[0].get("action") != "preflight":
-            errors.append(
-                "mvp-wrapper-demo-enforced-json missing preflight step action"
-            )
-
-    details = assert_command_json_error(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "demo",
-            "--task-id",
-            "task-wrapper-demo-preflight-ai",
-            "--output",
-            "target/mvp/demo-preflight-ai.txt",
-            "--preflight",
-            "--preflight-action",
-            "ai-reason",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-demo-preflight-ai-json",
-        "demo",
-        expected_exit=1,
-        expected_error_message_substring="failed step=preflight",
-        expected_top_level_error_code="preflight-blocked",
-        expected_top_level_error_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_top_level_error_degradation_mode="provider_unavailable",
-        expected_top_level_error_requires_model=True,
-        expected_top_level_error_requires_sidecar=True,
-        expected_top_level_error_requested_action="ai-reason",
-        expected_code="preflight-blocked",
-        expected_failed_step="preflight",
-        expected_preflight_requested_action="ai-reason",
-        expected_preflight_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-        expected_preflight_summary_substring="action=ai-reason",
-        expect_top_level_error_summary_matches_preflight=True,
-    )
-
-    if isinstance(details, dict):
-        preflight_payload = details.get("preflight")
-
-        if not isinstance(preflight_payload, dict):
-            errors.append(
-                "mvp-wrapper-demo-preflight-ai-json missing preflight payload"
-            )
-
-        else:
-            assert_preflight_json_result(
-                preflight_payload,
-                errors,
-                "mvp-wrapper-demo-preflight-ai-json preflight",
-                expected_requested_action="ai-reason",
-                expected_known=True,
-                expected_action_class="ai-action",
-                expected_tier="TIER_2",
-                expected_writes_state=False,
-                expected_permission_context_source="prepared-action",
-                expected_target_scope="scope:target/mvp/demo-preflight-ai.txt",
-                expected_requires_write=True,
-                expected_doctor_bypass=False,
-                expected_permission_context_applied=True,
-                expected_permission_tier="TIER_1",
-                expected_permission_policy="confirm",
-                expected_permission_reason="write_scope_requires_confirmation",
-                expected_permission_enforced=False,
-                expected_action_allowed=False,
-                expected_action_decision="deny",
-                expected_action_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-                expected_allowed=False,
-                expected_decision="deny",
-                expected_offline_ready=False,
-                expected_degradation_mode="provider_unavailable",
-                expected_reason="ERR_AI_PROVIDER_UNAVAILABLE",
-                expected_requires_model=True,
-                expected_requires_sidecar=True,
-                expected_error_code="ERR_AI_PROVIDER_UNAVAILABLE",
-            )
-
-        steps = details.get("steps") or []
-
-        if (
-            not isinstance(steps, list)
-            or len(steps) != 1
-            or not isinstance(steps[0], dict)
-        ):
-            errors.append(
-                "mvp-wrapper-demo-preflight-ai-json missing isolated preflight step"
-            )
-
-        elif steps[0].get("action") != "preflight":
-            errors.append(
-                "mvp-wrapper-demo-preflight-ai-json missing preflight step action"
-            )
 
     assert_command_json_error(
         ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],

@@ -4348,6 +4348,61 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
         self.assertIn('"permission_context": "prepared-action"', source)
 
+    def test_collect_errors_uses_wrapper_demo_preflight_failure_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_demo_preflight_failure_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_demo_preflight_failure_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_preflight_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo-enforced-json"', source)
+        self.assertIn('"mvp-wrapper-demo-preflight-ai-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-underlying-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-json"', source)
+
+    def test_append_wrapper_demo_preflight_failure_errors_keeps_preflight_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_preflight_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo-enforced-json preflight"', source)
+        self.assertIn('"mvp-wrapper-demo-preflight-ai-json preflight"', source)
+        self.assertIn(
+            'expected_target_scope="scope:target/mvp/demo-enforced.txt"',
+            source,
+        )
+        self.assertIn(
+            'expected_target_scope="scope:target/mvp/demo-preflight-ai.txt"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-demo-enforced-json missing isolated preflight step"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-demo-preflight-ai-json missing isolated preflight step"',
+            source,
+        )
+
     def test_collect_errors_uses_wrapper_recover_demo_success_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"
