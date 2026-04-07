@@ -9507,6 +9507,17 @@ def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:
         errors.append("mvp-wrapper-service-demo ???? confirmation governance")
 
 
+def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
+        errors,
+        "mvp-wrapper-cmd-service-demo-json",
+        "service-demo",
+    )
+
+    assert_service_demo_json_result(result, errors, "mvp-wrapper-cmd-service-demo-json")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9636,15 +9647,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_recover_invalid_limit_json_errors(errors)
     append_wrapper_service_recover_missing_task_json_errors(errors)
     append_wrapper_service_demo_text_errors(errors)
-
-    result = assert_command_json_result(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
-        errors,
-        "mvp-wrapper-cmd-service-demo-json",
-        "service-demo",
-    )
-
-    assert_service_demo_json_result(result, errors, "mvp-wrapper-cmd-service-demo-json")
+    append_wrapper_cmd_service_demo_json_errors(errors)
 
     wrapper_service_env = os.environ.copy()
 

@@ -3553,7 +3553,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("subprocess.run(", helper_block)
@@ -3568,6 +3568,32 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             helper_block,
         )
         self.assertNotIn('"mvp-wrapper-cmd-service-demo-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_demo_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_cmd_service_demo_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_cmd_service_demo_json_errors_keeps_labels(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn("assert_service_demo_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-demo-json"', helper_block)
+        self.assertIn('"service-demo"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-demo-no-tool-path-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
