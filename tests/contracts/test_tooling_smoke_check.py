@@ -3493,6 +3493,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"QueueForManualReview"', source)
         self.assertNotIn('"mvp-wrapper-status-session-crash-seed-json"', source)
 
+    def test_collect_errors_uses_wrapper_session_crash_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_session_crash_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_session_crash_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_session_crash.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-ps1-status-session-crash-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-retry-session-json"', source)
+        self.assertIn('"retry blocked before expiry => true"', source)
+        self.assertNotIn('"mvp-wrapper-status-failed-session-seed-failed-json"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
