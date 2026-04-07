@@ -9518,6 +9518,46 @@ def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:
     assert_service_demo_json_result(result, errors, "mvp-wrapper-cmd-service-demo-json")
 
 
+def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> None:
+    wrapper_service_env = os.environ.copy()
+
+    wrapper_service_env["PATH"] = os.pathsep.join(
+        entry
+        for entry in wrapper_service_env.get("PATH", "").split(os.pathsep)
+        if ".cargo" not in entry.lower() and "mingw64" not in entry.lower()
+    )
+
+    service_demo_without_tool_path = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=wrapper_service_env,
+    )
+
+    payload = load_json_payload(
+        service_demo_without_tool_path,
+        errors,
+        "mvp-wrapper-service-demo-no-tool-path-json",
+        0,
+    )
+
+    result = (
+        None
+        if payload is None
+        else extract_json_result(
+            payload,
+            errors,
+            "mvp-wrapper-service-demo-no-tool-path-json",
+            "service-demo",
+        )
+    )
+
+    assert_service_demo_json_result(
+        result, errors, "mvp-wrapper-service-demo-no-tool-path-json"
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9648,44 +9688,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_recover_missing_task_json_errors(errors)
     append_wrapper_service_demo_text_errors(errors)
     append_wrapper_cmd_service_demo_json_errors(errors)
-
-    wrapper_service_env = os.environ.copy()
-
-    wrapper_service_env["PATH"] = os.pathsep.join(
-        entry
-        for entry in wrapper_service_env.get("PATH", "").split(os.pathsep)
-        if ".cargo" not in entry.lower() and "mingw64" not in entry.lower()
-    )
-
-    service_demo_without_tool_path = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        env=wrapper_service_env,
-    )
-
-    payload = load_json_payload(
-        service_demo_without_tool_path,
-        errors,
-        "mvp-wrapper-service-demo-no-tool-path-json",
-        0,
-    )
-
-    result = (
-        None
-        if payload is None
-        else extract_json_result(
-            payload,
-            errors,
-            "mvp-wrapper-service-demo-no-tool-path-json",
-            "service-demo",
-        )
-    )
-
-    assert_service_demo_json_result(
-        result, errors, "mvp-wrapper-service-demo-no-tool-path-json"
-    )
+    append_wrapper_service_demo_no_tool_path_json_errors(errors)
 
     details = assert_command_json_error(
         [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--bogus", "--json"],
