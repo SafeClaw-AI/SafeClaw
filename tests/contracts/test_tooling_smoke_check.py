@@ -4301,6 +4301,53 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             source,
         )
 
+    def test_collect_errors_uses_wrapper_demo_preflight_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_demo_preflight_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_demo_preflight_success_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_preflight_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo-preflight"', source)
+        self.assertIn('"mvp-wrapper-demo-preflight-json"', source)
+        self.assertIn('"task-wrapper-demo-preflight"', source)
+        self.assertNotIn('"mvp-wrapper-demo-enforced"', source)
+        self.assertNotIn('"mvp-wrapper-demo-preflight-ai-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-underlying-fail"', source)
+
+    def test_append_wrapper_demo_preflight_success_errors_keeps_preflight_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_demo_preflight_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo-preflight-json preflight"', source)
+        self.assertIn('expected_requested_action="demo"', source)
+        self.assertIn(
+            'expected_target_scope="scope:target/mvp/demo-preflight-json.txt"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-demo-preflight-json 缺少 remembered_session task-wrapper-demo-json"',
+            source,
+        )
+        self.assertIn('"permission_context": "prepared-action"', source)
+
     def test_collect_errors_uses_wrapper_recover_demo_success_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"
