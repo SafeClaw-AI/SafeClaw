@@ -3403,7 +3403,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3415,6 +3415,37 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_task_id="task-wrapper-service-recover-json"', helper_block)
         self.assertIn("expected_limit=1", helper_block)
         self.assertNotIn('"mvp-wrapper-service-recover-json-seed-crash-ps1-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_recover_json_seed_crash_ps1_json_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors)",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_recover_json_seed_crash_ps1_json_errors_keeps_seed_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn('"mvp-wrapper-service-recover-json-seed-crash-ps1-json"', helper_block)
+        self.assertIn('"task-wrapper-service-recover-json"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/service-recover-json.db"', helper_block)
+        self.assertIn('expected_output_source="flag"', helper_block)
+        self.assertNotIn('"mvp-wrapper-ps1-service-recover-json"', helper_block)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
