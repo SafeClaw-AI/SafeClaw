@@ -18,6 +18,7 @@ from pathlib import Path
 
 from mvp_state_guard import _process_is_running, acquire_mvp_state_lock
 from tooling_smoke_explicit_failed import append_wrapper_explicit_failed_errors
+from tooling_smoke_codegen_artifacts import append_codegen_artifact_errors
 from tooling_smoke_invalid_argument import append_wrapper_invalid_argument_errors
 from tooling_smoke_missing_task_context import (
     append_wrapper_missing_task_context_errors,
@@ -10727,25 +10728,10 @@ def collect_errors() -> list[str]:
         assert_command_failure_output=assert_command_failure_output,
     )
 
-    root_index = REPO_ROOT / "generated" / "index.json"
-
-    if not root_index.exists():
-        errors.append(f"缺少 codegen 产物: {root_index.relative_to(REPO_ROOT).as_posix()}")
-
-    for target in ("rust", "python", "ts"):
-        manifest_path = REPO_ROOT / "generated" / target / "manifest.json"
-
-        stable_ids_path = REPO_ROOT / "generated" / target / "stable_ids.json"
-
-        if not manifest_path.exists():
-            errors.append(
-                f"缺少 codegen 产物: {manifest_path.relative_to(REPO_ROOT).as_posix()}"
-            )
-
-        if not stable_ids_path.exists():
-            errors.append(
-                f"缺少 codegen 产物: {stable_ids_path.relative_to(REPO_ROOT).as_posix()}"
-            )
+    append_codegen_artifact_errors(
+        errors,
+        repo_root=REPO_ROOT,
+    )
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_root = Path(temp_dir)

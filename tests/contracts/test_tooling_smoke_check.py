@@ -4567,6 +4567,42 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
         self.assertIn("reject_legacy_session=True", source)
 
+    def test_collect_errors_uses_codegen_artifact_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_codegen_artifact_errors( errors,", normalized_source)
+
+    def test_append_codegen_artifact_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_codegen_artifacts.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"generated"', source)
+        self.assertIn('"index.json"', source)
+        self.assertIn('"manifest.json"', source)
+        self.assertIn('"stable_ids.json"', source)
+        self.assertNotIn('"schema-diff JSON 输出"', source)
+        self.assertNotIn('"schema-diff 在存在差异时未按预期返回非 0"', source)
+
+    def test_append_codegen_artifact_errors_keeps_targets(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_codegen_artifacts.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('for target in ("rust", "python", "ts")', source)
+        self.assertIn(
+            'f"缺少 codegen 产物: {root_index.relative_to(ctx.repo_root).as_posix()}"',
+            source,
+        )
+        self.assertIn(
+            'f"缺少 codegen 产物: {manifest_path.relative_to(ctx.repo_root).as_posix()}"',
+            source,
+        )
+        self.assertIn(
+            'f"缺少 codegen 产物: {stable_ids_path.relative_to(ctx.repo_root).as_posix()}"',
+            source,
+        )
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
