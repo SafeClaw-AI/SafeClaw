@@ -4076,6 +4076,35 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertLess(cmd_index, second_seed_index)
         self.assertLess(second_seed_index, ps1_index)
 
+    def test_collect_errors_uses_wrapper_service_reconcile_success_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_service_reconcile_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_service_reconcile_success_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_service_reconcile_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-service-reconcile-status-before-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-service-reconcile-json"', source)
+        self.assertIn('"mvp-wrapper-ps1-service-reconcile-json"', source)
+        self.assertIn('"task-wrapper-service-reconcile-json"', source)
+        self.assertIn('"reconcile_self_before_scope_write"', source)
+        self.assertNotIn('"mvp-wrapper-service-reconcile-report-json-seed-crash-ps1-json"', source)
+        self.assertNotIn('"mvp-wrapper-ps1-service-reconcile-report-json"', source)
+
     def test_collect_errors_uses_wrapper_service_reconcile_report_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"
