@@ -42,6 +42,9 @@ from tooling_smoke_service_reconcile_report import (
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
+from tooling_smoke_wrapper_demo_invalid_argument import (
+    append_wrapper_demo_invalid_argument_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_success import (
     append_wrapper_demo_preflight_success_errors,
 )
@@ -10324,59 +10327,10 @@ def collect_errors() -> list[str]:
         assert_command_json_error=assert_command_json_error,
         assert_preflight_json_result=assert_preflight_json_result,
     )
-
-    assert_command_json_error(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "demo", "--bogus", "--json"],
+    append_wrapper_demo_invalid_argument_errors(
         errors,
-        "mvp-wrapper-cmd-demo-fail-json",
-        "demo",
-        expected_failed_step="run",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-cmd-demo-fail-json missing unknown argument",
-        expected_remembered_session_task_id="task-wrapper-demo-json",
-        remembered_session_label="mvp-wrapper-cmd-demo-fail-json missing task-wrapper-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-cmd-demo-fail-json should not keep legacy session",
-    )
-
-    assert_command_json_error(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "demo",
-            "--bogus",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-demo-fail-json",
-        "demo",
-        expected_failed_step="run",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-ps1-demo-fail-json missing unknown argument",
-        expected_remembered_session_task_id="task-wrapper-demo-json",
-        remembered_session_label="mvp-wrapper-ps1-demo-fail-json missing task-wrapper-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-ps1-demo-fail-json should not keep legacy session",
-    )
-
-    assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--bogus", "--json"],
-        errors,
-        "mvp-wrapper-demo-fail-json",
-        "demo",
-        expected_failed_step="run",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-demo-fail-json 缺少 wrapper 级 unknown argument",
-        expected_remembered_session_task_id="task-wrapper-demo-json",
-        remembered_session_label="mvp-wrapper-demo-fail-json remembered_session 缺少 task-wrapper-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-demo-fail-json 不应继续返回旧 session 字段",
+        python_executable=PYTHON,
+        assert_command_json_error=assert_command_json_error,
     )
 
     details = assert_command_json_error(
