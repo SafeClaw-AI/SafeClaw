@@ -1087,7 +1087,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )[1].split("def ", 1)[0]
         self.assertIn('"mvp-wrapper-cmd-workspace-activate-json"', helper_block)
         self.assertIn('"cmd"', helper_block)
-        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
         self.assertIn('"demo"', helper_block)
         self.assertIn("expected_active=True", helper_block)
         self.assertIn("expected_changed=True", helper_block)
@@ -1204,7 +1204,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )[1].split("def ", 1)[0]
         self.assertIn('"mvp-wrapper-cmd-workspace-clear-json"', helper_block)
         self.assertIn('"cmd"', helper_block)
-        self.assertIn('"tools\\mvp\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
         self.assertIn('result.get("path") != "target\\mvp\\workspace.json"', helper_block)
         self.assertIn('clear_state not in {(True, "removed"), (False, "none")}', helper_block)
         self.assertNotIn('"mvp-wrapper-forget-after-workspace-json"', helper_block)
@@ -2769,7 +2769,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-cmd-service-retry-invalid-limit-json"', helper_block)
         self.assertIn('"service-retry"', helper_block)
         self.assertIn('"cmd"', helper_block)
-        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
         self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
         self.assertIn(
             'error_message_label="mvp-wrapper-cmd-service-retry-invalid-limit-json missing invalid --limit"',
@@ -2840,7 +2840,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"mvp-wrapper-cmd-service-recover-invalid-limit-json"', helper_block)
         self.assertIn('"service-recover"', helper_block)
         self.assertIn('"cmd"', helper_block)
-        self.assertIn('"tools\\\\mvp\\\\safeclaw_mvp.cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
         self.assertIn('expected_error_message_substring="invalid --limit"', helper_block)
         self.assertIn(
             'error_message_label="mvp-wrapper-cmd-service-recover-invalid-limit-json missing invalid --limit"',
@@ -3375,13 +3375,46 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         helper_block = source.split(
             "def append_wrapper_service_recover_json_seed_crash_json_errors(errors: list[str]) -> None:",
             1,
-        )[1].split("def collect_errors() -> list[str]:", 1)[0]
+        )[1].split(
+            "def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:",
+            1,
+        )[0]
         self.assertIn("assert_command_json_result(", helper_block)
         self.assertIn('"mvp-wrapper-service-recover-json-seed-crash-json"', helper_block)
         self.assertIn('"task-wrapper-service-recover-json"', helper_block)
         self.assertIn('expected_db_path="target/mvp/service-recover-json.db"', helper_block)
         self.assertIn('expected_output_source="flag"', helper_block)
         self.assertNotIn('"mvp-wrapper-cmd-service-recover-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_cmd_service_recover_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_cmd_service_recover_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_cmd_service_recover_json_errors_keeps_labels(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-cmd-service-recover-json"', helper_block)
+        self.assertIn('"service-recover"', helper_block)
+        self.assertIn('"cmd"', helper_block)
+        self.assertIn("safeclaw_mvp.cmd", helper_block)
+        self.assertIn('expected_db="target\\mvp\\service-recover-json.db"', helper_block)
+        self.assertIn('expected_task_id="task-wrapper-service-recover-json"', helper_block)
+        self.assertIn("expected_limit=1", helper_block)
+        self.assertNotIn('"mvp-wrapper-service-recover-json-seed-crash-ps1-json"', helper_block)
 
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

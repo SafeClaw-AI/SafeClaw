@@ -6359,7 +6359,7 @@ def append_wrapper_cmd_service_resume_json_errors(errors: list[str]) -> None:
         [
             "cmd",
             "/c",
-            "tools\\mvp\\safeclaw_mvp.cmd",
+            "tools\mvp\safeclaw_mvp.cmd",
             "service-resume",
             "--db",
             "target/mvp/service-resume-json.db",
@@ -8576,7 +8576,7 @@ def append_wrapper_cmd_service_recover_invalid_limit_json_errors(errors: list[st
         [
             "cmd",
             "/c",
-            "tools\\mvp\\safeclaw_mvp.cmd",
+            "tools\mvp\safeclaw_mvp.cmd",
             "service-recover",
             "--limit",
             "bad",
@@ -9303,6 +9303,37 @@ def append_wrapper_service_recover_json_seed_crash_json_errors(errors: list[str]
     )
 
 
+def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [
+            "cmd",
+            "/c",
+            "tools\\mvp\\safeclaw_mvp.cmd",
+            "service-recover",
+            "--db",
+            "target/mvp/service-recover-json.db",
+            "--task-id",
+            "task-wrapper-service-recover-json",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-cmd-service-recover-json",
+        "service-recover",
+    )
+
+    assert_service_recover_json_result(
+        result,
+        errors,
+        "mvp-wrapper-cmd-service-recover-json",
+        expected_db="target\mvp\service-recover-json.db",
+        expected_db_source="flag",
+        expected_task_id="task-wrapper-service-recover-json",
+        expected_limit=1,
+    )
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9426,35 +9457,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_recover_status_before_json_errors(errors)
     append_wrapper_service_recover_text_errors(errors)
     append_wrapper_service_recover_json_seed_crash_json_errors(errors)
-
-    result = assert_command_json_result(
-        [
-            "cmd",
-            "/c",
-            "tools\mvp\safeclaw_mvp.cmd",
-            "service-recover",
-            "--db",
-            "target/mvp/service-recover-json.db",
-            "--task-id",
-            "task-wrapper-service-recover-json",
-            "--limit",
-            "1",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-cmd-service-recover-json",
-        "service-recover",
-    )
-
-    assert_service_recover_json_result(
-        result,
-        errors,
-        "mvp-wrapper-cmd-service-recover-json",
-        expected_db="target\mvp\service-recover-json.db",
-        expected_db_source="flag",
-        expected_task_id="task-wrapper-service-recover-json",
-        expected_limit=1,
-    )
+    append_wrapper_cmd_service_recover_json_errors(errors)
 
     result = assert_command_json_result(
         [
