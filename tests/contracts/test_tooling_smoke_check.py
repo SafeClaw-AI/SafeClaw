@@ -3550,6 +3550,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"RetryEligible"', source)
         self.assertNotIn('"mvp-wrapper-restore-after-ps1-retry-a"', source)
 
+    def test_collect_errors_uses_wrapper_missing_task_context_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_missing_task_context_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_missing_task_context_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_missing_task_context.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-cmd-report-without-session-json"', source)
+        self.assertIn('"mvp-wrapper-service-reconcile-missing-task-json"', source)
+        self.assertIn('"missing-task-context"', source)
+        self.assertNotIn('"mvp-wrapper-invalid-json-base"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
