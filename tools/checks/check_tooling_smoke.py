@@ -34,6 +34,7 @@ from tooling_smoke_service_recover_report import (
 from tooling_smoke_service_reconcile_report import (
     append_wrapper_service_reconcile_report_errors,
 )
+from tooling_smoke_wrapper_demo_success import append_wrapper_demo_success_errors
 from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_errors
 from tooling_smoke_wrapper_session_repair import append_wrapper_session_repair_errors
 from tooling_smoke_wrapper_state_recovery import append_wrapper_state_recovery_errors
@@ -10528,102 +10529,15 @@ def collect_errors() -> list[str]:
         assert_run_json_result=assert_run_json_result,
     )
 
-    wrapper_demo = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "demo", "--task-id", "task-wrapper-demo"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_demo_output = (wrapper_demo.stdout or "") + (wrapper_demo.stderr or "")
-
-    if wrapper_demo.returncode != 0:
-        errors.append(f"mvp-wrapper-demo 执行失败: exit={wrapper_demo.returncode}")
-
-    elif "[mvp-wrapper] demo => run" not in wrapper_demo_output:
-        errors.append("mvp-wrapper-demo 输出缺少 run 标记")
-
-    elif "[mvp-wrapper] demo => status" not in wrapper_demo_output:
-        errors.append("mvp-wrapper-demo 输出缺少 status 标记")
-
-    elif "[mvp-wrapper] demo => report" not in wrapper_demo_output:
-        errors.append("mvp-wrapper-demo 输出缺少 report 标记")
-
-    elif (
-        "[mvp] report target => task=task-wrapper-demo effect=effect-task-wrapper-demo"
-        not in wrapper_demo_output
-    ):
-        errors.append("mvp-wrapper-demo 输出缺少 task-wrapper-demo report 目标")
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "demo",
-            "--task-id",
-            "task-wrapper-demo-json",
-            "--json",
-        ],
+    append_wrapper_demo_success_errors(
         errors,
-        "mvp-wrapper-demo-json",
-        "demo",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_result=assert_command_json_result,
+        assert_matching_session_alias=assert_matching_session_alias,
+        assert_step_source_hints=assert_step_source_hints,
     )
-
-    if result is not None:
-        steps = result.get("steps") or []
-
-        session = result.get("session") or {}
-
-        remembered_session = result.get("remembered_session") or {}
-
-        if [step.get("action") for step in steps] != ["run", "status", "report"]:
-            errors.append("mvp-wrapper-demo-json 步骤序列不正确")
-
-        elif remembered_session.get("task_id") != "task-wrapper-demo-json":
-            errors.append(
-                "mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json"
-            )
-
-        elif session.get("task_id") != "task-wrapper-demo-json":
-            errors.append("mvp-wrapper-demo-json 缺少兼容 session task-wrapper-demo-json")
-
-        else:
-            assert_matching_session_alias(result, errors, "mvp-wrapper-demo-json")
-
-            assert_step_source_hints(
-                steps,
-                errors,
-                "mvp-wrapper-demo-json",
-                [
-                    (
-                        "run",
-                        {
-                            "db": "default",
-                            "output": "default",
-                            "owner_id": "default",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "status",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "report",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                ],
-            )
 
     wrapper_demo_preflight = subprocess.run(
         [

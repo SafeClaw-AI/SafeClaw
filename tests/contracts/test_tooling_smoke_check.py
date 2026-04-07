@@ -3839,6 +3839,40 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             source,
         )
 
+    def test_collect_errors_uses_wrapper_demo_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_demo_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_demo_success_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-demo"', source)
+        self.assertIn('"mvp-wrapper-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-preflight-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-fail-json"', source)
+
+    def test_append_wrapper_demo_success_errors_keeps_session_links(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_wrapper_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_DEMO_TASK_ID = "task-wrapper-demo-json"', source)
+        self.assertIn(
+            '"mvp-wrapper-demo-json 缺少 remembered_session task-wrapper-demo-json"',
+            source,
+        )
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
