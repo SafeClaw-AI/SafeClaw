@@ -50,6 +50,9 @@ from tooling_smoke_wrapper_recover_demo_success import (
 from tooling_smoke_wrapper_recover_demo_preflight_success import (
     append_wrapper_recover_demo_preflight_success_errors,
 )
+from tooling_smoke_wrapper_recover_demo_failure import (
+    append_wrapper_recover_demo_failure_errors,
+)
 from tooling_smoke_wrapper_retry_demo_failure import (
     append_wrapper_retry_demo_failure_errors,
 )
@@ -10601,104 +10604,13 @@ def collect_errors() -> list[str]:
         assert_preflight_json_result=assert_preflight_json_result,
     )
 
-    assert_command_failure_output(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "recover-demo",
-            "--bogus",
-        ],
+    append_wrapper_recover_demo_failure_errors(
         errors,
-        "mvp-wrapper-ps1-recover-demo-fail",
-        expected_exit=2,
-        expected_substring="[mvp-wrapper] recover-demo => failed step=seed-crash exit=2",
-        missing_output_label="mvp-wrapper-ps1-recover-demo-fail missing failed step marker",
-    )
-
-    wrapper_recover_demo_fail = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_recover_demo_fail_output = (wrapper_recover_demo_fail.stdout or "") + (
-        wrapper_recover_demo_fail.stderr or ""
-    )
-
-    if wrapper_recover_demo_fail.returncode != 2:
-        errors.append(
-            f"mvp-wrapper-recover-demo-fail 执行失败: exit={wrapper_recover_demo_fail.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] recover-demo => failed step=seed-crash exit=2"
-        not in wrapper_recover_demo_fail_output
-    ):
-        errors.append("mvp-wrapper-recover-demo-fail 输出缺少组合动作失败承接提示")
-
-    assert_command_json_error(
-        [
-            "cmd",
-            "/c",
-            r"tools\mvp\safeclaw_mvp.cmd",
-            "recover-demo",
-            "--bogus",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-cmd-recover-demo-fail-json",
-        "recover-demo",
-        expected_failed_step="seed-crash",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-cmd-recover-demo-fail-json missing unknown argument",
-        expected_remembered_session_task_id="task-wrapper-recover-demo-json",
-        remembered_session_label="mvp-wrapper-cmd-recover-demo-fail-json missing task-wrapper-recover-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-cmd-recover-demo-fail-json should not keep legacy session",
-    )
-
-    assert_command_json_error(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "recover-demo",
-            "--bogus",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-recover-demo-fail-json",
-        "recover-demo",
-        expected_failed_step="seed-crash",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-ps1-recover-demo-fail-json missing unknown argument",
-        expected_remembered_session_task_id="task-wrapper-recover-demo-json",
-        remembered_session_label="mvp-wrapper-ps1-recover-demo-fail-json missing task-wrapper-recover-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-ps1-recover-demo-fail-json should not keep legacy session",
-    )
-
-    assert_command_json_error(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "recover-demo", "--bogus", "--json"],
-        errors,
-        "mvp-wrapper-recover-demo-fail-json",
-        "recover-demo",
-        expected_failed_step="seed-crash",
-        expected_code="invalid-argument",
-        expected_details_message_substring="unknown argument",
-        details_message_label="mvp-wrapper-recover-demo-fail-json 缺少 wrapper 级 unknown argument",
-        expected_remembered_session_task_id="task-wrapper-recover-demo-json",
-        remembered_session_label="mvp-wrapper-recover-demo-fail-json remembered_session 缺少 task-wrapper-recover-demo-json",
-        reject_legacy_session=True,
-        legacy_session_label="mvp-wrapper-recover-demo-fail-json 不应继续返回旧 session 字段",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_error=assert_command_json_error,
+        assert_command_failure_output=assert_command_failure_output,
     )
 
     append_wrapper_retry_demo_success_errors(

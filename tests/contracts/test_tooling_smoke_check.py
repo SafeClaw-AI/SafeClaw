@@ -4435,6 +4435,53 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
         self.assertIn('"permission_context": "prepared-action"', source)
 
+    def test_collect_errors_uses_wrapper_recover_demo_failure_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_recover_demo_failure_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_recover_demo_failure_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-recover-demo-fail"', source)
+        self.assertIn('"mvp-wrapper-cmd-recover-demo-fail-json"', source)
+        self.assertIn('"mvp-wrapper-ps1-recover-demo-fail-json"', source)
+        self.assertIn('"mvp-wrapper-recover-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-preflight-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-fail-json"', source)
+
+    def test_append_wrapper_recover_demo_failure_errors_keeps_failure_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_failure.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('expected_failed_step="seed-crash"', source)
+        self.assertIn(
+            '"mvp-wrapper-recover-demo-fail 输出缺少组合动作失败承接提示"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-recover-demo-fail-json remembered_session 缺少 task-wrapper-recover-demo-json"',
+            source,
+        )
+        self.assertIn("reject_legacy_session=True", source)
+
     def test_collect_errors_uses_wrapper_retry_demo_success_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"
