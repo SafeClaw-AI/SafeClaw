@@ -4387,6 +4387,54 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             source,
         )
 
+    def test_collect_errors_uses_wrapper_recover_demo_preflight_success_helper(
+        self,
+    ) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_recover_demo_preflight_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_recover_demo_preflight_success_errors_keeps_boundary(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_preflight_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-recover-demo-preflight-json"', source)
+        self.assertIn('"task-wrapper-recover-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-preflight-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-preflight-json"', source)
+
+    def test_append_wrapper_recover_demo_preflight_success_errors_keeps_preflight_contract(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_recover_demo_preflight_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-recover-demo-preflight-json preflight"', source)
+        self.assertIn('expected_requested_action="recover-demo"', source)
+        self.assertIn(
+            'expected_target_scope="scope:target/mvp/recover-demo-preflight-json.txt"',
+            source,
+        )
+        self.assertIn(
+            '"mvp-wrapper-recover-demo-preflight-json missing remembered_session task-wrapper-recover-demo-json"',
+            source,
+        )
+        self.assertIn('"permission_context": "prepared-action"', source)
+
     def test_collect_errors_uses_wrapper_retry_demo_success_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
             encoding="utf-8"

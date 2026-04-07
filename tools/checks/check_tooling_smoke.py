@@ -45,6 +45,9 @@ from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_erro
 from tooling_smoke_wrapper_recover_demo_success import (
     append_wrapper_recover_demo_success_errors,
 )
+from tooling_smoke_wrapper_recover_demo_preflight_success import (
+    append_wrapper_recover_demo_preflight_success_errors,
+)
 from tooling_smoke_wrapper_retry_demo_success import (
     append_wrapper_retry_demo_success_errors,
 )
@@ -10581,119 +10584,14 @@ def collect_errors() -> list[str]:
         assert_matching_session_alias=assert_matching_session_alias,
         assert_step_source_hints=assert_step_source_hints,
     )
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "recover-demo",
-            "--task-id",
-            "task-wrapper-recover-demo-json",
-            "--output",
-            "target/mvp/recover-demo-preflight-json.txt",
-            "--preflight",
-            "--json",
-        ],
+    append_wrapper_recover_demo_preflight_success_errors(
         errors,
-        "mvp-wrapper-recover-demo-preflight-json",
-        "recover-demo",
+        python_executable=PYTHON,
+        assert_command_json_result=assert_command_json_result,
+        assert_matching_session_alias=assert_matching_session_alias,
+        assert_step_source_hints=assert_step_source_hints,
+        assert_preflight_json_result=assert_preflight_json_result,
     )
-
-    if result is not None:
-        steps = result.get("steps") or []
-
-        session = result.get("session") or {}
-
-        remembered_session = result.get("remembered_session") or {}
-
-        if [step.get("action") for step in steps] != [
-            "preflight",
-            "seed-crash",
-            "recover",
-            "report",
-        ]:
-            errors.append(
-                "mvp-wrapper-recover-demo-preflight-json step sequence is incorrect"
-            )
-
-        elif remembered_session.get("task_id") != "task-wrapper-recover-demo-json":
-            errors.append(
-                "mvp-wrapper-recover-demo-preflight-json missing remembered_session task-wrapper-recover-demo-json"
-            )
-
-        elif session.get("task_id") != "task-wrapper-recover-demo-json":
-            errors.append(
-                "mvp-wrapper-recover-demo-preflight-json missing session alias task-wrapper-recover-demo-json"
-            )
-
-        else:
-            assert_matching_session_alias(
-                result, errors, "mvp-wrapper-recover-demo-preflight-json"
-            )
-
-            assert_step_source_hints(
-                steps,
-                errors,
-                "mvp-wrapper-recover-demo-preflight-json",
-                [
-                    ("preflight", {"permission_context": "prepared-action"}),
-                    (
-                        "seed-crash",
-                        {
-                            "db": "default",
-                            "output": "flag",
-                            "owner_id": "default",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "recover",
-                        {
-                            "db": "session",
-                            "output": "flag",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "report",
-                        {
-                            "db": "session",
-                            "output": "flag",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                ],
-            )
-
-        assert_preflight_json_result(
-            None if result is None else result.get("preflight"),
-            errors,
-            "mvp-wrapper-recover-demo-preflight-json preflight",
-            expected_requested_action="recover-demo",
-            expected_known=True,
-            expected_action_class="local-action",
-            expected_tier="TIER_1",
-            expected_writes_state=True,
-            expected_permission_context_source="prepared-action",
-            expected_target_scope="scope:target/mvp/recover-demo-preflight-json.txt",
-            expected_requires_write=True,
-            expected_doctor_bypass=False,
-            expected_permission_context_applied=True,
-            expected_permission_tier="TIER_1",
-            expected_permission_policy="confirm",
-            expected_permission_reason="write_scope_requires_confirmation",
-            expected_permission_enforced=False,
-            expected_action_allowed=True,
-            expected_action_decision="allow",
-            expected_action_reason="current_mvp_action_is_local_only",
-            expected_allowed=True,
-            expected_decision="allow",
-            expected_offline_ready=True,
-            expected_degradation_mode="local_only_ok",
-            expected_reason="current_mvp_action_is_local_only",
-        )
 
     assert_command_failure_output(
         [
