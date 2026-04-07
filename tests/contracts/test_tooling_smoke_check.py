@@ -3526,7 +3526,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_error(", helper_block)
@@ -3537,6 +3537,37 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_code="missing-task-context"', helper_block)
         self.assertIn('expected_remembered_session_task_id="task-wrapper-service-recover-json"', helper_block)
         self.assertNotIn('"mvp-wrapper-service-demo"', helper_block)
+
+    def test_collect_errors_uses_wrapper_service_demo_text_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_service_demo_text_errors(errors)", normalized_source)
+
+    def test_append_wrapper_service_demo_text_errors_keeps_labels(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("subprocess.run(", helper_block)
+        self.assertIn('"service-demo"', helper_block)
+        self.assertIn('"mvp-wrapper-service-demo', helper_block)
+        self.assertIn(
+            '"[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0"',
+            helper_block,
+        )
+        self.assertIn(
+            '"[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0"',
+            helper_block,
+        )
+        self.assertNotIn('"mvp-wrapper-cmd-service-demo-json"', helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
@@ -3976,6 +4007,45 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('_RECOVER_DEMO_TASK_ID = "task-wrapper-recover-demo-json"', source)
         self.assertIn(
             '"mvp-wrapper-recover-demo-json 缺少 remembered_session task-wrapper-recover-demo-json"',
+            source,
+        )
+
+    def test_collect_errors_uses_wrapper_retry_demo_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_retry_demo_success_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_retry_demo_success_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_retry_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-retry-demo"', source)
+        self.assertIn('"mvp-wrapper-retry-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-preflight-json"', source)
+        self.assertNotIn('"mvp-wrapper-retry-demo-fail-json"', source)
+        self.assertNotIn('"mvp-wrapper-demo-json"', source)
+        self.assertNotIn('"mvp-wrapper-recover-demo-json"', source)
+
+    def test_append_wrapper_retry_demo_success_errors_keeps_session_links(
+        self,
+    ) -> None:
+        source = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_wrapper_retry_demo_success.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('_RETRY_DEMO_TASK_ID = "task-wrapper-retry-demo-json"', source)
+        self.assertIn(
+            '"mvp-wrapper-retry-demo-json 缺少 remembered_session task-wrapper-retry-demo-json"',
             source,
         )
 

@@ -39,6 +39,9 @@ from tooling_smoke_wrapper_failure_paths import append_wrapper_failure_path_erro
 from tooling_smoke_wrapper_recover_demo_success import (
     append_wrapper_recover_demo_success_errors,
 )
+from tooling_smoke_wrapper_retry_demo_success import (
+    append_wrapper_retry_demo_success_errors,
+)
 from tooling_smoke_wrapper_session_repair import append_wrapper_session_repair_errors
 from tooling_smoke_wrapper_state_recovery import append_wrapper_state_recovery_errors
 from tooling_smoke_wrapper_verify import append_wrapper_verify_errors
@@ -9474,6 +9477,36 @@ def append_wrapper_service_recover_missing_task_json_errors(errors: list[str]) -
     )
 
 
+def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:
+    wrapper_service_demo = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_service_demo_output = (wrapper_service_demo.stdout or "") + (
+        wrapper_service_demo.stderr or ""
+    )
+
+    if wrapper_service_demo.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-service-demo ????: exit={wrapper_service_demo.returncode}"
+        )
+
+    elif (
+        "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0"
+        not in wrapper_service_demo_output
+    ):
+        errors.append("mvp-wrapper-service-demo ???? resolved governance")
+
+    elif (
+        "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
+        not in wrapper_service_demo_output
+    ):
+        errors.append("mvp-wrapper-service-demo ???? confirmation governance")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9602,34 +9635,7 @@ def collect_errors() -> list[str]:
     append_wrapper_ps1_service_recover_json_errors(errors)
     append_wrapper_service_recover_invalid_limit_json_errors(errors)
     append_wrapper_service_recover_missing_task_json_errors(errors)
-
-    wrapper_service_demo = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_service_demo_output = (wrapper_service_demo.stdout or "") + (
-        wrapper_service_demo.stderr or ""
-    )
-
-    if wrapper_service_demo.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-service-demo ????: exit={wrapper_service_demo.returncode}"
-        )
-
-    elif (
-        "[demo] service governance resolved => total=2 resolved=2 confirmation=0 manual_review=0"
-        not in wrapper_service_demo_output
-    ):
-        errors.append("mvp-wrapper-service-demo ???? resolved governance")
-
-    elif (
-        "[demo] service governance confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
-        not in wrapper_service_demo_output
-    ):
-        errors.append("mvp-wrapper-service-demo ???? confirmation governance")
+    append_wrapper_service_demo_text_errors(errors)
 
     result = assert_command_json_result(
         ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
@@ -11196,114 +11202,15 @@ def collect_errors() -> list[str]:
         legacy_session_label="mvp-wrapper-recover-demo-fail-json 不应继续返回旧 session 字段",
     )
 
-    wrapper_retry_demo = subprocess.run(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "retry-demo",
-            "--task-id",
-            "task-wrapper-retry-demo",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_retry_demo_output = (wrapper_retry_demo.stdout or "") + (
-        wrapper_retry_demo.stderr or ""
-    )
-
-    if wrapper_retry_demo.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-retry-demo 执行失败: exit={wrapper_retry_demo.returncode}"
-        )
-
-    elif "[mvp-wrapper] retry-demo => seed-failed" not in wrapper_retry_demo_output:
-        errors.append("mvp-wrapper-retry-demo 输出缺少 seed-failed 标记")
-
-    elif "[mvp-wrapper] retry-demo => retry" not in wrapper_retry_demo_output:
-        errors.append("mvp-wrapper-retry-demo 输出缺少 retry 标记")
-
-    elif "[mvp-wrapper] retry-demo => report" not in wrapper_retry_demo_output:
-        errors.append("mvp-wrapper-retry-demo 输出缺少 report 标记")
-
-    elif (
-        "[mvp] report target => task=task-wrapper-retry-demo effect=effect-task-wrapper-retry-demo"
-        not in wrapper_retry_demo_output
-    ):
-        errors.append("mvp-wrapper-retry-demo 输出缺少 task-wrapper-retry-demo report 目标")
-
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "retry-demo",
-            "--task-id",
-            "task-wrapper-retry-demo-json",
-            "--json",
-        ],
+    append_wrapper_retry_demo_success_errors(
         errors,
-        "mvp-wrapper-retry-demo-json",
-        "retry-demo",
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        assert_command_json_result=assert_command_json_result,
+        assert_matching_session_alias=assert_matching_session_alias,
+        assert_step_source_hints=assert_step_source_hints,
     )
-
-    if result is not None:
-        steps = result.get("steps") or []
-
-        session = result.get("session") or {}
-
-        remembered_session = result.get("remembered_session") or {}
-
-        if [step.get("action") for step in steps] != ["seed-failed", "retry", "report"]:
-            errors.append("mvp-wrapper-retry-demo-json 步骤序列不正确")
-
-        elif remembered_session.get("task_id") != "task-wrapper-retry-demo-json":
-            errors.append(
-                "mvp-wrapper-retry-demo-json 缺少 remembered_session task-wrapper-retry-demo-json"
-            )
-
-        elif session.get("task_id") != "task-wrapper-retry-demo-json":
-            errors.append(
-                "mvp-wrapper-retry-demo-json 缺少兼容 session task-wrapper-retry-demo-json"
-            )
-
-        else:
-            assert_matching_session_alias(result, errors, "mvp-wrapper-retry-demo-json")
-
-            assert_step_source_hints(
-                steps,
-                errors,
-                "mvp-wrapper-retry-demo-json",
-                [
-                    (
-                        "seed-failed",
-                        {
-                            "db": "default",
-                            "output": "default",
-                            "owner_id": "default",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "retry",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                    (
-                        "report",
-                        {
-                            "db": "session",
-                            "output": "session",
-                            "owner_id": "session",
-                            "task_context": "flag",
-                        },
-                    ),
-                ],
-            )
 
     result = assert_command_json_result(
         [
