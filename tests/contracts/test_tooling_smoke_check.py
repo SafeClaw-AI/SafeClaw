@@ -3569,6 +3569,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"missing-task-context"', source)
         self.assertNotIn('"mvp-wrapper-invalid-json-base"', source)
 
+    def test_collect_errors_uses_wrapper_invalid_argument_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_invalid_argument_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_invalid_argument_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_invalid_argument.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("task-wrapper-invalid-json-base", source)
+        self.assertIn('"mvp-wrapper-ps1-retry-invalid-json"', source)
+        self.assertIn('"invalid-argument"', source)
+        self.assertNotIn('"mvp-wrapper-service-run-report"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
