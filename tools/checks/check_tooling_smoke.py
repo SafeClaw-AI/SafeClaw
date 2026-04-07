@@ -48,6 +48,9 @@ from tooling_smoke_service_demo_cmd_json import (
 from tooling_smoke_service_demo_text import (
     append_wrapper_service_demo_text_errors as _append_wrapper_service_demo_text_errors,
 )
+from tooling_smoke_service_demo_no_tool_path_json import (
+    append_wrapper_service_demo_no_tool_path_json_errors as _append_wrapper_service_demo_no_tool_path_json_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9533,42 +9536,14 @@ def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> None:
-    wrapper_service_env = os.environ.copy()
-
-    wrapper_service_env["PATH"] = os.pathsep.join(
-        entry
-        for entry in wrapper_service_env.get("PATH", "").split(os.pathsep)
-        if ".cargo" not in entry.lower() and "mingw64" not in entry.lower()
-    )
-
-    service_demo_without_tool_path = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "service-demo", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        env=wrapper_service_env,
-    )
-
-    payload = load_json_payload(
-        service_demo_without_tool_path,
+    _append_wrapper_service_demo_no_tool_path_json_errors(
         errors,
-        "mvp-wrapper-service-demo-no-tool-path-json",
-        0,
-    )
-
-    result = (
-        None
-        if payload is None
-        else extract_json_result(
-            payload,
-            errors,
-            "mvp-wrapper-service-demo-no-tool-path-json",
-            "service-demo",
-        )
-    )
-
-    assert_service_demo_json_result(
-        result, errors, "mvp-wrapper-service-demo-no-tool-path-json"
+        repo_root=REPO_ROOT,
+        python_executable=PYTHON,
+        subprocess_module=subprocess,
+        load_json_payload=load_json_payload,
+        extract_json_result=extract_json_result,
+        assert_service_demo_json_result=assert_service_demo_json_result,
     )
 
 

@@ -3602,16 +3602,12 @@ class ToolingSmokeCheckTest(unittest.TestCase):
     def test_append_wrapper_service_demo_no_tool_path_json_errors_keeps_labels(
         self,
     ) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        helper_block = source.split(
-            "def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> None:",
-            1,
-        )[1].split(
-            "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
-            1,
-        )[0]
+        helper_block = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_service_demo_no_tool_path_json.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("os.environ.copy()", helper_block)
         self.assertIn("load_json_payload(", helper_block)
         self.assertIn("extract_json_result(", helper_block)
