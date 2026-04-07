@@ -3675,7 +3675,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def ensure_space_wrapper_dir_exists() -> None:",
+            "def append_wrapper_ps1_run_json_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3687,6 +3687,34 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_db_path="target/mvp/space wrapper/run wrapper cmd.db"', helper_block)
         self.assertIn('expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt"', helper_block)
         self.assertNotIn('"mvp-wrapper-ps1-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_ps1_run_json_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("append_wrapper_ps1_run_json_errors(errors)", normalized_source)
+
+    def test_append_wrapper_ps1_run_json_errors_keeps_labels(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_ps1_run_json_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def ensure_space_wrapper_dir_exists() -> None:",
+            1,
+        )[0]
+        self.assertIn("assert_command_json_result(", helper_block)
+        self.assertIn("assert_run_json_result(", helper_block)
+        self.assertIn('"mvp-wrapper-ps1-run-json"', helper_block)
+        self.assertIn('"task-wrapper-ps1-space"', helper_block)
+        self.assertIn('"powershell.exe"', helper_block)
+        self.assertIn('r"tools\\mvp\\safeclaw_mvp.ps1"', helper_block)
+        self.assertIn('expected_db_path="target/mvp/space wrapper/run wrapper ps1.db"', helper_block)
+        self.assertIn('expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt"', helper_block)
+        self.assertNotIn('"mvp-wrapper-run-json"', helper_block)
 
     def test_collect_errors_uses_space_wrapper_dir_setup_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(

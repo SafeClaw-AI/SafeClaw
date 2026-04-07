@@ -9605,6 +9605,41 @@ def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:
     )
 
 
+def append_wrapper_ps1_run_json_errors(errors: list[str]) -> None:
+    result = assert_command_json_result(
+        [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            r"tools\mvp\safeclaw_mvp.ps1",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-ps1-space",
+            "--db",
+            "target/mvp/space wrapper/run wrapper ps1.db",
+            "--output",
+            "target/mvp/space wrapper/run wrapper ps1.txt",
+            "--json",
+        ],
+        errors,
+        "mvp-wrapper-ps1-run-json",
+        "run",
+    )
+
+    assert_run_json_result(
+        result,
+        errors,
+        "mvp-wrapper-ps1-run-json",
+        expected_task_id="task-wrapper-ps1-space",
+        expected_db_path="target/mvp/space wrapper/run wrapper ps1.db",
+        expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt",
+        expected_db_source="flag",
+        expected_output_source="flag",
+    )
+
+
 def ensure_space_wrapper_dir_exists() -> None:
     space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
     space_wrapper_dir.mkdir(parents=True, exist_ok=True)
@@ -9745,39 +9780,7 @@ def collect_errors() -> list[str]:
 
     ensure_space_wrapper_dir_exists()
     append_wrapper_cmd_run_json_errors(errors)
-
-    result = assert_command_json_result(
-        [
-            "powershell.exe",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            r"tools\mvp\safeclaw_mvp.ps1",
-            "run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-ps1-space",
-            "--db",
-            "target/mvp/space wrapper/run wrapper ps1.db",
-            "--output",
-            "target/mvp/space wrapper/run wrapper ps1.txt",
-            "--json",
-        ],
-        errors,
-        "mvp-wrapper-ps1-run-json",
-        "run",
-    )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-ps1-run-json",
-        expected_task_id="task-wrapper-ps1-space",
-        expected_db_path="target/mvp/space wrapper/run wrapper ps1.db",
-        expected_output_path="target/mvp/space wrapper/run wrapper ps1.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
-    )
+    append_wrapper_ps1_run_json_errors(errors)
 
     result = assert_command_json_result(
         [
