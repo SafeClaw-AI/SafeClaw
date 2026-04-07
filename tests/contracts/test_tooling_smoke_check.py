@@ -3675,7 +3675,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def ensure_space_wrapper_dir_exists() -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3687,6 +3687,28 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_db_path="target/mvp/space wrapper/run wrapper cmd.db"', helper_block)
         self.assertIn('expected_output_path="target/mvp/space wrapper/run wrapper cmd.txt"', helper_block)
         self.assertNotIn('"mvp-wrapper-ps1-run-json"', helper_block)
+
+    def test_collect_errors_uses_space_wrapper_dir_setup_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn("ensure_space_wrapper_dir_exists()", normalized_source)
+
+    def test_ensure_space_wrapper_dir_exists_keeps_boundary(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def ensure_space_wrapper_dir_exists() -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn('space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"', helper_block)
+        self.assertIn("space_wrapper_dir.mkdir(parents=True, exist_ok=True)", helper_block)
+        self.assertNotIn("append_wrapper_cmd_run_json_errors(errors)", helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(

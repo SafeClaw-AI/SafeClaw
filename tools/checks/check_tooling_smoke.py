@@ -9605,6 +9605,11 @@ def append_wrapper_cmd_run_json_errors(errors: list[str]) -> None:
     )
 
 
+def ensure_space_wrapper_dir_exists() -> None:
+    space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
+    space_wrapper_dir.mkdir(parents=True, exist_ok=True)
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9738,10 +9743,7 @@ def collect_errors() -> list[str]:
     append_wrapper_service_demo_no_tool_path_json_errors(errors)
     append_wrapper_service_demo_invalid_json_errors(errors)
 
-    space_wrapper_dir = REPO_ROOT / "target" / "mvp" / "space wrapper"
-
-    space_wrapper_dir.mkdir(parents=True, exist_ok=True)
-
+    ensure_space_wrapper_dir_exists()
     append_wrapper_cmd_run_json_errors(errors)
 
     result = assert_command_json_result(
