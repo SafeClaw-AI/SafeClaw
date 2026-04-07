@@ -9671,6 +9671,177 @@ def append_wrapper_run_json_errors(errors: list[str]) -> None:
     )
 
 
+def append_wrapper_use_session_success_errors(errors: list[str]) -> None:
+    wrapper_restore_after_ps1_retry_a = subprocess.run(
+        [
+            PYTHON,
+            "tools/mvp/safeclaw_mvp.py",
+            "run",
+            "--reset",
+            "--task-id",
+            "task-wrapper-a",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    if wrapper_restore_after_ps1_retry_a.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-restore-after-ps1-retry-a failed: exit={wrapper_restore_after_ps1_retry_a.returncode}"
+        )
+
+    wrapper_restore_after_ps1_retry_b = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--task-id", "task-wrapper-b"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    if wrapper_restore_after_ps1_retry_b.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-restore-after-ps1-retry-b failed: exit={wrapper_restore_after_ps1_retry_b.returncode}"
+        )
+
+    wrapper_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "1"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_use_output = (wrapper_use.stdout or "") + (wrapper_use.stderr or "")
+
+    if wrapper_use.returncode != 0:
+        errors.append(f"mvp-wrapper-use 执行失败: exit={wrapper_use.returncode}")
+
+    elif (
+        "[mvp-wrapper] activated => task=task-wrapper-a effect=effect-task-wrapper-a"
+        not in wrapper_use_output
+    ):
+        errors.append("mvp-wrapper-use 输出缺少切回 task-wrapper-a")
+
+    elif (
+        "source=index:1 db_source=session output_source=task_scope owner_source=session"
+        not in wrapper_use_output
+    ):
+        errors.append("mvp-wrapper-use 输出缺少来源说明")
+
+    wrapper_session_after_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_session_after_use_output = (wrapper_session_after_use.stdout or "") + (
+        wrapper_session_after_use.stderr or ""
+    )
+
+    if wrapper_session_after_use.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-session-after-use 执行失败: exit={wrapper_session_after_use.returncode}"
+        )
+
+    elif (
+        "[mvp-wrapper] session => task=task-wrapper-a effect=effect-task-wrapper-a"
+        not in wrapper_session_after_use_output
+    ):
+        errors.append("mvp-wrapper-session-after-use 输出缺少已切换 task-wrapper-a")
+
+    elif "path=target\\mvp\\last_session.json" not in wrapper_session_after_use_output:
+        errors.append("mvp-wrapper-session-after-use 输出缺少 remembered session 路径")
+
+    wrapper_status_after_use = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    wrapper_status_after_use_output = (wrapper_status_after_use.stdout or "") + (
+        wrapper_status_after_use.stderr or ""
+    )
+
+    if wrapper_status_after_use.returncode != 0:
+        errors.append(
+            f"mvp-wrapper-status-after-use 执行失败: exit={wrapper_status_after_use.returncode}"
+        )
+
+    elif (
+        "[mvp] status target => task=task-wrapper-a effect=effect-task-wrapper-a"
+        not in wrapper_status_after_use_output
+    ):
+        errors.append("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a")
+
+    wrapper_use_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "0", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = load_json_payload(
+        wrapper_use_json, errors, "mvp-wrapper-use-json", expected_exit=0
+    )
+
+    if payload is not None:
+        result = extract_json_result(payload, errors, "mvp-wrapper-use-json", "use")
+
+        if result is not None:
+            if (
+                result.get("task_id") != "task-wrapper-b"
+                or result.get("source") != "index:0"
+            ):
+                errors.append("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b")
+
+            elif result.get("db_source") != "session":
+                errors.append("mvp-wrapper-use-json 输出缺少 db_source=session")
+
+            elif result.get("output_source") != "task_scope":
+                errors.append("mvp-wrapper-use-json 输出缺少 output_source=task_scope")
+
+            elif result.get("owner_id_source") != "session":
+                errors.append("mvp-wrapper-use-json 输出缺少 owner_id_source=session")
+
+    wrapper_report_json = subprocess.run(
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = load_json_payload(
+        wrapper_report_json, errors, "mvp-wrapper-report-json", expected_exit=0
+    )
+
+    if payload is not None:
+        result = extract_json_result(
+            payload, errors, "mvp-wrapper-report-json", "report"
+        )
+
+        if result is not None:
+            prepared = result.get("prepared") or []
+
+            source_hints = result.get("source_hints") or {}
+
+            if not prepared or prepared[0] != "report":
+                errors.append("mvp-wrapper-report-json 缺少 prepared report")
+
+            elif "task-wrapper-b" not in (result.get("captured_output") or ""):
+                errors.append("mvp-wrapper-report-json 缺少当前会话 task-wrapper-b 输出")
+
+            elif (result.get("remembered_session") or {}).get(
+                "task_id"
+            ) != "task-wrapper-b":
+                errors.append(
+                    "mvp-wrapper-report-json 缺少 remembered session task-wrapper-b"
+                )
+
+            elif source_hints.get("task_context") != "session":
+                errors.append("mvp-wrapper-report-json 缺少 task_context=session")
+
+
 def collect_errors() -> list[str]:
     errors: list[str] = []
     reset_smoke_progress()
@@ -9852,175 +10023,7 @@ def collect_errors() -> list[str]:
         assert_command_json_result=assert_command_json_result,
         assert_run_json_result=assert_run_json_result,
     )
-
-    wrapper_restore_after_ps1_retry_a = subprocess.run(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "run",
-            "--reset",
-            "--task-id",
-            "task-wrapper-a",
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    if wrapper_restore_after_ps1_retry_a.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-restore-after-ps1-retry-a failed: exit={wrapper_restore_after_ps1_retry_a.returncode}"
-        )
-
-    wrapper_restore_after_ps1_retry_b = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "run", "--task-id", "task-wrapper-b"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    if wrapper_restore_after_ps1_retry_b.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-restore-after-ps1-retry-b failed: exit={wrapper_restore_after_ps1_retry_b.returncode}"
-        )
-
-    wrapper_use = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "1"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_use_output = (wrapper_use.stdout or "") + (wrapper_use.stderr or "")
-
-    if wrapper_use.returncode != 0:
-        errors.append(f"mvp-wrapper-use 执行失败: exit={wrapper_use.returncode}")
-
-    elif (
-        "[mvp-wrapper] activated => task=task-wrapper-a effect=effect-task-wrapper-a"
-        not in wrapper_use_output
-    ):
-        errors.append("mvp-wrapper-use 输出缺少切回 task-wrapper-a")
-
-    elif (
-        "source=index:1 db_source=session output_source=task_scope owner_source=session"
-        not in wrapper_use_output
-    ):
-        errors.append("mvp-wrapper-use 输出缺少来源说明")
-
-    wrapper_session_after_use = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "session"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_session_after_use_output = (wrapper_session_after_use.stdout or "") + (
-        wrapper_session_after_use.stderr or ""
-    )
-
-    if wrapper_session_after_use.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-session-after-use 执行失败: exit={wrapper_session_after_use.returncode}"
-        )
-
-    elif (
-        "[mvp-wrapper] session => task=task-wrapper-a effect=effect-task-wrapper-a"
-        not in wrapper_session_after_use_output
-    ):
-        errors.append("mvp-wrapper-session-after-use 输出缺少已切换 task-wrapper-a")
-
-    elif "path=target\\mvp\\last_session.json" not in wrapper_session_after_use_output:
-        errors.append("mvp-wrapper-session-after-use 输出缺少 remembered session 路径")
-
-    wrapper_status_after_use = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "status"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    wrapper_status_after_use_output = (wrapper_status_after_use.stdout or "") + (
-        wrapper_status_after_use.stderr or ""
-    )
-
-    if wrapper_status_after_use.returncode != 0:
-        errors.append(
-            f"mvp-wrapper-status-after-use 执行失败: exit={wrapper_status_after_use.returncode}"
-        )
-
-    elif (
-        "[mvp] status target => task=task-wrapper-a effect=effect-task-wrapper-a"
-        not in wrapper_status_after_use_output
-    ):
-        errors.append("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a")
-
-    wrapper_use_json = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "use", "--index", "0", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    payload = load_json_payload(
-        wrapper_use_json, errors, "mvp-wrapper-use-json", expected_exit=0
-    )
-
-    if payload is not None:
-        result = extract_json_result(payload, errors, "mvp-wrapper-use-json", "use")
-
-        if result is not None:
-            if (
-                result.get("task_id") != "task-wrapper-b"
-                or result.get("source") != "index:0"
-            ):
-                errors.append("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b")
-
-            elif result.get("db_source") != "session":
-                errors.append("mvp-wrapper-use-json 输出缺少 db_source=session")
-
-            elif result.get("output_source") != "task_scope":
-                errors.append("mvp-wrapper-use-json 输出缺少 output_source=task_scope")
-
-            elif result.get("owner_id_source") != "session":
-                errors.append("mvp-wrapper-use-json 输出缺少 owner_id_source=session")
-
-    wrapper_report_json = subprocess.run(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "report", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    payload = load_json_payload(
-        wrapper_report_json, errors, "mvp-wrapper-report-json", expected_exit=0
-    )
-
-    if payload is not None:
-        result = extract_json_result(
-            payload, errors, "mvp-wrapper-report-json", "report"
-        )
-
-        if result is not None:
-            prepared = result.get("prepared") or []
-
-            source_hints = result.get("source_hints") or {}
-
-            if not prepared or prepared[0] != "report":
-                errors.append("mvp-wrapper-report-json 缺少 prepared report")
-
-            elif "task-wrapper-b" not in (result.get("captured_output") or ""):
-                errors.append("mvp-wrapper-report-json 缺少当前会话 task-wrapper-b 输出")
-
-            elif (result.get("remembered_session") or {}).get(
-                "task_id"
-            ) != "task-wrapper-b":
-                errors.append(
-                    "mvp-wrapper-report-json 缺少 remembered session task-wrapper-b"
-                )
-
-            elif source_hints.get("task_context") != "session":
-                errors.append("mvp-wrapper-report-json 缺少 task_context=session")
+    append_wrapper_use_session_success_errors(errors)
 
     wrapper_cmd_forget = subprocess.run(
         ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "forget"],

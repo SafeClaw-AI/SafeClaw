@@ -3753,7 +3753,7 @@ class ToolingSmokeCheckTest(unittest.TestCase):
             "def append_wrapper_run_json_errors(errors: list[str]) -> None:",
             1,
         )[1].split(
-            "def collect_errors() -> list[str]:",
+            "def append_wrapper_use_session_success_errors(errors: list[str]) -> None:",
             1,
         )[0]
         self.assertIn("assert_command_json_result(", helper_block)
@@ -3766,6 +3766,41 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('expected_db_source="default"', helper_block)
         self.assertIn('expected_output_source="default"', helper_block)
         self.assertNotIn('"mvp-wrapper-cmd-run-json"', helper_block)
+
+    def test_collect_errors_uses_wrapper_use_session_success_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_use_session_success_errors(errors)", normalized_source
+        )
+
+    def test_append_wrapper_use_session_success_errors_keeps_boundary(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        helper_block = source.split(
+            "def append_wrapper_use_session_success_errors(errors: list[str]) -> None:",
+            1,
+        )[1].split(
+            "def collect_errors() -> list[str]:",
+            1,
+        )[0]
+        self.assertIn("mvp-wrapper-restore-after-ps1-retry-a failed", helper_block)
+        self.assertIn("mvp-wrapper-restore-after-ps1-retry-b failed", helper_block)
+        self.assertIn("mvp-wrapper-use 输出缺少切回 task-wrapper-a", helper_block)
+        self.assertIn(
+            "mvp-wrapper-session-after-use 输出缺少已切换 task-wrapper-a",
+            helper_block,
+        )
+        self.assertIn("mvp-wrapper-status-after-use 输出缺少已切换 task-wrapper-a", helper_block)
+        self.assertIn("mvp-wrapper-use-json 输出缺少切回 task-wrapper-b", helper_block)
+        self.assertIn("mvp-wrapper-report-json 缺少 prepared report", helper_block)
+        self.assertIn("output_source=task_scope", helper_block)
+        self.assertIn("task_context=session", helper_block)
+        self.assertNotIn("mvp-wrapper-cmd-forget-json", helper_block)
+        self.assertNotIn("mvp-wrapper-restore-after-cmd-forget", helper_block)
 
     def test_collect_errors_uses_wrapper_ps1_explicit_crash_helper(self) -> None:
         source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
