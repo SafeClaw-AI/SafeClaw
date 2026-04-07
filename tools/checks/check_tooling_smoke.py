@@ -42,6 +42,9 @@ from tooling_smoke_service_reconcile_report import (
 from tooling_smoke_service_demo_invalid_json import (
     append_wrapper_service_demo_invalid_json_errors as _append_wrapper_service_demo_invalid_json_errors,
 )
+from tooling_smoke_service_demo_cmd_json import (
+    append_wrapper_cmd_service_demo_json_errors as _append_wrapper_cmd_service_demo_json_errors,
+)
 from tooling_smoke_wrapper_demo_preflight_failure import (
     append_wrapper_demo_preflight_failure_errors,
 )
@@ -9540,14 +9543,11 @@ def append_wrapper_service_demo_text_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_cmd_service_demo_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", "service-demo", "--json"],
+    _append_wrapper_cmd_service_demo_json_errors(
         errors,
-        "mvp-wrapper-cmd-service-demo-json",
-        "service-demo",
+        assert_command_json_result=assert_command_json_result,
+        assert_service_demo_json_result=assert_service_demo_json_result,
     )
-
-    assert_service_demo_json_result(result, errors, "mvp-wrapper-cmd-service-demo-json")
 
 
 def append_wrapper_service_demo_no_tool_path_json_errors(errors: list[str]) -> None:
