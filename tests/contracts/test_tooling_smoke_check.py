@@ -3531,6 +3531,25 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('("coordination_summary", "retry_now", None)', source)
         self.assertNotIn('"mvp-wrapper-status-explicit-failed-seed-json"', source)
 
+    def test_collect_errors_uses_wrapper_explicit_failed_helper(self) -> None:
+        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        normalized_source = normalize_source_whitespace(source)
+        self.assertIn(
+            "append_wrapper_explicit_failed_errors( errors,",
+            normalized_source,
+        )
+
+    def test_append_wrapper_explicit_failed_errors_keeps_boundary(self) -> None:
+        source = (
+            REPO_ROOT / "tools" / "checks" / "tooling_smoke_explicit_failed.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"mvp-wrapper-ps1-status-explicit-failed-json"', source)
+        self.assertIn('"mvp-wrapper-cmd-report-explicit-failed-json"', source)
+        self.assertIn('"RetryEligible"', source)
+        self.assertNotIn('"mvp-wrapper-restore-after-ps1-retry-a"', source)
+
     def test_write_smoke_verify_sitecustomize_creates_stub(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             sitecustomize_path = tooling_smoke.write_smoke_verify_sitecustomize(
