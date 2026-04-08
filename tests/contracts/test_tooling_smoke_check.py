@@ -3749,16 +3749,12 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         )
 
     def test_append_wrapper_use_session_success_errors_keeps_boundary(self) -> None:
-        source = (REPO_ROOT / "tools" / "checks" / "check_tooling_smoke.py").read_text(
-            encoding="utf-8"
-        )
-        helper_block = source.split(
-            "def append_wrapper_use_session_success_errors(errors: list[str]) -> None:",
-            1,
-        )[1].split(
-            "def append_wrapper_cmd_forget_recovery_errors(errors: list[str]) -> None:",
-            1,
-        )[0]
+        helper_block = (
+            REPO_ROOT
+            / "tools"
+            / "checks"
+            / "tooling_smoke_use_session_success.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("mvp-wrapper-restore-after-ps1-retry-a failed", helper_block)
         self.assertIn("mvp-wrapper-restore-after-ps1-retry-b failed", helper_block)
         self.assertIn("mvp-wrapper-use 输出缺少切回 task-wrapper-a", helper_block)
