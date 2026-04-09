@@ -25,6 +25,7 @@ class SafeclawPersonalDeployTest(unittest.TestCase):
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.py"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.cmd"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_mvp.ps1"), DEPLOY_SNAPSHOT_PATHS)
+        self.assertIn(Path("tools/mvp/claude_provider_smoke.py"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_panel.py"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/safeclaw_personal_panel.pyw"), DEPLOY_SNAPSHOT_PATHS)
         self.assertIn(Path("tools/mvp/PERSONAL_MVP_PLAYBOOK.md"), DEPLOY_SNAPSHOT_PATHS)

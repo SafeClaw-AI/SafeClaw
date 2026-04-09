@@ -12,12 +12,15 @@ from tools.mvp.safeclaw_personal_panel import (
     PERSONAL_PANEL_ENTRY_PATH_ENV,
     SafeclawPersonalPanelController,
     build_archive_note_panel_arguments,
+    build_provider_smoke_panel_exception_text,
+    build_provider_smoke_panel_result_text,
     build_personal_panel_exception_text,
     build_personal_panel_undo_confirmation_text,
     build_personal_panel_result_text,
     build_personal_panel_progress_text,
     resolve_personal_panel_entry_command,
 )
+from tools.mvp import claude_provider_smoke as provider_smoke
 
 
 class SafeclawPersonalPanelTest(unittest.TestCase):
@@ -86,6 +89,33 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
             arguments,
             ["archive-note", "--name", "晨间记录", "--content-file", str(content_file)],
         )
+
+    def test_build_provider_smoke_panel_result_text_renders_success(self) -> None:
+        result = provider_smoke.ProviderSmokeResult(
+            version_text="2.1.71 (Claude Code)",
+            output_path=Path("V:/repo/target/mvp/provider-smoke/claude_generated_smoke.py"),
+            prompt_text="demo prompt",
+            generated_code="def add(a, b):\n    return a + b\n",
+        )
+        rendered = build_provider_smoke_panel_result_text(result)
+        self.assertIn("【验证 Provider】", rendered)
+        self.assertIn("结果：已跑通真实 Provider 验真。", rendered)
+        self.assertIn("Claude CLI：2.1.71 (Claude Code)", rendered)
+        self.assertIn(
+            "落盘文件：V:\\repo\\target\\mvp\\provider-smoke\\claude_generated_smoke.py",
+            rendered,
+        )
+        self.assertIn("下一步：可打开落盘文件确认生成结果，再继续后续执行链。", rendered)
+
+    def test_build_provider_smoke_panel_exception_text_guides_missing_entry(self) -> None:
+        rendered = build_provider_smoke_panel_exception_text(
+            FileNotFoundError("[WinError 2] 系统找不到指定的文件。")
+        )
+        self.assertIn("【验证 Provider】", rendered)
+        self.assertIn("结果：这次没能跑通真实 Provider 验真。", rendered)
+        self.assertIn("原因：当前机器没找到 Claude CLI 入口。", rendered)
+        self.assertIn("下一步：先确认 `claude --version` 可用，再重试。", rendered)
+        self.assertNotIn("【原始错误】", rendered)
 
     def test_build_personal_panel_result_text_renders_status_summary(self) -> None:
         completed = subprocess.CompletedProcess(
@@ -236,10 +266,25 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("结果：这次没能完成操作。", rendered)
         self.assertIn("原因：当前入口程序找不到了。", rendered)
 
+    def test_run_action_worker_provider_smoke_converts_exception_to_rendered_result(self) -> None:
+        controller = object.__new__(SafeclawPersonalPanelController)
+        controller.entry_command = ["cmd", "/c", r"C:\missing\safeclaw-personal.cmd"]
+        controller.result_queue = Queue()
+        with patch(
+            "tools.mvp.safeclaw_personal_panel.run_provider_smoke_panel_action",
+            side_effect=FileNotFoundError("[WinError 2] 系统找不到指定的文件。"),
+        ):
+            SafeclawPersonalPanelController._run_action_worker(controller, "provider-smoke", "", "")
+        action_name, rendered = controller.result_queue.get_nowait()
+        self.assertEqual(action_name, "provider-smoke")
+        self.assertIn("结果：这次没能跑通真实 Provider 验真。", rendered)
+        self.assertIn("原因：当前机器没找到 Claude CLI 入口。", rendered)
+
     def test_build_personal_panel_progress_text_uses_human_readable_copy(self) -> None:
         self.assertEqual(build_personal_panel_progress_text("archive-note"), "正在写入笔记，请稍等。")
         self.assertEqual(build_personal_panel_progress_text("status"), "正在刷新状态，请稍等。")
         self.assertEqual(build_personal_panel_progress_text("undo"), "正在撤销上一步，请稍等。")
+        self.assertEqual(build_personal_panel_progress_text("provider-smoke"), "正在验证 Provider，请稍等。")
 
     def test_build_personal_panel_undo_confirmation_text_explains_risk(self) -> None:
         confirmation_text = build_personal_panel_undo_confirmation_text()

@@ -29,6 +29,7 @@ DEPLOY_SNAPSHOT_PATHS = (
     Path("tools/mvp/safeclaw_personal_mvp.py"),
     Path("tools/mvp/safeclaw_personal_mvp.cmd"),
     Path("tools/mvp/safeclaw_personal_mvp.ps1"),
+    Path("tools/mvp/claude_provider_smoke.py"),
     Path("tools/mvp/safeclaw_personal_panel.py"),
     Path("tools/mvp/safeclaw_personal_panel.pyw"),
     Path("tools/mvp/PERSONAL_MVP_PLAYBOOK.md"),

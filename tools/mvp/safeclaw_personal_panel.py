@@ -9,6 +9,11 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Mapping, Sequence
 
+try:
+    from . import claude_provider_smoke as provider_smoke
+except ImportError:
+    import claude_provider_smoke as provider_smoke
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PERSONAL_PANEL_ENTRY_PATH_ENV = "SAFECLAW_PERSONAL_GUI_ENTRY_PATH"
 PERSONAL_PANEL_TITLE_ENV = "SAFECLAW_PERSONAL_GUI_TITLE"
@@ -18,6 +23,7 @@ PANEL_ACTION_TITLES = {
     "archive-note": "写笔记",
     "status": "查看状态",
     "undo": "撤销上一步",
+    "provider-smoke": "验证 Provider",
 }
 
 
@@ -84,6 +90,8 @@ def build_personal_panel_progress_text(action_name: str) -> str:
         return "正在刷新状态，请稍等。"
     if action_name == "undo":
         return "正在撤销上一步，请稍等。"
+    if action_name == "provider-smoke":
+        return "正在验证 Provider，请稍等。"
     return f"正在执行：{action_name}"
 
 
@@ -95,6 +103,10 @@ def build_personal_panel_undo_confirmation_text() -> str:
             "确定继续吗？",
         ]
     )
+
+
+def run_provider_smoke_panel_action() -> provider_smoke.ProviderSmokeResult:
+    return provider_smoke.run_provider_smoke()
 
 
 def build_panel_action_command(
@@ -237,6 +249,48 @@ def build_undo_summary_lines(output_text: str) -> list[str]:
     return lines
 
 
+def build_provider_smoke_panel_result_text(result: provider_smoke.ProviderSmokeResult) -> str:
+    return "\n".join(
+        [
+            f"【{get_personal_panel_action_title('provider-smoke')}】",
+            "结果：已跑通真实 Provider 验真。",
+            f"Claude CLI：{result.version_text or 'unknown'}",
+            f"落盘文件：{result.output_path}",
+            "下一步：可打开落盘文件确认生成结果，再继续后续执行链。",
+        ]
+    )
+
+
+def build_provider_smoke_panel_exception_text(error: Exception) -> str:
+    lines = [f"【{get_personal_panel_action_title('provider-smoke')}】"]
+    lines.append("结果：这次没能跑通真实 Provider 验真。")
+    if isinstance(error, FileNotFoundError):
+        lines.append("原因：当前机器没找到 Claude CLI 入口。")
+        lines.append("下一步：先确认 `claude --version` 可用，再重试。")
+        return "\n".join(lines)
+    if isinstance(error, subprocess.TimeoutExpired):
+        lines.append("原因：这次 Provider 调用超时了。")
+        lines.append("下一步：先重试一次；若仍超时，再单独执行 `claude -p` 排查。")
+        return "\n".join(lines)
+    if isinstance(error, ValueError) and "provider returned empty code payload" in str(error):
+        lines.append("原因：Provider 返回了空代码结果。")
+        lines.append("下一步：先重试一次；若仍为空，再检查 prompt 与 provider 输出。")
+        return "\n".join(lines)
+    if isinstance(error, subprocess.CalledProcessError):
+        lines.append("原因：Provider 命令没有正常完成。")
+        lines.append("下一步：先单独执行 `python tools/mvp/claude_provider_smoke.py` 看原始输出。")
+        output_text = ((error.stdout or "") + (error.stderr or "")).strip()
+        if output_text:
+            lines.extend(["", "【原始输出】", output_text])
+        return "\n".join(lines)
+    lines.append("原因：面板这边没接住这次 Provider 验真。")
+    lines.append("下一步：先看下面原始错误；若再次出现，再单独执行脚本排查。")
+    error_text = str(error).strip()
+    if error_text:
+        lines.extend(["", "【原始错误】", error_text])
+    return "\n".join(lines)
+
+
 def build_personal_panel_summary_lines(action_name: str, output_text: str) -> list[str]:
     if action_name == "archive-note":
         return build_archive_note_summary_lines(output_text)
@@ -299,7 +353,8 @@ def build_personal_panel_welcome_text(entry_command: Sequence[str]) -> str:
         [
             "欢迎使用 SafeClaw 个人小面板。",
             f"当前入口：{describe_personal_panel_entry_command(entry_command)}",
-            "这个面板只做三件事：写笔记、查看状态、撤销上一步。",
+            "核心动作：写笔记、查看状态、撤销上一步。",
+            "维护动作：需要时可点“验证 Provider”跑一次真实执行链。",
             "窗口打开后会自动刷新一次当前状态。",
         ]
     )
@@ -330,6 +385,7 @@ class SafeclawPersonalPanelController:
         self.archive_button: object | None = None
         self.status_button: object | None = None
         self.undo_button: object | None = None
+        self.provider_smoke_button: object | None = None
         self._build_layout(scrolledtext_module)
         self._set_output(build_personal_panel_welcome_text(self.entry_command))
         self.root.after(DEFAULT_PANEL_POLL_INTERVAL_MS, self._drain_result_queue)
@@ -341,7 +397,7 @@ class SafeclawPersonalPanelController:
         outer_frame.pack(fill=self.tk.BOTH, expand=True)
         self.ttk.Label(
             outer_frame,
-            text="SafeClaw 个人小面板：只包住 archive-note → status → undo",
+            text="SafeClaw 个人小面板：主线 archive-note → status → undo，维护可做 Provider 验真",
         ).pack(anchor=self.tk.W)
         self.ttk.Label(outer_frame, textvariable=self.entry_var, foreground="#666666").pack(anchor=self.tk.W, pady=(4, 12))
         self.ttk.Label(outer_frame, text="笔记标题").pack(anchor=self.tk.W)
@@ -357,13 +413,24 @@ class SafeclawPersonalPanelController:
         self.status_button.pack(side=self.tk.LEFT, padx=(8, 0))
         self.undo_button = self.ttk.Button(button_row, text="撤销上一步", command=self.request_undo)
         self.undo_button.pack(side=self.tk.LEFT, padx=(8, 0))
+        self.provider_smoke_button = self.ttk.Button(
+            button_row,
+            text="验证 Provider",
+            command=self.request_provider_smoke,
+        )
+        self.provider_smoke_button.pack(side=self.tk.LEFT, padx=(8, 0))
         self.ttk.Label(outer_frame, text="结果").pack(anchor=self.tk.W)
         self.output_text = scrolledtext_module.ScrolledText(outer_frame, height=18, wrap=self.tk.WORD)
         self.output_text.pack(fill=self.tk.BOTH, expand=True)
 
     def _set_buttons_enabled(self, enabled: bool) -> None:
         next_state = self.tk.NORMAL if enabled else self.tk.DISABLED
-        for button in (self.archive_button, self.status_button, self.undo_button):
+        for button in (
+            self.archive_button,
+            self.status_button,
+            self.undo_button,
+            self.provider_smoke_button,
+        ):
             if button is not None:
                 button.configure(state=next_state)
 
@@ -399,6 +466,9 @@ class SafeclawPersonalPanelController:
             return
         self._queue_action("undo")
 
+    def request_provider_smoke(self) -> None:
+        self._queue_action("provider-smoke")
+
     def _queue_action(self, action_name: str, note_name: str = "", note_content: str = "") -> None:
         self._set_buttons_enabled(False)
         self._set_output(build_personal_panel_progress_text(action_name))
@@ -411,15 +481,22 @@ class SafeclawPersonalPanelController:
 
     def _run_action_worker(self, action_name: str, note_name: str, note_content: str) -> None:
         try:
-            completed = run_personal_panel_action(
-                self.entry_command,
-                action_name,
-                note_name=note_name,
-                note_content=note_content,
-            )
-            rendered_text = build_personal_panel_result_text(action_name, completed)
+            if action_name == "provider-smoke":
+                result = run_provider_smoke_panel_action()
+                rendered_text = build_provider_smoke_panel_result_text(result)
+            else:
+                completed = run_personal_panel_action(
+                    self.entry_command,
+                    action_name,
+                    note_name=note_name,
+                    note_content=note_content,
+                )
+                rendered_text = build_personal_panel_result_text(action_name, completed)
         except Exception as error:
-            rendered_text = build_personal_panel_exception_text(action_name, error, self.entry_command)
+            if action_name == "provider-smoke":
+                rendered_text = build_provider_smoke_panel_exception_text(error)
+            else:
+                rendered_text = build_personal_panel_exception_text(action_name, error, self.entry_command)
         self.result_queue.put((action_name, rendered_text))
 
     def _drain_result_queue(self) -> None:
