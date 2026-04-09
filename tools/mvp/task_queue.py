@@ -27,6 +27,8 @@ class TaskQueueTask:
     task_id: str
     intent: TaskQueueIntent
     enqueued_at_ms: int
+    skill_id: str = ""
+    task_kind: str = ""
 
     @classmethod
     def new(
@@ -34,11 +36,16 @@ class TaskQueueTask:
         task_id: str,
         intent: TaskQueueIntent,
         enqueued_at_ms: int,
+        *,
+        skill_id: str = "",
+        task_kind: str = "",
     ) -> "TaskQueueTask":
         return cls(
-            task_id=task_id,
+            task_id=str(task_id).strip(),
             intent=intent,
             enqueued_at_ms=int(enqueued_at_ms),
+            skill_id=str(skill_id).strip(),
+            task_kind=str(task_kind).strip(),
         )
 
 
