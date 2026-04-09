@@ -12,6 +12,8 @@ from tools.mvp.safeclaw_personal_panel import (
     PERSONAL_PANEL_ENTRY_PATH_ENV,
     SafeclawPersonalPanelController,
     build_archive_note_panel_arguments,
+    build_skill_dispatch_panel_exception_text,
+    build_skill_dispatch_panel_result_text,
     build_provider_smoke_panel_exception_text,
     build_provider_smoke_panel_result_text,
     build_personal_panel_exception_text,
@@ -116,6 +118,36 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("原因：当前机器没找到 Claude CLI 入口。", rendered)
         self.assertIn("下一步：先确认 `claude --version` 可用，再重试。", rendered)
         self.assertNotIn("【原始错误】", rendered)
+
+    def test_build_skill_dispatch_panel_result_text_renders_success(self) -> None:
+        rendered = build_skill_dispatch_panel_result_text(
+            {
+                "binding_mode": "task-kind",
+                "task_kind": "demo.write-text",
+                "output_path": r"V:\repo\target\mvp\skill-dispatch-demo\panel-dispatch.txt",
+            }
+        )
+        self.assertIn("【验证调度链】", rendered)
+        self.assertIn("结果：已跑通真实调度执行链。", rendered)
+        self.assertIn("绑定方式：task-kind", rendered)
+        self.assertIn("任务类型：demo.write-text", rendered)
+        self.assertIn(
+            r"落盘文件：V:\repo\target\mvp\skill-dispatch-demo\panel-dispatch.txt",
+            rendered,
+        )
+        self.assertIn("下一步：可打开落盘文件确认内容，再继续后续执行链。", rendered)
+
+    def test_build_skill_dispatch_panel_exception_text_guides_generic_failure(self) -> None:
+        rendered = build_skill_dispatch_panel_exception_text(RuntimeError("dispatch failed"))
+        self.assertIn("【验证调度链】", rendered)
+        self.assertIn("结果：这次没能跑通真实调度执行链。", rendered)
+        self.assertIn("原因：面板这边没接住这次调度执行。", rendered)
+        self.assertIn(
+            "下一步：先看下面原始错误；若再次出现，再单独执行 `python tools/mvp/skill_dispatch_demo.py` 排查。",
+            rendered,
+        )
+        self.assertIn("【原始错误】", rendered)
+        self.assertIn("dispatch failed", rendered)
 
     def test_build_personal_panel_result_text_renders_status_summary(self) -> None:
         completed = subprocess.CompletedProcess(
@@ -280,11 +312,26 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("结果：这次没能跑通真实 Provider 验真。", rendered)
         self.assertIn("原因：当前机器没找到 Claude CLI 入口。", rendered)
 
+    def test_run_action_worker_skill_dispatch_converts_exception_to_rendered_result(self) -> None:
+        controller = object.__new__(SafeclawPersonalPanelController)
+        controller.entry_command = ["cmd", "/c", r"C:\missing\safeclaw-personal.cmd"]
+        controller.result_queue = Queue()
+        with patch(
+            "tools.mvp.safeclaw_personal_panel.run_skill_dispatch_panel_action",
+            side_effect=RuntimeError("dispatch failed"),
+        ):
+            SafeclawPersonalPanelController._run_action_worker(controller, "skill-dispatch", "", "")
+        action_name, rendered = controller.result_queue.get_nowait()
+        self.assertEqual(action_name, "skill-dispatch")
+        self.assertIn("结果：这次没能跑通真实调度执行链。", rendered)
+        self.assertIn("原因：面板这边没接住这次调度执行。", rendered)
+
     def test_build_personal_panel_progress_text_uses_human_readable_copy(self) -> None:
         self.assertEqual(build_personal_panel_progress_text("archive-note"), "正在写入笔记，请稍等。")
         self.assertEqual(build_personal_panel_progress_text("status"), "正在刷新状态，请稍等。")
         self.assertEqual(build_personal_panel_progress_text("undo"), "正在撤销上一步，请稍等。")
         self.assertEqual(build_personal_panel_progress_text("provider-smoke"), "正在验证 Provider，请稍等。")
+        self.assertEqual(build_personal_panel_progress_text("skill-dispatch"), "正在验证调度链，请稍等。")
 
     def test_build_personal_panel_undo_confirmation_text_explains_risk(self) -> None:
         confirmation_text = build_personal_panel_undo_confirmation_text()

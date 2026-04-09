@@ -14,16 +14,27 @@ try:
 except ImportError:
     import claude_provider_smoke as provider_smoke
 
+try:
+    from . import skill_dispatch_demo
+except ImportError:
+    import skill_dispatch_demo
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PERSONAL_PANEL_ENTRY_PATH_ENV = "SAFECLAW_PERSONAL_GUI_ENTRY_PATH"
 PERSONAL_PANEL_TITLE_ENV = "SAFECLAW_PERSONAL_GUI_TITLE"
 DEFAULT_PANEL_TITLE = "SafeClaw 个人小面板"
 DEFAULT_PANEL_POLL_INTERVAL_MS = 150
+DEFAULT_PANEL_SKILL_DISPATCH_OUTPUT_PATH = (
+    REPO_ROOT / "target" / "mvp" / "skill-dispatch-demo" / "panel-dispatch.txt"
+)
+DEFAULT_PANEL_SKILL_DISPATCH_TASK_ID = "task-panel-skill-dispatch"
+DEFAULT_PANEL_SKILL_DISPATCH_CONTENT = "skill dispatch triggered from personal panel"
 PANEL_ACTION_TITLES = {
     "archive-note": "写笔记",
     "status": "查看状态",
     "undo": "撤销上一步",
     "provider-smoke": "验证 Provider",
+    "skill-dispatch": "验证调度链",
 }
 
 
@@ -92,6 +103,8 @@ def build_personal_panel_progress_text(action_name: str) -> str:
         return "正在撤销上一步，请稍等。"
     if action_name == "provider-smoke":
         return "正在验证 Provider，请稍等。"
+    if action_name == "skill-dispatch":
+        return "正在验证调度链，请稍等。"
     return f"正在执行：{action_name}"
 
 
@@ -107,6 +120,16 @@ def build_personal_panel_undo_confirmation_text() -> str:
 
 def run_provider_smoke_panel_action() -> provider_smoke.ProviderSmokeResult:
     return provider_smoke.run_provider_smoke()
+
+
+def run_skill_dispatch_panel_action() -> dict[str, object]:
+    return skill_dispatch_demo.run_skill_dispatch_demo(
+        task_id=DEFAULT_PANEL_SKILL_DISPATCH_TASK_ID,
+        output_path=DEFAULT_PANEL_SKILL_DISPATCH_OUTPUT_PATH,
+        content=DEFAULT_PANEL_SKILL_DISPATCH_CONTENT,
+        binding_mode="task-kind",
+        owner_id="panel-demo-worker",
+    )
 
 
 def build_panel_action_command(
@@ -261,6 +284,25 @@ def build_provider_smoke_panel_result_text(result: provider_smoke.ProviderSmokeR
     )
 
 
+def build_skill_dispatch_panel_result_text(result: Mapping[str, object]) -> str:
+    lines = [
+        f"【{get_personal_panel_action_title('skill-dispatch')}】",
+        "结果：已跑通真实调度执行链。",
+        f"绑定方式：{result.get('binding_mode') or 'unknown'}",
+    ]
+    task_kind = str(result.get("task_kind") or "").strip()
+    if task_kind:
+        lines.append(f"任务类型：{task_kind}")
+    skill_id = str(result.get("skill_id") or "").strip()
+    if skill_id:
+        lines.append(f"技能标识：{skill_id}")
+    output_path = str(result.get("output_path") or "").strip()
+    if output_path:
+        lines.append(f"落盘文件：{output_path}")
+    lines.append("下一步：可打开落盘文件确认内容，再继续后续执行链。")
+    return "\n".join(lines)
+
+
 def build_provider_smoke_panel_exception_text(error: Exception) -> str:
     lines = [f"【{get_personal_panel_action_title('provider-smoke')}】"]
     lines.append("结果：这次没能跑通真实 Provider 验真。")
@@ -285,6 +327,25 @@ def build_provider_smoke_panel_exception_text(error: Exception) -> str:
         return "\n".join(lines)
     lines.append("原因：面板这边没接住这次 Provider 验真。")
     lines.append("下一步：先看下面原始错误；若再次出现，再单独执行脚本排查。")
+    error_text = str(error).strip()
+    if error_text:
+        lines.extend(["", "【原始错误】", error_text])
+    return "\n".join(lines)
+
+
+def build_skill_dispatch_panel_exception_text(error: Exception) -> str:
+    lines = [f"【{get_personal_panel_action_title('skill-dispatch')}】"]
+    lines.append("结果：这次没能跑通真实调度执行链。")
+    if isinstance(error, PermissionError):
+        lines.append("原因：当前机器暂时无法写入调度结果文件。")
+        lines.append("下一步：先确认目标目录有写权限，再重试。")
+        return "\n".join(lines)
+    if isinstance(error, FileNotFoundError):
+        lines.append("原因：当前面板没找到调度 demo 入口。")
+        lines.append("下一步：先确认 `python tools/mvp/skill_dispatch_demo.py --help` 可用，再重试。")
+        return "\n".join(lines)
+    lines.append("原因：面板这边没接住这次调度执行。")
+    lines.append("下一步：先看下面原始错误；若再次出现，再单独执行 `python tools/mvp/skill_dispatch_demo.py` 排查。")
     error_text = str(error).strip()
     if error_text:
         lines.extend(["", "【原始错误】", error_text])
@@ -354,7 +415,7 @@ def build_personal_panel_welcome_text(entry_command: Sequence[str]) -> str:
             "欢迎使用 SafeClaw 个人小面板。",
             f"当前入口：{describe_personal_panel_entry_command(entry_command)}",
             "核心动作：写笔记、查看状态、撤销上一步。",
-            "维护动作：需要时可点“验证 Provider”跑一次真实执行链。",
+            "维护动作：需要时可点“验证 Provider”或“验证调度链”跑一次真实执行链。",
             "窗口打开后会自动刷新一次当前状态。",
         ]
     )
@@ -386,6 +447,7 @@ class SafeclawPersonalPanelController:
         self.status_button: object | None = None
         self.undo_button: object | None = None
         self.provider_smoke_button: object | None = None
+        self.skill_dispatch_button: object | None = None
         self._build_layout(scrolledtext_module)
         self._set_output(build_personal_panel_welcome_text(self.entry_command))
         self.root.after(DEFAULT_PANEL_POLL_INTERVAL_MS, self._drain_result_queue)
@@ -397,7 +459,7 @@ class SafeclawPersonalPanelController:
         outer_frame.pack(fill=self.tk.BOTH, expand=True)
         self.ttk.Label(
             outer_frame,
-            text="SafeClaw 个人小面板：主线 archive-note → status → undo，维护可做 Provider 验真",
+            text="SafeClaw 个人小面板：主线 archive-note → status → undo，维护可做 Provider / 调度链验真",
         ).pack(anchor=self.tk.W)
         self.ttk.Label(outer_frame, textvariable=self.entry_var, foreground="#666666").pack(anchor=self.tk.W, pady=(4, 12))
         self.ttk.Label(outer_frame, text="笔记标题").pack(anchor=self.tk.W)
@@ -419,6 +481,12 @@ class SafeclawPersonalPanelController:
             command=self.request_provider_smoke,
         )
         self.provider_smoke_button.pack(side=self.tk.LEFT, padx=(8, 0))
+        self.skill_dispatch_button = self.ttk.Button(
+            button_row,
+            text="验证调度链",
+            command=self.request_skill_dispatch,
+        )
+        self.skill_dispatch_button.pack(side=self.tk.LEFT, padx=(8, 0))
         self.ttk.Label(outer_frame, text="结果").pack(anchor=self.tk.W)
         self.output_text = scrolledtext_module.ScrolledText(outer_frame, height=18, wrap=self.tk.WORD)
         self.output_text.pack(fill=self.tk.BOTH, expand=True)
@@ -430,6 +498,7 @@ class SafeclawPersonalPanelController:
             self.status_button,
             self.undo_button,
             self.provider_smoke_button,
+            self.skill_dispatch_button,
         ):
             if button is not None:
                 button.configure(state=next_state)
@@ -469,6 +538,9 @@ class SafeclawPersonalPanelController:
     def request_provider_smoke(self) -> None:
         self._queue_action("provider-smoke")
 
+    def request_skill_dispatch(self) -> None:
+        self._queue_action("skill-dispatch")
+
     def _queue_action(self, action_name: str, note_name: str = "", note_content: str = "") -> None:
         self._set_buttons_enabled(False)
         self._set_output(build_personal_panel_progress_text(action_name))
@@ -484,6 +556,9 @@ class SafeclawPersonalPanelController:
             if action_name == "provider-smoke":
                 result = run_provider_smoke_panel_action()
                 rendered_text = build_provider_smoke_panel_result_text(result)
+            elif action_name == "skill-dispatch":
+                result = run_skill_dispatch_panel_action()
+                rendered_text = build_skill_dispatch_panel_result_text(result)
             else:
                 completed = run_personal_panel_action(
                     self.entry_command,
@@ -495,6 +570,8 @@ class SafeclawPersonalPanelController:
         except Exception as error:
             if action_name == "provider-smoke":
                 rendered_text = build_provider_smoke_panel_exception_text(error)
+            elif action_name == "skill-dispatch":
+                rendered_text = build_skill_dispatch_panel_exception_text(error)
             else:
                 rendered_text = build_personal_panel_exception_text(action_name, error, self.entry_command)
         self.result_queue.put((action_name, rendered_text))
