@@ -209,6 +209,8 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"safeclaw-root-cmd-seed-crash-json"', helper_block)
         self.assertIn('"safeclaw-root-cmd-service-recover-json"', helper_block)
         self.assertIn("assert_workspace_seed_json_result(", helper_block)
+        self.assertIn("_capture_root_service_recover_seed_snapshot(", helper_block)
+        self.assertIn('"task-readme-root-uncertain-ps1"', helper_block)
         self.assertIn("append_root_ps1_service_recover_errors(errors)", helper_block)
 
     def test_collect_errors_uses_root_service_resume_helper(self) -> None:
@@ -254,6 +256,8 @@ class ToolingSmokeCheckTest(unittest.TestCase):
         self.assertIn('"safeclaw-root-cmd-service-reconcile-seed-crash-json"', helper_block)
         self.assertIn('"safeclaw-root-cmd-service-reconcile-json"', helper_block)
         self.assertIn("assert_workspace_seed_json_result(", helper_block)
+        self.assertIn("_capture_root_service_reconcile_seed_snapshot(", helper_block)
+        self.assertIn('"task-readme-root-assumed-ps1"', helper_block)
         self.assertIn("append_root_ps1_service_reconcile_errors(errors)", helper_block)
         self.assertNotIn("append_root_ps1_service_recover_errors(errors)", helper_block)
 

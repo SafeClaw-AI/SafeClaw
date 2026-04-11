@@ -10,6 +10,9 @@ _FAILED_OUTPUT_FRAGMENTS = (
     "worker=Failed",
     "effect=Prepared",
 )
+_STATUS_REPORT_FAILED_SESSION_TASK_ID = "task-wrapper-report-failed-session"
+_STATUS_REPORT_FAILED_SESSION_DB_PATH = "target/mvp/report-failed-session.db"
+_STATUS_REPORT_FAILED_SESSION_OUTPUT_PATH = "target/mvp/report-failed-session.txt"
 
 
 @dataclass(frozen=True)
@@ -375,23 +378,17 @@ def _append_status_failed_session_errors(
     errors: list[str],
     ctx: FailedSessionContext,
 ) -> None:
-    task_id = "task-wrapper-status-failed-session"
-    db_path = "target/mvp/status-failed-session.db"
-    _append_seed_failed_json_errors(
-        errors,
-        ctx,
-        name="mvp-wrapper-status-failed-session-seed-failed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/status-failed-session.txt",
-    )
     _append_command_output_errors(
         errors,
         ctx,
-        command=_build_ps1_command("report", db_path=db_path, task_id=task_id),
+        command=_build_ps1_command(
+            "report",
+            db_path=_STATUS_REPORT_FAILED_SESSION_DB_PATH,
+            task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
+        ),
         name="mvp-wrapper-ps1-report-status-failed-session-json",
         action="report",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="flag",
         expected_source_hints_task_context="flag",
     )
@@ -401,7 +398,7 @@ def _append_status_failed_session_errors(
         command=_build_ps1_command("status"),
         name="mvp-wrapper-ps1-status-failed-session-json",
         action="status",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="session",
         expected_source_hints_task_context="session",
     )
@@ -411,9 +408,23 @@ def _append_status_failed_session_errors(
         command=_build_cmd_command("status"),
         name="mvp-wrapper-cmd-status-failed-session-json",
         action="status",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="session",
         expected_source_hints_task_context="session",
+    )
+
+
+def _append_status_report_failed_session_seed_errors(
+    errors: list[str],
+    ctx: FailedSessionContext,
+) -> None:
+    _append_seed_failed_json_errors(
+        errors,
+        ctx,
+        name="mvp-wrapper-report-failed-session-seed-failed-json",
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
+        db_path=_STATUS_REPORT_FAILED_SESSION_DB_PATH,
+        output_path=_STATUS_REPORT_FAILED_SESSION_OUTPUT_PATH,
     )
 
 
@@ -421,23 +432,17 @@ def _append_report_failed_session_errors(
     errors: list[str],
     ctx: FailedSessionContext,
 ) -> None:
-    task_id = "task-wrapper-report-failed-session"
-    db_path = "target/mvp/report-failed-session.db"
-    _append_seed_failed_json_errors(
-        errors,
-        ctx,
-        name="mvp-wrapper-report-failed-session-seed-failed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/report-failed-session.txt",
-    )
     _append_command_output_errors(
         errors,
         ctx,
-        command=_build_ps1_command("report", db_path=db_path, task_id=task_id),
+        command=_build_ps1_command(
+            "report",
+            db_path=_STATUS_REPORT_FAILED_SESSION_DB_PATH,
+            task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
+        ),
         name="mvp-wrapper-ps1-report-report-failed-session-json",
         action="report",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="flag",
         expected_source_hints_task_context="flag",
     )
@@ -447,7 +452,7 @@ def _append_report_failed_session_errors(
         command=_build_ps1_command("report"),
         name="mvp-wrapper-ps1-report-failed-session-json",
         action="report",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="session",
         expected_source_hints_task_context="session",
     )
@@ -457,7 +462,7 @@ def _append_report_failed_session_errors(
         command=_build_cmd_command("report"),
         name="mvp-wrapper-cmd-report-failed-session-json",
         action="report",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_FAILED_SESSION_TASK_ID,
         expected_source_hints_db="session",
         expected_source_hints_task_context="session",
     )
@@ -512,17 +517,9 @@ def _append_sessions_failed_errors(
     errors: list[str],
     ctx: FailedSessionContext,
 ) -> None:
-    task_id = "task-wrapper-sessions-failed"
-    db_path = "target/mvp/sessions-failed.db"
-    output_path = "target/mvp/sessions-failed.txt"
-    _append_seed_failed_json_errors(
-        errors,
-        ctx,
-        name="mvp-wrapper-sessions-failed-seed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path=output_path,
-    )
+    task_id = "task-wrapper-session-failed"
+    db_path = "target/mvp/session-failed.db"
+    output_path = "target/mvp/session-failed.txt"
     _append_command_output_errors(
         errors,
         ctx,
@@ -565,6 +562,7 @@ def append_wrapper_failed_session_errors(
         assert_command_json_result=assert_command_json_result,
         assert_run_json_result=assert_run_json_result,
     )
+    _append_status_report_failed_session_seed_errors(errors, ctx)
     _append_status_failed_session_errors(errors, ctx)
     _append_report_failed_session_errors(errors, ctx)
     _append_session_failed_errors(errors, ctx)

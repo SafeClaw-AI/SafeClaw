@@ -30,41 +30,49 @@ class ExplicitFailedScenario:
     wrapper: str
 
 
+_PS1_EXPLICIT_FAILED_TASK_ID = "task-wrapper-ps1-explicit-failed"
+_PS1_EXPLICIT_FAILED_DB_PATH = "target/mvp/ps1-explicit-failed.db"
+_PS1_EXPLICIT_FAILED_OUTPUT_PATH = "target/mvp/ps1-explicit-failed.txt"
+_CMD_EXPLICIT_FAILED_TASK_ID = _PS1_EXPLICIT_FAILED_TASK_ID
+_CMD_EXPLICIT_FAILED_DB_PATH = _PS1_EXPLICIT_FAILED_DB_PATH
+_CMD_EXPLICIT_FAILED_OUTPUT_PATH = _PS1_EXPLICIT_FAILED_OUTPUT_PATH
+
+
 _EXPLICIT_FAILED_SCENARIOS = (
     ExplicitFailedScenario(
-        seed_name="mvp-wrapper-status-explicit-failed-seed-json",
+        seed_name="mvp-wrapper-ps1-explicit-failed-seed-json",
         command_name="mvp-wrapper-ps1-status-explicit-failed-json",
         action="status",
-        task_id="task-wrapper-status-explicit-failed",
-        db_path="target/mvp/status-explicit-failed.db",
-        output_path="target/mvp/status-explicit-failed.txt",
+        task_id=_PS1_EXPLICIT_FAILED_TASK_ID,
+        db_path=_PS1_EXPLICIT_FAILED_DB_PATH,
+        output_path=_PS1_EXPLICIT_FAILED_OUTPUT_PATH,
         wrapper="ps1",
     ),
     ExplicitFailedScenario(
-        seed_name="mvp-wrapper-report-explicit-failed-seed-json",
+        seed_name="mvp-wrapper-ps1-explicit-failed-seed-json",
         command_name="mvp-wrapper-ps1-report-explicit-failed-json",
         action="report",
-        task_id="task-wrapper-report-explicit-failed",
-        db_path="target/mvp/report-explicit-failed.db",
-        output_path="target/mvp/report-explicit-failed.txt",
+        task_id=_PS1_EXPLICIT_FAILED_TASK_ID,
+        db_path=_PS1_EXPLICIT_FAILED_DB_PATH,
+        output_path=_PS1_EXPLICIT_FAILED_OUTPUT_PATH,
         wrapper="ps1",
     ),
     ExplicitFailedScenario(
-        seed_name="mvp-wrapper-cmd-status-explicit-failed-seed-json",
+        seed_name="mvp-wrapper-cmd-explicit-failed-seed-json",
         command_name="mvp-wrapper-cmd-status-explicit-failed-json",
         action="status",
-        task_id="task-wrapper-cmd-status-explicit-failed",
-        db_path="target/mvp/cmd-status-explicit-failed.db",
-        output_path="target/mvp/cmd-status-explicit-failed.txt",
+        task_id=_CMD_EXPLICIT_FAILED_TASK_ID,
+        db_path=_CMD_EXPLICIT_FAILED_DB_PATH,
+        output_path=_CMD_EXPLICIT_FAILED_OUTPUT_PATH,
         wrapper="cmd",
     ),
     ExplicitFailedScenario(
-        seed_name="mvp-wrapper-cmd-report-explicit-failed-seed-json",
+        seed_name="mvp-wrapper-cmd-explicit-failed-seed-json",
         command_name="mvp-wrapper-cmd-report-explicit-failed-json",
         action="report",
-        task_id="task-wrapper-cmd-report-explicit-failed",
-        db_path="target/mvp/cmd-report-explicit-failed.db",
-        output_path="target/mvp/cmd-report-explicit-failed.txt",
+        task_id=_CMD_EXPLICIT_FAILED_TASK_ID,
+        db_path=_CMD_EXPLICIT_FAILED_DB_PATH,
+        output_path=_CMD_EXPLICIT_FAILED_OUTPUT_PATH,
         wrapper="cmd",
     ),
 )
@@ -278,6 +286,10 @@ def append_wrapper_explicit_failed_errors(
         assert_command_json_result=assert_command_json_result,
         assert_run_json_result=assert_run_json_result,
     )
+    seeded_fixtures: set[tuple[str, str, str]] = set()
     for scenario in _EXPLICIT_FAILED_SCENARIOS:
-        _append_seed_failed_json_errors(errors, ctx, scenario=scenario)
+        fixture_key = (scenario.task_id, scenario.db_path, scenario.output_path)
+        if fixture_key not in seeded_fixtures:
+            _append_seed_failed_json_errors(errors, ctx, scenario=scenario)
+            seeded_fixtures.add(fixture_key)
         _append_command_output_errors(errors, ctx, scenario=scenario)

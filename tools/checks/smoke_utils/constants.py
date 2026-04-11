@@ -73,16 +73,6 @@ SMOKE_WRAPPER_REPORT_STUB_TASK_OUTPUTS = {
         "Uncertain",
         "Uncertain",
     ),
-    "task-wrapper-sessions-explicit-crash": (
-        "QueueForManualReview",
-        "Uncertain",
-        "Uncertain",
-    ),
-    "task-wrapper-status-session-crash": (
-        "QueueForManualReview",
-        "Uncertain",
-        "Uncertain",
-    ),
     "task-wrapper-report-session-crash": (
         "QueueForManualReview",
         "Uncertain",

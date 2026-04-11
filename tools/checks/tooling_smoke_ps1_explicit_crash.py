@@ -10,6 +10,9 @@ _CRASH_OUTPUT_FRAGMENTS = (
     "worker=Uncertain",
     "effect=Uncertain",
 )
+_STATUS_REPORT_EXPLICIT_CRASH_TASK_ID = "task-wrapper-report-explicit-crash"
+_STATUS_REPORT_EXPLICIT_CRASH_DB_PATH = "target/mvp/report-explicit-crash.db"
+_STATUS_REPORT_EXPLICIT_CRASH_OUTPUT_PATH = "target/mvp/report-explicit-crash.txt"
 
 
 @dataclass(frozen=True)
@@ -250,7 +253,7 @@ def _append_sessions_current_session_errors(
         name=name,
         payload=current_session,
         label="current_session",
-        task_id="task-wrapper-sessions-explicit-crash",
+        task_id="task-wrapper-session-explicit-crash",
     ):
         return True
     return _append_mapping_field_errors(
@@ -261,11 +264,11 @@ def _append_sessions_current_session_errors(
         expected_fields=(
             (
                 "effect_id",
-                "effect-task-wrapper-sessions-explicit-crash",
+                "effect-task-wrapper-session-explicit-crash",
                 None,
             ),
-            ("db", "target/mvp/sessions-explicit-crash.db", None),
-            ("output", "target/mvp/sessions-explicit-crash.txt", None),
+            ("db", "target/mvp/session-explicit-crash.db", None),
+            ("output", "target/mvp/session-explicit-crash.txt", None),
             ("owner_id", "safeclaw-mvp", None),
         ),
     )
@@ -277,9 +280,9 @@ def _append_sessions_first_row_errors(
     name: str,
     rows: Any,
 ) -> bool:
-    if not rows or rows[0].get("task_id") != "task-wrapper-sessions-explicit-crash":
+    if not rows or rows[0].get("task_id") != "task-wrapper-session-explicit-crash":
         errors.append(
-            f"{name} missing rows[0] task-wrapper-sessions-explicit-crash"
+            f"{name} missing rows[0] task-wrapper-session-explicit-crash"
         )
         return True
     return _append_mapping_field_errors(
@@ -290,7 +293,7 @@ def _append_sessions_first_row_errors(
         expected_fields=(
             (
                 "effect_id",
-                "effect-task-wrapper-sessions-explicit-crash",
+                "effect-task-wrapper-session-explicit-crash",
                 None,
             ),
             ("worker_state", "uncertain", None),
@@ -330,7 +333,7 @@ def _append_ps1_sessions_explicit_crash_json_errors(
         payload=result,
         label="",
         expected_fields=(
-            ("db", "target/mvp/sessions-explicit-crash.db", None),
+            ("db", "target/mvp/session-explicit-crash.db", None),
             ("db_source", "session", None),
             ("limit", 5, None),
         ),
@@ -352,25 +355,17 @@ def _append_status_explicit_crash_errors(
     errors: list[str],
     ctx: Ps1ExplicitCrashContext,
 ) -> None:
-    _append_seed_crash_json_errors(
-        errors,
-        ctx,
-        name="mvp-wrapper-status-explicit-crash-seed-json",
-        task_id="task-wrapper-status-explicit-crash",
-        db_path="target/mvp/status-explicit-crash.db",
-        output_path="target/mvp/status-explicit-crash.txt",
-    )
     _append_ps1_explicit_crash_output_errors(
         errors,
         ctx,
         action="status",
         name="mvp-wrapper-ps1-status-explicit-crash-json",
-        task_id="task-wrapper-status-explicit-crash",
-        db_path="target/mvp/status-explicit-crash.db",
+        task_id=_STATUS_REPORT_EXPLICIT_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_EXPLICIT_CRASH_DB_PATH,
     )
 
 
-def _append_report_explicit_crash_errors(
+def _append_status_report_explicit_crash_seed_errors(
     errors: list[str],
     ctx: Ps1ExplicitCrashContext,
 ) -> None:
@@ -378,17 +373,23 @@ def _append_report_explicit_crash_errors(
         errors,
         ctx,
         name="mvp-wrapper-report-explicit-crash-seed-json",
-        task_id="task-wrapper-report-explicit-crash",
-        db_path="target/mvp/report-explicit-crash.db",
-        output_path="target/mvp/report-explicit-crash.txt",
+        task_id=_STATUS_REPORT_EXPLICIT_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_EXPLICIT_CRASH_DB_PATH,
+        output_path=_STATUS_REPORT_EXPLICIT_CRASH_OUTPUT_PATH,
     )
+
+
+def _append_report_explicit_crash_errors(
+    errors: list[str],
+    ctx: Ps1ExplicitCrashContext,
+) -> None:
     _append_ps1_explicit_crash_output_errors(
         errors,
         ctx,
         action="report",
         name="mvp-wrapper-ps1-report-explicit-crash-json",
-        task_id="task-wrapper-report-explicit-crash",
-        db_path="target/mvp/report-explicit-crash.db",
+        task_id=_STATUS_REPORT_EXPLICIT_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_EXPLICIT_CRASH_DB_PATH,
     )
 
 
@@ -419,21 +420,13 @@ def _append_sessions_explicit_crash_errors(
     errors: list[str],
     ctx: Ps1ExplicitCrashContext,
 ) -> None:
-    _append_seed_crash_json_errors(
-        errors,
-        ctx,
-        name="mvp-wrapper-sessions-explicit-crash-seed-json",
-        task_id="task-wrapper-sessions-explicit-crash",
-        db_path="target/mvp/sessions-explicit-crash.db",
-        output_path="target/mvp/sessions-explicit-crash.txt",
-    )
     _append_ps1_explicit_crash_output_errors(
         errors,
         ctx,
         action="report",
         name="mvp-wrapper-ps1-report-sessions-explicit-crash-json",
-        task_id="task-wrapper-sessions-explicit-crash",
-        db_path="target/mvp/sessions-explicit-crash.db",
+        task_id="task-wrapper-session-explicit-crash",
+        db_path="target/mvp/session-explicit-crash.db",
     )
     _append_ps1_sessions_explicit_crash_json_errors(errors, ctx)
 
@@ -450,6 +443,7 @@ def append_wrapper_ps1_explicit_crash_errors(
         assert_command_json_result=assert_command_json_result,
         assert_run_json_result=assert_run_json_result,
     )
+    _append_status_report_explicit_crash_seed_errors(errors, ctx)
     _append_status_explicit_crash_errors(errors, ctx)
     _append_report_explicit_crash_errors(errors, ctx)
     _append_session_explicit_crash_errors(errors, ctx)

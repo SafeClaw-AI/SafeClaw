@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 
@@ -10,10 +12,35 @@ _UNCERTAIN_OUTPUT_FRAGMENTS = (
     "worker=Uncertain",
     "effect=Uncertain",
 )
+_STATUS_REPORT_SESSION_CRASH_TASK_ID = "task-wrapper-report-session-crash"
+_STATUS_REPORT_SESSION_CRASH_DB_PATH = "target/mvp/report-session-crash.db"
+_STATUS_REPORT_SESSION_CRASH_OUTPUT_PATH = "target/mvp/report-session-crash.txt"
+_RECOVER_CMD_RECOVER_TASK_ID = "task-wrapper-recover-session-crash"
+_RECOVER_CMD_RECOVER_DB_PATH = "target/mvp/recover-session-crash.db"
+_RECOVER_CMD_RECOVER_OUTPUT_PATH = "target/mvp/recover-session-crash.txt"
+_RECOVER_CMD_RECOVER_DB_SNAPSHOT_PATH = (
+    "target/mvp/recover-session-crash.seed-snapshot.db"
+)
+_RECOVER_CMD_RECOVER_OUTPUT_SNAPSHOT_PATH = (
+    "target/mvp/recover-session-crash.seed-snapshot.txt"
+)
+_RECOVER_CMD_RECOVER_SESSION_PATH = Path("target/mvp/last_session.json")
+_RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH = Path(
+    "target/mvp/recover-session-crash.seed-snapshot.session.json"
+)
 _RETRY_REPORT_OUTPUT_FRAGMENTS = (
     "RetryEligible",
     "worker=Failed",
     "effect=Prepared",
+)
+_RETRY_CMD_RETRY_TASK_ID = "task-wrapper-retry-session"
+_RETRY_CMD_RETRY_DB_PATH = "target/mvp/retry-session.db"
+_RETRY_CMD_RETRY_OUTPUT_PATH = "target/mvp/retry-session.txt"
+_RETRY_CMD_RETRY_DB_SNAPSHOT_PATH = "target/mvp/retry-session.seed-snapshot.db"
+_RETRY_CMD_RETRY_OUTPUT_SNAPSHOT_PATH = "target/mvp/retry-session.seed-snapshot.txt"
+_RETRY_CMD_RETRY_SESSION_PATH = Path("target/mvp/last_session.json")
+_RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH = Path(
+    "target/mvp/retry-session.seed-snapshot.session.json"
 )
 _RECOVER_OUTPUT_FRAGMENTS = (
     "recover blocked before expiry => true",
@@ -61,6 +88,12 @@ def _build_ps1_command(
 
 def _build_cmd_command(action: str) -> list[str]:
     return ["cmd", "/c", r"tools\mvp\safeclaw_mvp.cmd", action, "--json"]
+
+
+def _copy_fixture_file(source_path: str, target_path: str) -> None:
+    target = Path(target_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, target)
 
 
 def _append_seed_json_errors(
@@ -316,23 +349,12 @@ def _append_status_session_crash_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-status-session-crash"
-    db_path = "target/mvp/status-session-crash.db"
-    _append_seed_json_errors(
-        errors,
-        ctx,
-        seed_action="seed-crash",
-        name="mvp-wrapper-status-session-crash-seed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/status-session-crash.txt",
-    )
     _append_targeted_ps1_report_errors(
         errors,
         ctx,
         name="mvp-wrapper-ps1-report-status-session-crash-json",
-        task_id=task_id,
-        db_path=db_path,
+        task_id=_STATUS_REPORT_SESSION_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_SESSION_CRASH_DB_PATH,
         required_output_fragments=_UNCERTAIN_OUTPUT_FRAGMENTS,
     )
     _append_ps1_session_action_errors(
@@ -340,9 +362,24 @@ def _append_status_session_crash_errors(
         ctx,
         action="status",
         name="mvp-wrapper-ps1-status-session-crash-json",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_SESSION_CRASH_TASK_ID,
         task_presence="captured_output",
         required_output_fragments=_UNCERTAIN_OUTPUT_FRAGMENTS,
+    )
+
+
+def _append_status_report_session_crash_seed_errors(
+    errors: list[str],
+    ctx: SessionCrashContext,
+) -> None:
+    _append_seed_json_errors(
+        errors,
+        ctx,
+        seed_action="seed-crash",
+        name="mvp-wrapper-report-session-crash-seed-json",
+        task_id=_STATUS_REPORT_SESSION_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_SESSION_CRASH_DB_PATH,
+        output_path=_STATUS_REPORT_SESSION_CRASH_OUTPUT_PATH,
     )
 
 
@@ -350,23 +387,12 @@ def _append_report_session_crash_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-report-session-crash"
-    db_path = "target/mvp/report-session-crash.db"
-    _append_seed_json_errors(
-        errors,
-        ctx,
-        seed_action="seed-crash",
-        name="mvp-wrapper-report-session-crash-seed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/report-session-crash.txt",
-    )
     _append_targeted_ps1_report_errors(
         errors,
         ctx,
         name="mvp-wrapper-ps1-report-report-session-crash-json",
-        task_id=task_id,
-        db_path=db_path,
+        task_id=_STATUS_REPORT_SESSION_CRASH_TASK_ID,
+        db_path=_STATUS_REPORT_SESSION_CRASH_DB_PATH,
         required_output_fragments=_UNCERTAIN_OUTPUT_FRAGMENTS,
     )
     _append_ps1_session_action_errors(
@@ -374,7 +400,7 @@ def _append_report_session_crash_errors(
         ctx,
         action="report",
         name="mvp-wrapper-ps1-report-session-crash-json",
-        task_id=task_id,
+        task_id=_STATUS_REPORT_SESSION_CRASH_TASK_ID,
         task_presence="captured_output",
         required_output_fragments=_UNCERTAIN_OUTPUT_FRAGMENTS,
     )
@@ -384,8 +410,8 @@ def _append_recover_session_crash_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-recover-session-crash"
-    db_path = "target/mvp/recover-session-crash.db"
+    task_id = _RECOVER_CMD_RECOVER_TASK_ID
+    db_path = _RECOVER_CMD_RECOVER_DB_PATH
     _append_seed_json_errors(
         errors,
         ctx,
@@ -393,7 +419,11 @@ def _append_recover_session_crash_errors(
         name="mvp-wrapper-recover-session-crash-seed-json",
         task_id=task_id,
         db_path=db_path,
-        output_path="target/mvp/recover-session-crash.txt",
+        output_path=_RECOVER_CMD_RECOVER_OUTPUT_PATH,
+    )
+    _capture_recover_cmd_recover_seed_snapshot(
+        errors,
+        label="mvp-wrapper-recover-session-crash-seed-json",
     )
     _append_targeted_ps1_report_errors(
         errors,
@@ -414,20 +444,79 @@ def _append_recover_session_crash_errors(
     )
 
 
+def _capture_recover_cmd_recover_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    output_path = Path(_RECOVER_CMD_RECOVER_OUTPUT_PATH)
+    output_snapshot_path = Path(_RECOVER_CMD_RECOVER_OUTPUT_SNAPSHOT_PATH)
+    try:
+        _copy_fixture_file(
+            _RECOVER_CMD_RECOVER_DB_PATH,
+            _RECOVER_CMD_RECOVER_DB_SNAPSHOT_PATH,
+        )
+        if output_path.exists():
+            _copy_fixture_file(
+                _RECOVER_CMD_RECOVER_OUTPUT_PATH,
+                _RECOVER_CMD_RECOVER_OUTPUT_SNAPSHOT_PATH,
+            )
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+        if _RECOVER_CMD_RECOVER_SESSION_PATH.exists():
+            _copy_fixture_file(
+                str(_RECOVER_CMD_RECOVER_SESSION_PATH),
+                str(_RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH),
+            )
+        elif _RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH.exists():
+            _RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_recover_cmd_recover_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    output_path = Path(_RECOVER_CMD_RECOVER_OUTPUT_PATH)
+    output_snapshot_path = Path(_RECOVER_CMD_RECOVER_OUTPUT_SNAPSHOT_PATH)
+    try:
+        _copy_fixture_file(
+            _RECOVER_CMD_RECOVER_DB_SNAPSHOT_PATH,
+            _RECOVER_CMD_RECOVER_DB_PATH,
+        )
+        if output_snapshot_path.exists():
+            _copy_fixture_file(
+                _RECOVER_CMD_RECOVER_OUTPUT_SNAPSHOT_PATH,
+                _RECOVER_CMD_RECOVER_OUTPUT_PATH,
+            )
+        elif output_path.exists():
+            output_path.unlink()
+        if _RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH.exists():
+            _copy_fixture_file(
+                str(_RECOVER_CMD_RECOVER_SESSION_SNAPSHOT_PATH),
+                str(_RECOVER_CMD_RECOVER_SESSION_PATH),
+            )
+        elif _RECOVER_CMD_RECOVER_SESSION_PATH.exists():
+            _RECOVER_CMD_RECOVER_SESSION_PATH.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
 def _append_cmd_recover_session_crash_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-cmd-recover-session-crash"
-    db_path = "target/mvp/cmd-recover-session-crash.db"
-    _append_seed_json_errors(
+    task_id = _RECOVER_CMD_RECOVER_TASK_ID
+    db_path = _RECOVER_CMD_RECOVER_DB_PATH
+    _restore_recover_cmd_recover_seed_snapshot(
         errors,
-        ctx,
-        seed_action="seed-crash",
-        name="mvp-wrapper-cmd-recover-session-crash-seed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/cmd-recover-session-crash.txt",
+        label="mvp-wrapper-cmd-recover-session-crash-seed-json",
     )
     _append_targeted_ps1_report_errors(
         errors,
@@ -451,23 +540,12 @@ def _append_retry_session_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-retry-session"
-    db_path = "target/mvp/retry-session.db"
-    _append_seed_json_errors(
-        errors,
-        ctx,
-        seed_action="seed-failed",
-        name="mvp-wrapper-retry-session-seed-failed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/retry-session.txt",
-    )
     _append_targeted_ps1_report_errors(
         errors,
         ctx,
         name="mvp-wrapper-ps1-report-retry-session-json",
-        task_id=task_id,
-        db_path=db_path,
+        task_id=_RETRY_CMD_RETRY_TASK_ID,
+        db_path=_RETRY_CMD_RETRY_DB_PATH,
         required_output_fragments=_RETRY_REPORT_OUTPUT_FRAGMENTS,
     )
     _append_ps1_session_action_errors(
@@ -475,33 +553,103 @@ def _append_retry_session_errors(
         ctx,
         action="retry",
         name="mvp-wrapper-ps1-retry-session-json",
-        task_id=task_id,
+        task_id=_RETRY_CMD_RETRY_TASK_ID,
         task_presence="prepared",
         required_output_fragments=_RETRY_OUTPUT_FRAGMENTS,
     )
+
+
+def _append_retry_cmd_retry_seed_errors(
+    errors: list[str],
+    ctx: SessionCrashContext,
+) -> None:
+    _append_seed_json_errors(
+        errors,
+        ctx,
+        seed_action="seed-failed",
+        name="mvp-wrapper-retry-session-seed-failed-json",
+        task_id=_RETRY_CMD_RETRY_TASK_ID,
+        db_path=_RETRY_CMD_RETRY_DB_PATH,
+        output_path=_RETRY_CMD_RETRY_OUTPUT_PATH,
+    )
+    _capture_retry_cmd_retry_seed_snapshot(
+        errors,
+        label="mvp-wrapper-retry-session-seed-failed-json",
+    )
+
+
+def _capture_retry_cmd_retry_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    output_path = Path(_RETRY_CMD_RETRY_OUTPUT_PATH)
+    output_snapshot_path = Path(_RETRY_CMD_RETRY_OUTPUT_SNAPSHOT_PATH)
+    try:
+        _copy_fixture_file(_RETRY_CMD_RETRY_DB_PATH, _RETRY_CMD_RETRY_DB_SNAPSHOT_PATH)
+        if output_path.exists():
+            _copy_fixture_file(
+                _RETRY_CMD_RETRY_OUTPUT_PATH,
+                _RETRY_CMD_RETRY_OUTPUT_SNAPSHOT_PATH,
+            )
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+        if _RETRY_CMD_RETRY_SESSION_PATH.exists():
+            _copy_fixture_file(
+                str(_RETRY_CMD_RETRY_SESSION_PATH),
+                str(_RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH),
+            )
+        elif _RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH.exists():
+            _RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_retry_cmd_retry_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    output_path = Path(_RETRY_CMD_RETRY_OUTPUT_PATH)
+    output_snapshot_path = Path(_RETRY_CMD_RETRY_OUTPUT_SNAPSHOT_PATH)
+    try:
+        _copy_fixture_file(_RETRY_CMD_RETRY_DB_SNAPSHOT_PATH, _RETRY_CMD_RETRY_DB_PATH)
+        if output_snapshot_path.exists():
+            _copy_fixture_file(
+                _RETRY_CMD_RETRY_OUTPUT_SNAPSHOT_PATH,
+                _RETRY_CMD_RETRY_OUTPUT_PATH,
+            )
+        elif output_path.exists():
+            output_path.unlink()
+        if _RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH.exists():
+            _copy_fixture_file(
+                str(_RETRY_CMD_RETRY_SESSION_SNAPSHOT_PATH),
+                str(_RETRY_CMD_RETRY_SESSION_PATH),
+            )
+        elif _RETRY_CMD_RETRY_SESSION_PATH.exists():
+            _RETRY_CMD_RETRY_SESSION_PATH.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
 
 
 def _append_cmd_retry_session_errors(
     errors: list[str],
     ctx: SessionCrashContext,
 ) -> None:
-    task_id = "task-wrapper-cmd-retry-session"
-    db_path = "target/mvp/cmd-retry-session.db"
-    _append_seed_json_errors(
+    _restore_retry_cmd_retry_seed_snapshot(
         errors,
-        ctx,
-        seed_action="seed-failed",
-        name="mvp-wrapper-cmd-retry-session-seed-json",
-        task_id=task_id,
-        db_path=db_path,
-        output_path="target/mvp/cmd-retry-session.txt",
+        label="mvp-wrapper-cmd-retry-session-seed-json",
     )
     _append_targeted_ps1_report_errors(
         errors,
         ctx,
         name="mvp-wrapper-ps1-report-cmd-retry-session-json",
-        task_id=task_id,
-        db_path=db_path,
+        task_id=_RETRY_CMD_RETRY_TASK_ID,
+        db_path=_RETRY_CMD_RETRY_DB_PATH,
         required_output_fragments=_RETRY_REPORT_OUTPUT_FRAGMENTS,
     )
     _append_cmd_session_action_errors(
@@ -509,7 +657,7 @@ def _append_cmd_retry_session_errors(
         ctx,
         action="retry",
         name="mvp-wrapper-cmd-retry-session-json",
-        task_id=task_id,
+        task_id=_RETRY_CMD_RETRY_TASK_ID,
         required_output_fragments=_RETRY_OUTPUT_FRAGMENTS,
     )
 
@@ -526,9 +674,11 @@ def append_wrapper_session_crash_errors(
         assert_command_json_result=assert_command_json_result,
         assert_run_json_result=assert_run_json_result,
     )
+    _append_status_report_session_crash_seed_errors(errors, ctx)
     _append_status_session_crash_errors(errors, ctx)
     _append_report_session_crash_errors(errors, ctx)
     _append_recover_session_crash_errors(errors, ctx)
     _append_cmd_recover_session_crash_errors(errors, ctx)
+    _append_retry_cmd_retry_seed_errors(errors, ctx)
     _append_retry_session_errors(errors, ctx)
     _append_cmd_retry_session_errors(errors, ctx)

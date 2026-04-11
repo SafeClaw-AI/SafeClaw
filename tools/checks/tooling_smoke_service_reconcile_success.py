@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -11,6 +12,8 @@ AssertionCallable = Callable[..., Any]
 _TASK_ID = "task-wrapper-service-reconcile-json"
 _DB_PATH = "target/mvp/service-reconcile-json.db"
 _OUTPUT_PATH = "target/mvp/service-reconcile-json.txt"
+_DB_SNAPSHOT_PATH = "target/mvp/service-reconcile-json.seed-snapshot.db"
+_OUTPUT_SNAPSHOT_PATH = "target/mvp/service-reconcile-json.seed-snapshot.txt"
 _EXPECTED_DB = r"target\mvp\service-reconcile-json.db"
 _SEED_LABEL = "mvp-wrapper-service-reconcile-seed-crash-json"
 _STATUS_TEXT_LABEL = "mvp-wrapper-service-reconcile-status-before"
@@ -62,6 +65,42 @@ def _ps1_command(*args: str) -> list[str]:
     ]
 
 
+def _copy_fixture_file(source_path: str, target_path: str) -> None:
+    target = Path(target_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, target)
+
+
+def _capture_seed_snapshot(errors: list[str], *, label: str) -> None:
+    try:
+        _copy_fixture_file(_DB_PATH, _DB_SNAPSHOT_PATH)
+        output_path = Path(_OUTPUT_PATH)
+        output_snapshot_path = Path(_OUTPUT_SNAPSHOT_PATH)
+        if output_path.exists():
+            _copy_fixture_file(_OUTPUT_PATH, _OUTPUT_SNAPSHOT_PATH)
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_seed_snapshot(errors: list[str], *, label: str) -> None:
+    try:
+        _copy_fixture_file(_DB_SNAPSHOT_PATH, _DB_PATH)
+        output_path = Path(_OUTPUT_PATH)
+        output_snapshot_path = Path(_OUTPUT_SNAPSHOT_PATH)
+        if output_snapshot_path.exists():
+            _copy_fixture_file(_OUTPUT_SNAPSHOT_PATH, _OUTPUT_PATH)
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
 def _append_seed_json_errors(
     errors: list[str],
     ctx: ServiceReconcileSuccessContext,
@@ -97,6 +136,13 @@ def _append_seed_json_errors(
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_seed_snapshot(errors, label=label)
+
+
+def _append_restore_seed_errors(errors: list[str], *, label: str) -> None:
+    # Reuse the executed-assumed base before the slower PowerShell wrapper path.
+    _restore_seed_snapshot(errors, label=label)
 
 
 def _append_status_before_text_errors(
@@ -434,5 +480,5 @@ def append_wrapper_service_reconcile_success_errors(
     _append_status_before_text_errors(errors, ctx)
     _append_status_before_json_errors(errors, ctx)
     _append_cmd_service_reconcile_json_errors(errors, ctx)
-    _append_seed_json_errors(errors, ctx, label=_PS1_SEED_LABEL)
+    _append_restore_seed_errors(errors, label=_PS1_SEED_LABEL)
     _append_ps1_service_reconcile_json_errors(errors, ctx)

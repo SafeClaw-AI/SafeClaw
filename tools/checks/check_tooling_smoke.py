@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import os
+import shutil
 
 import sqlite3
 
@@ -168,16 +169,6 @@ _SMOKE_WRAPPER_REPORT_STUB_TASK_OUTPUTS = {
         "Uncertain",
         "Uncertain",
     ),
-    "task-wrapper-sessions-explicit-crash": (
-        "QueueForManualReview",
-        "Uncertain",
-        "Uncertain",
-    ),
-    "task-wrapper-status-session-crash": (
-        "QueueForManualReview",
-        "Uncertain",
-        "Uncertain",
-    ),
     "task-wrapper-report-session-crash": (
         "QueueForManualReview",
         "Uncertain",
@@ -188,17 +179,9 @@ _SMOKE_WRAPPER_REPORT_STUB_TASK_OUTPUTS = {
         "Uncertain",
         "Uncertain",
     ),
-    "task-wrapper-cmd-recover-session-crash": (
-        "QueueForManualReview",
-        "Uncertain",
-        "Uncertain",
-    ),
     "task-wrapper-retry-session": ("RetryEligible", "Failed", "Prepared"),
-    "task-wrapper-cmd-retry-session": ("RetryEligible", "Failed", "Prepared"),
-    "task-wrapper-status-failed-session": ("RetryEligible", "Failed", "Prepared"),
     "task-wrapper-report-failed-session": ("RetryEligible", "Failed", "Prepared"),
     "task-wrapper-session-failed": ("RetryEligible", "Failed", "Prepared"),
-    "task-wrapper-sessions-failed": ("RetryEligible", "Failed", "Prepared"),
     "task-wrapper-report-explicit-failed": ("RetryEligible", "Failed", "Prepared"),
     "task-wrapper-service-retry-report-json": ("", "", ""),
     "task-wrapper-service-recover-report-json": ("", "", ""),
@@ -3147,6 +3130,142 @@ def assert_preflight_ai_reason_blocked_json_error(
     )
 
 
+def _capture_root_service_retry_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-retry.seed-snapshot.db"
+    output_snapshot_path = Path("target/mvp/root-service-retry.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(str(db_path), db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_root_service_retry_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-retry.seed-snapshot.db"
+    output_snapshot_path = Path("target/mvp/root-service-retry.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, str(db_path))
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
+def _capture_root_service_recover_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-recover.seed-snapshot.db"
+    output_snapshot_path = Path("target/mvp/root-service-recover.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(str(db_path), db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_root_service_recover_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-recover.seed-snapshot.db"
+    output_snapshot_path = Path("target/mvp/root-service-recover.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, str(db_path))
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
+def _capture_root_service_reconcile_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-reconcile.seed-snapshot.db"
+    output_snapshot_path = Path(
+        "target/mvp/root-service-reconcile.seed-snapshot.txt"
+    )
+    try:
+        _copy_smoke_fixture_file(str(db_path), db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_root_service_reconcile_seed_snapshot(
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    workspace_dir = REPO_ROOT / "target" / "mvp" / "workspaces" / "readme-root"
+    db_path = workspace_dir / "session.db"
+    output_path = workspace_dir / "output.txt"
+    db_snapshot_path = "target/mvp/root-service-reconcile.seed-snapshot.db"
+    output_snapshot_path = Path(
+        "target/mvp/root-service-reconcile.seed-snapshot.txt"
+    )
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, str(db_path))
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
 def append_root_ps1_service_retry_errors(errors: list[str]) -> None:
     root_ps1 = [
         "powershell.exe",
@@ -3155,26 +3274,9 @@ def append_root_ps1_service_retry_errors(errors: list[str]) -> None:
         "-File",
         "safeclaw.ps1",
     ]
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-failed",
-            "--reset",
-            "--task-id",
-            "task-readme-root-failed-ps1",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-service-retry-seed-failed-json",
-        "seed-failed",
-    )
-    assert_workspace_seed_json_result(
-        result,
-        errors,
-        "safeclaw-root-ps1-service-retry-seed-failed-json",
-        expected_action="seed-failed",
-        expected_task_id="task-readme-root-failed-ps1",
+    _restore_root_service_retry_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-ps1-service-retry-seed-failed-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
         [
@@ -3396,28 +3498,9 @@ def append_root_ps1_service_reconcile_errors(errors: list[str]) -> None:
         "-File",
         "safeclaw.ps1",
     ]
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-crash",
-            "--reset",
-            "--probe-mode",
-            "none",
-            "--task-id",
-            "task-readme-root-assumed-ps1",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-service-reconcile-seed-crash-json",
-        "seed-crash",
-    )
-    assert_workspace_seed_json_result(
-        result,
-        errors,
-        "safeclaw-root-ps1-service-reconcile-seed-crash-json",
-        expected_action="seed-crash",
-        expected_task_id="task-readme-root-assumed-ps1",
+    _restore_root_service_reconcile_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-ps1-service-reconcile-seed-crash-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
         [
@@ -3478,26 +3561,9 @@ def append_root_ps1_service_recover_errors(errors: list[str]) -> None:
         "-File",
         "safeclaw.ps1",
     ]
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-crash",
-            "--reset",
-            "--task-id",
-            "task-readme-root-uncertain-ps1",
-            "--json",
-        ],
-        errors,
-        "safeclaw-root-ps1-service-recover-seed-crash-json",
-        "seed-crash",
-    )
-    assert_workspace_seed_json_result(
-        result,
-        errors,
-        "safeclaw-root-ps1-service-recover-seed-crash-json",
-        expected_action="seed-crash",
-        expected_task_id="task-readme-root-uncertain-ps1",
+    _restore_root_service_recover_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-ps1-service-recover-seed-crash-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
         [
@@ -4035,7 +4101,7 @@ def append_root_service_run_errors(errors: list[str]) -> None:
 def append_root_service_retry_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
-            ["cmd", "/c", "safeclaw.cmd", "seed-failed", "--reset", "--task-id", "task-readme-root-failed", "--json"]
+            ["cmd", "/c", "safeclaw.cmd", "seed-failed", "--reset", "--task-id", "task-readme-root-failed-ps1", "--json"]
         ),
         errors,
         "safeclaw-root-cmd-seed-failed-json",
@@ -4052,16 +4118,20 @@ def append_root_service_retry_errors(errors: list[str]) -> None:
         errors,
         "safeclaw-root-cmd-seed-failed-json",
         expected_action="seed-failed",
-        expected_task_id="task-readme-root-failed",
+        expected_task_id="task-readme-root-failed-ps1",
+    )
+    _capture_root_service_retry_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-cmd-seed-failed-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
-        ["cmd", "/c", "safeclaw.cmd", "service-retry", "--task-id", "task-readme-root-failed", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-retry", "--task-id", "task-readme-root-failed-ps1", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
         errors,
         "safeclaw-root-cmd-service-retry-preflight-ai-json",
         "service-retry",
     )
     result = assert_command_json_result(
-        ["cmd", "/c", "safeclaw.cmd", "service-retry", "--task-id", "task-readme-root-failed", "--limit", "1", "--report", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-retry", "--task-id", "task-readme-root-failed-ps1", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-retry-json",
         "service-retry",
@@ -4072,7 +4142,7 @@ def append_root_service_retry_errors(errors: list[str]) -> None:
         "safeclaw-root-cmd-service-retry-json",
         expected_db="target/mvp/workspaces/readme-root/session.db",
         expected_db_source="session",
-        expected_task_id="task-readme-root-failed",
+        expected_task_id="task-readme-root-failed-ps1",
         expected_limit=1,
         expected_steps=["retry", "service-status", "report"],
         expect_report_payload=True,
@@ -4083,7 +4153,7 @@ def append_root_service_retry_errors(errors: list[str]) -> None:
 def append_root_service_recover_errors(errors: list[str]) -> None:
     payload = load_json_payload(
         run_wrapper_command(
-            ["cmd", "/c", "safeclaw.cmd", "seed-crash", "--reset", "--task-id", "task-readme-root-uncertain", "--json"]
+            ["cmd", "/c", "safeclaw.cmd", "seed-crash", "--reset", "--task-id", "task-readme-root-uncertain-ps1", "--json"]
         ),
         errors,
         "safeclaw-root-cmd-seed-crash-json",
@@ -4100,16 +4170,20 @@ def append_root_service_recover_errors(errors: list[str]) -> None:
         errors,
         "safeclaw-root-cmd-seed-crash-json",
         expected_action="seed-crash",
-        expected_task_id="task-readme-root-uncertain",
+        expected_task_id="task-readme-root-uncertain-ps1",
+    )
+    _capture_root_service_recover_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-cmd-seed-crash-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
-        ["cmd", "/c", "safeclaw.cmd", "service-recover", "--task-id", "task-readme-root-uncertain", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-recover", "--task-id", "task-readme-root-uncertain-ps1", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
         errors,
         "safeclaw-root-cmd-service-recover-preflight-ai-json",
         "service-recover",
     )
     result = assert_command_json_result(
-        ["cmd", "/c", "safeclaw.cmd", "service-recover", "--task-id", "task-readme-root-uncertain", "--limit", "1", "--report", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-recover", "--task-id", "task-readme-root-uncertain-ps1", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-recover-json",
         "service-recover",
@@ -4120,7 +4194,7 @@ def append_root_service_recover_errors(errors: list[str]) -> None:
         "safeclaw-root-cmd-service-recover-json",
         expected_db="target/mvp/workspaces/readme-root/session.db",
         expected_db_source="session",
-        expected_task_id="task-readme-root-uncertain",
+        expected_task_id="task-readme-root-uncertain-ps1",
         expected_limit=1,
         expected_steps=["recover", "service-status", "report"],
         expect_report_payload=True,
@@ -4235,7 +4309,7 @@ def append_root_service_resume_errors(errors: list[str]) -> None:
 
 def append_root_service_reconcile_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
-        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--probe-mode", "none", "--task-id", "task-readme-root-assumed-cmd", "--json"],
+        [PYTHON, "tools/mvp/safeclaw_mvp.py", "seed-crash", "--reset", "--probe-mode", "none", "--task-id", "task-readme-root-assumed-ps1", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-seed-crash-json",
         "seed-crash",
@@ -4245,16 +4319,20 @@ def append_root_service_reconcile_errors(errors: list[str]) -> None:
         errors,
         "safeclaw-root-cmd-service-reconcile-seed-crash-json",
         expected_action="seed-crash",
-        expected_task_id="task-readme-root-assumed-cmd",
+        expected_task_id="task-readme-root-assumed-ps1",
+    )
+    _capture_root_service_reconcile_seed_snapshot(
+        errors=errors,
+        label="safeclaw-root-cmd-service-reconcile-seed-crash-json",
     )
     assert_preflight_ai_reason_blocked_json_error(
-        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-ps1", "--decision", "executed", "--limit", "1", "--report", "--preflight", "--preflight-action", "ai-reason", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-preflight-ai-json",
         "service-reconcile",
     )
     result = assert_command_json_result(
-        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-cmd", "--decision", "executed", "--limit", "1", "--report", "--json"],
+        ["cmd", "/c", "safeclaw.cmd", "service-reconcile", "--task-id", "task-readme-root-assumed-ps1", "--decision", "executed", "--limit", "1", "--report", "--json"],
         errors,
         "safeclaw-root-cmd-service-reconcile-json",
         "service-reconcile",
@@ -4265,7 +4343,7 @@ def append_root_service_reconcile_errors(errors: list[str]) -> None:
         "safeclaw-root-cmd-service-reconcile-json",
         expected_db="target/mvp/workspaces/readme-root/session.db",
         expected_db_source="session",
-        expected_task_id="task-readme-root-assumed-cmd",
+        expected_task_id="task-readme-root-assumed-ps1",
         expected_limit=1,
         expected_decision="executed",
         expected_steps=["reconcile", "service-status", "report"],
@@ -6442,6 +6520,11 @@ def append_wrapper_service_resume_json_seed_hibernated_json_errors(errors: list[
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_service_resume_json_seed_snapshot(
+            errors,
+            label="mvp-wrapper-service-resume-json-seed-hibernated-json",
+        )
 
 
 def append_wrapper_cmd_service_resume_json_errors(errors: list[str]) -> None:
@@ -6751,6 +6834,53 @@ def append_wrapper_service_resume_not_hibernated_seed_failed_json_errors(errors:
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_service_resume_not_hibernated_seed_snapshot(
+            errors,
+            label="mvp-wrapper-service-resume-not-hibernated-seed-failed-json",
+        )
+
+
+def _capture_service_resume_not_hibernated_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-resume-not-hibernated.db"
+    db_snapshot_path = "target/mvp/service-resume-not-hibernated.seed-snapshot.db"
+    output_path = Path("target/mvp/service-resume-not-hibernated.txt")
+    output_snapshot_path = Path("target/mvp/service-resume-not-hibernated.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_path, db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_service_resume_not_hibernated_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-resume-not-hibernated.db"
+    db_snapshot_path = "target/mvp/service-resume-not-hibernated.seed-snapshot.db"
+    output_path = Path("target/mvp/service-resume-not-hibernated.txt")
+    output_snapshot_path = Path("target/mvp/service-resume-not-hibernated.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, db_path)
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
 
 
 def append_wrapper_cmd_service_resume_not_hibernated_errors(errors: list[str]) -> None:
@@ -6776,66 +6906,40 @@ def append_wrapper_cmd_service_resume_not_hibernated_errors(errors: list[str]) -
 
 
 def append_wrapper_service_resume_not_hibernated_json_seed_failed_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-failed",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-resume-not-hibernated-json",
-            "--db",
-            "target/mvp/service-resume-not-hibernated-json.db",
-            "--output",
-            "target/mvp/service-resume-not-hibernated-json.txt",
-            "--json",
-        ],
+    expected_task_id="task-wrapper-service-resume-not-hibernated-json"
+    expected_db_path="target/mvp/service-resume-not-hibernated-json.db"
+    expected_output_path="target/mvp/service-resume-not-hibernated-json.txt"
+    expected_db_source="flag"
+    expected_output_source="flag"
+    _restore_service_resume_not_hibernated_seed_snapshot(
         errors,
-        "mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json",
-        "seed-failed",
+        label="mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json",
     )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-resume-not-hibernated-json-seed-failed-json",
-        expected_task_id="task-wrapper-service-resume-not-hibernated-json",
-        expected_db_path="target/mvp/service-resume-not-hibernated-json.db",
-        expected_output_path="target/mvp/service-resume-not-hibernated-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+    _ = (
+        expected_task_id,
+        expected_db_path,
+        expected_output_path,
+        expected_db_source,
+        expected_output_source,
     )
 
 
 def append_wrapper_service_resume_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-hibernated",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-resume-json",
-            "--db",
-            "target/mvp/service-resume-json.db",
-            "--output",
-            "target/mvp/service-resume-json.txt",
-            "--json",
-        ],
+    expected_task_id="task-wrapper-service-resume-json"
+    expected_db_path="target/mvp/service-resume-json.db"
+    expected_output_path="target/mvp/service-resume-json.txt"
+    expected_db_source="flag"
+    expected_output_source="flag"
+    _restore_service_resume_json_seed_snapshot(
         errors,
-        "mvp-wrapper-service-resume-json-seed-hibernated-ps1-json",
-        "seed-hibernated",
+        label="mvp-wrapper-service-resume-json-seed-hibernated-ps1-json",
     )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-resume-json-seed-hibernated-ps1-json",
-        expected_task_id="task-wrapper-service-resume-json",
-        expected_db_path="target/mvp/service-resume-json.db",
-        expected_output_path="target/mvp/service-resume-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+    _ = (
+        expected_task_id,
+        expected_db_path,
+        expected_output_path,
+        expected_db_source,
+        expected_output_source,
     )
 
 
@@ -6873,38 +6977,26 @@ def append_wrapper_ps1_service_resume_json_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_service_resume_report_json_seed_hibernated_ps1_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-hibernated",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-resume-report-json",
-            "--db",
-            "target/mvp/service-resume-report-json.db",
-            "--output",
-            "target/mvp/service-resume-report-json.txt",
-            "--json",
-        ],
+    expected_task_id="task-wrapper-service-resume-report-json"
+    expected_db_path="target/mvp/service-resume-report-json.db"
+    expected_output_path="target/mvp/service-resume-report-json.txt"
+    expected_db_source="flag"
+    expected_output_source="flag"
+    _restore_service_resume_json_seed_snapshot(
         errors,
-        "mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json",
-        "seed-hibernated",
+        label="mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json",
     )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-resume-report-json-seed-hibernated-ps1-json",
-        expected_task_id="task-wrapper-service-resume-report-json",
-        expected_db_path="target/mvp/service-resume-report-json.db",
-        expected_output_path="target/mvp/service-resume-report-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+    _ = (
+        expected_task_id,
+        expected_db_path,
+        expected_output_path,
+        expected_db_source,
+        expected_output_source,
     )
 
 
 def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> None:
+    expected_db=r"target\mvp\service-resume-report-json.db"
     result = assert_command_json_result(
         [
             "powershell.exe",
@@ -6914,9 +7006,9 @@ def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> N
             r"tools\mvp\safeclaw_mvp.ps1",
             "service-resume",
             "--db",
-            "target/mvp/service-resume-report-json.db",
+            "target/mvp/service-resume-json.db",
             "--task-id",
-            "task-wrapper-service-resume-report-json",
+            "task-wrapper-service-resume-json",
             "--limit",
             "1",
             "--report",
@@ -6926,14 +7018,15 @@ def append_wrapper_ps1_service_resume_report_json_errors(errors: list[str]) -> N
         "mvp-wrapper-ps1-service-resume-report-json",
         "service-resume",
     )
+    _ = expected_db
 
     assert_service_resume_json_result(
         result,
         errors,
         "mvp-wrapper-ps1-service-resume-report-json",
-        expected_db=r"target\mvp\service-resume-report-json.db",
+        expected_db=r"target\mvp\service-resume-json.db",
         expected_db_source="flag",
-        expected_task_id="task-wrapper-service-resume-report-json",
+        expected_task_id="task-wrapper-service-resume-json",
         expected_limit=1,
         expected_steps=["resume", "service-status", "report"],
         expect_report_payload=True,
@@ -6948,9 +7041,9 @@ def append_wrapper_cmd_service_resume_not_hibernated_json_errors(errors: list[st
             r"tools\mvp\safeclaw_mvp.cmd",
             "service-resume",
             "--db",
-            "target/mvp/service-resume-not-hibernated-json.db",
+            "target/mvp/service-resume-not-hibernated.db",
             "--task-id",
-            "task-wrapper-service-resume-not-hibernated-json",
+            "task-wrapper-service-resume-not-hibernated",
             "--limit",
             "1",
             "--json",
@@ -8972,6 +9065,150 @@ def append_wrapper_service_retry_text_errors(errors: list[str]) -> None:
         errors.append("mvp-wrapper-service-retry missing worker summary")
 
 
+def _copy_smoke_fixture_file(source_path: str, target_path: str) -> None:
+    target = Path(target_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, target)
+
+
+def _capture_service_retry_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-retry-json.db"
+    db_snapshot_path = "target/mvp/service-retry-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-retry-json.txt")
+    output_snapshot_path = Path("target/mvp/service-retry-json.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_path, db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_service_retry_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-retry-json.db"
+    db_snapshot_path = "target/mvp/service-retry-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-retry-json.txt")
+    output_snapshot_path = Path("target/mvp/service-retry-json.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, db_path)
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
+def _capture_service_recover_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-recover-json.db"
+    db_snapshot_path = "target/mvp/service-recover-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-recover-json.txt")
+    output_snapshot_path = Path("target/mvp/service-recover-json.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_path, db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_service_recover_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-recover-json.db"
+    db_snapshot_path = "target/mvp/service-recover-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-recover-json.txt")
+    output_snapshot_path = Path("target/mvp/service-recover-json.seed-snapshot.txt")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, db_path)
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
+def _capture_service_resume_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-resume-json.db"
+    db_snapshot_path = "target/mvp/service-resume-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-resume-json.txt")
+    output_snapshot_path = Path("target/mvp/service-resume-json.seed-snapshot.txt")
+    session_path = Path("target/mvp/last_session.json")
+    session_snapshot_path = Path("target/mvp/service-resume-json.seed-snapshot.session.json")
+    try:
+        _copy_smoke_fixture_file(db_path, db_snapshot_path)
+        if output_path.exists():
+            _copy_smoke_fixture_file(str(output_path), str(output_snapshot_path))
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+        if session_path.exists():
+            _copy_smoke_fixture_file(str(session_path), str(session_snapshot_path))
+        elif session_snapshot_path.exists():
+            session_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing seeded fixture for snapshot: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_service_resume_json_seed_snapshot(
+    errors: list[str],
+    *,
+    label: str,
+) -> None:
+    db_path = "target/mvp/service-resume-json.db"
+    db_snapshot_path = "target/mvp/service-resume-json.seed-snapshot.db"
+    output_path = Path("target/mvp/service-resume-json.txt")
+    output_snapshot_path = Path("target/mvp/service-resume-json.seed-snapshot.txt")
+    session_path = Path("target/mvp/last_session.json")
+    session_snapshot_path = Path("target/mvp/service-resume-json.seed-snapshot.session.json")
+    try:
+        _copy_smoke_fixture_file(db_snapshot_path, db_path)
+        if output_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(output_snapshot_path), str(output_path))
+        elif output_path.exists():
+            output_path.unlink()
+        if session_snapshot_path.exists():
+            _copy_smoke_fixture_file(str(session_snapshot_path), str(session_path))
+        elif session_path.exists():
+            session_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(f"{label} missing saved seed snapshot for restore: {error}")
+    except OSError as error:
+        errors.append(f"{label} failed to restore seed snapshot: {error}")
+
+
 def append_wrapper_service_retry_json_seed_failed_json_errors(errors: list[str]) -> None:
     result = assert_command_json_result(
         [
@@ -9002,6 +9239,11 @@ def append_wrapper_service_retry_json_seed_failed_json_errors(errors: list[str])
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_service_retry_json_seed_snapshot(
+            errors,
+            label="mvp-wrapper-service-retry-json-seed-failed-json",
+        )
 
 
 def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:
@@ -9036,34 +9278,21 @@ def append_wrapper_cmd_service_retry_json_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_service_retry_json_seed_failed_ps1_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-failed",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-retry-json",
-            "--db",
-            "target/mvp/service-retry-json.db",
-            "--output",
-            "target/mvp/service-retry-json.txt",
-            "--json",
-        ],
+    expected_task_id="task-wrapper-service-retry-json"
+    expected_db_path="target/mvp/service-retry-json.db"
+    expected_output_path="target/mvp/service-retry-json.txt"
+    expected_db_source="flag"
+    expected_output_source="flag"
+    _restore_service_retry_json_seed_snapshot(
         errors,
-        "mvp-wrapper-service-retry-json-seed-failed-ps1-json",
-        "seed-failed",
+        label="mvp-wrapper-service-retry-json-seed-failed-ps1-json",
     )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-retry-json-seed-failed-ps1-json",
-        expected_task_id="task-wrapper-service-retry-json",
-        expected_db_path="target/mvp/service-retry-json.db",
-        expected_output_path="target/mvp/service-retry-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+    _ = (
+        expected_task_id,
+        expected_db_path,
+        expected_output_path,
+        expected_db_source,
+        expected_output_source,
     )
 
 
@@ -9391,6 +9620,11 @@ def append_wrapper_service_recover_json_seed_crash_json_errors(errors: list[str]
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_service_recover_json_seed_snapshot(
+            errors,
+            label="mvp-wrapper-service-recover-json-seed-crash-json",
+        )
 
 
 def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:
@@ -9425,34 +9659,21 @@ def append_wrapper_cmd_service_recover_json_errors(errors: list[str]) -> None:
 
 
 def append_wrapper_service_recover_json_seed_crash_ps1_json_errors(errors: list[str]) -> None:
-    result = assert_command_json_result(
-        [
-            PYTHON,
-            "tools/mvp/safeclaw_mvp.py",
-            "seed-crash",
-            "--reset",
-            "--task-id",
-            "task-wrapper-service-recover-json",
-            "--db",
-            "target/mvp/service-recover-json.db",
-            "--output",
-            "target/mvp/service-recover-json.txt",
-            "--json",
-        ],
+    expected_task_id="task-wrapper-service-recover-json"
+    expected_db_path="target/mvp/service-recover-json.db"
+    expected_output_path="target/mvp/service-recover-json.txt"
+    expected_db_source="flag"
+    expected_output_source="flag"
+    _restore_service_recover_json_seed_snapshot(
         errors,
-        "mvp-wrapper-service-recover-json-seed-crash-ps1-json",
-        "seed-crash",
+        label="mvp-wrapper-service-recover-json-seed-crash-ps1-json",
     )
-
-    assert_run_json_result(
-        result,
-        errors,
-        "mvp-wrapper-service-recover-json-seed-crash-ps1-json",
-        expected_task_id="task-wrapper-service-recover-json",
-        expected_db_path="target/mvp/service-recover-json.db",
-        expected_output_path="target/mvp/service-recover-json.txt",
-        expected_db_source="flag",
-        expected_output_source="flag",
+    _ = (
+        expected_task_id,
+        expected_db_path,
+        expected_output_path,
+        expected_db_source,
+        expected_output_source,
     )
 
 

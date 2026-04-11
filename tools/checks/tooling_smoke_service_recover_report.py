@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 
@@ -8,6 +10,12 @@ JsonCallable = Callable[..., Any]
 _RECOVER_REPORT_TASK_ID = "task-wrapper-service-recover-report-json"
 _RECOVER_REPORT_DB_PATH = "target/mvp/service-recover-report-json.db"
 _RECOVER_REPORT_OUTPUT_PATH = "target/mvp/service-recover-report-json.txt"
+_RECOVER_REPORT_DB_SNAPSHOT_PATH = (
+    "target/mvp/service-recover-report-json.seed-snapshot.db"
+)
+_RECOVER_REPORT_OUTPUT_SNAPSHOT_PATH = (
+    "target/mvp/service-recover-report-json.seed-snapshot.txt"
+)
 _RECOVER_REPORT_EXPECTED_DB = r"target\mvp\service-recover-report-json.db"
 _RECOVER_REPORT_STEPS = ("recover", "service-status", "report")
 
@@ -40,6 +48,52 @@ def _ps1_command(*args: str) -> list[str]:
         r"tools\mvp\safeclaw_mvp.ps1",
         *args,
     ]
+
+
+def _copy_fixture_file(source_path: str, target_path: str) -> None:
+    target = Path(target_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, target)
+
+
+def _capture_seed_snapshot(errors: list[str], *, operation_name: str) -> None:
+    try:
+        _copy_fixture_file(_RECOVER_REPORT_DB_PATH, _RECOVER_REPORT_DB_SNAPSHOT_PATH)
+        output_path = Path(_RECOVER_REPORT_OUTPUT_PATH)
+        output_snapshot_path = Path(_RECOVER_REPORT_OUTPUT_SNAPSHOT_PATH)
+        if output_path.exists():
+            _copy_fixture_file(
+                _RECOVER_REPORT_OUTPUT_PATH,
+                _RECOVER_REPORT_OUTPUT_SNAPSHOT_PATH,
+            )
+        elif output_snapshot_path.exists():
+            output_snapshot_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(
+            f"{operation_name} missing seeded fixture for snapshot: {error}"
+        )
+    except OSError as error:
+        errors.append(f"{operation_name} failed to snapshot seeded fixture: {error}")
+
+
+def _restore_seed_snapshot(errors: list[str], *, operation_name: str) -> None:
+    try:
+        _copy_fixture_file(_RECOVER_REPORT_DB_SNAPSHOT_PATH, _RECOVER_REPORT_DB_PATH)
+        output_path = Path(_RECOVER_REPORT_OUTPUT_PATH)
+        output_snapshot_path = Path(_RECOVER_REPORT_OUTPUT_SNAPSHOT_PATH)
+        if output_snapshot_path.exists():
+            _copy_fixture_file(
+                _RECOVER_REPORT_OUTPUT_SNAPSHOT_PATH,
+                _RECOVER_REPORT_OUTPUT_PATH,
+            )
+        elif output_path.exists():
+            output_path.unlink()
+    except FileNotFoundError as error:
+        errors.append(
+            f"{operation_name} missing saved seed snapshot for restore: {error}"
+        )
+    except OSError as error:
+        errors.append(f"{operation_name} failed to restore seed snapshot: {error}")
 
 
 def _append_seed_crash_json_case(
@@ -76,6 +130,17 @@ def _append_seed_crash_json_case(
         expected_db_source="flag",
         expected_output_source="flag",
     )
+    if result is not None:
+        _capture_seed_snapshot(errors, operation_name=operation.name)
+
+
+def _append_restore_seed_crash_case(
+    errors: list[str],
+    *,
+    operation: ServiceRecoverReportOperation,
+) -> None:
+    # Reuse the seeded fixture before the slower PowerShell wrapper path.
+    _restore_seed_snapshot(errors, operation_name=operation.name)
 
 
 def _append_service_recover_report_json_case(
@@ -138,7 +203,7 @@ _SERVICE_RECOVER_REPORT_OPERATIONS = (
         name="mvp-wrapper-cmd-service-recover-report-json",
     ),
     ServiceRecoverReportOperation(
-        operation_kind="seed",
+        operation_kind="restore",
         name="mvp-wrapper-service-recover-report-json-seed-crash-ps1-json",
     ),
     ServiceRecoverReportOperation(
@@ -166,6 +231,11 @@ def append_wrapper_service_recover_report_errors(
     for operation in _SERVICE_RECOVER_REPORT_OPERATIONS:
         if operation.operation_kind == "seed":
             _append_seed_crash_json_case(errors, ctx, operation=operation)
+        elif operation.operation_kind == "restore":
+            _append_restore_seed_crash_case(
+                errors,
+                operation=operation,
+            )
         else:
             _append_service_recover_report_json_case(
                 errors,
