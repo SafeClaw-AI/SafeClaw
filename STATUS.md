@@ -5,6 +5,7 @@
 - [x] README 主线已切换为根级 SSOT 五件套：`README.md` / `STATUS.md` / `CHANGELOG.md` / `DECISIONS.md` / `ARCHITECTURE.md`
 - [x] `docs/README.md` 已改为导航器，不再承担裁决职责
 - [x] `docs/README.md` 已纠偏 `docs/records/` 角色口径，不再误写成纯归档落点
+- [x] `README.md` 已去掉“当前入口边界 / 当前稳定路径”动态措辞，稳定入口口径与 SSOT 职责一致
 - [x] `docs/30-方案/02-V4-目录锁定清单.md` 与公开文档门禁已同步到新文档结构
 - [x] 根级 SSOT 五件套职责分离已接入 `check_public_docs.py` fail-closed 门禁
 - [x] `python tools/checks/selfcheck.py` 已通过，本轮总验包含 937 项合同测试

@@ -66,6 +66,7 @@ REQUIRED_MARKERS = {
         "tools/checks/",
         "tools/mvp/OPERATOR_PLAYBOOK.md",
         "local-only",
+        "稳定入口边界",
         "STATUS.md",
         "CHANGELOG.md",
         "DECISIONS.md",
@@ -77,7 +78,7 @@ REQUIRED_MARKERS = {
         "高层路线图",
         "成功指标",
         "English Summary",
-        "The current stable operator path is still local-only",
+        "The stable operator path is local-only",
     ],
     STATUS_FILE: [
         "当前状态（滚动更新）",
@@ -474,6 +475,9 @@ REQUIRED_MARKERS = {
 FORBIDDEN_MARKERS = {
     README_FILE: [
         "当前公开协议版本号为 `",
+        "## 当前入口边界",
+        "当前稳定入口仍然是本地 operator 路径，而不是公有 GUI 产品：",
+        "The current stable operator path is still local-only",
     ],
     DEV_PLAN_FILE: [
         "- 当前 SafeClaw 主线以 `README.md`、`开发计划.md`、`tools/mvp/` 现行最小闭环为准；`docs/chancellor-mode/v2/` 仅保留外部模式历史方案与后期拼接融合参考。",

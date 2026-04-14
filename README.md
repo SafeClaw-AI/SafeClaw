@@ -8,7 +8,7 @@
 SafeClaw 是一个面向本地执行的 automation system。
 它的目标不是把用户推出控制环，而是在自动化越来越强的时代，仍然把理解权、确认权、暂停权和恢复权留在用户自己手里。
 
-当前仓库坚持 `protocol-first` 与 `local-only` 的稳定基线：
+本仓库坚持 `protocol-first` 与 `local-only` 的稳定基线：
 
 - 协议与治理真源在 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md`
 - 合同与机器门禁在 `tests/contracts/` 与 `tools/checks/`
@@ -59,14 +59,14 @@ SafeClaw 是一个面向本地执行的 automation system。
 当前公开协议版本以根目录 `VERSION` 为准。
 `README.md` 只负责说明版本边界由谁裁决，不复述具体版本号，也不承担滚动状态播报。
 
-## 当前入口边界
+## 稳定入口边界
 
-当前稳定入口仍然是本地 operator 路径，而不是公有 GUI 产品：
+稳定入口是本地 operator 路径，而不是公有 GUI 产品：
 
 - 日用入口是 `.cmd/.ps1` launcher + Python/Tkinter 小面板 + Rust CLI
 - 维护入口与最短操作链统一看 [tools/mvp/OPERATOR_PLAYBOOK.md](tools/mvp/OPERATOR_PLAYBOOK.md)
-- 当前稳定承诺是 `local-only` MVP，不把 provider / sidecar 当成已交付事实
-- `Tauri + React` 与远端 AI provider 仍属于后续扩展方向，不属于当前稳定承诺
+- 稳定承诺是 `local-only` MVP，不把 provider / sidecar 当成已交付事实
+- `Tauri + React` 与远端 AI provider 属于后续扩展方向，不属于当前稳定边界
 
 ## 模型路由矩阵（稳定边界）
 
@@ -126,6 +126,6 @@ automation must stay understandable, controllable, and recoverable.
 
 This `README.md` is intentionally stable. It points to the live operational status in `STATUS.md`, the architecture source in `ARCHITECTURE.md`, the decision log in `DECISIONS.md`, the change history in `CHANGELOG.md`, and the protocol truth in `specs/`, `VERSION`, and governance references.
 
-The current stable operator path is still local-only: launcher scripts, a Python/Tkinter panel, and Rust runtime components. Remote providers, sidecars, and `Tauri + React` GUI work remain planned expansions rather than shipped guarantees.
+The stable operator path is local-only: launcher scripts, a Python/Tkinter panel, and Rust runtime components. Remote providers, sidecars, and `Tauri + React` GUI work remain planned expansions rather than shipped guarantees.
 
 <sub>SafeClaw™ is a trademark of Tian (田).</sub>
