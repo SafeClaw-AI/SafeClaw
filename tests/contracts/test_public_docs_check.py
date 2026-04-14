@@ -329,6 +329,45 @@ class PublicDocsCheckTest(unittest.TestCase):
         self.assertIn(docs_readme_file, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[docs_readme_file], expected_markers)
 
+    def test_scope_doc_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            REPO_ROOT / "docs" / "V1_SCOPE.md": [
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "Phase 0",
+                "specs/",
+                "docs/reference/",
+                "02-V4-目录锁定清单.md",
+                "08-V4-ledger-index-manifest.json",
+                "tests/contracts/",
+                "tools/checks/",
+                "tools/lint/",
+                "selfcheck.py",
+                "ledger_index_manifest.py",
+                "check_ledger_alignment.py",
+                "check_consistency.py",
+                "check_versions.py",
+                "check_structure.py",
+                "check_scaffold.py",
+                "check_public_docs.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="scope")
+
+    def test_scope_doc_forbids_stale_public_truth_summary(self) -> None:
+        scope_file = REPO_ROOT / "docs" / "V1_SCOPE.md"
+        expected_markers = [
+            "当前仓库以最新 `README.md`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
+            "## 当前公开真源",
+        ]
+        self.assertIn(scope_file, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[scope_file], expected_markers)
+
     def test_root_ssot_suite_files_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             STATUS_FILE: [

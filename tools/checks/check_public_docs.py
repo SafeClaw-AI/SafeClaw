@@ -188,8 +188,17 @@ REQUIRED_MARKERS = {
         "历史流水",
     ],
     SCOPE_FILE: [
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
         "Phase 0",
         "specs/",
+        "docs/reference/",
+        "02-V4-目录锁定清单.md",
+        "08-V4-ledger-index-manifest.json",
         "tests/contracts/",
         "tools/checks/",
         "tools/lint/",
@@ -497,6 +506,10 @@ FORBIDDEN_MARKERS = {
     DOCS_README_FILE: [
         "旧 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的归档落点",
         "协议与治理真源仍以 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md` 为准",
+    ],
+    SCOPE_FILE: [
+        "当前仓库以最新 `README.md`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
+        "## 当前公开真源",
     ],
     DECISIONS_FILE: [
         "决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单，不由根级说明文档反向定义字段。",

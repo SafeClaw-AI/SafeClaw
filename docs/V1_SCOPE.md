@@ -1,7 +1,8 @@
 # SafeClaw 当前公开范围
 
 > 本文件已替代早期的 "V1 功能范围" 文档。
-> 当前仓库以最新 `README.md`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
 
 ---
 
@@ -20,19 +21,15 @@ SafeClaw 当前公开仓库的重点不是完整产品功能清单，
 
 ---
 
-## 当前公开真源
+## 当前公开入口与真源
 
-以下内容共同构成当前公开层的有效范围：
+以下内容共同构成当前公开层的稳定入口、真源与门禁边界：
 
-| 路径 | 作用 |
-| --- | --- |
-| `README.md` | 对外定位、愿景、公开内容与沟通方式 |
-| `VERSION` | 当前公开协议版本 |
-| `specs/` | 协议层单一真源 |
-| `tests/contracts/` | 从协议推出的合同测试 |
-| `tools/checks/` | 一致性 / 版本 / 结构 / 自检门禁 |
-| `tools/lint/` | 命名稳定性门禁 |
-| `.github/workflows/contracts.yml` | CI 自动化门禁 |
+| 类别 | 路径 | 作用 |
+| --- | --- | --- |
+| 稳定入口 | `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md`、`docs/README.md` | 解释项目定位、状态、架构、决策、历史与导航入口 |
+| 协议与治理真源 | `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md`、`docs/30-方案/08-V4-ledger-index-manifest.json` | 裁决版本、协议字段、治理阈值、目录边界与 ledger 兼容索引 |
+| 合同与门禁 | `tests/contracts/`、`tools/checks/`、`tools/lint/`、`.github/workflows/contracts.yml` | 校验稳定入口、L0 真源、实现层与生成物是否仍然一致 |
 
 ---
 
