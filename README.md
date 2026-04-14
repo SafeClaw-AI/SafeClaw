@@ -10,7 +10,7 @@ SafeClaw 是一个面向本地执行的 automation system。
 
 本仓库坚持 `protocol-first` 与 `local-only` 的稳定基线：
 
-- 协议与治理真源在 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md`
+- 协议与治理真源在 `specs/`、`VERSION`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json`
 - 合同与机器门禁在 `tests/contracts/` 与 `tools/checks/`
 - 面向人的主线入口固定为 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md`
 
@@ -55,6 +55,7 @@ SafeClaw 是一个面向本地执行的 automation system。
 - [docs/reference/02-结构性债务台账.md](docs/reference/02-结构性债务台账.md)
 - [docs/reference/03-绕过白名单.md](docs/reference/03-绕过白名单.md)
 - [docs/30-方案/02-V4-目录锁定清单.md](docs/30-方案/02-V4-目录锁定清单.md)
+- [docs/30-方案/08-V4-ledger-index-manifest.json](docs/30-方案/08-V4-ledger-index-manifest.json)
 
 当前公开协议版本以根目录 `VERSION` 为准。
 `README.md` 只负责说明版本边界由谁裁决，不复述具体版本号，也不承担滚动状态播报。
@@ -124,7 +125,7 @@ https://github.com/SafeClaw-AI/SafeClaw
 SafeClaw is a local-first automation system built around one constraint:
 automation must stay understandable, controllable, and recoverable.
 
-This `README.md` is intentionally stable. It points to the live operational status in `STATUS.md`, the architecture source in `ARCHITECTURE.md`, the decision log in `DECISIONS.md`, the change history in `CHANGELOG.md`, and the protocol truth in `specs/`, `VERSION`, and governance references.
+This `README.md` is intentionally stable. It points to the live operational status in `STATUS.md`, the architecture source in `ARCHITECTURE.md`, the decision log in `DECISIONS.md`, the change history in `CHANGELOG.md`, and the protocol truth in `specs/`, `VERSION`, the ledger index manifest, and governance references.
 
 The stable operator path is local-only: launcher scripts, a Python/Tkinter panel, and Rust runtime components. Remote providers, sidecars, and `Tauri + React` GUI work remain planned expansions rather than shipped guarantees.
 

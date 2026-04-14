@@ -2,7 +2,7 @@
 
 `docs/README.md` 只负责导航，不负责裁决。
 
-协议与治理真源仍以 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md` 为准；当前机器验收结果请直接看 `STATUS.md` 或运行 `selfcheck.py`。
+协议与治理真源仍以 `specs/`、`VERSION`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准；当前机器验收结果请直接看 `STATUS.md` 或运行 `selfcheck.py`。
 
 ## 根级 SSOT 五件套
 

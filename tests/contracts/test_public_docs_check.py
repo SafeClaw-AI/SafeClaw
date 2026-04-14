@@ -130,6 +130,7 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "## 当前入口边界",
                 "当前稳定入口仍然是本地 operator 路径，而不是公有 GUI 产品：",
                 "The current stable operator path is still local-only",
+                "协议与治理真源在 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md`",
             ],
             DEV_PLAN_FILE: [
                 "- 当前 SafeClaw 主线以 `README.md`、`开发计划.md`、`tools/mvp/` 现行最小闭环为准；`docs/chancellor-mode/v2/` 仅保留外部模式历史方案与后期拼接融合参考。",
@@ -274,6 +275,7 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "tools/mvp/OPERATOR_PLAYBOOK.md",
                 "local-only",
                 "稳定入口边界",
+                "08-V4-ledger-index-manifest.json",
                 "STATUS.md",
                 "CHANGELOG.md",
                 "DECISIONS.md",
@@ -322,6 +324,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         docs_readme_file = REPO_ROOT / "docs" / "README.md"
         expected_markers = [
             "旧 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的归档落点",
+            "协议与治理真源仍以 `specs/`、`VERSION`、`docs/reference/` 与 `docs/30-方案/02-V4-目录锁定清单.md` 为准",
         ]
         self.assertIn(docs_readme_file, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[docs_readme_file], expected_markers)
