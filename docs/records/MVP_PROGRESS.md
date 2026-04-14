@@ -35,7 +35,7 @@
 
 收口结论：
 - 当前这一轮三组治理已全部完成提交，工作区干净。
-- 提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节。
+- 提交/归档顺序、批次清单与收口表统一以 `docs/records/PUSH_LOG.md` 为准，本表不再重复展开提交层细节。
 - 若后续开启新一轮迭代，先刷新顶部摘要再新增改动，不沿用本轮旧数字。
 - 历史切片仍保留，但只作回看与后期拼接融合参考，不改变当前主线承诺。
 
@@ -46,7 +46,7 @@
 | [x] | specs / contracts / generated / selfcheck 闭环 | `01_文档/03_开发蓝图.md` `01_文档/09_迭代升级与自动化.md` | `specs`、`tests/contracts`、`tools/checks` 已形成门禁 | Phase 0 主干已落地 |
 | [x] | Rust core / sqlite / recovery / probe 主线 | `01_文档/03_开发蓝图.md` 生存层 M1 | 仓库已有 `safeclaw-core`、`safeclaw-sqlite`、恢复/探针/worker demos | M1a 关键路径已部分落地 |
 | [x] | Win11 本地 MVP wrapper / operator flow | `01_文档/08_用户旅程.md` | `safeclaw.cmd`、`safeclaw.ps1`、`tools/mvp` 已可手动使用 | README 根入口最短路径已纳入自动门禁 |
-| [x] | 追踪文档完整性防线 | `01_文档/09_迭代升级与自动化.md` | `MVP_PROGRESS.md`、`PUSH_LOG.md` 已接入公开文档检查 | 可拦截问号或乱码占位符 |
+| [x] | 追踪文档完整性防线 | `01_文档/09_迭代升级与自动化.md` | `docs/records/MVP_PROGRESS.md`、`docs/records/PUSH_LOG.md` 已接入公开文档检查 | 可拦截问号或乱码占位符 |
 | [x] | M1a 最后一轮可手用验收 | `01_文档/03_开发蓝图.md` M1 验收 | 根入口 `workspace -> doctor -> service-run/retry/recover -> verify` 已进 smoke；`selfcheck` 全绿 | 当前主线已收口 |
 | [x] | M1a/M1b 验证互斥护栏 | `01_文档/09_迭代升级与自动化.md` 验证门禁 | `tools/checks/check_tooling_smoke.py` 与 `tools/checks/check_mvp_operator_flow.py` 新增共享 `target/mvp` 状态锁；`smoke` 内嵌 `verify` 可复用同轮锁，避免并发检查互相踩踏导致假失败 | 已落地，降低共享状态误报成本 |
 | [x] | M1b 首刀：doctor 离线边界诊断 | `01_文档/03_开发蓝图.md` M1b | `doctor` 现已显式返回 `runtime_profile` / `model_provider` / `sidecar`，说明当前 local MVP 离线可跑、无 provider/sidecar 也属正常 | 已落地，降低使用歧义 |

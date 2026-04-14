@@ -127,6 +127,9 @@ REQUIRED_MARKERS = {
         BOUNDARY_NOTE_DECISION,
         BOUNDARY_NOTE_FUSION,
         "docs/chancellor-mode/v2/",
+        "docs/records/开发计划.md",
+        "docs/records/MVP_PROGRESS.md",
+        "docs/records/PUSH_LOG.md",
         "tools/mvp/",
         "archive-note -> undo",
     ],
@@ -156,7 +159,7 @@ REQUIRED_MARKERS = {
         "本轮已提交 `f6ca6a1`",
         "本轮已提交 `7937fa4`",
         "当前这一轮三组治理已全部完成提交，工作区干净",
-        "提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节",
+        "提交/归档顺序、批次清单与收口表统一以 `docs/records/PUSH_LOG.md` 为准，本表不再重复展开提交层细节",
         "若后续开启新一轮迭代，先刷新顶部摘要再新增改动，不沿用本轮旧数字",
         "docs/chancellor-mode/v2/",
         "历史切片",
@@ -467,6 +470,20 @@ REQUIRED_MARKERS = {
     ],
 }
 
+FORBIDDEN_MARKERS = {
+    DEV_PLAN_FILE: [
+        "- 当前 SafeClaw 主线以 `README.md`、`开发计划.md`、`tools/mvp/` 现行最小闭环为准；`docs/chancellor-mode/v2/` 仅保留外部模式历史方案与后期拼接融合参考。",
+        "- 每轮完成后必须同步：`MVP_PROGRESS.md`、`PUSH_LOG.md`、`开发计划.md`。",
+        "- 若行为变化可见，必须同步 `MVP_PROGRESS.md`、`PUSH_LOG.md` 和 `开发计划.md`。",
+        "- 台账写法要求：`MVP_PROGRESS.md`、`PUSH_LOG.md` 尽量使用中文、短句、小学生能懂；先写“做了什么”，再写“有什么用”。",
+        "- 台账：`MVP_PROGRESS.md`、`PUSH_LOG.md`",
+    ],
+    MVP_PROGRESS_FILE: [
+        "`MVP_PROGRESS.md`、`PUSH_LOG.md` 已接入公开文档检查",
+        "提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节",
+    ],
+}
+
 def collect_reference_rebaseline_errors() -> list[str]:
     if not REFERENCE_REBASELINE_FILE.exists():
         return [f"缺少公开文档: {REFERENCE_REBASELINE_FILE.relative_to(REPO_ROOT).as_posix()}"]
@@ -504,6 +521,12 @@ def collect_errors() -> list[str]:
             if current_marker not in text:
                 errors.append(
                     f"公开文档缺少关键标记: {path.relative_to(REPO_ROOT).as_posix()} -> {current_marker}"
+                )
+
+        for marker in FORBIDDEN_MARKERS.get(path, []):
+            if marker in text:
+                errors.append(
+                    f"公开文档仍含过期根路径口径: {path.relative_to(REPO_ROOT).as_posix()} -> {marker}"
                 )
 
     errors.extend(collect_reference_rebaseline_errors())

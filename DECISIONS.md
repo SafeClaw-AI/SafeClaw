@@ -2,6 +2,12 @@
 
 ## 2026-04-15
 
+决策：`docs/records/` 下的现行台账必须只使用 canonical 路径表述，不再把根目录 legacy 文件名写成当前协作入口。
+原因：三份台账的真内容虽然已经迁入 `docs/records/`，但若现行台账内部仍继续用 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 指挥协作，就会把兼容入口重新抬成“假真源”。
+影响：`docs/records/开发计划.md`、`docs/records/MVP_PROGRESS.md` 统一改写为 `docs/records/...` 口径；`check_public_docs.py` 新增 stale root-path fail-closed 护栏，防止旧协作说法回流。
+
+## 2026-04-15
+
 决策：根级文档切换到 `README.md` / `STATUS.md` / `CHANGELOG.md` / `DECISIONS.md` / `ARCHITECTURE.md` 五件套分责结构。
 原因：当前 README 同时承载定位、状态、历史与计划，已经构成“假真源”与过期风险；必须拆分职责，才能把 README 主线收回稳定入口。
 影响：后续 README 不再写滚动进度；当前状态统一写入 `STATUS.md`，历史变更写入 `CHANGELOG.md`，关键理由写入 `DECISIONS.md`，系统结构写入 `ARCHITECTURE.md`。
