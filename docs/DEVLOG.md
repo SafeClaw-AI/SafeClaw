@@ -1,6 +1,7 @@
 # SafeClaw 开发日志
 
-> 说明：当前仓库的公开层以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
 > 更早历史如有需要，可再基于 Git 提交记录补齐。
 
 ## 2026-03-29

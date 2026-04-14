@@ -368,6 +368,43 @@ class PublicDocsCheckTest(unittest.TestCase):
         self.assertIn(scope_file, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[scope_file], expected_markers)
 
+    def test_devlog_doc_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            REPO_ROOT / "docs" / "DEVLOG.md": [
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "README.md",
+                "specs/",
+                "docs/reference/",
+                "02-V4-目录锁定清单.md",
+                "08-V4-ledger-index-manifest.json",
+                "Phase 0",
+                "selfcheck.py",
+                ".github/workflows/contracts.yml",
+                "ledger_index_manifest.py",
+                "check_ledger_alignment.py",
+                "check_consistency.py",
+                "check_versions.py",
+                "check_structure.py",
+                "check_scaffold.py",
+                "check_public_docs.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="devlog")
+
+    def test_devlog_doc_forbids_stale_public_layer_summary(self) -> None:
+        devlog_file = REPO_ROOT / "docs" / "DEVLOG.md"
+        expected_markers = [
+            "当前仓库的公开层以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
+        ]
+        self.assertIn(devlog_file, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[devlog_file], expected_markers)
+
     def test_root_ssot_suite_files_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             STATUS_FILE: [
