@@ -309,9 +309,18 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "docs/chancellor-mode/v2/",
                 "selfcheck.py",
                 "tests/contracts/",
+                "已迁移台账的现行状态、历史记录与审计留痕落点",
             ],
         }
         self._assert_required_markers(expected_entries, label="readme")
+
+    def test_docs_readme_forbids_stale_records_archive_wording(self) -> None:
+        docs_readme_file = REPO_ROOT / "docs" / "README.md"
+        expected_markers = [
+            "旧 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的归档落点",
+        ]
+        self.assertIn(docs_readme_file, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[docs_readme_file], expected_markers)
 
     def test_root_ssot_suite_files_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {

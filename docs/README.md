@@ -50,7 +50,7 @@
 
 这些文件需要保留，但不应该再冒充主线真源：
 
-- `docs/records/`：旧 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的归档落点
+- `docs/records/`：已迁移台账的现行状态、历史记录与审计留痕落点
 - `docs/chancellor-mode/v2/`：历史外部模式方案与产品叙事材料
 - `docs/30-方案/04-V4-repo-hygiene-migration-plan.md`：仓库卫生迁移计划，属于治理方案，不是协议真源
 - `docs/30-方案/06-V4-ledger-compat-index-spec.md`：台账兼容索引设计说明，不替代 `08-V4-ledger-index-manifest.json`

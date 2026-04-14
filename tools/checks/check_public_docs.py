@@ -324,6 +324,7 @@ REQUIRED_MARKERS = {
         "docs/chancellor-mode/v2/",
         "selfcheck.py",
         "tests/contracts/",
+        "已迁移台账的现行状态、历史记录与审计留痕落点",
     ],
     REFERENCE_HYGIENE_FILE: [
         "先分类,再落盘",
@@ -484,6 +485,9 @@ FORBIDDEN_MARKERS = {
     MVP_PROGRESS_FILE: [
         "`MVP_PROGRESS.md`、`PUSH_LOG.md` 已接入公开文档检查",
         "提交/归档顺序、批次清单与收口表统一以 `PUSH_LOG.md` 为准，本表不再重复展开提交层细节",
+    ],
+    DOCS_README_FILE: [
+        "旧 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的归档落点",
     ],
 }
 

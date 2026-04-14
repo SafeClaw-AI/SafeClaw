@@ -11,3 +11,4 @@
 - 将 `README.md` 改为只指向 `VERSION`，并让 `check_public_docs.py` fail-closed 拦截动态协议版本硬编码
 - 将 `check_versions.py` 收回到 `VERSION` / specs / ledger manifest 的机读一致性校验，不再要求 README 回填版本字面值
 - 为根级 SSOT 五件套增加职责分离 fail-closed 门禁，防止 README / STATUS / CHANGELOG / DECISIONS / ARCHITECTURE 串层
+- 纠正 `docs/README.md` 对 `docs/records/` 的角色表述，并让 `check_public_docs.py` fail-closed 拦截“纯归档落点”旧口径
