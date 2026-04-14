@@ -487,6 +487,66 @@ FORBIDDEN_MARKERS = {
     ],
 }
 
+ROOT_SSOT_ROLE_FORBIDDEN_MARKERS = {
+    README_FILE: [
+        "## 本周进度",
+        "## 当前风险",
+        "## 当前瓶颈",
+        "## 下周计划",
+    ],
+    STATUS_FILE: [
+        "## 模块划分",
+        "## 依赖关系",
+        "## 不变量（必须长期成立）",
+        "## 关键设计原则",
+    ],
+    CHANGELOG_FILE: [
+        "## 本周进度",
+        "## 当前风险",
+        "## 当前瓶颈",
+        "## 下周计划",
+    ],
+    DECISIONS_FILE: [
+        "## 本周进度",
+        "## 当前风险",
+        "## 当前瓶颈",
+        "## 下周计划",
+    ],
+    ROOT_ARCHITECTURE_FILE: [
+        "## 本周进度",
+        "## 当前风险",
+        "## 当前瓶颈",
+        "## 下周计划",
+        "## 更新日志",
+    ],
+}
+
+
+def collect_root_ssot_role_errors(
+    file_overrides: dict[Path, Path] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+
+    for logical_path, forbidden_markers in ROOT_SSOT_ROLE_FORBIDDEN_MARKERS.items():
+        current_path = (
+            file_overrides.get(logical_path, logical_path)
+            if file_overrides is not None
+            else logical_path
+        )
+        if not current_path.exists():
+            continue
+
+        text = current_path.read_text(encoding="utf-8")
+        logical_display = logical_path.relative_to(REPO_ROOT).as_posix()
+        for marker in forbidden_markers:
+            if marker in text:
+                errors.append(
+                    f"根级 SSOT 文档职责串层: {logical_display} -> {marker}"
+                )
+
+    return errors
+
+
 def collect_reference_rebaseline_errors() -> list[str]:
     if not REFERENCE_REBASELINE_FILE.exists():
         return [f"缺少公开文档: {REFERENCE_REBASELINE_FILE.relative_to(REPO_ROOT).as_posix()}"]
@@ -533,6 +593,7 @@ def collect_errors() -> list[str]:
                 )
 
     errors.extend(collect_reference_rebaseline_errors())
+    errors.extend(collect_root_ssot_role_errors())
     errors.extend(collect_ledger_errors())
 
     return errors

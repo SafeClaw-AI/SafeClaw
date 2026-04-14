@@ -10,3 +10,4 @@
 - 将 `docs/records/` 现行台账改写为 canonical 路径表述，并让 `check_public_docs.py` fail-closed 拦截旧根路径协作口径
 - 将 `README.md` 改为只指向 `VERSION`，并让 `check_public_docs.py` fail-closed 拦截动态协议版本硬编码
 - 将 `check_versions.py` 收回到 `VERSION` / specs / ledger manifest 的机读一致性校验，不再要求 README 回填版本字面值
+- 为根级 SSOT 五件套增加职责分离 fail-closed 门禁，防止 README / STATUS / CHANGELOG / DECISIONS / ARCHITECTURE 串层

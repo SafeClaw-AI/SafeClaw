@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from tests.contracts import REPO_ROOT
 from tools.checks.check_public_docs import (
@@ -30,10 +31,12 @@ from tools.checks.check_public_docs import (
     README_FILE,
     REFERENCE_HYGIENE_FILE,
     ROOT_ARCHITECTURE_FILE,
+    ROOT_SSOT_ROLE_FORBIDDEN_MARKERS,
     REQUIRED_MARKERS,
     STATUS_FILE,
     collect_errors,
     collect_reference_rebaseline_errors,
+    collect_root_ssot_role_errors,
 )
 
 
@@ -141,6 +144,69 @@ class PublicDocsCheckTest(unittest.TestCase):
             with self.subTest(doc=doc_file.relative_to(REPO_ROOT).as_posix()):
                 self.assertIn(doc_file, FORBIDDEN_MARKERS)
                 self.assertEqual(FORBIDDEN_MARKERS[doc_file], forbidden_markers)
+
+    def test_root_ssot_suite_forbids_cross_role_sections(self) -> None:
+        expected_entries = {
+            README_FILE: [
+                "## 本周进度",
+                "## 当前风险",
+                "## 当前瓶颈",
+                "## 下周计划",
+            ],
+            STATUS_FILE: [
+                "## 模块划分",
+                "## 依赖关系",
+                "## 不变量（必须长期成立）",
+                "## 关键设计原则",
+            ],
+            CHANGELOG_FILE: [
+                "## 本周进度",
+                "## 当前风险",
+                "## 当前瓶颈",
+                "## 下周计划",
+            ],
+            DECISIONS_FILE: [
+                "## 本周进度",
+                "## 当前风险",
+                "## 当前瓶颈",
+                "## 下周计划",
+            ],
+            ROOT_ARCHITECTURE_FILE: [
+                "## 本周进度",
+                "## 当前风险",
+                "## 当前瓶颈",
+                "## 下周计划",
+                "## 更新日志",
+            ],
+        }
+        for doc_file, forbidden_markers in expected_entries.items():
+            with self.subTest(doc=doc_file.relative_to(REPO_ROOT).as_posix()):
+                self.assertIn(doc_file, ROOT_SSOT_ROLE_FORBIDDEN_MARKERS)
+                self.assertEqual(ROOT_SSOT_ROLE_FORBIDDEN_MARKERS[doc_file], forbidden_markers)
+
+    def test_collect_root_ssot_role_errors_rejects_cross_role_marker(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            for source_file in ROOT_SSOT_ROLE_FORBIDDEN_MARKERS:
+                temp_path = temp_root / source_file.name
+                temp_path.write_text("# placeholder\n", encoding="utf-8")
+
+            readme_path = temp_root / README_FILE.name
+            readme_path.write_text("# SafeClaw\n\n## 本周进度\n", encoding="utf-8")
+
+            errors = collect_root_ssot_role_errors(
+                {
+                    README_FILE: readme_path,
+                    STATUS_FILE: temp_root / STATUS_FILE.name,
+                    CHANGELOG_FILE: temp_root / CHANGELOG_FILE.name,
+                    DECISIONS_FILE: temp_root / DECISIONS_FILE.name,
+                    ROOT_ARCHITECTURE_FILE: temp_root / ROOT_ARCHITECTURE_FILE.name,
+                }
+            )
+
+        self.assertTrue(
+            any("README.md" in item and "## 本周进度" in item for item in errors)
+        )
 
     def test_chancellor_entry_baseline_is_guarded_by_public_docs_check(self) -> None:
         expected_markers = [
