@@ -121,15 +121,23 @@ SafeClaw 采用双层文档结构：
 
 ```
 版本：3.2.0
-阶段：Phase 0 — 协议真源闭环 + Win11 本地 MVP 已可手用
-重点：本地 MVP 操作链 + 个人生产位小面板 + `archive-note -> status -> undo`
+阶段：Phase 0 — 协议真源闭环 + Win11 本地 MVP 已可手用 ✅
+重点：本地 MVP 操作链 + 个人生产位 Python/Tkinter 小面板 + `archive-note -> status -> undo`
 可体验路径：仓库维护入口（`tools/mvp/`）+ 个人生产位入口（`%USERPROFILE%\.safeclaw-personal-production\`）
+
+实现进度：
+- ✅ 协议层 specs 已对齐 v3.2（effect_ledger、worker_lifecycle、task_concurrency）
+- ✅ 合同测试框架已搭建，smoke test 已重构（快照恢复机制）
+- ✅ 四阶段/探针/fencing/reconcile 合同夹具的第一轮确定性对齐已完成
+- ✅ Rust 核心（safeclaw-core）单 worker 闭环已跑通
+- ✅ 个人生产位 Python/Tkinter 小面板已部署，支持 archive-note / status / undo
+- ⚠️ 当前治理门禁仍有收口项，主要剩公开文档对齐与结构性债务台账漂移
 ```
 
 SafeClaw 还在很早期。  
 很多功能还没有，很多体验还会粗糙。
 
-**如果你不懂代码：** 现在已经有一层给主人自用的本地中文小面板，但还不是对外开箱即用的完整产品；如果你只是想自己先试，请直接走下方“当前可手动体验的本地 MVP”里的个人生产位入口。
+**如果你不懂代码：** 现在已经有一层给主人自用的本地中文小面板，当前通过 `.cmd/.ps1` launcher 启动 Python/Tkinter 面板；它不是 Tauri/React 图形界面，也还不是对外开箱即用的完整产品。如果你只是想自己先试，请直接走下方“当前可手动体验的本地 MVP”里的个人生产位入口。
 **如果你是开发者：** 欢迎来看我们的协议层，提 Issue、挑毛病、贡献代码都欢迎。
 
 但方向不会变：  
@@ -137,14 +145,24 @@ SafeClaw 还在很早期。
 
 我们慢慢来，但会认真做。
 
+当前仓库已经把脚手架治理与确定性合同假失败压下去；剩余工作集中在治理文档与结构性债务基线，不影响你理解 MVP 主路径，但会继续影响门禁全绿。
+
+### 版本说明
+
+- 根目录 `VERSION` 里的当前版本号（当前为 `3.2.0`）是公开协议版本，`specs/` 与公开合同测试按这一层对齐。
+- `safeclaw-core` / `safeclaw-sqlite` 的 `Cargo.toml` 当前仍是 `0.1.0`，这表示 Rust crate 迭代号，不等同于对外协议版本。
+- 当前仓库对外先以协议版本沟通；crate 版本主要服务内部 Rust 包演进，现阶段不要求与协议版本强行同步。
+
 
 ## 当前可手动体验的本地 MVP
 
 下面只列当前已经能实际进入的本地入口。
-在当前 Windows GNU 开发环境下，仓库主人已经可以用 **小面板 + 生产位** 跑最小闭环。
+在当前 Windows GNU 开发环境下，仓库主人已经可以用 **Python/Tkinter 小面板 + 生产位** 跑最小闭环。
 
 - 主人自用入口：先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，优先使用 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal-panel.ps1`；CLI 备份入口仍保留 `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.cmd` / `%USERPROFILE%\.safeclaw-personal-production\safeclaw-personal.ps1`
 - 维护层入口：统一从 `safeclaw.cmd` / `safeclaw.ps1` / `tools/mvp/safeclaw_mvp.cmd` 进入；本机日用白名单看 `tools/mvp/OPERATOR_PLAYBOOK.md`，完整命令参考看 `tools/mvp/README.md`
+
+这里的 `safeclaw-personal-panel.*` 是启动个人 Python/Tkinter 小面板的 launcher；同时保留 CLI 备份入口。
 
 ### 最短上手路径
 
@@ -203,18 +221,20 @@ safeclaw.cmd verify --json
 - 这是 **MVP-first** 路线，不是最终产品形态
 - 当前更像单 worker 的本地治理操作台，不是完整多用户系统
 - 当前最适合开发者或愿意手动执行命令的早期体验者
-- 当前已经能手动跑通正常执行、失败重试、不确定恢复与环境自检，但还没有正式 GUI、安装器与长期稳定分发入口
+- README 中提到的 Tauri + React 与 Python sidecar 目前仍是目标架构，不是当前 MVP 已交付实现
+- 当前已经能手动跑通正常执行、失败重试、不确定恢复与环境自检，但还没有正式的 Tauri/React GUI、安装器与长期稳定分发入口
 ---
 
 ## 技术栈
 
 > 给想了解技术细节的朋友。
 
-| 层 | 技术 | 为什么选它 |
-|----|------|-----------|
-| 核心引擎 | Rust | 内存安全，不容易崩 |
-| 界面 | Tauri 2.x + React | 体积小，跨平台 |
-| AI 调用 | Python sidecar | AI 生态几乎都在 Python |
+| 层 | 当前状态 / 技术 | 说明 |
+|----|-----------------|------|
+| 核心引擎 | Rust | 当前已实现的运行时主干 |
+| 当前入口 | `.cmd` / `.ps1` launcher + Python/Tkinter 小面板 + Rust CLI | 当前已交付的是轻量本地小面板与 CLI 备份入口 |
+| 规划界面 | Tauri 2.x + React | 这是目标方向，当前仓库尚未实现 GUI |
+| 规划 AI 调用 | Python sidecar | 这是目标方向，当前 local-only MVP 仍未接通 provider / sidecar |
 | 数据 | SQLite | 单文件、零依赖、你能直接打开看 |
 | 契约真源 | specs/ (JSON Schema) | 所有代码从这里生成，不会走偏 |
 
@@ -252,7 +272,9 @@ SafeClaw is an early automation system aimed at ordinary users, not just develop
 Its core idea is simple:
 **automation should stay understandable, controllable, and recoverable.**
 
-The public repo is still protocol-first. There is already an owner-only Chinese local small panel and personal production slot on Win11, but it is not yet a public turnkey product. The current local MVP operator path lives under `tools/mvp/`.
+The public repo is still protocol-first. There is already an owner-only Chinese local small panel backed by Python/Tkinter plus a personal production slot on Win11, but it is not yet the planned Tauri/React desktop app or a public turnkey product. The current local MVP operator path lives under `tools/mvp/`.
+
+The root `VERSION` file tracks the public protocol version. The Rust crates keep separate crate versions for internal package iteration, so those numbers are not expected to match the public protocol version one-to-one.
 
 SafeClaw still tries to keep a few rules stable:
 

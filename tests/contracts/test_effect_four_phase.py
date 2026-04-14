@@ -40,9 +40,12 @@ class EffectFourPhaseProtocolTest(unittest.TestCase):
                 status TEXT NOT NULL,
                 probe_mode TEXT DEFAULT 'auto',
                 probe_state TEXT,
+                compensates_effect_id TEXT,
                 schema_version TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                UNIQUE(task_id, intent_key),
+                FOREIGN KEY (compensates_effect_id) REFERENCES effects(effect_id)
             );
 
             CREATE TABLE effect_transitions (
@@ -110,6 +113,11 @@ class EffectFourPhaseProtocolTest(unittest.TestCase):
         effect_id = "effect-001"
         self._insert_effect(effect_id, "prepared")
         self._add_transition(effect_id, "prepared", "dispatched", "orchestrator")
+        self.conn.execute(
+            "UPDATE effects SET status = 'dispatched', updated_at = datetime('now') WHERE effect_id = ?",
+            (effect_id,),
+        )
+        self.conn.commit()
         self._add_attempt(effect_id, 1)
 
         # 验证状态变更
@@ -137,6 +145,11 @@ class EffectFourPhaseProtocolTest(unittest.TestCase):
         effect_id = "effect-002"
         self._insert_effect(effect_id, "dispatched")
         self._add_transition(effect_id, "dispatched", "executed", "worker")
+        self.conn.execute(
+            "UPDATE effects SET status = 'executed', updated_at = datetime('now') WHERE effect_id = ?",
+            (effect_id,),
+        )
+        self.conn.commit()
 
         row = self.conn.execute("SELECT status FROM effects WHERE effect_id = ?", (effect_id,)).fetchone()
         self.assertEqual(row[0], "executed")
@@ -152,6 +165,11 @@ class EffectFourPhaseProtocolTest(unittest.TestCase):
         effect_id = "effect-003"
         self._insert_effect(effect_id, "executed")
         self._add_transition(effect_id, "executed", "committing", "state_engine")
+        self.conn.execute(
+            "UPDATE effects SET status = 'committing', updated_at = datetime('now') WHERE effect_id = ?",
+            (effect_id,),
+        )
+        self.conn.commit()
 
         row = self.conn.execute("SELECT status FROM effects WHERE effect_id = ?", (effect_id,)).fetchone()
         self.assertEqual(row[0], "committing")

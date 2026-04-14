@@ -259,8 +259,11 @@ class ExecutedAssumedReconcileContractsTest(unittest.TestCase):
                 allocated INTEGER NOT NULL,
                 refunded INTEGER DEFAULT 0
             );
-            INSERT INTO budget (task_id, allocated) VALUES (?, ?);
-        """, (task_id, preallocated_amount))
+        """)
+        self.conn.execute(
+            "INSERT INTO budget (task_id, allocated) VALUES (?, ?)",
+            (task_id, preallocated_amount),
+        )
 
         # reconcile_failure: 退回预扣金额
         self.conn.execute("UPDATE budget SET refunded = allocated WHERE task_id = ?", (task_id,))

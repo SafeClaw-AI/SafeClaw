@@ -227,7 +227,7 @@ class ProbeContractsTest(unittest.TestCase):
             self.assertTrue(pf.exists(), f"Probe spec missing: {pf}")
 
     def test_probe_spec_valid_json(self) -> None:
-        """测试: probe spec 是有效 JSON"""
+        """测试: probe spec 是有效 JSON 且字段形状与当前真源一致"""
         from pathlib import Path
         import json
         repo_root = Path(__file__).parent.parent.parent
@@ -241,8 +241,9 @@ class ProbeContractsTest(unittest.TestCase):
             with open(spec_path, "r", encoding="utf-8") as f:
                 try:
                     data = json.load(f)
-                    self.assertIn("probe_type", data)
-                    self.assertIn("target_pattern", data)
+                    self.assertIn("action", data)
+                    self.assertIn("probe_spec", data)
+                    self.assertIn("probe_receipt", data)
                 except json.JSONDecodeError as e:
                     self.fail(f"Invalid JSON in {spec_path}: {e}")
 
