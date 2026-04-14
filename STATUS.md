@@ -12,6 +12,7 @@
 - [x] `docs/DEVLOG.md` 已改写为“稳定入口 + L0 真源 + 门禁链”口径，并接入 fail-closed 护栏
 - [x] `docs/IMPLEMENTATION_STRATEGY.md` 已改写为“稳定入口 + L0 真源 + 门禁链”口径，并接入 fail-closed 护栏
 - [x] `docs/V1_TASK_TRIAGE.md` 已改写为“稳定入口 + L0 真源 + 门禁链”口径，并接入 fail-closed 护栏
+- [x] `safeclaw-core/README.md` 已改写为稳定 L2 模块入口，并接入 fail-closed 护栏
 - [x] `docs/30-方案/02-V4-目录锁定清单.md` 与公开文档门禁已同步到新文档结构
 - [x] 根级 SSOT 五件套职责分离已接入 `check_public_docs.py` fail-closed 门禁
 - [x] `python tools/checks/selfcheck.py` 已通过，本轮总验包含 946 项合同测试

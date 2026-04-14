@@ -46,6 +46,7 @@ TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
 OPERATOR_PLAYBOOK_FILE = REPO_ROOT / "tools" / "mvp" / "OPERATOR_PLAYBOOK.md"
 MVP_README_FILE = REPO_ROOT / "tools" / "mvp" / "README.md"
 LINT_README_FILE = REPO_ROOT / "tools" / "lint" / "README.md"
+SAFECLAW_CORE_README_FILE = REPO_ROOT / "safeclaw-core" / "README.md"
 VERSION_FILE = REPO_ROOT / "VERSION"
 BOUNDARY_NOTE_TITLE = "当前边界说明（2026-04-04）"
 BOUNDARY_NOTE_DECISION = "SafeClaw 当前不单独开发丞相模式/大都督模式等外部解释层功能。"
@@ -511,6 +512,25 @@ REQUIRED_MARKERS = {
         "check_public_docs.py",
         "Contract tests",
     ],
+    SAFECLAW_CORE_README_FILE: [
+        "L2 模块入口",
+        "README.md",
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
+        "specs/",
+        "docs/reference/",
+        "08-V4-ledger-index-manifest.json",
+        "generated/rust/",
+        "safeclaw-core/ARCHITECTURE.md",
+        "safeclaw-core/tests/protocol_contracts.rs",
+        "docs/IMPLEMENTATION_STRATEGY.md",
+        "selfcheck.py",
+        "safeclaw-sqlite/",
+    ],
 }
 
 FORBIDDEN_MARKERS = {
@@ -548,6 +568,11 @@ FORBIDDEN_MARKERS = {
     ],
     IMPLEMENTATION_STRATEGY_FILE: [
         "任何后续实现，优先保证与 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 一致。",
+    ],
+    SAFECLAW_CORE_README_FILE: [
+        "SafeClaw 的 Rust Core 最小脚手架。",
+        "当前目标：",
+        "## 当前骨架内容",
     ],
     DECISIONS_FILE: [
         "决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单，不由根级说明文档反向定义字段。",

@@ -33,6 +33,7 @@ from tools.checks.check_public_docs import (
     ROOT_ARCHITECTURE_FILE,
     ROOT_SSOT_ROLE_FORBIDDEN_MARKERS,
     REQUIRED_MARKERS,
+    SAFECLAW_CORE_README_FILE,
     STATUS_FILE,
     collect_errors,
     collect_reference_rebaseline_errors,
@@ -595,6 +596,39 @@ class PublicDocsCheckTest(unittest.TestCase):
             ],
         }
         self._assert_required_markers(expected_entries, label="readme")
+
+    def test_safeclaw_core_readme_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            SAFECLAW_CORE_README_FILE: [
+                "L2 模块入口",
+                "README.md",
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "specs/",
+                "docs/reference/",
+                "08-V4-ledger-index-manifest.json",
+                "generated/rust/",
+                "safeclaw-core/ARCHITECTURE.md",
+                "safeclaw-core/tests/protocol_contracts.rs",
+                "docs/IMPLEMENTATION_STRATEGY.md",
+                "selfcheck.py",
+                "safeclaw-sqlite/",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_safeclaw_core_readme_forbids_stale_scaffold_wording(self) -> None:
+        expected_markers = [
+            "SafeClaw 的 Rust Core 最小脚手架。",
+            "当前目标：",
+            "## 当前骨架内容",
+        ]
+        self.assertIn(SAFECLAW_CORE_README_FILE, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[SAFECLAW_CORE_README_FILE], expected_markers)
 
     def test_reference_rebaseline_doc_passes_current_baseline(self) -> None:
         self.assertEqual(collect_reference_rebaseline_errors(), [])
