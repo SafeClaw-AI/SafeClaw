@@ -45,7 +45,10 @@ class ReferenceGovernanceTest(unittest.TestCase):
         )
 
     def test_structural_governance_passes_current_baseline(self) -> None:
-        self.assertEqual(collect_structural_governance_errors(), [])
+        self.assertEqual(
+            collect_structural_governance_errors(today=date(2026, 4, 14)),
+            [],
+        )
 
     def test_structural_governance_requires_ledger_for_new_function_size_violation(self) -> None:
         thresholds = GovernanceThresholds(
@@ -177,3 +180,48 @@ class ReferenceGovernanceTest(unittest.TestCase):
             errors,
             ["结构性债务台账未清零: src/clean.py -> 圈复杂度"],
         )
+
+    def test_structural_governance_ignores_runtime_and_archive_dirs(self) -> None:
+        thresholds = GovernanceThresholds(
+            function_nonempty_lines_limit=2,
+            file_nonempty_lines_limit=999,
+            test_file_nonempty_lines_limit=999,
+            cyclomatic_complexity_limit=99,
+            core_business_cyclomatic_complexity_limit=99,
+        )
+        ledger = StructuralDebtLedger(core_business_paths=(), entries=())
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            clean_file = repo_root / "src" / "clean.py"
+            clean_file.parent.mkdir(parents=True, exist_ok=True)
+            clean_file.write_text("def clean():\n    return 1\n", encoding="utf-8")
+
+            ignored_target_file = repo_root / "target" / "ignored.py"
+            ignored_target_file.parent.mkdir(parents=True, exist_ok=True)
+            ignored_target_file.write_text(
+                "def ignored_target():\n"
+                "    value = 1\n"
+                "    value += 1\n"
+                "    return value\n",
+                encoding="utf-8",
+            )
+
+            ignored_archive_file = repo_root / "temp" / "parked-root" / "ignored.py"
+            ignored_archive_file.parent.mkdir(parents=True, exist_ok=True)
+            ignored_archive_file.write_text(
+                "def ignored_archive():\n"
+                "    value = 1\n"
+                "    value += 1\n"
+                "    return value\n",
+                encoding="utf-8",
+            )
+
+            errors = collect_structural_governance_errors(
+                repo_root=repo_root,
+                thresholds=thresholds,
+                structural_debt_ledger=ledger,
+                today=date(2026, 4, 14),
+            )
+
+        self.assertEqual(errors, [])

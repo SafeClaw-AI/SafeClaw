@@ -131,3 +131,29 @@ class ReferenceBypassGovernanceTest(unittest.TestCase):
                 module.REPO_ROOT = original_repo_root
 
         self.assertEqual(occurrences, ())
+
+    def test_bypass_scan_ignores_runtime_and_archive_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            source_file = repo_root / "pkg" / "clean.py"
+            source_file.parent.mkdir(parents=True, exist_ok=True)
+            source_file.write_text("VALUE = 1\n", encoding="utf-8")
+
+            target_file = repo_root / "target" / "ignored.py"
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+            target_file.write_text("from sample import value  # noqa: E402\n", encoding="utf-8")
+
+            archived_file = repo_root / "temp" / "parked-root" / "ignored.py"
+            archived_file.parent.mkdir(parents=True, exist_ok=True)
+            archived_file.write_text("from sample import value  # noqa: E402\n", encoding="utf-8")
+
+            from tools.checks import reference_bypass_governance as module
+
+            original_repo_root = module.REPO_ROOT
+            try:
+                module.REPO_ROOT = repo_root
+                occurrences = collect_observed_bypass_occurrences()
+            finally:
+                module.REPO_ROOT = original_repo_root
+
+        self.assertEqual(occurrences, ())

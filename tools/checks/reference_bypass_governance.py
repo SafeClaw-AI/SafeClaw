@@ -6,6 +6,8 @@ import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
+from tools.checks.file_scan import iter_repo_files
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REFERENCE_BYPASS_WHITELIST_FILE = REPO_ROOT / "docs" / "reference" / "03-绕过白名单.md"
 
@@ -42,6 +44,7 @@ IGNORED_DIR_NAMES = {
     ".ruff_cache",
     ".serena",
     "__pycache__",
+    "temp",
     "target",
     "tmp",
 }
@@ -196,17 +199,7 @@ def load_bypass_whitelist(
 
 
 def _iter_governed_files() -> list[Path]:
-    paths: list[Path] = []
-    for path in REPO_ROOT.rglob("*"):
-        if not path.is_file():
-            continue
-        rel_parts = path.relative_to(REPO_ROOT).parts
-        if any(part in IGNORED_DIR_NAMES for part in rel_parts):
-            continue
-        if path.suffix.lower() not in SCAN_SUFFIXES:
-            continue
-        paths.append(path)
-    return sorted(paths)
+    return iter_repo_files(REPO_ROOT, SCAN_SUFFIXES, IGNORED_DIR_NAMES)
 
 
 def _is_test_file(relpath: str) -> bool:

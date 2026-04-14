@@ -16,8 +16,10 @@ from tools.checks.check_public_docs import (
     BATCH_THREE_PRE_SUBMIT_CHECKLIST_TITLE,
     CURRENT_SUBMISSION_CLOSEOUT_TABLE_TITLE,
     CURRENT_SUBMISSION_READINESS_TABLE_TITLE,
+    CHANGELOG_FILE,
     CHANCELLOR_ENTRY_BASELINE_FILE,
     CHANCELLOR_PRODUCT_REBASELINE_FILE,
+    DECISIONS_FILE,
     DEV_PLAN_FILE,
     LINT_README_FILE,
     MVP_PROGRESS_FILE,
@@ -26,13 +28,25 @@ from tools.checks.check_public_docs import (
     PUSH_LOG_FILE,
     README_FILE,
     REFERENCE_HYGIENE_FILE,
+    ROOT_ARCHITECTURE_FILE,
     REQUIRED_MARKERS,
+    STATUS_FILE,
     collect_errors,
     collect_reference_rebaseline_errors,
 )
 
 
 class PublicDocsCheckTest(unittest.TestCase):
+    def _assert_required_markers(
+        self,
+        expected_entries: dict[Path, list[str]],
+        label: str,
+    ) -> None:
+        for doc_file, expected_markers in expected_entries.items():
+            with self.subTest(**{label: doc_file.relative_to(REPO_ROOT).as_posix()}):
+                self.assertIn(doc_file, REQUIRED_MARKERS)
+                self.assertEqual(REQUIRED_MARKERS[doc_file], expected_markers)
+
     def test_boundary_note_files_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             DEV_PLAN_FILE: [
@@ -100,10 +114,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             ],
         }
 
-        for doc_file, expected_markers in expected_entries.items():
-            with self.subTest(doc=doc_file.relative_to(REPO_ROOT).as_posix()):
-                self.assertIn(doc_file, REQUIRED_MARKERS)
-                self.assertEqual(REQUIRED_MARKERS[doc_file], expected_markers)
+        self._assert_required_markers(expected_entries, label="doc")
 
     def test_chancellor_entry_baseline_is_guarded_by_public_docs_check(self) -> None:
         expected_markers = [
@@ -159,61 +170,107 @@ class PublicDocsCheckTest(unittest.TestCase):
         self.assertIn(CHANCELLOR_PRODUCT_REBASELINE_FILE, REQUIRED_MARKERS)
         self.assertEqual(REQUIRED_MARKERS[CHANCELLOR_PRODUCT_REBASELINE_FILE], expected_markers)
 
-    def test_newly_added_public_readmes_are_guarded_by_public_docs_check(self) -> None:
+    def test_root_readme_is_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             README_FILE: [
                 "specs/",
                 "tests/contracts/",
                 "tools/checks/",
                 "tools/mvp/OPERATOR_PLAYBOOK.md",
-                "workspace --name demo",
-                "service-run --reset --task-id task-demo --limit 1 --report",
-                "service-status --limit 5",
-                "verify --json",
                 "local-only",
-                "preflight --action ai-reason",
-                "0.1.1",
-                "OpenClaw",
+                "STATUS.md",
+                "CHANGELOG.md",
+                "DECISIONS.md",
+                "ARCHITECTURE.md",
+                "Python/Tkinter",
+                "Tauri + React",
+                "protocol-first",
+                "模型路由矩阵（稳定边界）",
+                "高层路线图",
+                "成功指标",
                 "English Summary",
-                "The root `VERSION` file tracks the public protocol version",
-                "The Rust crates keep separate crate versions",
-                "已经有一层给主人自用的本地中文小面板",
-                "Python/Tkinter 面板",
-                "不是 Tauri/React 图形界面",
-                "还不是对外开箱即用的完整产品",
-                "根目录 `VERSION` 里的当前版本号",
-                "Rust crate 迭代号，不等同于对外协议版本",
-                "当前可手动体验的本地 MVP",
-                "Win11 本地 MVP 已可手用",
-                "Python/Tkinter 小面板 + 生产位",
-                "archive-note -> status -> undo",
+                "The current stable operator path is still local-only",
             ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_docs_readme_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
             REPO_ROOT / "docs" / "README.md": [
-                BOUNDARY_NOTE_TITLE,
-                BOUNDARY_NOTE_DECISION,
-                BOUNDARY_NOTE_FUSION,
+                "README.md",
+                "STATUS.md",
+                "CHANGELOG.md",
+                "DECISIONS.md",
+                "ARCHITECTURE.md",
+                "safeclaw-core/ARCHITECTURE.md",
+                "L0",
+                "L1",
+                "L2",
+                "L3",
                 "DEVLOG.md",
                 "V1_SCOPE.md",
                 "V1_TASK_TRIAGE.md",
                 "02-V4-目录锁定清单.md",
-                "04-V4-repo-hygiene-migration-plan.md",
-                "06-V4-ledger-compat-index-spec.md",
                 "08-V4-ledger-index-manifest.json",
-                "20-V4-reference-compliance-rebaseline-record-20260329_030242.md",
+                "generated/index.json",
+                "docs/records/",
                 "docs/chancellor-mode/v2/",
-                "01-m1b-exit-and-m2-panel-entry.md",
-                "02-m2-panel-command-truth-source.md",
-                "03-m2-product-value-rebaseline.md",
                 "selfcheck.py",
-                "ledger_index_manifest.py",
-                "check_ledger_alignment.py",
-                "check_consistency.py",
-                "check_versions.py",
-                "check_structure.py",
-                "check_scaffold.py",
-                "check_public_docs.py",
                 "tests/contracts/",
             ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_root_ssot_suite_files_are_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            STATUS_FILE: [
+                "当前状态（滚动更新）",
+                "本周进度",
+                "当前风险",
+                "当前瓶颈",
+                "下周计划",
+                "README 主线",
+                "specs/` → `tests/contracts/` → implementation",
+                "local-only",
+            ],
+            CHANGELOG_FILE: [
+                "更新日志",
+                "SSOT 五件套",
+                "README.md",
+                "STATUS.md",
+                "DECISIONS.md",
+                "ARCHITECTURE.md",
+                "check_public_docs.py",
+            ],
+            DECISIONS_FILE: [
+                "架构与流程决策记录",
+                "README.md",
+                "STATUS.md",
+                "CHANGELOG.md",
+                "DECISIONS.md",
+                "ARCHITECTURE.md",
+                "specs/",
+                "docs/reference/",
+                "开发计划.md",
+                "PUSH_LOG.md",
+            ],
+            ROOT_ARCHITECTURE_FILE: [
+                "系统架构真源",
+                "模块划分",
+                "依赖关系",
+                "不变量",
+                "关键设计原则",
+                "safeclaw-core/",
+                "safeclaw-sqlite/",
+                "tools/checks/",
+                "tools/mvp/",
+                "specs/",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="doc")
+
+    def test_operator_and_tooling_readmes_are_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
             MVP_README_FILE: [
                 "tools/mvp/README.md",
                 ".github/workflows/contracts.yml",
@@ -260,11 +317,7 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "Contract tests",
             ],
         }
-
-        for readme_file, expected_markers in expected_entries.items():
-            with self.subTest(readme=readme_file.relative_to(REPO_ROOT).as_posix()):
-                self.assertIn(readme_file, REQUIRED_MARKERS)
-                self.assertEqual(REQUIRED_MARKERS[readme_file], expected_markers)
+        self._assert_required_markers(expected_entries, label="readme")
 
     def test_reference_rebaseline_doc_passes_current_baseline(self) -> None:
         self.assertEqual(collect_reference_rebaseline_errors(), [])

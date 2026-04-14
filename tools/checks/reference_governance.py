@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from tools.checks.file_scan import iter_repo_files
+
 REFERENCE_STANDARD_FILE = REPO_ROOT / "docs" / "reference" / "01-反屎山工程规范.md"
 STRUCTURAL_DEBT_LEDGER_FILE = REPO_ROOT / "docs" / "reference" / "02-结构性债务台账.md"
 
@@ -43,6 +45,7 @@ IGNORED_DIR_NAMES = {
     ".ruff_cache",
     ".serena",
     "__pycache__",
+    "temp",
     "target",
     "tmp",
 }
@@ -271,17 +274,7 @@ def load_structural_debt_ledger(
 
 
 def _iter_governed_files(repo_root: Path, suffixes: set[str]) -> list[Path]:
-    paths: list[Path] = []
-    for path in repo_root.rglob("*"):
-        if not path.is_file():
-            continue
-        rel_parts = path.relative_to(repo_root).parts
-        if any(part in IGNORED_DIR_NAMES for part in rel_parts):
-            continue
-        if path.suffix.lower() not in suffixes:
-            continue
-        paths.append(path)
-    return sorted(paths)
+    return iter_repo_files(repo_root, suffixes, IGNORED_DIR_NAMES)
 
 
 def _count_nonempty_lines(text: str) -> int:
@@ -334,13 +327,19 @@ def _python_function_complexity(node: ast.AST) -> int:
     return score
 
 
-def collect_observed_structural_violations(
+def _new_function_stat() -> dict[str, int | str]:
+    return {"count": 0, "max_nonempty": 0, "max_symbol": "", "max_line": 0}
+
+
+def _new_complexity_stat() -> dict[str, int | str]:
+    return {"count": 0, "max_complexity": 0, "max_symbol": "", "max_line": 0, "limit": 0}
+
+
+def _collect_file_nonempty_violations(
     repo_root: Path,
     thresholds: GovernanceThresholds,
-    core_business_paths: tuple[str, ...],
-) -> tuple[dict[tuple[str, str], StructuralViolation], list[str]]:
+) -> dict[tuple[str, str], StructuralViolation]:
     violations: dict[tuple[str, str], StructuralViolation] = {}
-    errors: list[str] = []
 
     for path in _iter_governed_files(repo_root, GOVERNED_TEXT_SUFFIXES):
         relpath = path.relative_to(repo_root).as_posix()
@@ -351,23 +350,69 @@ def collect_observed_structural_violations(
             if _is_test_file(relpath)
             else thresholds.file_nonempty_lines_limit
         )
-        if nonempty > file_limit:
-            rule_key = FILE_NONEMPTY_LINES_RULE
-            current_value = _serialize_file_nonempty_current_value(nonempty, file_limit)
-            target_value = f"≤{file_limit}"
-            violations[(relpath, rule_key)] = StructuralViolation(
-                object_id=relpath,
-                rule_key=rule_key,
-                current_value=current_value,
-                target_value=target_value,
-            )
+        if nonempty <= file_limit:
+            continue
 
-    function_stats: dict[str, dict[str, int | str]] = defaultdict(
-        lambda: {"count": 0, "max_nonempty": 0, "max_symbol": "", "max_line": 0}
+        rule_key = FILE_NONEMPTY_LINES_RULE
+        violations[(relpath, rule_key)] = StructuralViolation(
+            object_id=relpath,
+            rule_key=rule_key,
+            current_value=_serialize_file_nonempty_current_value(nonempty, file_limit),
+            target_value=f"≤{file_limit}",
+        )
+
+    return violations
+
+
+def _record_function_nonempty_stat(
+    stats: dict[str, dict[str, int | str]],
+    relpath: str,
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    lines: list[str],
+    thresholds: GovernanceThresholds,
+) -> None:
+    function_lines = lines[node.lineno - 1 : getattr(node, "end_lineno", node.lineno)]
+    nonempty = sum(
+        1 for line in function_lines if line.strip() and not line.strip().startswith("#")
     )
-    complexity_stats: dict[str, dict[str, int | str]] = defaultdict(
-        lambda: {"count": 0, "max_complexity": 0, "max_symbol": "", "max_line": 0, "limit": 0}
-    )
+    if nonempty <= thresholds.function_nonempty_lines_limit:
+        return
+
+    entry = stats[relpath]
+    entry["count"] = int(entry["count"]) + 1
+    if nonempty > int(entry["max_nonempty"]):
+        entry["max_nonempty"] = nonempty
+        entry["max_symbol"] = node.name
+        entry["max_line"] = node.lineno
+
+
+def _record_complexity_stat(
+    stats: dict[str, dict[str, int | str]],
+    relpath: str,
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    complexity_limit: int,
+) -> None:
+    complexity = _python_function_complexity(node)
+    if complexity <= complexity_limit:
+        return
+
+    entry = stats[relpath]
+    entry["count"] = int(entry["count"]) + 1
+    entry["limit"] = complexity_limit
+    if complexity > int(entry["max_complexity"]):
+        entry["max_complexity"] = complexity
+        entry["max_symbol"] = node.name
+        entry["max_line"] = node.lineno
+
+
+def _collect_python_metric_stats(
+    repo_root: Path,
+    thresholds: GovernanceThresholds,
+    core_business_paths: tuple[str, ...],
+) -> tuple[dict[str, dict[str, int | str]], dict[str, dict[str, int | str]], list[str]]:
+    function_stats: dict[str, dict[str, int | str]] = defaultdict(_new_function_stat)
+    complexity_stats: dict[str, dict[str, int | str]] = defaultdict(_new_complexity_stat)
+    errors: list[str] = []
 
     for path in _iter_governed_files(repo_root, PYTHON_SCAN_SUFFIXES):
         relpath = path.relative_to(repo_root).as_posix()
@@ -388,28 +433,17 @@ def collect_observed_structural_violations(
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
+            _record_function_nonempty_stat(function_stats, relpath, node, lines, thresholds)
+            _record_complexity_stat(complexity_stats, relpath, node, complexity_limit)
 
-            function_lines = lines[node.lineno - 1 : getattr(node, "end_lineno", node.lineno)]
-            nonempty = sum(
-                1 for line in function_lines if line.strip() and not line.strip().startswith("#")
-            )
-            if nonempty > thresholds.function_nonempty_lines_limit:
-                entry = function_stats[relpath]
-                entry["count"] = int(entry["count"]) + 1
-                if nonempty > int(entry["max_nonempty"]):
-                    entry["max_nonempty"] = nonempty
-                    entry["max_symbol"] = node.name
-                    entry["max_line"] = node.lineno
+    return function_stats, complexity_stats, errors
 
-            complexity = _python_function_complexity(node)
-            if complexity > complexity_limit:
-                entry = complexity_stats[relpath]
-                entry["count"] = int(entry["count"]) + 1
-                entry["limit"] = complexity_limit
-                if complexity > int(entry["max_complexity"]):
-                    entry["max_complexity"] = complexity
-                    entry["max_symbol"] = node.name
-                    entry["max_line"] = node.lineno
+
+def _build_function_nonempty_violations(
+    function_stats: dict[str, dict[str, int | str]],
+    thresholds: GovernanceThresholds,
+) -> dict[tuple[str, str], StructuralViolation]:
+    violations: dict[tuple[str, str], StructuralViolation] = {}
 
     for relpath, entry in sorted(function_stats.items()):
         rule_key = FUNCTION_NONEMPTY_LINES_RULE
@@ -424,6 +458,14 @@ def collect_observed_structural_violations(
             ),
             target_value=f"≤{thresholds.function_nonempty_lines_limit}",
         )
+
+    return violations
+
+
+def _build_complexity_violations(
+    complexity_stats: dict[str, dict[str, int | str]],
+) -> dict[tuple[str, str], StructuralViolation]:
+    violations: dict[tuple[str, str], StructuralViolation] = {}
 
     for relpath, entry in sorted(complexity_stats.items()):
         rule_key = COMPLEXITY_RULE
@@ -440,7 +482,110 @@ def collect_observed_structural_violations(
             target_value=f"≤{int(entry['limit'])}",
         )
 
+    return violations
+
+
+def collect_observed_structural_violations(
+    repo_root: Path,
+    thresholds: GovernanceThresholds,
+    core_business_paths: tuple[str, ...],
+) -> tuple[dict[tuple[str, str], StructuralViolation], list[str]]:
+    violations = _collect_file_nonempty_violations(repo_root, thresholds)
+    function_stats, complexity_stats, errors = _collect_python_metric_stats(
+        repo_root,
+        thresholds,
+        core_business_paths,
+    )
+    violations.update(_build_function_nonempty_violations(function_stats, thresholds))
+    violations.update(_build_complexity_violations(complexity_stats))
     return violations, errors
+
+
+def _resolve_governance_inputs(
+    thresholds: GovernanceThresholds | None,
+    structural_debt_ledger: StructuralDebtLedger | None,
+) -> tuple[GovernanceThresholds, StructuralDebtLedger]:
+    active_thresholds = thresholds
+    if active_thresholds is None:
+        active_thresholds = load_reference_governance_thresholds()
+
+    active_ledger = structural_debt_ledger
+    if active_ledger is None:
+        active_ledger = load_structural_debt_ledger()
+
+    return active_thresholds, active_ledger
+
+
+def _build_unledgered_violation_error(violation: StructuralViolation) -> str:
+    rule_label = RULE_KEY_TO_LABEL[violation.rule_key]
+    return (
+        f"结构性债务未入账: {violation.object_id} -> {rule_label} "
+        f"({violation.current_value}，目标 {violation.target_value})"
+    )
+
+
+def _collect_entry_drift_errors(
+    violation: StructuralViolation,
+    entry: StructuralDebtEntry,
+    current_day: date,
+) -> list[str]:
+    rule_label = RULE_KEY_TO_LABEL[violation.rule_key]
+    errors: list[str] = []
+
+    if entry.current_value != violation.current_value:
+        errors.append(
+            f"结构性债务台账漂移: {violation.object_id} -> {rule_label} "
+            f"({entry.current_value} != {violation.current_value})"
+        )
+
+    if entry.target_value != violation.target_value:
+        errors.append(
+            f"结构性债务台账目标漂移: {violation.object_id} -> {rule_label} "
+            f"({entry.target_value} != {violation.target_value})"
+        )
+
+    if entry.due_date < current_day:
+        errors.append(
+            f"结构性债务已逾期: {violation.object_id} -> {rule_label} "
+            f"(due {entry.due_date.isoformat()})"
+        )
+
+    return errors
+
+
+def _collect_observed_violation_errors(
+    observed_violations: dict[tuple[str, str], StructuralViolation],
+    entry_map: dict[tuple[str, str], StructuralDebtEntry],
+    current_day: date,
+) -> list[str]:
+    errors: list[str] = []
+
+    for key in sorted(observed_violations):
+        violation = observed_violations[key]
+        entry = entry_map.get(key)
+        if entry is None:
+            errors.append(_build_unledgered_violation_error(violation))
+            continue
+        errors.extend(_collect_entry_drift_errors(violation, entry, current_day))
+
+    return errors
+
+
+def _collect_cleared_entry_errors(
+    observed_violations: dict[tuple[str, str], StructuralViolation],
+    entry_map: dict[tuple[str, str], StructuralDebtEntry],
+) -> list[str]:
+    errors: list[str] = []
+
+    for key in sorted(entry_map):
+        entry = entry_map[key]
+        if key in observed_violations:
+            continue
+        errors.append(
+            f"结构性债务台账未清零: {entry.object_id} -> {RULE_KEY_TO_LABEL[entry.rule_key]}"
+        )
+
+    return errors
 
 
 def collect_structural_governance_errors(
@@ -452,13 +597,9 @@ def collect_structural_governance_errors(
     errors: list[str] = []
 
     try:
-        active_thresholds = (
-            thresholds if thresholds is not None else load_reference_governance_thresholds()
-        )
-        active_ledger = (
-            structural_debt_ledger
-            if structural_debt_ledger is not None
-            else load_structural_debt_ledger()
+        active_thresholds, active_ledger = _resolve_governance_inputs(
+            thresholds,
+            structural_debt_ledger,
         )
     except (FileNotFoundError, ValueError) as error:
         return [f"治理真源解析失败: {error}"]
@@ -474,42 +615,9 @@ def collect_structural_governance_errors(
         (entry.object_id, entry.rule_key): entry for entry in active_ledger.entries
     }
     current_day = today or date.today()
-
-    for key in sorted(observed_violations):
-        violation = observed_violations[key]
-        entry = entry_map.get(key)
-        rule_label = RULE_KEY_TO_LABEL[violation.rule_key]
-        if entry is None:
-            errors.append(
-                f"结构性债务未入账: {violation.object_id} -> {rule_label} "
-                f"({violation.current_value}，目标 {violation.target_value})"
-            )
-            continue
-
-        if entry.current_value != violation.current_value:
-            errors.append(
-                f"结构性债务台账漂移: {violation.object_id} -> {rule_label} "
-                f"({entry.current_value} != {violation.current_value})"
-            )
-
-        if entry.target_value != violation.target_value:
-            errors.append(
-                f"结构性债务台账目标漂移: {violation.object_id} -> {rule_label} "
-                f"({entry.target_value} != {violation.target_value})"
-            )
-
-        if entry.due_date < current_day:
-            errors.append(
-                f"结构性债务已逾期: {violation.object_id} -> {rule_label} "
-                f"(due {entry.due_date.isoformat()})"
-            )
-
-    for key in sorted(entry_map):
-        entry = entry_map[key]
-        if key in observed_violations:
-            continue
-        errors.append(
-            f"结构性债务台账未清零: {entry.object_id} -> {RULE_KEY_TO_LABEL[entry.rule_key]}"
-        )
+    errors.extend(
+        _collect_observed_violation_errors(observed_violations, entry_map, current_day)
+    )
+    errors.extend(_collect_cleared_entry_errors(observed_violations, entry_map))
 
     return errors

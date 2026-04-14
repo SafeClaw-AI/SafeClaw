@@ -1,0 +1,8 @@
+# 更新日志
+
+## 2026-04-15
+
+- 引入根级 SSOT 五件套：`README.md`、`STATUS.md`、`CHANGELOG.md`、`DECISIONS.md`、`ARCHITECTURE.md`
+- 将 `README.md` 重写为稳定入口，把动态状态迁出到 `STATUS.md`
+- 将 `docs/README.md` 收敛为导航器，并同步文档四层结构
+- 同步 `docs/30-方案/02-V4-目录锁定清单.md` 与 `check_public_docs.py`，把新文档结构接入治理门禁
