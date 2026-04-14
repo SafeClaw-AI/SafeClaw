@@ -44,6 +44,7 @@ REFERENCE_REBASELINE_FILE = REPO_ROOT / "docs" / "30-方案" / "20-V4-reference-
 TOOLS_README_FILE = REPO_ROOT / "tools" / "README.md"
 CHECKS_README_FILE = REPO_ROOT / "tools" / "checks" / "README.md"
 TESTS_README_FILE = REPO_ROOT / "tests" / "README.md"
+FIXTURES_README_FILE = REPO_ROOT / "tests" / "fixtures" / "README.md"
 OPERATOR_PLAYBOOK_FILE = REPO_ROOT / "tools" / "mvp" / "OPERATOR_PLAYBOOK.md"
 MVP_README_FILE = REPO_ROOT / "tools" / "mvp" / "README.md"
 LINT_README_FILE = REPO_ROOT / "tools" / "lint" / "README.md"
@@ -500,6 +501,25 @@ REQUIRED_MARKERS = {
         "check_scaffold.py",
         "check_public_docs.py",
     ],
+    FIXTURES_README_FILE: [
+        "L2 夹具目录说明",
+        "README.md",
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
+        "specs/",
+        "docs/reference/",
+        "08-V4-ledger-index-manifest.json",
+        "simulation / chaos / replay",
+        "tests/contracts/",
+        "tests/README.md",
+        "tools/checks/",
+        "selfcheck.py",
+        "Contract tests",
+    ],
     OPERATOR_PLAYBOOK_FILE: [
         "README.md",
         "workspace --name demo",
@@ -604,6 +624,11 @@ FORBIDDEN_MARKERS = {
         "当前阶段仍是 Phase 0",
         "私有蓝图中对 Plugin Runner 的最小要求",
         "MVP 信任模型：`blake3` + `trusted_plugins/`",
+    ],
+    FIXTURES_README_FILE: [
+        "本目录预留给后续 simulation / chaos / replay 相关夹具。",
+        "当前阶段先保留目录与说明",
+        "Hibernated / RepairFailed",
     ],
     TRIAGE_FILE: [
         "当前分级以最新 `specs/` 与协议层门禁建设为主。",

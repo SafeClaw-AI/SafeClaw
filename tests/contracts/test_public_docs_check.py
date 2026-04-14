@@ -23,6 +23,7 @@ from tools.checks.check_public_docs import (
     DECISIONS_FILE,
     DEV_PLAN_FILE,
     FORBIDDEN_MARKERS,
+    FIXTURES_README_FILE,
     LINT_README_FILE,
     MANIFESTS_README_FILE,
     MVP_PROGRESS_FILE,
@@ -447,6 +448,39 @@ class PublicDocsCheckTest(unittest.TestCase):
         ]
         self.assertIn(MANIFESTS_README_FILE, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[MANIFESTS_README_FILE], expected_markers)
+
+    def test_fixtures_readme_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            FIXTURES_README_FILE: [
+                "L2 夹具目录说明",
+                "README.md",
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "specs/",
+                "docs/reference/",
+                "08-V4-ledger-index-manifest.json",
+                "simulation / chaos / replay",
+                "tests/contracts/",
+                "tests/README.md",
+                "tools/checks/",
+                "selfcheck.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_fixtures_readme_forbids_stale_placeholder_summary(self) -> None:
+        expected_markers = [
+            "本目录预留给后续 simulation / chaos / replay 相关夹具。",
+            "当前阶段先保留目录与说明",
+            "Hibernated / RepairFailed",
+        ]
+        self.assertIn(FIXTURES_README_FILE, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[FIXTURES_README_FILE], expected_markers)
 
     def test_triage_doc_is_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
