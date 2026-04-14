@@ -23,3 +23,7 @@
 - 将 `specs/README.md` 改写为 L0 目录说明，并让 `check_public_docs.py` fail-closed 拦截旧动态分段口径
 - 将 `specs/manifests/README.md` 改写为 L2 模板说明，并让 `check_public_docs.py` fail-closed 拦截私有蓝图/Phase 摘要口径
 - 将 `tests/fixtures/README.md` 改写为 L2 夹具目录说明，并让 `check_public_docs.py` fail-closed 拦截旧占位摘要口径
+- 新增 `tools/codegen/governance_index.py`，自动生成 `generated/governance/doc_index.json`、`spec_map.json`、`test_matrix.json` 与治理摘要 `README.md`
+- 新增 `tools/checks/check_governance_indexes.py` 与 `tests/contracts/test_governance_indexes.py`，把结构化治理索引接入独立门禁与合同测试
+- 将 Governance indexes 接入 `tools/codegen/regenerate_all.py`、`tools/checks/selfcheck.py` 与 `tests/contracts/test_selfcheck.py`，把结构化治理链前置到 public docs 对齐之前
+- 将治理层级判定、spec/test 映射与实现候选收集改为结构化扫描，不再依赖文案 marker 与红线叙事

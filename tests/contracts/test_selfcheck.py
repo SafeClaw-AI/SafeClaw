@@ -21,6 +21,7 @@ NAMING_LINT_CHECK_NAME = "Naming lint"
 MVP_OPERATOR_FLOW_CHECK_NAME = "MVP operator flow"
 EXAMPLE_SMOKE_CHECK_NAME = "Example smoke"
 GENERATED_SYNC_CHECK_NAME = "Generated sync"
+GOVERNANCE_INDEXES_CHECK_NAME = "Governance indexes"
 
 
 class SelfcheckTest(unittest.TestCase):
@@ -32,6 +33,11 @@ class SelfcheckTest(unittest.TestCase):
         names = [name for name, _ in CHECKS]
         self.assertEqual(names.index(REFERENCE_REDLINES_CHECK_NAME), len(LEDGER_POLICY_CHECKS))
         self.assertLess(names.index(REFERENCE_REDLINES_CHECK_NAME), names.index(NAMING_LINT_CHECK_NAME))
+
+    def test_governance_indexes_run_inside_ledger_policy_chain(self) -> None:
+        names = [name for name, _ in CHECKS]
+        self.assertIn(GOVERNANCE_INDEXES_CHECK_NAME, names[: len(LEDGER_POLICY_CHECKS)])
+        self.assertLess(names.index(GOVERNANCE_INDEXES_CHECK_NAME), names.index(REFERENCE_REDLINES_CHECK_NAME))
 
     def test_contract_tests_run_after_reference_redlines(self) -> None:
         names = [name for name, _ in CHECKS]

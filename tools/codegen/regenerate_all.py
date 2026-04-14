@@ -8,6 +8,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.spec_index import build_spec_index
+from tools.codegen.governance_index import ensure_governance_outputs
 from tools.codegen.main import (
     REPO_ROOT as CODEGEN_REPO_ROOT,
     SUPPORTED_TARGETS,
@@ -39,10 +40,14 @@ def main() -> int:
     write_json_if_changed(root_index_alias_path, payload)
     write_json_if_changed(targets_index_path, build_targets_index(outputs))
     write_text_if_changed(root_readme_path, build_root_readme())
+    governance_outputs = ensure_governance_outputs(out_root, repo_version, index)
 
     print("SafeClaw codegen sync ready.")
     print(f"- out_root: {to_repo_posix(out_root)}")
     print(f"- root_index: {to_repo_posix(root_index_path)}")
+    print(f"- governance_index: {governance_outputs['doc_index']}")
+    print(f"- governance_spec_map: {governance_outputs['spec_map']}")
+    print(f"- governance_test_matrix: {governance_outputs['test_matrix']}")
     print(f"- targets: {', '.join(SUPPORTED_TARGETS)}")
     print(f"- specs_loaded: {len(index.documents)}")
     return 0

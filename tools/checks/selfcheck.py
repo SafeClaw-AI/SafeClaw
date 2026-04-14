@@ -16,6 +16,7 @@ LEDGER_POLICY_CHECKS: list[tuple[str, str]] = [
     ("Version consistency", "tools/checks/check_versions.py"),
     ("Structure completeness", "tools/checks/check_structure.py"),
     ("Scaffold layout", "tools/checks/check_scaffold.py"),
+    ("Governance indexes", "tools/checks/check_governance_indexes.py"),
     ("Public docs alignment", "tools/checks/check_public_docs.py"),
 ]
 CONTRACT_TESTS_CHECK_NAME = "Contract tests"
