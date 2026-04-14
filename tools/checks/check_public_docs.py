@@ -25,6 +25,7 @@ DEVLOG_FILE = REPO_ROOT / "docs" / "DEVLOG.md"
 IMPLEMENTATION_STRATEGY_FILE = REPO_ROOT / "docs" / "IMPLEMENTATION_STRATEGY.md"
 REFERENCE_HYGIENE_FILE = REPO_ROOT / "docs" / "reference" / "01-反屎山工程规范.md"
 SPECS_README_FILE = REPO_ROOT / "specs" / "README.md"
+MANIFESTS_README_FILE = REPO_ROOT / "specs" / "manifests" / "README.md"
 CONTRACTS_README_FILE = REPO_ROOT / "tests" / "contracts" / "README.md"
 CODEGEN_README_FILE = REPO_ROOT / "tools" / "codegen" / "README.md"
 SCHEMA_DIFF_README_FILE = REPO_ROOT / "tools" / "schema_diff" / "README.md"
@@ -312,6 +313,28 @@ REQUIRED_MARKERS = {
         "check_public_docs.py",
         "Contract tests",
     ],
+    MANIFESTS_README_FILE: [
+        "L2 模板说明",
+        "README.md",
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
+        "specs/",
+        "docs/reference/",
+        "08-V4-ledger-index-manifest.json",
+        "plugin_runner.template.jsonc",
+        "specs/spi/base_fields.json",
+        "specs/README.md",
+        "tests/contracts/",
+        "tools/checks/",
+        "tools/codegen/",
+        "generated/",
+        "selfcheck.py",
+        "Contract tests",
+    ],
     CONTRACTS_README_FILE: [
         "specs/",
         "tools/checks/",
@@ -575,6 +598,12 @@ FORBIDDEN_MARKERS = {
         "## 当前规则",
         "## 当前闭环",
         "## 当前 codegen 产物",
+    ],
+    MANIFESTS_README_FILE: [
+        "# SafeClaw manifests/ 预留目录",
+        "当前阶段仍是 Phase 0",
+        "私有蓝图中对 Plugin Runner 的最小要求",
+        "MVP 信任模型：`blake3` + `trusted_plugins/`",
     ],
     TRIAGE_FILE: [
         "当前分级以最新 `specs/` 与协议层门禁建设为主。",

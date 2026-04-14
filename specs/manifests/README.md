@@ -1,17 +1,17 @@
-# SafeClaw manifests/ 预留目录
+# specs/manifests/
 
-本目录用于放置插件与扩展的 manifest 模板。
+> 本文件是 `specs/manifests/` 的 L2 模板说明，用来解释 manifest 模板目录的公开边界。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
 
-当前阶段仍是 Phase 0，公开仓库只提供**非权威模板**，用于：
+## 目录职责
 
-- 给 `Preflight Analyzer` 提供权限 / 预算 / IO schema 的输入形状参考
-- 给未来 `tools/codegen/` 与合约测试预留稳定落点
-- 避免在协议未冻结前，过早发布正式 manifest schema
+- `plugin_runner.template.jsonc` 只是非权威模板，不裁决正式 manifest schema。
+- 模板字段边界仍受 `specs/spi/base_fields.json` 与 `specs/README.md` 约束。
+- `tests/contracts/`、`tools/checks/` 与 `tools/codegen/` 只把这里当作稳定落点，不把本目录说明反向当成协议真源。
 
-当前约束来源：
+## 使用边界
 
-- `specs/spi/base_fields.json`：统一 `spi_version` / `timeout_ms` / `capabilities`
-- 私有蓝图中对 Plugin Runner 的最小要求：声明权限、IO schema、资源限制
-- MVP 信任模型：`blake3` + `trusted_plugins/`
-
-因此本目录内的模板**可复制、可扩展，但当前不视为冻结契约**。
+- 这里的模板用于给插件/扩展 manifest 预留输入形状与自动化落点。
+- 正式 manifest 契约如需冻结，必须先回到 `specs/` 主真源与门禁链落地，再进入 `generated/` 等派生产物。
+- 总验入口仍是 `python tools/checks/selfcheck.py`；公开门禁会在 `Contract tests` 之前先校验本目录边界。

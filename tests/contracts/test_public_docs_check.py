@@ -24,6 +24,7 @@ from tools.checks.check_public_docs import (
     DEV_PLAN_FILE,
     FORBIDDEN_MARKERS,
     LINT_README_FILE,
+    MANIFESTS_README_FILE,
     MVP_PROGRESS_FILE,
     MVP_README_FILE,
     OPERATOR_PLAYBOOK_FILE,
@@ -409,6 +410,43 @@ class PublicDocsCheckTest(unittest.TestCase):
         ]
         self.assertIn(SPECS_README_FILE, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[SPECS_README_FILE], expected_markers)
+
+    def test_manifests_readme_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            MANIFESTS_README_FILE: [
+                "L2 模板说明",
+                "README.md",
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "specs/",
+                "docs/reference/",
+                "08-V4-ledger-index-manifest.json",
+                "plugin_runner.template.jsonc",
+                "specs/spi/base_fields.json",
+                "specs/README.md",
+                "tests/contracts/",
+                "tools/checks/",
+                "tools/codegen/",
+                "generated/",
+                "selfcheck.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_manifests_readme_forbids_private_blueprint_summary(self) -> None:
+        expected_markers = [
+            "# SafeClaw manifests/ 预留目录",
+            "当前阶段仍是 Phase 0",
+            "私有蓝图中对 Plugin Runner 的最小要求",
+            "MVP 信任模型：`blake3` + `trusted_plugins/`",
+        ]
+        self.assertIn(MANIFESTS_README_FILE, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[MANIFESTS_README_FILE], expected_markers)
 
     def test_triage_doc_is_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
