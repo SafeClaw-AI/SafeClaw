@@ -6,3 +6,4 @@
 - 将 `README.md` 重写为稳定入口，把动态状态迁出到 `STATUS.md`
 - 将 `docs/README.md` 收敛为导航器，并同步文档四层结构
 - 同步 `docs/30-方案/02-V4-目录锁定清单.md` 与 `check_public_docs.py`，把新文档结构接入治理门禁
+- 将 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 的真内容迁入 `docs/records/`，并把根路径降级为兼容跳转入口

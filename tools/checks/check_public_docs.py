@@ -8,15 +8,17 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.checks.check_ledger_alignment import collect_ledger_errors
+from tools.checks.ledger_index_manifest import load_ledger_index_manifest
 
+LEDGER_MANIFEST = load_ledger_index_manifest()
 README_FILE = REPO_ROOT / "README.md"
 STATUS_FILE = REPO_ROOT / "STATUS.md"
 CHANGELOG_FILE = REPO_ROOT / "CHANGELOG.md"
 DECISIONS_FILE = REPO_ROOT / "DECISIONS.md"
 ROOT_ARCHITECTURE_FILE = REPO_ROOT / "ARCHITECTURE.md"
-DEV_PLAN_FILE = REPO_ROOT / "开发计划.md"
-MVP_PROGRESS_FILE = REPO_ROOT / "MVP_PROGRESS.md"
-PUSH_LOG_FILE = REPO_ROOT / "PUSH_LOG.md"
+DEV_PLAN_FILE = LEDGER_MANIFEST.resolve_existing_path("dev-plan")
+MVP_PROGRESS_FILE = LEDGER_MANIFEST.resolve_existing_path("mvp-progress")
+PUSH_LOG_FILE = LEDGER_MANIFEST.resolve_existing_path("push-log")
 SCOPE_FILE = REPO_ROOT / "docs" / "V1_SCOPE.md"
 TRIAGE_FILE = REPO_ROOT / "docs" / "V1_TASK_TRIAGE.md"
 DEVLOG_FILE = REPO_ROOT / "docs" / "DEVLOG.md"

@@ -17,3 +17,9 @@
 决策：`开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 暂时保留为迁移期 legacy 文件，不在本轮直接删除。
 原因：这些文件仍被目录锁定与现有公开文档合同引用，立即删除会扩大整改面并打断当前门禁基线。
 影响：当前主线入口已转到五件套；legacy 文件后续按迁移计划进入 `docs/records/`，在此之前只保留审计价值，不再扩张为新的主线真源。
+
+## 2026-04-15
+
+决策：三份 legacy 台账真内容切到 `docs/records/`，根目录仅保留兼容跳转入口。
+原因：README V14 主线已经建立稳定入口，如果继续把计划、进展、推送流水的真实内容留在根目录，会持续放大“假真源”和根目录过重的问题。
+影响：manifest 当前进入 `target-primary + legacy-retired` 组合；`check_public_docs.py`、`chancellor_panel.py` 等消费点统一改为 manifest 驱动，后续更新只应写入 `docs/records/`。

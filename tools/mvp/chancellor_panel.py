@@ -13,8 +13,13 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEV_PLAN_FILE = REPO_ROOT / "开发计划.md"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.checks.ledger_index_manifest import load_ledger_index_manifest
+
 CHANCELLOR_STATUS_COMMAND = "丞相状态"
+LEDGER_MANIFEST = load_ledger_index_manifest()
 
 
 def normalize_markdown_inline_code(text: str) -> str:
@@ -50,7 +55,8 @@ def extract_chancellor_next_step(stage_text: str, mode_text: str) -> str:
 
 def build_chancellor_status_snapshot(dev_plan_text: str | None = None) -> dict[str, str]:
     if dev_plan_text is None:
-        dev_plan_text = DEV_PLAN_FILE.read_text(encoding="utf-8")
+        dev_plan_file = LEDGER_MANIFEST.resolve_existing_path("dev-plan")
+        dev_plan_text = dev_plan_file.read_text(encoding="utf-8")
     mode_text = extract_markdown_labeled_value(dev_plan_text, "当前主线")
     stage_text = extract_markdown_labeled_value(dev_plan_text, "当前阶段")
     stability = derive_chancellor_stability(stage_text)

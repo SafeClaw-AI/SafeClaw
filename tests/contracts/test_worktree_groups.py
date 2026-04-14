@@ -34,6 +34,7 @@ class WorktreeGroupsTest(unittest.TestCase):
 
     def test_classify_path_groups_current_governance_clusters(self) -> None:
         self.assertEqual(classify_path("开发计划.md"), BOUNDARY_GOVERNANCE_GROUP)
+        self.assertEqual(classify_path("docs/records/开发计划.md"), BOUNDARY_GOVERNANCE_GROUP)
         self.assertEqual(classify_path("tools/checks/selfcheck.py"), SELFCHECK_GOVERNANCE_GROUP)
         self.assertEqual(
             classify_path("temp/parked-root/round-log-20260402-130500-personal-thin-panel-delivery.md"),

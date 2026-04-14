@@ -26,7 +26,7 @@ GROUP_RULES: "OrderedDict[str, dict[str, tuple[str, ...]]]" = OrderedDict(
                     "tests/contracts/test_chancellor_panel.py",
                     "tests/contracts/test_public_docs_check.py",
                 ),
-                "prefix": ("docs/chancellor-mode/v2/",),
+                "prefix": ("docs/chancellor-mode/v2/", "docs/records/"),
             },
         ),
         (

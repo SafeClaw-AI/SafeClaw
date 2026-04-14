@@ -38,20 +38,20 @@ EXPECTED_LEDGER_BASELINE = {
     "dev-plan": {
         "legacy_path": "开发计划.md",
         "target_path": "docs/records/开发计划.md",
-        "write_mode": "legacy-only",
-        "cutover_state": "legacy-only",
+        "write_mode": "target-primary",
+        "cutover_state": "legacy-retired",
     },
     "mvp-progress": {
         "legacy_path": "MVP_PROGRESS.md",
         "target_path": "docs/records/MVP_PROGRESS.md",
-        "write_mode": "legacy-only",
-        "cutover_state": "legacy-only",
+        "write_mode": "target-primary",
+        "cutover_state": "legacy-retired",
     },
     "push-log": {
         "legacy_path": "PUSH_LOG.md",
         "target_path": "docs/records/PUSH_LOG.md",
-        "write_mode": "legacy-only",
-        "cutover_state": "legacy-only",
+        "write_mode": "target-primary",
+        "cutover_state": "legacy-retired",
     },
 }
 

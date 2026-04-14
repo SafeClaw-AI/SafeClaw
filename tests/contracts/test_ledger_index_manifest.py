@@ -23,26 +23,26 @@ class LedgerIndexManifestTest(unittest.TestCase):
             {"dev-plan", "mvp-progress", "push-log"},
         )
 
-    def test_dev_plan_entry_uses_legacy_only_baseline(self) -> None:
+    def test_dev_plan_entry_uses_target_primary_baseline(self) -> None:
         entry = self.manifest.require("dev-plan")
         self.assertEqual(entry.legacy_path, "开发计划.md")
         self.assertEqual(entry.target_path, "docs/records/开发计划.md")
-        self.assertEqual(entry.read_order, ("legacy_path",))
-        self.assertEqual(entry.write_mode, "legacy-only")
-        self.assertEqual(entry.cutover_state, "legacy-only")
+        self.assertEqual(entry.read_order, ("target_path",))
+        self.assertEqual(entry.write_mode, "target-primary")
+        self.assertEqual(entry.cutover_state, "legacy-retired")
 
-    def test_resolve_existing_path_uses_legacy_baseline(self) -> None:
+    def test_resolve_existing_path_uses_target_baseline(self) -> None:
         resolved = self.manifest.resolve_existing_path("mvp-progress")
         self.assertEqual(
             resolved.relative_to(REPO_ROOT).as_posix(),
-            "MVP_PROGRESS.md",
+            "docs/records/MVP_PROGRESS.md",
         )
 
     def test_read_resolved_text_supports_dev_plan(self) -> None:
         resolved, text = self.manifest.read_resolved_text("dev-plan")
         self.assertEqual(
             resolved.relative_to(REPO_ROOT).as_posix(),
-            "开发计划.md",
+            "docs/records/开发计划.md",
         )
         self.assertIn("# 开发计划", text)
         self.assertIn("当前主线", text)
