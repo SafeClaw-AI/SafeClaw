@@ -1,5 +1,10 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ImplementationStage { Planned, TestSkeleton, RuntimeSlice, Full }
+pub enum ImplementationStage {
+    Planned,
+    TestSkeleton,
+    RuntimeSlice,
+    Full,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SpecBinding {

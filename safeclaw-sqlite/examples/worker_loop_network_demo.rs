@@ -9,15 +9,13 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -39,10 +37,9 @@ fn main() -> Result<(), String> {
         ScheduleIntent::read(server.target()),
         0,
     )))?;
-    loop_driver.network_probe_mut().register_expected_response(
-        "effect-worker-loop-network-demo",
-        "status=applied",
-    );
+    loop_driver
+        .network_probe_mut()
+        .register_expected_response("effect-worker-loop-network-demo", "status=applied");
 
     print_snapshot("after-enqueue", loop_driver.queue_snapshot());
 
@@ -61,18 +58,20 @@ fn main() -> Result<(), String> {
 
     println!(
         "[demo] claim => task={} lease={} fence={}",
-        outcome.claim.task.task_id,
-        outcome.claim.lease.lease_id,
-        outcome.claim.lease.fencing_token
+        outcome.claim.task.task_id, outcome.claim.lease.lease_id, outcome.claim.lease.fencing_token
     );
     println!(
         "[demo] sandbox => timed_out={} exit_code={:?} duration_ms={}",
-        outcome.report.timed_out,
-        outcome.report.exit_code,
-        outcome.report.duration_ms
+        outcome.report.timed_out, outcome.report.exit_code, outcome.report.duration_ms
     );
-    println!("[demo] execution summary => {}", outcome.render_execution_status_line());
-    println!("[demo] final summary => {}", outcome.render_final_status_line());
+    println!(
+        "[demo] execution summary => {}",
+        outcome.render_execution_status_line()
+    );
+    println!(
+        "[demo] final summary => {}",
+        outcome.render_final_status_line()
+    );
 
     print_snapshot("after-complete", loop_driver.queue_snapshot());
 
@@ -121,10 +120,7 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
     );
 }
 
-fn sandbox_write_then_timeout_command(
-    output_path: &Path,
-    output_bytes: &[u8],
-) -> SandboxCommand {
+fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
     if cfg!(windows) {
         let bytes_literal = output_bytes
             .iter()
@@ -149,7 +145,11 @@ fn sandbox_write_then_timeout_command(
             "sh",
             [
                 "-c",
-                &format!("printf '%s' '{}' > '{}'; sleep 1", text, output_path.display()),
+                &format!(
+                    "printf '%s' '{}' > '{}'; sleep 1",
+                    text,
+                    output_path.display()
+                ),
             ],
             500,
         )
@@ -164,7 +164,9 @@ struct TestHttpServer {
 impl TestHttpServer {
     fn spawn(response: &str, delay_ms: u64) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("test http listener must bind");
-        let addr = listener.local_addr().expect("test http listener must expose addr");
+        let addr = listener
+            .local_addr()
+            .expect("test http listener must expose addr");
         let response = response.to_string();
         let handle = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("test http server must accept");
@@ -210,9 +212,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-network-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-network-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             output_path: root.join("worker-loop-network-output.txt"),

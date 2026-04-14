@@ -7,15 +7,14 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -26,12 +25,10 @@ fn main() -> Result<(), String> {
     let shared_scope = format!("scope:{}", shared_output.display());
     let other_scope = format!("scope:{}", other_output.display());
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-scope-shared-1",
         ScheduleIntent::write(shared_scope.clone()),
@@ -58,7 +55,10 @@ fn main() -> Result<(), String> {
         blocking_claim.lease.fencing_token,
         blocking_claim.lease.owner_id
     );
-    print_snapshot("after-blocking-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-blocking-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut other_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -101,14 +101,20 @@ fn main() -> Result<(), String> {
         PreflightDecision::Permit,
         |_| unreachable!(),
     ))?;
-    println!("[demo] only conflicting task remains => {}", blocked.is_none());
+    println!(
+        "[demo] only conflicting task remains => {}",
+        blocked.is_none()
+    );
 
     into_demo(blocking_orchestrator.complete(
         &blocking_claim.task.task_id,
         &blocking_claim.lease.lease_id,
         &blocking_claim.lease.owner_id,
     ))?;
-    print_snapshot("after-release-blocking-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-release-blocking-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut unblocked_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -138,21 +144,22 @@ fn main() -> Result<(), String> {
         unblocked_outcome.claim.lease.owner_id,
         unblocked_outcome.completed
     );
-    print_snapshot("after-shared-task-complete", unblocked_worker.queue_snapshot());
+    print_snapshot(
+        "after-shared-task-complete",
+        unblocked_worker.queue_snapshot(),
+    );
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored_other = into_demo(verify_store.load_runtime(
-        "task-worker-scope-other",
-        "effect-worker-scope-other",
-    ))?
+    let restored_other = into_demo(
+        verify_store.load_runtime("task-worker-scope-other", "effect-worker-scope-other"),
+    )?
     .expect("other runtime must reload");
-    let restored_shared = into_demo(verify_store.load_runtime(
-        "task-worker-scope-shared-2",
-        "effect-worker-scope-shared-2",
-    ))?
+    let restored_shared = into_demo(
+        verify_store.load_runtime("task-worker-scope-shared-2", "effect-worker-scope-shared-2"),
+    )?
     .expect("shared runtime must reload");
     println!(
         "[demo] restored runtimes => other={:?}/{:?}, shared={:?}/{:?}",
@@ -243,9 +250,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-scope-conflict-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-scope-conflict-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-scope-conflict.db"),

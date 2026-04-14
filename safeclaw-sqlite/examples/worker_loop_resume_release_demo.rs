@@ -7,15 +7,14 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -27,12 +26,10 @@ fn main() -> Result<(), String> {
     let other_scope = format!("scope:{}", other_output.display());
     let output_bytes = b"safeclaw resumed other scope\n";
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(25);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(25);
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-resume-shared-blocking",
         ScheduleIntent::write(shared_scope.clone()),
@@ -59,7 +56,10 @@ fn main() -> Result<(), String> {
         blocking_claim.lease.fencing_token,
         blocking_claim.lease.owner_id
     );
-    print_snapshot("after-blocking-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-blocking-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut first_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -107,9 +107,7 @@ fn main() -> Result<(), String> {
     ))?;
     println!(
         "[demo] renewed blocking lease => task={} expires={} owner={}",
-        blocking_claim.task.task_id,
-        renewed.expires_at_ms,
-        renewed.owner_id
+        blocking_claim.task.task_id, renewed.expires_at_ms, renewed.owner_id
     );
 
     let mut blocked_worker = into_demo(SqliteSingleWorkerLoop::open(
@@ -117,7 +115,8 @@ fn main() -> Result<(), String> {
         SqliteOpenOptions::default(),
     ))?
     .with_lease_ttl_ms(25);
-    let blocked = into_demo(blocked_worker.claim_and_resume_once("worker-c", 10, |_| unreachable!()))?;
+    let blocked =
+        into_demo(blocked_worker.claim_and_resume_once("worker-c", 10, |_| unreachable!()))?;
     println!("[demo] reclaim before expiry => {}", blocked.is_none());
 
     let mut resume_worker = into_demo(SqliteSingleWorkerLoop::open(
@@ -144,9 +143,7 @@ fn main() -> Result<(), String> {
 
     println!(
         "[demo] resume attempt => worker={:?}, effect={:?}, completed={}",
-        resumed.final_summary.worker_state,
-        resumed.final_summary.effect_status,
-        resumed.completed
+        resumed.final_summary.worker_state, resumed.final_summary.effect_status, resumed.completed
     );
     print_snapshot("after-resume-complete", resume_worker.queue_snapshot());
 
@@ -179,7 +176,10 @@ fn main() -> Result<(), String> {
         &blocking_claim.lease.lease_id,
         &blocking_claim.lease.owner_id,
     ))?;
-    print_snapshot("after-release-blocking-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-release-blocking-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut release_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -319,9 +319,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-resume-release-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-resume-release-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-resume-release.db"),

@@ -1,8 +1,9 @@
-﻿#![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 
 mod connection;
 mod effect_store;
 mod error;
+mod heartbeat;
 mod migrations;
 mod orchestrator;
 mod probe_executor;
@@ -20,6 +21,7 @@ use std::path::Path;
 pub use connection::{open_file_database, SqliteOpenOptions, DEFAULT_BUSY_TIMEOUT_MS};
 pub use effect_store::SqliteEffectStore;
 pub use error::SqliteAdapterError;
+pub use heartbeat::{HeartbeatManager, HeartbeatRecord, SidecarQuota};
 pub use migrations::{apply_migrations, CURRENT_SCHEMA_VERSION, EXPECTED_TABLES};
 pub use orchestrator::SqliteTaskOrchestrator;
 pub use probe_executor::{FileSystemProbeAdapter, NetworkProbeAdapter};
@@ -27,11 +29,11 @@ pub use runtime_store::{
     RuntimeDiagnosticSnapshot, RuntimeGovernanceDisposition, RuntimeGovernanceSummary,
     RuntimeGovernanceView, SqliteRuntimeStore,
 };
-pub use sandbox_executor::{
-    LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
-    SandboxExecutionReport, SandboxExecutorError, SandboxRuntimeError,
-};
 use rusqlite::Connection;
+pub use sandbox_executor::{
+    LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand, SandboxExecutionReport,
+    SandboxExecutorError, SandboxRuntimeError,
+};
 pub use state_engine::SqliteStateEngine;
 pub use worker_loop::{
     SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopError, WorkerLoopOutcome,
@@ -39,8 +41,7 @@ pub use worker_loop::{
 };
 pub use worker_service::{
     SqliteWorkerService, WorkerServiceGovernanceBucket, WorkerServiceGovernanceGroups,
-    WorkerServiceGovernanceReport, WorkerServiceGovernanceSection,
-    WorkerServiceRunReport,
+    WorkerServiceGovernanceReport, WorkerServiceGovernanceSection, WorkerServiceRunReport,
 };
 
 pub const ADAPTER_NAME: &str = "safeclaw-sqlite";
@@ -206,6 +207,3 @@ PRAGMA user_version=1;
             .collect()
     }
 }
-
-
-

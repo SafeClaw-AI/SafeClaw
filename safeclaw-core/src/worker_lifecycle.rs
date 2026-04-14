@@ -346,8 +346,7 @@ pub fn transition_for(event: WorkerEvent, from: WorkerState) -> Option<Transitio
 #[cfg(test)]
 mod tests {
     use super::{
-        transition_for, WorkerEvent, WorkerState, RECONCILE_GUARD, TRANSITIONS,
-        USER_RETRY_GUARDS,
+        transition_for, WorkerEvent, WorkerState, RECONCILE_GUARD, TRANSITIONS, USER_RETRY_GUARDS,
     };
 
     fn walk_path(start: WorkerState, events: &[WorkerEvent]) -> Vec<WorkerState> {
@@ -421,9 +420,12 @@ mod tests {
     #[test]
     fn exceptional_paths_are_explicitly_modeled() {
         assert_eq!(
-            transition_for(WorkerEvent::ConfirmTimeout, WorkerState::AwaitingConfirmation)
-                .unwrap()
-                .to,
+            transition_for(
+                WorkerEvent::ConfirmTimeout,
+                WorkerState::AwaitingConfirmation
+            )
+            .unwrap()
+            .to,
             WorkerState::Hibernated
         );
         assert_eq!(

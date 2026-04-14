@@ -19,6 +19,7 @@
 
 - 这份 README 主要服务维护层 MVP 流程，不承担面对普通使用者的完整上手说明。
 - 如果你只想走主人自用的个人 MVP 闭环，优先看 `tools/mvp/PERSONAL_MVP_PLAYBOOK.md`，并使用那里部署出来的生产位入口。
+- 个人生产位的 `safeclaw-personal-panel.cmd/.ps1` 当前会拉起 `safeclaw_personal_panel.pyw`，也就是一层轻量 Python/Tkinter 面板；它不是规划中的 Tauri/React 桌面界面。
 - 最短维护路径看 `tools/mvp/OPERATOR_PLAYBOOK.md`；若要先部署一套可回退的个人生产位，可执行 `python -X utf8 tools/mvp/safeclaw_personal_deploy.py deploy`。
 - 默认先走 `workspace --name demo -> doctor -> service-run --report`。
 - `service-run` 已经自带一次 `service-status` 摘要；只有在你还想再看 queue / worker / effect 快照时，才需要额外执行 `service-status`。
@@ -82,6 +83,106 @@
   - `service-run` / `service-retry` / `service-recover` / `service-reconcile`：返回组合 `steps`、嵌套动作结果与 `service_status` 摘要；其中 `service-reconcile` 还会把过期 orchestrator lease 收回，让队列回到 `expired=0`。
   - `service-status`：返回顶层 `runtime_profile` / `model_provider` / `sidecar` / `offline_gate` / `queue` / `workers` / `effects` / `probes` / `heartbeat` / `coordination` / `recent_tasks`；`offline_gate` 镜像当前 `preflight --action ai-reason` 阻断事实，`coordination` 带 `next_task_id`，`recent_tasks[*]` 带 `next_*`、权限、租约与 `reconcile_commands.*`。
   - 文本输出仍会同步打印 `service runtime => ...`、`service model => ...`、`service sidecar => ... detail=...`、`service offline => ...`、`service recent[i] reconcile => ...`，方便脚本外人工排障。
+- `preflight --json` 只要命令格式合法，就始终返回成功信封 `{ok: true, action: "preflight", result: ...}`；是否允许执行由 `result.allowed` 与进程退出码表达，而不是切成错误信封。
+
+### 常用 JSON 成功载荷
+
+`preflight --json`
+
+| 字段 / 字段组 | 含义 |
+| --- | --- |
+| `requested_action` | 当前正在判定的目标动作名，例如 `service-run` 或 `ai-reason` |
+| `known` / `action_class` / `tier` / `writes_state` | 当前动作是否已知、属于本地动作还是会话动作、对应的风险层级，以及是否写状态 |
+| `permission_context_source` / `permission_context_applied` | 权限上下文来自显式参数、动作模板还是不存在；是否真正拿到了可评估的上下文 |
+| `target_scope` / `requires_write` / `doctor_bypass` | 预检最终使用的 scope / 写入意图 / doctor 特权上下文 |
+| `permission_tier` / `permission_policy` / `permission_reason` | 入口层给出的权限判定建议；`permission_policy` 可能是 `allow` / `confirm` / `deny` / `not_evaluated` |
+| `permission_enforced` / `action_allowed` / `action_decision` / `action_reason` | 动作本身是否在当前 local-only MVP 白名单内，以及白名单层的判定原因 |
+| `allowed` / `decision` / `reason` | 最终 preflight 结论；脚本通常直接读取这组字段决定是否继续 |
+| `offline_ready` / `requires_model` / `requires_sidecar` / `degradation_mode` / `error_code` / `detail` | 当前动作在离线 MVP 下是否可执行，以及如果被 AI/provider 阻断时的降级与错误事实 |
+| `runtime_profile` / `model_provider` / `sidecar` | 当前本地运行态快照；结构与 `service-status --json` 顶层对应字段一致 |
+
+`verify --json`
+
+| 字段 | 含义 |
+| --- | --- |
+| `python` | 当前 wrapper 实际使用的 Python 解释器路径 |
+| `script` | 固定为 `tools/checks/check_mvp_operator_flow.py` |
+| `exit_code` | 验证脚本退出码；成功时为 `0` |
+| `captured_output` | 合并后的 stdout/stderr 文本，保留完整 operator-flow 日志 |
+
+`service-status --json`
+
+| 字段 / 字段组 | 含义 |
+| --- | --- |
+| `db` / `db_source` / `limit` | 本次读取的状态库路径、路径来源（如 `flag` / `session` / `workspace` / `default`）和 recent task 数量上限 |
+| `current_session` / `current_db` | 当前 remembered session；若没有已记住的最近会话则为 `null` / `false` |
+| `runtime_profile` / `model_provider` / `sidecar` | 当前 local-only MVP 的运行态快照；用于显式说明 provider / sidecar 仍未接通 |
+| `offline_gate` | `preflight --action ai-reason` 的镜像摘要，包含 `status` / `reason` / `summary` / `requested_action` / `requires_*` / `next_command` / `error_code` / `detail` |
+| `queue` | 固定四个计数字段：`queued` / `active` / `expired` / `completed` |
+| `workers` / `effects` / `probes` | 稀疏计数 map；只返回当前实际出现的状态键，例如 `{"failed": 1}` 或 `{"none": 1}` |
+| `heartbeat` | 顶层活跃租约心跳摘要，固定返回 `interval_ms` / `event_driven` / `latest_updated_at` / `latest_age_ms` / `latest_freshness` / `status` / `reason`；若没有 active lease，则 `latest_*` 为 `null` 且 `status=idle` |
+| `coordination` | 当前服务级建议动作摘要；优先选 remembered session 对应 task，否则退回 recent_tasks 第一条。包含 `status` / `reason` / `summary` / `task_id` / `target_scope` / `next_*` / `scope_*` |
+| `recent_tasks[*]` | 单条任务快照；稳定包含任务身份字段、权限字段、租约字段、scope 协调字段、`next_*`、`coordination_*`、`current` 与按需出现的 `reconcile_commands` |
+
+`service-run --json` / `service-retry --json` / `service-recover --json` / `service-resume --json` / `service-reconcile --json`
+
+| 字段 / 字段组 | 含义 |
+| --- | --- |
+| `steps` | 组合步骤列表。基础顺序是 `[session-action, service-status]`；带 `--report` 时追加 `report`；带 `--preflight` 时最前面插入 `preflight` |
+| `steps[*].action` | 固定动作名之一：`preflight`、底层会话动作（`run` / `retry` / `recover` / `resume` / `reconcile`）、`service-status`、可选 `report` |
+| `steps[*].ok` / `steps[*].exit_code` | 每一步自己的成功状态与退出码，方便脚本定位失败步骤 |
+| `steps[*].source_hints` | 每一步的参数来源；会话动作通常带 `db` / `output` / `owner_id` / `task_context`，`service-status` 只带 `db` / `task_context`，`preflight` 只带 `permission_context` |
+| `remembered_session` / `session` | 顶层记忆会话快照；`session` 只是兼容别名，内容与 `remembered_session` 相同 |
+| `<session-action>` | 动态嵌套键，对应底层会话动作名：`run` / `retry` / `recover` / `resume` / `reconcile`。结构与单步动作结果一致，稳定包含 `prepared` / `captured_output` / `saved_session` / `remembered_session` / `source_hints` |
+| `service_status` | 紧跟组合动作执行后的 `service-status` 完整 payload，结构与单独执行 `service-status --json` 相同 |
+| `preflight` | 仅在带 `--preflight` 或 `--enforce-permission` 时出现；结构与单独执行 `preflight --json` 相同 |
+| `report` | 仅在带 `--report` 时出现；结构与单步 `report` 结果一致，稳定包含 `prepared` / `captured_output` / `saved_session` / `remembered_session` / `source_hints` |
+
+关于组合 JSON，有 3 条容易误用的固定事实：
+
+- 顶层嵌套键不是固定叫 `run`；它会随组合动作变化，例如 `service-retry --json` 返回 `result.retry`，`service-resume --json` 返回 `result.resume`。
+- `service_status` 总是组合结果里的完整快照，不是简化摘要；脚本可以直接复用它而不必再额外跑一次 `service-status --json`。
+- `steps` 是最稳定的机器可读执行轨迹；如果只关心执行顺序和来源，优先消费 `steps[*]`，再按需读取嵌套 payload。
+
+`service-resume --json` 失败时的专属错误合同
+
+| 场景 | 顶层 `error.code` | `error.reason` | `error.details` 补充字段 |
+| --- | --- | --- | --- |
+| 当前没有可继续的 hibernated runtime | `resume-target-missing` | `hibernated_runtime_missing` | `code` / `error_message` / `summary` / `next_command` |
+| 当前任务存在，但已不是 hibernated | `resume-target-not-hibernated` | `resume_target_not_hibernated` | `code` / `error_message` / `summary` / `next_command` |
+
+这两类 `service-resume` 失败都会保留：
+
+- `error.message=failed step=resume`
+- `error.details.failed_step=resume`
+- `error.details.steps[0].action=resume`
+- `error.details.captured_output` 保留底层原始输出，便于排障
+
+`doctor --json` / `session --json` / `sessions --json` / `use --json` / `forget --json` / `workspace --json`
+
+| 动作 | 稳定字段 / 结构 | 说明 |
+| --- | --- | --- |
+| `doctor --json` | `repo` / `status` / `failing_checks` / `python` / `entrypoints` / `cargo` / `toolchain` / `linker` / `runtime_profile` / `model_provider` / `sidecar` / `session` / `session_path` / `workspace` / `db` / `output` | 当前入口层总健康检查；`db` 与 `output` 是对象，分别带 `path` / `exists` / `source` |
+| `session --json` | `task_id` / `effect_id` / `db` / `output` / `owner_id` | 当前 remembered session 快照；如果没有 remembered session，则 `result=null` |
+| `sessions --json` | `db` / `db_source` / `limit` / `current_session` / `rows` | `rows[*]` 结构接近 `service-status.recent_tasks[*]`，但不附带 `next_summary` / `next_command` / `reconcile_commands` |
+| `use --json` | `task_id` / `effect_id` / `db` / `db_source` / `output` / `output_source` / `owner_id` / `owner_id_source` / `source` | 激活某条历史会话；`source` 形如 `task:<task-id>`，其余 `*_source` 会随 `--task-id` / `--index` / `--db` 的选择路径变化 |
+| `forget --json` | `forgot` / `path` / `reason` | 只清 remembered session 文件，不删数据库与输出；`reason` 通常是 `removed` 或 `none` |
+| `workspace --json` | 共有 `path`；其余按模式分 3 种 | 见下方“workspace 三种结果形态” |
+
+关于这组管理动作，有 4 条固定事实：
+
+- `doctor --json` 正常情况下仍走成功信封；是否健康主要看 `result.status` 与 `result.failing_checks`，而不是只看是否有 JSON 输出。
+- `session --json` 与顶层 `remembered_session` 不同，它只返回当前 remembered session 本体，不再包 `source_hints`。
+- `sessions --json` 的 `rows[*].current` 只表示“这一行是否等于当前 remembered session”，不表示该任务一定是最新更新时间或唯一推荐动作。
+- `use --json` 的 `db_source` / `output_source` / `owner_id_source` 是来源提示，不是固定常量；当你显式传 `--db` 时，它们和默认走 remembered session 的结果可能不同。
+
+`workspace --json` 三种结果形态
+
+| 触发方式 | 结果结构 | 说明 |
+| --- | --- | --- |
+| `workspace --json` | `active` / `name` / `db` / `output` / `path` | 查询当前 workspace 状态；未激活时 `active=false`、`name=null`，`db/output` 回到默认路径 |
+| `workspace --name demo --json` | `active` / `name` / `db` / `output` / `path` / `changed` | 激活命名 workspace；`changed=true` 表示当前命令刚写入了 workspace 选择 |
+| `workspace --clear --json` | `cleared` / `path` / `reason` | 清除 workspace 记忆；`reason` 通常是 `removed` 或 `none` |
 
 ## 最常用命令
 

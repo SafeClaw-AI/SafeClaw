@@ -112,15 +112,9 @@ pub enum AttemptResultStatus {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LeaseError {
-    Expired {
-        now_ms: u64,
-        expires_at_ms: u64,
-    },
+    Expired { now_ms: u64, expires_at_ms: u64 },
     LeaseIdMismatch,
-    StaleFencingToken {
-        current: u64,
-        provided: u64,
-    },
+    StaleFencingToken { current: u64, provided: u64 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,11 +203,9 @@ pub trait EffectStore {
 
     fn load_effect(&self, effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError>;
 
-    fn save_lease(&mut self, task_id: &str, lease: &RecoveryLease)
-        -> Result<(), EffectStoreError>;
+    fn save_lease(&mut self, task_id: &str, lease: &RecoveryLease) -> Result<(), EffectStoreError>;
 
-    fn load_latest_lease(&self, task_id: &str)
-        -> Result<Option<RecoveryLease>, EffectStoreError>;
+    fn load_latest_lease(&self, task_id: &str) -> Result<Option<RecoveryLease>, EffectStoreError>;
 
     fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError>;
 
@@ -239,7 +231,8 @@ impl InMemoryEffectStore {
 
 impl EffectStore for InMemoryEffectStore {
     fn save_effect(&mut self, effect: &EffectRecord) -> Result<(), EffectStoreError> {
-        self.effects.insert(effect.effect_id.clone(), effect.clone());
+        self.effects
+            .insert(effect.effect_id.clone(), effect.clone());
         Ok(())
     }
 
@@ -247,13 +240,12 @@ impl EffectStore for InMemoryEffectStore {
         Ok(self.effects.get(effect_id).cloned())
     }
 
-    fn save_lease(
-        &mut self,
-        task_id: &str,
-        lease: &RecoveryLease,
-    ) -> Result<(), EffectStoreError> {
+    fn save_lease(&mut self, task_id: &str, lease: &RecoveryLease) -> Result<(), EffectStoreError> {
         let leases = self.leases_by_task.entry(task_id.to_string()).or_default();
-        if let Some(existing) = leases.iter_mut().find(|entry| entry.lease_id == lease.lease_id) {
+        if let Some(existing) = leases
+            .iter_mut()
+            .find(|entry| entry.lease_id == lease.lease_id)
+        {
             *existing = lease.clone();
         } else {
             leases.push(lease.clone());
@@ -268,10 +260,7 @@ impl EffectStore for InMemoryEffectStore {
         Ok(())
     }
 
-    fn load_latest_lease(
-        &self,
-        task_id: &str,
-    ) -> Result<Option<RecoveryLease>, EffectStoreError> {
+    fn load_latest_lease(&self, task_id: &str) -> Result<Option<RecoveryLease>, EffectStoreError> {
         Ok(self
             .leases_by_task
             .get(task_id)
@@ -279,7 +268,11 @@ impl EffectStore for InMemoryEffectStore {
     }
 
     fn list_leases(&self, task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError> {
-        Ok(self.leases_by_task.get(task_id).cloned().unwrap_or_default())
+        Ok(self
+            .leases_by_task
+            .get(task_id)
+            .cloned()
+            .unwrap_or_default())
     }
 
     fn save_attempt(&mut self, attempt: &EffectAttempt) -> Result<(), EffectStoreError> {
@@ -519,10 +512,10 @@ impl EffectRecord {
 #[cfg(test)]
 mod tests {
     use super::{
-        crash_outcome_for, AttemptResultStatus, AttemptWriteError, EffectAction,
-        EffectActor, EffectAttempt, EffectRecord, EffectReversibility, EffectStatus,
-        EffectStore, EffectTier, EffectTransitionError, InMemoryEffectStore,
-        LeaseError, ProbeMode, ProbeState, RecoveryLease,
+        crash_outcome_for, AttemptResultStatus, AttemptWriteError, EffectAction, EffectActor,
+        EffectAttempt, EffectRecord, EffectReversibility, EffectStatus, EffectStore, EffectTier,
+        EffectTransitionError, InMemoryEffectStore, LeaseError, ProbeMode, ProbeState,
+        RecoveryLease,
     };
 
     fn demo_record(probe_mode: ProbeMode) -> EffectRecord {
@@ -684,7 +677,10 @@ mod tests {
         recorded_attempt
             .record_result(AttemptResultStatus::Crash, &lease, 10)
             .unwrap();
-        assert_eq!(recorded_attempt.result_status, Some(AttemptResultStatus::Crash));
+        assert_eq!(
+            recorded_attempt.result_status,
+            Some(AttemptResultStatus::Crash)
+        );
 
         lease.expires_at_ms = 5;
         assert_eq!(
@@ -751,7 +747,10 @@ mod tests {
         );
 
         assert_eq!(compensation.status, EffectStatus::Prepared);
-        assert_eq!(compensation.compensates_effect_id, Some(String::from("effect-1")));
+        assert_eq!(
+            compensation.compensates_effect_id,
+            Some(String::from("effect-1"))
+        );
         assert_eq!(compensation.task_id, source.task_id);
         assert_ne!(compensation.effect_id, source.effect_id);
     }

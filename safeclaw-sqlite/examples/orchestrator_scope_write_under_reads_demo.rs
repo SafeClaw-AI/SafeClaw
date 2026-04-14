@@ -11,14 +11,14 @@ use safeclaw_sqlite::{open_database, SqliteOpenOptions, SqliteTaskOrchestrator};
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
     let temp = DemoArtifacts::new(&workspace)?;
-    let shared_scope = format!("scope:{}", temp.root.join("shared-write-under-reads.txt").display());
+    let shared_scope = format!(
+        "scope:{}",
+        temp.root.join("shared-write-under-reads.txt").display()
+    );
 
-    let mut orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut orchestrator = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+        .map(SqliteTaskOrchestrator::new)?
+        .with_lease_ttl_ms(60_000);
 
     into_demo(orchestrator.enqueue(OrchestratorTask::new(
         "task-shared-read-1",
@@ -41,10 +41,7 @@ fn main() -> Result<(), String> {
         .expect("first shared read must be claimable");
     println!(
         "[demo] first read claim => task={} lease={} fence={} owner={}",
-        first.task.task_id,
-        first.lease.lease_id,
-        first.lease.fencing_token,
-        first.lease.owner_id
+        first.task.task_id, first.lease.lease_id, first.lease.fencing_token, first.lease.owner_id
     );
     assert!(!first.task.intent.requires_write);
 
@@ -63,10 +60,7 @@ fn main() -> Result<(), String> {
         .expect("same-scope write must remain claimable under reads");
     println!(
         "[demo] write-under-reads claim => task={} lease={} fence={} owner={}",
-        third.task.task_id,
-        third.lease.lease_id,
-        third.lease.fencing_token,
-        third.lease.owner_id
+        third.task.task_id, third.lease.lease_id, third.lease.fencing_token, third.lease.owner_id
     );
     assert!(third.task.intent.requires_write);
 
@@ -115,9 +109,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("orchestrator-scope-write-under-reads-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "orchestrator-scope-write-under-reads-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("orchestrator-scope-write-under-reads.db"),

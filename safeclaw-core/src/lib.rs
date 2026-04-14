@@ -1,12 +1,12 @@
-﻿#![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 
 pub mod effect_ledger;
 pub mod protocol;
 pub mod recovery;
 pub mod runtime_store;
 pub mod scheduler;
-pub mod state_engine;
 pub mod spec_map;
+pub mod state_engine;
 pub mod task_concurrency;
 pub mod worker_lifecycle;
 
@@ -15,32 +15,27 @@ use effect_ledger::{
     EffectTransitionError, LeaseError, ProbeState, RecoveryLease,
 };
 use task_concurrency::{
-    runtime_state_from_effect, scope_quarantine_trigger, user_retry_decision,
-    write_scope_decision, EffectGuardSnapshot, GuardBlockReason, GuardDecision,
-    ScopeClaim,
+    runtime_state_from_effect, scope_quarantine_trigger, user_retry_decision, write_scope_decision,
+    EffectGuardSnapshot, GuardBlockReason, GuardDecision, ScopeClaim,
 };
 use worker_lifecycle::{transition_for, WorkerEvent, WorkerState};
 
-pub use effect_ledger::{
-    EffectStore, EffectStoreError, InMemoryEffectStore, MockEffectStore,
-};
+pub use effect_ledger::{EffectStore, EffectStoreError, InMemoryEffectStore, MockEffectStore};
 pub use protocol::protocol_version;
 pub use recovery::probes::{
-    probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter,
-    ProbeAdapterError, ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
+    probe_definition_for, InMemoryProbeAdapter, MockProbeAdapter, ProbeAdapter, ProbeAdapterError,
+    ProbeDefinition, ProbeReceipt, ProbeReceiptStatus,
 };
-pub use runtime_store::{
-    InMemoryRuntimeStore, MockRuntimeStore, RuntimeStore, RuntimeStoreError,
-};
+pub use runtime_store::{InMemoryRuntimeStore, MockRuntimeStore, RuntimeStore, RuntimeStoreError};
 pub use scheduler::{
-    InMemoryTaskOrchestrator, InMemoryTaskScheduler, MockTaskOrchestrator,
-    MockTaskScheduler, OrchestratorClaim, OrchestratorError, OrchestratorLease,
-    OrchestratorSnapshot, OrchestratorTask, ScheduleIntent, ScheduleTicket,
-    SchedulerError, SchedulerSnapshot, TaskOrchestrator, TaskScheduler,
+    InMemoryTaskOrchestrator, InMemoryTaskScheduler, MockTaskOrchestrator, MockTaskScheduler,
+    OrchestratorClaim, OrchestratorError, OrchestratorLease, OrchestratorSnapshot,
+    OrchestratorTask, ScheduleIntent, ScheduleTicket, SchedulerError, SchedulerSnapshot,
+    TaskOrchestrator, TaskScheduler,
 };
 pub use state_engine::{
-    InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine,
-    StateEngineError, StateEvent, TaskSnapshot,
+    InMemoryStateEngine, MockStateEngine, StateApplyResult, StateEngine, StateEngineError,
+    StateEvent, TaskSnapshot,
 };
 
 pub const DEFAULT_LEASE_TTL_MS: u64 = 30_000;
@@ -206,11 +201,11 @@ impl InMemoryTaskRuntime {
             Some(snapshot) => snapshot,
             None => return Ok(None),
         };
-        let effect = effect_store
-            .load_effect(effect_id)?
-            .ok_or_else(|| RuntimeRestoreError::MissingEffectRecord {
+        let effect = effect_store.load_effect(effect_id)?.ok_or_else(|| {
+            RuntimeRestoreError::MissingEffectRecord {
                 effect_id: effect_id.to_string(),
-            })?;
+            }
+        })?;
         let recovery_lease = effect_store.load_latest_lease(task_id)?;
         let attempts = effect_store.list_attempts(effect_id)?;
 
@@ -476,7 +471,9 @@ impl InMemoryTaskRuntime {
     }
 
     pub fn rollback_executed_effect(&mut self) -> Result<RunSummary, RuntimeError> {
-        if self.worker_state != WorkerState::Succeeded || self.effect.status != EffectStatus::Executed {
+        if self.worker_state != WorkerState::Succeeded
+            || self.effect.status != EffectStatus::Executed
+        {
             return Err(RuntimeError::ReconcileUnavailable {
                 state: self.worker_state,
                 effect_status: self.effect.status,
@@ -841,7 +838,8 @@ impl InMemoryTaskRuntime {
     }
 
     fn release_scope_quarantine(&mut self) {
-        self.quarantined_scopes.retain(|scope| scope != &self.effect.target);
+        self.quarantined_scopes
+            .retain(|scope| scope != &self.effect.target);
     }
 
     fn apply_worker_event(&mut self, event: WorkerEvent) -> Result<(), RuntimeError> {
@@ -909,10 +907,10 @@ impl From<EffectStoreError> for RuntimeRestoreError {
 #[cfg(test)]
 mod tests {
     use super::{
-        ConfirmationAction, DEFAULT_LEASE_TTL_MS, ExecutionDisposition,
-        ExecutionInterruption, HibernationAction, InMemoryStateEngine,
-        InMemoryTaskRuntime, PreflightDecision, ReconcileDecision, RepairUserAction,
-        RuntimeError, StateApplyResult, StateEngine, StateEngineError, StateEvent,
+        ConfirmationAction, ExecutionDisposition, ExecutionInterruption, HibernationAction,
+        InMemoryStateEngine, InMemoryTaskRuntime, PreflightDecision, ReconcileDecision,
+        RepairUserAction, RuntimeError, StateApplyResult, StateEngine, StateEngineError,
+        StateEvent, DEFAULT_LEASE_TTL_MS,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
@@ -986,7 +984,10 @@ mod tests {
             at: String::from("2026-03-21T00:00:01Z"),
         };
 
-        assert_eq!(engine.apply_event(fresh).unwrap(), StateApplyResult::Applied);
+        assert_eq!(
+            engine.apply_event(fresh).unwrap(),
+            StateApplyResult::Applied
+        );
         assert_eq!(
             engine.apply_event(stale),
             Err(StateEngineError::StaleFencingToken {
@@ -1081,7 +1082,9 @@ mod tests {
             engine.snapshot("task-1").unwrap(),
             None,
         );
-        let summary = restarted.reconcile_assumed(ReconcileDecision::Success).unwrap();
+        let summary = restarted
+            .reconcile_assumed(ReconcileDecision::Success)
+            .unwrap();
 
         assert_eq!(summary.worker_state, WorkerState::Succeeded);
         assert_eq!(summary.effect_status, EffectStatus::Executed);
@@ -1167,7 +1170,9 @@ mod tests {
             .unwrap();
         assert_eq!(executing.worker_state, WorkerState::Executing);
 
-        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        let succeeded = runtime
+            .continue_execution(ExecutionDisposition::Commit)
+            .unwrap();
         assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
         assert_eq!(succeeded.effect_status, EffectStatus::Executed);
     }
@@ -1187,7 +1192,9 @@ mod tests {
             .unwrap();
         assert_eq!(resumed.worker_state, WorkerState::Executing);
 
-        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        let succeeded = runtime
+            .continue_execution(ExecutionDisposition::Commit)
+            .unwrap();
         assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
     }
 
@@ -1242,7 +1249,9 @@ mod tests {
             .unwrap();
         assert_eq!(executing.worker_state, WorkerState::Executing);
 
-        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        let succeeded = runtime
+            .continue_execution(ExecutionDisposition::Commit)
+            .unwrap();
         assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
     }
 
@@ -1259,7 +1268,9 @@ mod tests {
         assert_eq!(executing.worker_state, WorkerState::Executing);
 
         let mut abandon_runtime = demo_runtime(ProbeMode::Auto);
-        abandon_runtime.start_task(PreflightDecision::Permit).unwrap();
+        abandon_runtime
+            .start_task(PreflightDecision::Permit)
+            .unwrap();
         abandon_runtime
             .interrupt_execution(ExecutionInterruption::ExecError)
             .unwrap();
@@ -1278,7 +1289,9 @@ mod tests {
         let executing = runtime.retry_failed(PreflightDecision::Permit).unwrap();
         assert_eq!(executing.worker_state, WorkerState::Executing);
 
-        let succeeded = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+        let succeeded = runtime
+            .continue_execution(ExecutionDisposition::Commit)
+            .unwrap();
         assert_eq!(succeeded.worker_state, WorkerState::Succeeded);
     }
 
@@ -1318,7 +1331,10 @@ mod tests {
 
         assert_eq!(summary.worker_state, WorkerState::Failed);
         assert_eq!(summary.effect_status, EffectStatus::ExecutedAssumed);
-        assert_eq!(summary.quarantined_scopes, vec![String::from("scope:/tmp/demo.txt")]);
+        assert_eq!(
+            summary.quarantined_scopes,
+            vec![String::from("scope:/tmp/demo.txt")]
+        );
     }
 
     #[test]
@@ -1417,7 +1433,9 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::Repaired);
         assert_eq!(summary.effect_status, EffectStatus::Executed);
 
-        let closed = runtime.resolve_repair_state(RepairUserAction::Close).unwrap();
+        let closed = runtime
+            .resolve_repair_state(RepairUserAction::Close)
+            .unwrap();
         assert_eq!(closed.worker_state, WorkerState::Closed);
     }
 
@@ -1431,7 +1449,9 @@ mod tests {
         assert_eq!(summary.worker_state, WorkerState::RepairFailed);
         assert_eq!(summary.effect_status, EffectStatus::Executed);
 
-        let failed_terminal = runtime.resolve_repair_state(RepairUserAction::Abandon).unwrap();
+        let failed_terminal = runtime
+            .resolve_repair_state(RepairUserAction::Abandon)
+            .unwrap();
         assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
     }
 
@@ -1487,7 +1507,9 @@ mod tests {
             })
         );
 
-        let summary = runtime.reconcile_assumed(ReconcileDecision::Success).unwrap();
+        let summary = runtime
+            .reconcile_assumed(ReconcileDecision::Success)
+            .unwrap();
         let new_lease = runtime.current_recovery_lease().unwrap();
 
         assert_eq!(summary.worker_state, WorkerState::Succeeded);
@@ -1504,12 +1526,12 @@ mod tests {
             .unwrap();
         runtime.advance_clock(DEFAULT_LEASE_TTL_MS + 1);
 
-        let summary = runtime.reconcile_assumed(ReconcileDecision::Failure).unwrap();
+        let summary = runtime
+            .reconcile_assumed(ReconcileDecision::Failure)
+            .unwrap();
 
         assert_eq!(summary.worker_state, WorkerState::FailedTerminal);
         assert_eq!(summary.effect_status, EffectStatus::Cancelled);
         assert!(summary.quarantined_scopes.is_empty());
     }
 }
-
-

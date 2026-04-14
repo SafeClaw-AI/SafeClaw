@@ -7,29 +7,31 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
     let temp = DemoArtifacts::new(&workspace)?;
-    let shared_scope = format!("scope:{}", temp.root.join("shared-write-serial-under-reads.txt").display());
+    let shared_scope = format!(
+        "scope:{}",
+        temp.root
+            .join("shared-write-serial-under-reads.txt")
+            .display()
+    );
     let second_write_output = temp.root.join("worker-loop-second-write-under-reads.txt");
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
 
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-shared-read-active-1",
@@ -86,9 +88,10 @@ fn main() -> Result<(), String> {
     );
     assert!(first_write.task.intent.requires_write);
 
-    let blocked_orchestrator = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
-        .map(SqliteTaskOrchestrator::new)?
-        .with_lease_ttl_ms(60_000);
+    let blocked_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
     let blocked_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
         SqliteOpenOptions::default(),
@@ -101,7 +104,10 @@ fn main() -> Result<(), String> {
         PreflightDecision::Permit,
         |_| unreachable!(),
     ))?;
-    println!("[demo] second write blocked while first write active => {}", blocked.is_none());
+    println!(
+        "[demo] second write blocked while first write active => {}",
+        blocked.is_none()
+    );
     assert!(blocked.is_none());
 
     into_demo(blocking_orchestrator.complete(
@@ -109,11 +115,15 @@ fn main() -> Result<(), String> {
         &first_write.lease.lease_id,
         &first_write.lease.owner_id,
     ))?;
-    print_snapshot("after-first-write-release", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-first-write-release",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
-    let release_orchestrator = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
-        .map(SqliteTaskOrchestrator::new)?
-        .with_lease_ttl_ms(60_000);
+    let release_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
     let release_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
         SqliteOpenOptions::default(),
@@ -145,18 +155,23 @@ fn main() -> Result<(), String> {
         released.final_summary.effect_status,
         released.completed
     );
-    print_snapshot("after-second-write-complete", release_worker.queue_snapshot());
-    assert_eq!(fs::read(&second_write_output).unwrap(), b"safeclaw second write under reads\n");
+    print_snapshot(
+        "after-second-write-complete",
+        release_worker.queue_snapshot(),
+    );
+    assert_eq!(
+        fs::read(&second_write_output).unwrap(),
+        b"safeclaw second write under reads\n"
+    );
     assert_eq!(release_worker.queue_snapshot().active_leases.len(), 2);
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored = into_demo(verify_store.load_runtime(
-        "task-worker-shared-write-2",
-        "effect-worker-shared-write-2",
-    ))?
+    let restored = into_demo(
+        verify_store.load_runtime("task-worker-shared-write-2", "effect-worker-shared-write-2"),
+    )?
     .expect("second write runtime must reload");
     println!(
         "[demo] restored runtime => worker={:?}, effect={:?}, attempts={}",
@@ -165,7 +180,10 @@ fn main() -> Result<(), String> {
         restored.attempts.len()
     );
     println!("[demo] db: {}", temp.db_path().display());
-    println!("[demo] second write output: {}", second_write_output.display());
+    println!(
+        "[demo] second write output: {}",
+        second_write_output.display()
+    );
     Ok(())
 }
 
@@ -245,9 +263,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-write-serial-under-reads-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-write-serial-under-reads-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-write-serial-under-reads.db"),

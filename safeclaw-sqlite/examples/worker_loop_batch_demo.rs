@@ -7,15 +7,13 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -86,15 +84,13 @@ fn main() -> Result<(), String> {
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored_one = into_demo(verify_store.load_runtime(
-        "task-worker-loop-batch-1",
-        "effect-worker-loop-batch-1",
-    ))?
+    let restored_one = into_demo(
+        verify_store.load_runtime("task-worker-loop-batch-1", "effect-worker-loop-batch-1"),
+    )?
     .expect("first batch runtime must reload");
-    let restored_two = into_demo(verify_store.load_runtime(
-        "task-worker-loop-batch-2",
-        "effect-worker-loop-batch-2",
-    ))?
+    let restored_two = into_demo(
+        verify_store.load_runtime("task-worker-loop-batch-2", "effect-worker-loop-batch-2"),
+    )?
     .expect("second batch runtime must reload");
     println!(
         "[demo] restored runtimes => one={:?}/{:?}, two={:?}/{:?}",

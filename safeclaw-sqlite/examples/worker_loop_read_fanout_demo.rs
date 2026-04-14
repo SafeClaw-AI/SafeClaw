@@ -7,15 +7,14 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -23,12 +22,10 @@ fn main() -> Result<(), String> {
     let temp = DemoArtifacts::new(&workspace)?;
     let shared_scope = format!("scope:{}", temp.root.join("shared-read.txt").display());
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
 
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-shared-read-1",
@@ -88,17 +85,18 @@ fn main() -> Result<(), String> {
     );
     print_snapshot("after-second-read-complete", read_worker.queue_snapshot());
     assert_eq!(read_worker.queue_snapshot().active_leases.len(), 1);
-    assert_eq!(read_worker.queue_snapshot().active_leases[0].task_id, "task-worker-shared-read-1");
-
+    assert_eq!(
+        read_worker.queue_snapshot().active_leases[0].task_id,
+        "task-worker-shared-read-1"
+    );
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored = into_demo(verify_store.load_runtime(
-        "task-worker-shared-read-2",
-        "effect-worker-shared-read-2",
-    ))?
+    let restored = into_demo(
+        verify_store.load_runtime("task-worker-shared-read-2", "effect-worker-shared-read-2"),
+    )?
     .expect("second shared read runtime must reload");
     println!(
         "[demo] restored runtime => worker={:?}, effect={:?}, attempts={}",
@@ -162,9 +160,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-read-fanout-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-read-fanout-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-read-fanout.db"),

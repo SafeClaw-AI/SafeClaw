@@ -1,33 +1,27 @@
-﻿use safeclaw_core::effect_ledger::{
-    crash_outcome_for, AttemptResultStatus, EffectAction, EffectActor, EffectAttempt,
-    EffectRecord, EffectReversibility, EffectStatus, EffectStore, EffectStoreError,
-    EffectTier, ProbeMode, RecoveryLease, COMMIT_PROTOCOL_STEPS,
-    CORE_EFFECT_PHASES,
+use safeclaw_core::effect_ledger::{
+    crash_outcome_for, AttemptResultStatus, EffectAction, EffectActor, EffectAttempt, EffectRecord,
+    EffectReversibility, EffectStatus, EffectStore, EffectStoreError, EffectTier, ProbeMode,
+    RecoveryLease, COMMIT_PROTOCOL_STEPS, CORE_EFFECT_PHASES,
 };
 use safeclaw_core::protocol_version;
-use safeclaw_core::spec_map::{CORE_SPEC_BINDINGS, ImplementationStage};
-use safeclaw_core::{
-    probe_definition_for, ConfirmationAction, ExecutionDisposition,
-    ExecutionInterruption, HibernationAction, InMemoryEffectStore,
-    InMemoryProbeAdapter, InMemoryStateEngine, InMemoryTaskOrchestrator,
-    InMemoryTaskRuntime, InMemoryTaskScheduler, MockEffectStore,
-    MockRuntimeStore, MockStateEngine, OrchestratorError, OrchestratorTask,
-    PreflightDecision, ProbeReceipt, ProbeReceiptStatus, ReconcileDecision,
-    RepairUserAction, RuntimeRestoreError, RuntimeStore, RuntimeStoreError,
-    ScheduleIntent, SchedulerError, StateApplyResult, StateEngine,
-    StateEvent, StateEngineError, TaskOrchestrator, TaskScheduler,
-    DEFAULT_LEASE_TTL_MS,
-};
+use safeclaw_core::spec_map::{ImplementationStage, CORE_SPEC_BINDINGS};
 use safeclaw_core::task_concurrency::{
-    auto_retry_allowed, auto_retry_decision, runtime_state_from_effect,
-    schedule_decision, scope_quarantine_trigger, user_retry_allowed,
-    user_retry_decision, write_scope_decision, EffectGuardSnapshot,
-    EffectRuntimeState, GuardBlockReason, GuardDecision, ScopeClaim,
+    auto_retry_allowed, auto_retry_decision, runtime_state_from_effect, schedule_decision,
+    scope_quarantine_trigger, user_retry_allowed, user_retry_decision, write_scope_decision,
+    EffectGuardSnapshot, EffectRuntimeState, GuardBlockReason, GuardDecision, ScopeClaim,
     TaskScheduleRequest, MAX_CONCURRENT_WORKERS, USER_RETRY_BLOCKED_STATES,
 };
 use safeclaw_core::worker_lifecycle::{
-    transition_for, WorkerEvent, WorkerState, TERMINAL_STATES, TRANSITIONS,
-    USER_RETRY_GUARDS,
+    transition_for, WorkerEvent, WorkerState, TERMINAL_STATES, TRANSITIONS, USER_RETRY_GUARDS,
+};
+use safeclaw_core::{
+    probe_definition_for, ConfirmationAction, ExecutionDisposition, ExecutionInterruption,
+    HibernationAction, InMemoryEffectStore, InMemoryProbeAdapter, InMemoryStateEngine,
+    InMemoryTaskOrchestrator, InMemoryTaskRuntime, InMemoryTaskScheduler, MockEffectStore,
+    MockRuntimeStore, MockStateEngine, OrchestratorError, OrchestratorTask, PreflightDecision,
+    ProbeReceipt, ProbeReceiptStatus, ReconcileDecision, RepairUserAction, RuntimeRestoreError,
+    RuntimeStore, RuntimeStoreError, ScheduleIntent, SchedulerError, StateApplyResult, StateEngine,
+    StateEngineError, StateEvent, TaskOrchestrator, TaskScheduler, DEFAULT_LEASE_TTL_MS,
 };
 
 #[test]
@@ -73,7 +67,10 @@ fn probe_catalog_exposes_phase1_supported_contracts() {
 
 #[test]
 fn probe_mode_none_escalates_to_executed_assumed() {
-    assert_eq!(crash_outcome_for(ProbeMode::None), EffectStatus::ExecutedAssumed);
+    assert_eq!(
+        crash_outcome_for(ProbeMode::None),
+        EffectStatus::ExecutedAssumed
+    );
 }
 
 #[test]
@@ -85,7 +82,9 @@ fn user_retry_guard_blocks_uncertain_and_probing_effects() {
 
 #[test]
 fn scope_quarantine_and_reconcile_transitions_exist() {
-    assert!(scope_quarantine_trigger(EffectRuntimeState::ExecutedAssumed));
+    assert!(scope_quarantine_trigger(
+        EffectRuntimeState::ExecutedAssumed
+    ));
     let success = transition_for(WorkerEvent::UserReconcileSuccess, WorkerState::Failed).unwrap();
     assert_eq!(success.to, WorkerState::Committing);
     let failure = transition_for(WorkerEvent::UserReconcileFailure, WorkerState::Failed).unwrap();
@@ -260,7 +259,10 @@ fn task_concurrency_guard_evaluator_allows_prepared_auto_retry_and_clean_scope()
         probe_state: None,
     };
 
-    assert_eq!(auto_retry_decision(&prepared_effect), GuardDecision::Allowed);
+    assert_eq!(
+        auto_retry_decision(&prepared_effect),
+        GuardDecision::Allowed
+    );
     assert_eq!(
         write_scope_decision(
             "scope:/tmp/clean.txt",
@@ -277,11 +279,7 @@ fn task_schedule_decision_enforces_slots_and_doctor_bypass() {
 
     assert_eq!(
         schedule_decision(
-            &TaskScheduleRequest::write(
-                MAX_CONCURRENT_WORKERS,
-                false,
-                "scope:/tmp/clean.txt",
-            ),
+            &TaskScheduleRequest::write(MAX_CONCURRENT_WORKERS, false, "scope:/tmp/clean.txt",),
             &[],
             &[],
         ),
@@ -297,8 +295,7 @@ fn task_schedule_decision_enforces_slots_and_doctor_bypass() {
     );
     assert_eq!(
         schedule_decision(
-            &TaskScheduleRequest::write(1, false, "scope:/tmp/quarantined")
-                .with_doctor_bypass(),
+            &TaskScheduleRequest::write(1, false, "scope:/tmp/quarantined").with_doctor_bypass(),
             &[],
             &quarantined,
         ),
@@ -419,7 +416,9 @@ fn in_memory_runtime_confirmation_checkpoint_can_commit_after_user_confirm() {
         .unwrap();
     assert_eq!(executing.worker_state, WorkerState::Executing);
 
-    let summary = runtime.continue_execution(ExecutionDisposition::Commit).unwrap();
+    let summary = runtime
+        .continue_execution(ExecutionDisposition::Commit)
+        .unwrap();
     assert_eq!(summary.worker_state, WorkerState::Succeeded);
     assert_eq!(summary.effect_status, EffectStatus::Executed);
 }
@@ -640,7 +639,9 @@ fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
     retryable_runtime
         .resolve_confirmation(ConfirmationAction::Deny)
         .unwrap();
-    let executing = retryable_runtime.retry_failed(PreflightDecision::Permit).unwrap();
+    let executing = retryable_runtime
+        .retry_failed(PreflightDecision::Permit)
+        .unwrap();
     assert_eq!(executing.worker_state, WorkerState::Executing);
 
     let blocked_effect = EffectRecord::new(
@@ -660,8 +661,13 @@ fn in_memory_runtime_failed_retry_respects_user_retry_guard() {
     blocked_runtime
         .run_minimal_flow(PreflightDecision::Permit, ExecutionDisposition::Crash)
         .unwrap();
-    let retry_err = blocked_runtime.retry_failed(PreflightDecision::Permit).unwrap_err();
-    assert_eq!(retry_err, safeclaw_core::RuntimeError::GuardBlocked(GuardBlockReason::UserRetryBlocked));
+    let retry_err = blocked_runtime
+        .retry_failed(PreflightDecision::Permit)
+        .unwrap_err();
+    assert_eq!(
+        retry_err,
+        safeclaw_core::RuntimeError::GuardBlocked(GuardBlockReason::UserRetryBlocked)
+    );
 }
 
 #[test]
@@ -735,8 +741,14 @@ fn state_engine_contract_is_idempotent_and_fencing_aware() {
 
     let mut engine = InMemoryStateEngine::new();
     let event = runtime.state_event("evt-state-1", "worker");
-    assert_eq!(engine.apply_event(event.clone()).unwrap(), StateApplyResult::Applied);
-    assert_eq!(engine.apply_event(event).unwrap(), StateApplyResult::DuplicateIgnored);
+    assert_eq!(
+        engine.apply_event(event.clone()).unwrap(),
+        StateApplyResult::Applied
+    );
+    assert_eq!(
+        engine.apply_event(event).unwrap(),
+        StateApplyResult::DuplicateIgnored
+    );
     assert_eq!(engine.event_count(), 1);
 
     let stale = StateEvent {
@@ -814,7 +826,10 @@ fn state_engine_snapshot_can_restore_uncertain_and_executed_assumed_runtime() {
         None,
     );
     assert_eq!(restored_assumed.worker_state, WorkerState::Failed);
-    assert_eq!(restored_assumed.effect.status, EffectStatus::ExecutedAssumed);
+    assert_eq!(
+        restored_assumed.effect.status,
+        EffectStatus::ExecutedAssumed
+    );
 }
 
 #[test]
@@ -838,7 +853,9 @@ fn state_engine_trait_contract_roundtrips_through_mock_adapter() {
 
     let mut engine = MockStateEngine::new();
     assert_eq!(
-        runtime.persist_state(&mut engine, "evt-trait-1", "worker").unwrap(),
+        runtime
+            .persist_state(&mut engine, "evt-trait-1", "worker")
+            .unwrap(),
         StateApplyResult::Applied
     );
 
@@ -848,14 +865,10 @@ fn state_engine_trait_contract_roundtrips_through_mock_adapter() {
     assert_eq!(snapshot.worker_state, runtime.worker_state);
     assert_eq!(snapshot.effect_status, runtime.effect.status);
 
-    let restored = InMemoryTaskRuntime::restore_from_engine(
-        effect,
-        &engine,
-        "task-state-trait",
-        None,
-    )
-    .unwrap()
-    .expect("runtime must restore from trait-backed engine");
+    let restored =
+        InMemoryTaskRuntime::restore_from_engine(effect, &engine, "task-state-trait", None)
+            .unwrap()
+            .expect("runtime must restore from trait-backed engine");
 
     assert_eq!(restored.worker_state, runtime.worker_state);
     assert_eq!(restored.effect.status, runtime.effect.status);
@@ -947,14 +960,20 @@ fn effect_store_trait_contract_roundtrips_through_mock_adapter() {
     store.save_lease(&effect.task_id, &lease).unwrap();
     store.save_attempt(&attempt).unwrap();
 
-    assert_eq!(EffectStore::load_effect(&store, &effect.effect_id).unwrap(), Some(effect));
+    assert_eq!(
+        EffectStore::load_effect(&store, &effect.effect_id).unwrap(),
+        Some(effect)
+    );
     assert_eq!(
         EffectStore::load_latest_lease(&store, "task-store-trait")
             .unwrap()
             .unwrap(),
         lease
     );
-    assert_eq!(EffectStore::list_attempts(&store, "effect-store-trait").unwrap(), vec![attempt]);
+    assert_eq!(
+        EffectStore::list_attempts(&store, "effect-store-trait").unwrap(),
+        vec![attempt]
+    );
 }
 
 #[test]
@@ -978,7 +997,9 @@ fn runtime_store_trait_contract_roundtrips_through_mock_adapter() {
 
     let mut store = MockRuntimeStore::new();
     assert_eq!(
-        store.persist_runtime(&runtime, "evt-runtime-trait", "runtime-store").unwrap(),
+        store
+            .persist_runtime(&runtime, "evt-runtime-trait", "runtime-store")
+            .unwrap(),
         StateApplyResult::Applied
     );
     let restored = store
@@ -1046,7 +1067,9 @@ fn runtime_restore_from_effect_store_and_state_engine_roundtrips() {
 
     let mut engine = InMemoryStateEngine::new();
     let mut store = InMemoryEffectStore::new();
-    runtime.persist_state(&mut engine, "evt-store-restore", "worker").unwrap();
+    runtime
+        .persist_state(&mut engine, "evt-store-restore", "worker")
+        .unwrap();
     store.save_effect(&runtime.effect).unwrap();
     if let Some(lease) = runtime.current_recovery_lease().cloned() {
         store.save_lease(&runtime.effect.task_id, &lease).unwrap();
@@ -1075,31 +1098,52 @@ fn effect_store_trait_surfaces_backend_unavailable_errors() {
 
     impl EffectStore for FailingEffectStore {
         fn save_effect(&mut self, _effect: &EffectRecord) -> Result<(), EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "save_effect" })
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "save_effect",
+            })
         }
 
         fn load_effect(&self, _effect_id: &str) -> Result<Option<EffectRecord>, EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "load_effect" })
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "load_effect",
+            })
         }
 
-        fn save_lease(&mut self, _task_id: &str, _lease: &RecoveryLease) -> Result<(), EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "save_lease" })
+        fn save_lease(
+            &mut self,
+            _task_id: &str,
+            _lease: &RecoveryLease,
+        ) -> Result<(), EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "save_lease",
+            })
         }
 
-        fn load_latest_lease(&self, _task_id: &str) -> Result<Option<RecoveryLease>, EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "load_latest_lease" })
+        fn load_latest_lease(
+            &self,
+            _task_id: &str,
+        ) -> Result<Option<RecoveryLease>, EffectStoreError> {
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "load_latest_lease",
+            })
         }
 
         fn list_leases(&self, _task_id: &str) -> Result<Vec<RecoveryLease>, EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "list_leases" })
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "list_leases",
+            })
         }
 
         fn save_attempt(&mut self, _attempt: &EffectAttempt) -> Result<(), EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "save_attempt" })
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "save_attempt",
+            })
         }
 
         fn list_attempts(&self, _effect_id: &str) -> Result<Vec<EffectAttempt>, EffectStoreError> {
-            Err(EffectStoreError::BackendUnavailable { operation: "list_attempts" })
+            Err(EffectStoreError::BackendUnavailable {
+                operation: "list_attempts",
+            })
         }
     }
 
@@ -1128,9 +1172,11 @@ fn effect_store_trait_surfaces_backend_unavailable_errors() {
             "task-store-fail",
             "effect-store-fail",
         ),
-        Err(RuntimeRestoreError::EffectStore(EffectStoreError::BackendUnavailable {
-            operation: "load_effect",
-        }))
+        Err(RuntimeRestoreError::EffectStore(
+            EffectStoreError::BackendUnavailable {
+                operation: "load_effect",
+            }
+        ))
     );
 }
 
@@ -1189,7 +1235,9 @@ fn persisted_runtime_can_restart_and_finish_recovery_paths() {
         engine.snapshot("task-restart-2").unwrap(),
         None,
     );
-    let reconcile = restarted_assumed.reconcile_assumed(ReconcileDecision::Success).unwrap();
+    let reconcile = restarted_assumed
+        .reconcile_assumed(ReconcileDecision::Success)
+        .unwrap();
     assert_eq!(reconcile.worker_state, WorkerState::Succeeded);
 }
 
@@ -1237,7 +1285,10 @@ fn compensation_effect_keeps_independent_identity() {
     );
 
     assert_eq!(compensation.status, EffectStatus::Prepared);
-    assert_eq!(compensation.compensates_effect_id, Some(String::from("effect-6")));
+    assert_eq!(
+        compensation.compensates_effect_id,
+        Some(String::from("effect-6"))
+    );
     assert_ne!(compensation.effect_id, source.effect_id);
 }
 
@@ -1262,7 +1313,9 @@ fn in_memory_runtime_reconcile_success_releases_quarantine() {
         .unwrap();
     runtime.advance_clock(DEFAULT_LEASE_TTL_MS + 1);
 
-    let summary = runtime.reconcile_assumed(ReconcileDecision::Success).unwrap();
+    let summary = runtime
+        .reconcile_assumed(ReconcileDecision::Success)
+        .unwrap();
 
     assert_eq!(summary.worker_state, WorkerState::Succeeded);
     assert_eq!(summary.effect_status, EffectStatus::Executed);
@@ -1341,7 +1394,9 @@ fn in_memory_runtime_doctor_repair_can_close_cleanly() {
     assert_eq!(summary.worker_state, WorkerState::Repaired);
     assert_eq!(summary.effect_status, EffectStatus::Executed);
 
-    let closed = runtime.resolve_repair_state(RepairUserAction::Close).unwrap();
+    let closed = runtime
+        .resolve_repair_state(RepairUserAction::Close)
+        .unwrap();
     assert_eq!(closed.worker_state, WorkerState::Closed);
     assert_eq!(closed.effect_status, EffectStatus::Executed);
 }
@@ -1397,17 +1452,9 @@ fn in_memory_runtime_repair_failed_can_abandon() {
     assert_eq!(summary.worker_state, WorkerState::RepairFailed);
     assert_eq!(summary.effect_status, EffectStatus::Executed);
 
-    let failed_terminal = runtime.resolve_repair_state(RepairUserAction::Abandon).unwrap();
+    let failed_terminal = runtime
+        .resolve_repair_state(RepairUserAction::Abandon)
+        .unwrap();
     assert_eq!(failed_terminal.worker_state, WorkerState::FailedTerminal);
     assert_eq!(failed_terminal.effect_status, EffectStatus::Executed);
 }
-
-
-
-
-
-
-
-
-
-

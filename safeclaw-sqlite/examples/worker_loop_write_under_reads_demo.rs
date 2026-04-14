@@ -7,29 +7,29 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
     let temp = DemoArtifacts::new(&workspace)?;
-    let shared_scope = format!("scope:{}", temp.root.join("shared-write-under-reads.txt").display());
+    let shared_scope = format!(
+        "scope:{}",
+        temp.root.join("shared-write-under-reads.txt").display()
+    );
     let write_output = temp.root.join("worker-loop-write-under-reads.txt");
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
 
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-shared-read-active-1",
@@ -105,7 +105,10 @@ fn main() -> Result<(), String> {
         write_outcome.completed
     );
     print_snapshot("after-write-complete", write_worker.queue_snapshot());
-    assert_eq!(fs::read(&write_output).unwrap(), b"safeclaw write under reads\n");
+    assert_eq!(
+        fs::read(&write_output).unwrap(),
+        b"safeclaw write under reads\n"
+    );
     assert_eq!(write_worker.queue_snapshot().active_leases.len(), 2);
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
@@ -204,9 +207,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-write-under-reads-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-write-under-reads-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-write-under-reads.db"),

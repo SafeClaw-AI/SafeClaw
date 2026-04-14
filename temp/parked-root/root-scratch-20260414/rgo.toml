@@ -1,0 +1,1 @@
+rustup target list | grep windows-gnu

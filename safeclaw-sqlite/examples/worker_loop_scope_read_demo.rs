@@ -7,15 +7,14 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -24,12 +23,10 @@ fn main() -> Result<(), String> {
     let shared_scope = format!("scope:{}", temp.root.join("shared.txt").display());
     let write_after_output = temp.root.join("worker-loop-shared-write-after.txt");
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-read-write-active",
         ScheduleIntent::write(shared_scope.clone()),
@@ -56,7 +53,10 @@ fn main() -> Result<(), String> {
         blocking_claim.lease.fencing_token,
         blocking_claim.lease.owner_id
     );
-    print_snapshot("after-blocking-write-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-blocking-write-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut read_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -83,9 +83,7 @@ fn main() -> Result<(), String> {
     .expect("same-scope read must remain claimable");
     println!(
         "[demo] same-scope read claimed => task={} owner={} completed={}",
-        read_outcome.claim.task.task_id,
-        read_outcome.claim.lease.owner_id,
-        read_outcome.completed
+        read_outcome.claim.task.task_id, read_outcome.claim.lease.owner_id, read_outcome.completed
     );
     print_snapshot("after-read-complete", read_worker.queue_snapshot());
 
@@ -100,14 +98,20 @@ fn main() -> Result<(), String> {
         PreflightDecision::Permit,
         |_| unreachable!(),
     ))?;
-    println!("[demo] remaining write still blocked => {}", blocked.is_none());
+    println!(
+        "[demo] remaining write still blocked => {}",
+        blocked.is_none()
+    );
 
     into_demo(blocking_orchestrator.complete(
         &blocking_claim.task.task_id,
         &blocking_claim.lease.lease_id,
         &blocking_claim.lease.owner_id,
     ))?;
-    print_snapshot("after-release-blocking-write", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-release-blocking-write",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut write_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -144,10 +148,9 @@ fn main() -> Result<(), String> {
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored_read = into_demo(verify_store.load_runtime(
-        "task-worker-read-shared",
-        "effect-worker-read-shared",
-    ))?
+    let restored_read = into_demo(
+        verify_store.load_runtime("task-worker-read-shared", "effect-worker-read-shared"),
+    )?
     .expect("same-scope read runtime must reload");
     let restored_write = into_demo(verify_store.load_runtime(
         "task-worker-read-write-after",
@@ -162,7 +165,10 @@ fn main() -> Result<(), String> {
         restored_write.effect.status
     );
     println!("[demo] db: {}", temp.db_path().display());
-    println!("[demo] write-after output: {}", write_after_output.display());
+    println!(
+        "[demo] write-after output: {}",
+        write_after_output.display()
+    );
     Ok(())
 }
 
@@ -251,9 +257,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-scope-read-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-scope-read-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-scope-read.db"),

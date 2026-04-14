@@ -34,6 +34,7 @@ pub struct TaskScheduleRequest {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GuardBlockReason {
     MaxWorkersReached,
+    WorkerPoolFull,
     ToolBusy,
     AutoRetryBlocked,
     UserRetryBlocked,
@@ -73,11 +74,7 @@ impl ScopeClaim {
 }
 
 impl TaskScheduleRequest {
-    pub fn write(
-        active_workers: usize,
-        tool_busy: bool,
-        target_scope: impl Into<String>,
-    ) -> Self {
+    pub fn write(active_workers: usize, tool_busy: bool, target_scope: impl Into<String>) -> Self {
         Self {
             active_workers,
             tool_busy,
@@ -87,11 +84,7 @@ impl TaskScheduleRequest {
         }
     }
 
-    pub fn read(
-        active_workers: usize,
-        tool_busy: bool,
-        target_scope: impl Into<String>,
-    ) -> Self {
+    pub fn read(active_workers: usize, tool_busy: bool, target_scope: impl Into<String>) -> Self {
         Self {
             active_workers,
             tool_busy,
@@ -130,7 +123,10 @@ pub fn auto_retry_allowed(state: EffectRuntimeState) -> bool {
 }
 
 pub fn auto_retry_decision(snapshot: &EffectGuardSnapshot) -> GuardDecision {
-    if auto_retry_allowed(runtime_state_from_effect(snapshot.status, snapshot.probe_state)) {
+    if auto_retry_allowed(runtime_state_from_effect(
+        snapshot.status,
+        snapshot.probe_state,
+    )) {
         GuardDecision::Allowed
     } else {
         GuardDecision::Blocked(GuardBlockReason::AutoRetryBlocked)
@@ -232,10 +228,9 @@ pub fn tool_slot_decision(tool_busy: bool) -> GuardDecision {
 #[cfg(test)]
 mod tests {
     use super::{
-        auto_retry_decision, runtime_state_from_effect, schedule_decision,
-        user_retry_decision, write_scope_decision, EffectGuardSnapshot,
-        EffectRuntimeState, GuardBlockReason, GuardDecision, ScopeClaim,
-        TaskScheduleRequest, MAX_CONCURRENT_WORKERS,
+        auto_retry_decision, runtime_state_from_effect, schedule_decision, user_retry_decision,
+        write_scope_decision, EffectGuardSnapshot, EffectRuntimeState, GuardBlockReason,
+        GuardDecision, ScopeClaim, TaskScheduleRequest, MAX_CONCURRENT_WORKERS,
     };
     use crate::effect_ledger::{EffectStatus, ProbeState};
 
@@ -309,11 +304,7 @@ mod tests {
     fn schedule_decision_blocks_full_worker_pool_and_busy_tool() {
         assert_eq!(
             schedule_decision(
-                &TaskScheduleRequest::write(
-                    MAX_CONCURRENT_WORKERS,
-                    false,
-                    "scope:/tmp/demo.txt",
-                ),
+                &TaskScheduleRequest::write(MAX_CONCURRENT_WORKERS, false, "scope:/tmp/demo.txt",),
                 &[],
                 &[],
             ),
@@ -343,8 +334,7 @@ mod tests {
         );
         assert_eq!(
             schedule_decision(
-                &TaskScheduleRequest::write(1, false, "scope:/tmp/demo.txt")
-                    .with_doctor_bypass(),
+                &TaskScheduleRequest::write(1, false, "scope:/tmp/demo.txt").with_doctor_bypass(),
                 &[],
                 &quarantined,
             ),

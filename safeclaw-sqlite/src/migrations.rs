@@ -1,4 +1,4 @@
-﻿use rusqlite::Connection;
+use rusqlite::Connection;
 
 use crate::SqliteAdapterError;
 
@@ -206,4 +206,3 @@ PRAGMA user_version=3;
     )?;
     Ok(())
 }
-

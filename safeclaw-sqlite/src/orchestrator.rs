@@ -1,4 +1,4 @@
-﻿use std::convert::TryFrom;
+use std::convert::TryFrom;
 
 use rusqlite::{params, Connection, Error as RusqliteError, TransactionBehavior};
 use safeclaw_core::{
@@ -53,16 +53,18 @@ impl TaskOrchestrator for SqliteTaskOrchestrator {
             ],
         ) {
             Ok(_) => Ok(()),
-            Err(RusqliteError::SqliteFailure(_, _)) => match load_task_completion_state(&self.connection, &task.task_id) {
-                Ok(Some(true)) => Err(OrchestratorError::TaskAlreadyCompleted {
-                    task_id: task.task_id,
-                }),
-                Ok(Some(false)) => Err(OrchestratorError::TaskAlreadyQueued {
-                    task_id: task.task_id,
-                }),
-                Ok(None) => Err(backend_unavailable("enqueue_task")),
-                Err(error) => Err(error),
-            },
+            Err(RusqliteError::SqliteFailure(_, _)) => {
+                match load_task_completion_state(&self.connection, &task.task_id) {
+                    Ok(Some(true)) => Err(OrchestratorError::TaskAlreadyCompleted {
+                        task_id: task.task_id,
+                    }),
+                    Ok(Some(false)) => Err(OrchestratorError::TaskAlreadyQueued {
+                        task_id: task.task_id,
+                    }),
+                    Ok(None) => Err(backend_unavailable("enqueue_task")),
+                    Err(error) => Err(error),
+                }
+            }
             Err(_) => Err(backend_unavailable("enqueue_task")),
         }
     }
@@ -137,11 +139,12 @@ impl TaskOrchestrator for SqliteTaskOrchestrator {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| backend_unavailable("begin_renew_orchestrator_lease"))?;
-        let lease = load_active_lease(&transaction, task_id)?
-            .ok_or_else(|| OrchestratorError::LeaseNotFound {
+        let lease = load_active_lease(&transaction, task_id)?.ok_or_else(|| {
+            OrchestratorError::LeaseNotFound {
                 task_id: task_id.to_string(),
                 lease_id: lease_id.to_string(),
-            })?;
+            }
+        })?;
 
         if lease.lease_id != lease_id {
             return Err(OrchestratorError::LeaseNotFound {
@@ -175,7 +178,10 @@ impl TaskOrchestrator for SqliteTaskOrchestrator {
                  SET expires_at_ms = ?1
                  WHERE lease_id = ?2",
                 params![
-                    to_sql_i64(renewed.expires_at_ms, "renew_orchestrator_lease_expires_at_ms")?,
+                    to_sql_i64(
+                        renewed.expires_at_ms,
+                        "renew_orchestrator_lease_expires_at_ms"
+                    )?,
                     &renewed.lease_id,
                 ],
             )
@@ -211,11 +217,12 @@ impl TaskOrchestrator for SqliteTaskOrchestrator {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| backend_unavailable("begin_complete_task"))?;
-        let lease = load_active_lease(&transaction, task_id)?
-            .ok_or_else(|| OrchestratorError::LeaseNotFound {
+        let lease = load_active_lease(&transaction, task_id)?.ok_or_else(|| {
+            OrchestratorError::LeaseNotFound {
                 task_id: task_id.to_string(),
                 lease_id: lease_id.to_string(),
-            })?;
+            }
+        })?;
 
         if lease.lease_id != lease_id {
             return Err(OrchestratorError::LeaseNotFound {
@@ -316,8 +323,8 @@ fn load_next_claimable_task(
             ))
         },
     ) {
-        Ok((task_id, target_scope, requires_write, doctor_bypass, enqueued_at_ms)) => Ok(Some(
-            OrchestratorTask::new(
+        Ok((task_id, target_scope, requires_write, doctor_bypass, enqueued_at_ms)) => {
+            Ok(Some(OrchestratorTask::new(
                 task_id,
                 ScheduleIntent {
                     target_scope,
@@ -325,8 +332,8 @@ fn load_next_claimable_task(
                     doctor_bypass: decode_bool(doctor_bypass, "task_doctor_bypass")?,
                 },
                 from_sql_i64(enqueued_at_ms, "task_enqueued_at_ms")?,
-            ),
-        )),
+            )))
+        }
         Err(RusqliteError::QueryReturnedNoRows) => Ok(None),
         Err(_) => Err(backend_unavailable("claim_next_task")),
     }
@@ -481,7 +488,9 @@ fn list_queued_tasks(connection: &Connection) -> Result<Vec<OrchestratorTask>, O
     .collect()
 }
 
-fn list_active_leases(connection: &Connection) -> Result<Vec<OrchestratorLease>, OrchestratorError> {
+fn list_active_leases(
+    connection: &Connection,
+) -> Result<Vec<OrchestratorLease>, OrchestratorError> {
     let mut statement = connection
         .prepare(
             "SELECT lease_id, task_id, owner_id, fencing_token, ttl_ms, expires_at_ms
@@ -533,12 +542,18 @@ fn list_completed_task_ids(connection: &Connection) -> Result<Vec<String>, Orche
         .query_map([], |row| row.get::<_, String>(0))
         .map_err(|_| backend_unavailable("query_completed_orchestrator_tasks_snapshot"))?;
 
-    rows.map(|row| row.map_err(|_| backend_unavailable("decode_completed_orchestrator_task_snapshot")))
-        .collect()
+    rows.map(|row| {
+        row.map_err(|_| backend_unavailable("decode_completed_orchestrator_task_snapshot"))
+    })
+    .collect()
 }
 
 fn encode_bool(value: bool) -> i64 {
-    if value { 1 } else { 0 }
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 fn decode_bool(value: i64, operation: &'static str) -> Result<bool, OrchestratorError> {
@@ -565,9 +580,7 @@ fn backend_unavailable(operation: &'static str) -> OrchestratorError {
 mod tests {
     use super::SqliteTaskOrchestrator;
     use crate::{open_database, SqliteOpenOptions};
-    use safeclaw_core::{
-        OrchestratorError, OrchestratorTask, ScheduleIntent, TaskOrchestrator,
-    };
+    use safeclaw_core::{OrchestratorError, OrchestratorTask, ScheduleIntent, TaskOrchestrator};
     use std::{
         env, fs,
         path::{Path, PathBuf},
@@ -893,7 +906,11 @@ mod tests {
         assert!(orchestrator.claim_next("orch-d", 3).unwrap().is_none());
 
         orchestrator
-            .complete(&first_write.task.task_id, &first_write.lease.lease_id, "orch-c")
+            .complete(
+                &first_write.task.task_id,
+                &first_write.lease.lease_id,
+                "orch-c",
+            )
             .unwrap();
 
         let second_write = orchestrator.claim_next("orch-d", 4).unwrap().unwrap();
@@ -931,12 +948,11 @@ mod tests {
             .unwrap();
         assert!(orchestrator.claim_next("orch-c", 1).unwrap().is_none());
         assert_eq!(
-            orchestrator
-                .enqueue(OrchestratorTask::new(
-                    "task-done",
-                    ScheduleIntent::write("scope:/tmp/task-done"),
-                    2,
-                )),
+            orchestrator.enqueue(OrchestratorTask::new(
+                "task-done",
+                ScheduleIntent::write("scope:/tmp/task-done"),
+                2,
+            )),
             Err(OrchestratorError::TaskAlreadyCompleted {
                 task_id: String::from("task-done"),
             })
@@ -947,4 +963,3 @@ mod tests {
         );
     }
 }
-

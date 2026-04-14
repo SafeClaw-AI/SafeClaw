@@ -25,7 +25,10 @@ fn main() -> Result<(), String> {
         |_| unreachable!(),
     ))?;
     assert!(claimed.is_none());
-    println!("[demo] claim_and_drive_once on empty queue => none={}", claimed.is_none());
+    println!(
+        "[demo] claim_and_drive_once on empty queue => none={}",
+        claimed.is_none()
+    );
     print_snapshot("after-empty-claim", worker.queue_snapshot());
 
     let drained = into_demo(worker.claim_and_drive_until_empty(
@@ -35,7 +38,10 @@ fn main() -> Result<(), String> {
         |_| unreachable!(),
     ))?;
     assert!(drained.is_empty());
-    println!("[demo] claim_and_drive_until_empty on empty queue => count={}", drained.len());
+    println!(
+        "[demo] claim_and_drive_until_empty on empty queue => count={}",
+        drained.len()
+    );
     print_snapshot("after-empty-drain", worker.queue_snapshot());
 
     let dispatched = into_demo(worker.claim_and_dispatch_until_empty(

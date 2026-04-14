@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from tests.contracts import REPO_ROOT
 from tools.mvp.safeclaw_personal_panel import (
+    DEFAULT_PANEL_HEADER_TEXT,
     PERSONAL_PANEL_ENTRY_PATH_ENV,
     SafeclawPersonalPanelController,
     build_archive_note_panel_arguments,
@@ -18,6 +19,7 @@ from tools.mvp.safeclaw_personal_panel import (
     build_provider_smoke_panel_result_text,
     build_personal_panel_exception_text,
     build_personal_panel_undo_confirmation_text,
+    build_personal_panel_welcome_text,
     build_personal_panel_result_text,
     build_personal_panel_progress_text,
     resolve_personal_panel_entry_command,
@@ -338,6 +340,18 @@ class SafeclawPersonalPanelTest(unittest.TestCase):
         self.assertIn("这会尝试撤销最近一次归档笔记。", confirmation_text)
         self.assertIn("对应文件可能会被删除。", confirmation_text)
         self.assertIn("确定继续吗？", confirmation_text)
+
+    def test_build_personal_panel_welcome_text_marks_current_panel_type(self) -> None:
+        rendered = build_personal_panel_welcome_text(
+            ["cmd", "/c", r"C:\demo\safeclaw-personal.cmd"]
+        )
+        self.assertIn("欢迎使用 SafeClaw 个人小面板（Python/Tkinter）。", rendered)
+        self.assertIn("当前入口：cmd /c C:\\demo\\safeclaw-personal.cmd", rendered)
+        self.assertIn("当前这层是本地轻量 Python/Tkinter 小面板，不是规划中的 Tauri/React 桌面界面。", rendered)
+
+    def test_default_panel_header_text_mentions_python_tkinter(self) -> None:
+        self.assertIn("SafeClaw 个人小面板（Python/Tkinter）", DEFAULT_PANEL_HEADER_TEXT)
+        self.assertIn("archive-note → status → undo", DEFAULT_PANEL_HEADER_TEXT)
 
 
 if __name__ == "__main__":

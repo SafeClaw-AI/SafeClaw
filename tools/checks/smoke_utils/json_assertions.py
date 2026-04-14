@@ -120,17 +120,107 @@ def assert_doctor_json_result(
     expected_db_path: str,
     expected_output_path: str,
     expected_db_source: str = "flag",
+    expected_output_source: str = "flag",
+    expected_workspace_active: bool | None = None,
+    expected_workspace_name: str | None = None,
 ) -> None:
     """Assert doctor command JSON result structure."""
     if result is None:
         return
 
-    if result.get("db_path") != expected_db_path:
-        errors.append(f"{name} db_path 不匹配")
-    if result.get("output_path") != expected_output_path:
-        errors.append(f"{name} output_path 不匹配")
-    if result.get("db_source") != expected_db_source:
-        errors.append(f"{name} db_source 不匹配")
+    python_info = result.get("python") or {}
+    workspace_info = result.get("workspace") or {}
+
+    if result.get("status") != "ready":
+        errors.append(f"{name} missing status=ready")
+    elif result.get("failing_checks") != []:
+        errors.append(f"{name} missing empty failing_checks")
+    elif not isinstance(python_info, dict) or python_info.get("ok") is not True:
+        errors.append(f"{name} missing python ok")
+    elif not python_info.get("detail"):
+        errors.append(f"{name} missing python detail")
+    elif result.get("entrypoints", {}).get("cmd", {}).get("exists") is not True:
+        errors.append(f"{name} missing cmd entry ok")
+    elif result.get("entrypoints", {}).get("ps1", {}).get("exists") is not True:
+        errors.append(f"{name} missing ps1 entry ok")
+    elif result.get("entrypoints", {}).get("py", {}).get("exists") is not True:
+        errors.append(f"{name} missing py entry ok")
+    elif result.get("cargo", {}).get("ok") is not True:
+        errors.append(f"{name} missing cargo ok")
+    elif result.get("toolchain", {}).get("ok") is not True:
+        errors.append(f"{name} missing toolchain ok")
+    elif result.get("linker", {}).get("ok") is not True:
+        errors.append(f"{name} missing linker ok")
+    elif result.get("session_path") != r"target\mvp\last_session.json":
+        errors.append(f"{name} missing session_path")
+    elif (
+        not isinstance(workspace_info, dict)
+        or workspace_info.get("path") != r"target\mvp\workspace.json"
+    ):
+        errors.append(f"{name} missing workspace_path")
+    elif (
+        expected_workspace_active is not None
+        and workspace_info.get("active") is not expected_workspace_active
+    ):
+        errors.append(f"{name} missing workspace active={expected_workspace_active}")
+    elif (
+        expected_workspace_name is None
+        and expected_workspace_active is False
+        and workspace_info.get("name") is not None
+    ):
+        errors.append(f"{name} unexpected workspace name")
+    elif (
+        expected_workspace_name is not None
+        and workspace_info.get("name") != expected_workspace_name
+    ):
+        errors.append(f"{name} missing workspace name={expected_workspace_name}")
+    elif result.get("db", {}).get("path") != expected_db_path:
+        errors.append(f"{name} missing db path={expected_db_path}")
+    elif result.get("db", {}).get("source") != expected_db_source:
+        errors.append(f"{name} missing db source={expected_db_source}")
+    elif result.get("output", {}).get("path") != expected_output_path:
+        errors.append(f"{name} missing output path={expected_output_path}")
+    elif result.get("output", {}).get("source") != expected_output_source:
+        errors.append(f"{name} missing output source={expected_output_source}")
+    else:
+        runtime_profile = result.get("runtime_profile") or {}
+        model_provider = result.get("model_provider") or {}
+        sidecar = result.get("sidecar") or {}
+
+        if not isinstance(runtime_profile, dict):
+            errors.append(f"{name} missing runtime_profile")
+        elif runtime_profile.get("mode") != "local_mvp":
+            errors.append(f"{name} missing runtime_profile.mode=local_mvp")
+        elif runtime_profile.get("offline_ready") is not True:
+            errors.append(f"{name} missing runtime_profile.offline_ready=true")
+        elif runtime_profile.get("llm_required") is not False:
+            errors.append(f"{name} missing runtime_profile.llm_required=false")
+        elif runtime_profile.get("sidecar_required") is not False:
+            errors.append(f"{name} missing runtime_profile.sidecar_required=false")
+        elif not isinstance(model_provider, dict):
+            errors.append(f"{name} missing model_provider")
+        elif model_provider.get("configured") is not False:
+            errors.append(f"{name} missing model_provider.configured=false")
+        elif model_provider.get("required") is not False:
+            errors.append(f"{name} missing model_provider.required=false")
+        elif model_provider.get("status") != "not-configured":
+            errors.append(f"{name} missing model_provider.status=not-configured")
+        elif model_provider.get("degradation_mode") != "local_only_ok":
+            errors.append(
+                f"{name} missing model_provider.degradation_mode=local_only_ok"
+            )
+        elif not model_provider.get("detail"):
+            errors.append(f"{name} missing model_provider.detail")
+        elif not isinstance(sidecar, dict):
+            errors.append(f"{name} missing sidecar")
+        elif sidecar.get("configured") is not False:
+            errors.append(f"{name} missing sidecar.configured=false")
+        elif sidecar.get("required") is not False:
+            errors.append(f"{name} missing sidecar.required=false")
+        elif sidecar.get("status") != "not-configured":
+            errors.append(f"{name} missing sidecar.status=not-configured")
+        elif not sidecar.get("detail"):
+            errors.append(f"{name} missing sidecar.detail")
 
 
 def assert_workspace_json_result(
@@ -165,6 +255,50 @@ def assert_workspace_json_result(
         errors.append(f"{name} missing workspace path")
     elif expected_changed is not None and result.get("changed") is not expected_changed:
         errors.append(f"{name} missing changed={expected_changed}")
+
+
+def assert_workspace_clear_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    allow_none_state: bool = False,
+) -> None:
+    """Assert workspace clear JSON result structure."""
+    if result is None:
+        return
+
+    clear_state = (result.get("cleared"), result.get("reason"))
+    allowed_states = {(True, "removed")}
+    if allow_none_state:
+        allowed_states.add((False, "none"))
+
+    if result.get("path") != r"target\mvp\workspace.json":
+        errors.append(f"{name} missing workspace path")
+    elif clear_state not in allowed_states:
+        errors.append(f"{name} unexpected clear state")
+
+
+def assert_forget_json_result(
+    result: dict[str, object] | None,
+    errors: list[str],
+    name: str,
+    *,
+    allow_none_state: bool = False,
+) -> None:
+    """Assert forget JSON result structure."""
+    if result is None:
+        return
+
+    forget_state = (result.get("forgot"), result.get("reason"))
+    allowed_states = {(True, "removed")}
+    if allow_none_state:
+        allowed_states.add((False, "none"))
+
+    if result.get("path") != r"target\mvp\last_session.json":
+        errors.append(f"{name} missing session path")
+    elif forget_state not in allowed_states:
+        errors.append(f"{name} unexpected forget state")
 
 
 def assert_use_json_result(
@@ -732,220 +866,4 @@ def assert_run_json_result(
     ):
         errors.append(f"{name} missing captured output path")
 
-def assert_use_json_result(
-    result: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-    *,
-    expected_task_id: str,
-    expected_source: str,
-) -> None:
-    if result is None:
-        return
-
-    if (
-        result.get("task_id") != expected_task_id
-        or result.get("source") != expected_source
-    ):
-        errors.append(f"{name} missing task_id/source")
-
-    elif result.get("db_source") != "session":
-        errors.append(f"{name} missing db_source=session")
-
-    elif result.get("output_source") != "task_scope":
-        errors.append(f"{name} missing output_source=task_scope")
-
-    elif result.get("owner_id_source") != "session":
-        errors.append(f"{name} missing owner_id_source=session")
-
-def assert_session_passthrough_json_result(
-    result: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-    *,
-    action: str,
-    expected_task_id: str,
-) -> None:
-    if result is None:
-        return
-
-    prepared = result.get("prepared") or []
-
-    remembered_session = result.get("remembered_session") or {}
-
-    source_hints = result.get("source_hints") or {}
-
-    captured_output = str(result.get("captured_output") or "")
-
-    if not prepared or prepared[0] != action:
-        errors.append(f"{name} missing prepared {action}")
-
-    elif expected_task_id not in captured_output:
-        errors.append(f"{name} missing captured task {expected_task_id}")
-
-    elif (
-        not isinstance(remembered_session, dict)
-        or remembered_session.get("task_id") != expected_task_id
-    ):
-        errors.append(f"{name} missing remembered session {expected_task_id}")
-
-    elif not isinstance(source_hints, dict) or source_hints.get("db") != "session":
-        errors.append(f"{name} missing source_hints.db=session")
-
-    elif source_hints.get("output") != "session":
-        errors.append(f"{name} missing source_hints.output=session")
-
-    elif source_hints.get("owner_id") != "session":
-        errors.append(f"{name} missing source_hints.owner_id=session")
-
-    elif source_hints.get("task_context") != "session":
-        errors.append(f"{name} missing source_hints.task_context=session")
-
-def assert_session_json_result(
-    result: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-    *,
-    expected_task_id: str,
-) -> None:
-    if result is None:
-        return
-
-    expected_effect_id = f"effect-{expected_task_id}"
-
-    if result.get("task_id") != expected_task_id:
-        errors.append(f"{name} missing task_id={expected_task_id}")
-
-    elif result.get("effect_id") != expected_effect_id:
-        errors.append(f"{name} missing effect_id={expected_effect_id}")
-
-    elif result.get("db") != r"target\mvp\session.db":
-        errors.append(fr"{name} missing db=target\mvp\session.db")
-
-    elif result.get("output") != r"target\mvp\output.txt":
-        errors.append(fr"{name} missing output=target\mvp\output.txt")
-
-    elif result.get("owner_id") != "safeclaw-mvp":
-        errors.append(f"{name} missing owner_id=safeclaw-mvp")
-
-def assert_sessions_json_result(
-    result: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-    *,
-    expected_current_task_id: str,
-    expected_previous_task_id: str,
-) -> None:
-    if result is None:
-        return
-
-    rows = result.get("rows") or []
-
-    current_session = result.get("current_session") or {}
-
-    if result.get("db") != r"target\mvp\session.db":
-        errors.append(fr"{name} missing db=target\mvp\session.db")
-
-    elif result.get("db_source") != "session":
-        errors.append(f"{name} missing db_source=session")
-
-    elif result.get("limit") != 5:
-        errors.append(f"{name} missing limit=5")
-
-    elif (
-        not isinstance(current_session, dict)
-        or current_session.get("task_id") != expected_current_task_id
-    ):
-        errors.append(f"{name} missing current_session {expected_current_task_id}")
-
-    elif not rows or rows[0].get("task_id") != expected_current_task_id:
-        errors.append(f"{name} missing recent[0] task={expected_current_task_id}")
-
-    elif rows[0].get("current") is not True:
-        errors.append(f"{name} missing recent[0] current=true")
-
-    elif len(rows) < 2 or rows[1].get("task_id") != expected_previous_task_id:
-        errors.append(f"{name} missing recent[1] task={expected_previous_task_id}")
-
-    elif rows[1].get("current") is not False:
-        errors.append(f"{name} missing recent[1] current=false")
-
-def assert_json_null_result(
-    payload: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-    action: str,
-) -> None:
-    if payload is None:
-        return
-
-    if payload.get("ok") is not True or payload.get("action") != action:
-        errors.append(f"{name} missing envelope")
-
-    elif "result" not in payload or payload.get("result") is not None:
-        errors.append(f"{name} missing result=null")
-
-def assert_step_source_hints(
-    steps: object,
-    errors: list[str],
-    name: str,
-    expected: list[tuple[str, dict[str, str]]],
-) -> None:
-    if not isinstance(steps, list):
-        errors.append(f"{name} steps 不是列表")
-
-        return
-
-    for index, (expected_action, expected_hints) in enumerate(expected):
-        if index >= len(steps) or not isinstance(steps[index], dict):
-            errors.append(f"{name} 缺少步骤 {expected_action}")
-
-            return
-
-        step = steps[index]
-
-        if step.get("action") != expected_action:
-            errors.append(f"{name} 步骤 {index} 不是 {expected_action}")
-
-            return
-
-        source_hints = step.get("source_hints") or {}
-
-        if not isinstance(source_hints, dict):
-            errors.append(f"{name} 步骤 {expected_action} 缺少 source_hints")
-
-            return
-
-        for field, expected_value in expected_hints.items():
-            if source_hints.get(field) != expected_value:
-                errors.append(
-                    f"{name} 步骤 {expected_action} source_hints.{field} != {expected_value}"
-                )
-
-                return
-
-def assert_matching_session_alias(
-    payload: dict[str, object] | None,
-    errors: list[str],
-    name: str,
-) -> None:
-    if payload is None:
-        return
-
-    remembered_session = payload.get("remembered_session") or {}
-
-    session = payload.get("session") or {}
-
-    if not isinstance(remembered_session, dict):
-        errors.append(f"{name} remembered_session 不是对象")
-
-        return
-
-    if not isinstance(session, dict):
-        errors.append(f"{name} session 兼容别名不是对象")
-
-        return
-
-    if session != remembered_session:
-        errors.append(f"{name} session 兼容别名与 remembered_session 不一致")
 

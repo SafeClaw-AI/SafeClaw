@@ -7,17 +7,15 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     scheduler::TaskOrchestrator,
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
-    SqliteRuntimeStore, SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
-    WorkerLoopDispatchOutcome,
+    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteSingleWorkerLoop, SqliteTaskOrchestrator, WorkerLoopDispatchOutcome,
 };
 
 fn main() -> Result<(), String> {
@@ -74,7 +72,9 @@ fn run_fresh_branch(temp: &DemoArtifacts) -> Result<(), String> {
             executed.final_summary.effect_status,
             executed.completed
         ),
-        WorkerLoopDispatchOutcome::Probed(_) => return Err("fresh branch unexpectedly probed".into()),
+        WorkerLoopDispatchOutcome::Probed(_) => {
+            return Err("fresh branch unexpectedly probed".into())
+        }
         _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("fresh-after-complete", worker.queue_snapshot());
@@ -97,14 +97,17 @@ fn run_retry_branch(temp: &DemoArtifacts) -> Result<(), String> {
         "worker-retry-a",
         0,
         PreflightDecision::Permit,
-        |claim| Ok((InMemoryTaskRuntime::new(retry_effect(claim)), sandbox_fail_command())),
+        |claim| {
+            Ok((
+                InMemoryTaskRuntime::new(retry_effect(claim)),
+                sandbox_fail_command(),
+            ))
+        },
     ))?
     .expect("retry seed task must claim");
     println!(
         "[demo] failed seed => worker={:?} effect={:?} completed={}",
-        failed.final_summary.worker_state,
-        failed.final_summary.effect_status,
-        failed.completed
+        failed.final_summary.worker_state, failed.final_summary.effect_status, failed.completed
     );
 
     let output_bytes = b"safeclaw dispatch retry demo\n";
@@ -122,8 +125,7 @@ fn run_retry_branch(temp: &DemoArtifacts) -> Result<(), String> {
         |claim, runtime| {
             println!(
                 "[demo] retry dispatch => task={} state={:?}",
-                claim.task.task_id,
-                runtime.worker_state
+                claim.task.task_id, runtime.worker_state
             );
             Ok(sandbox_write_command(&temp.retry_output, output_bytes))
         },
@@ -138,7 +140,9 @@ fn run_retry_branch(temp: &DemoArtifacts) -> Result<(), String> {
             executed.final_summary.effect_status,
             executed.completed
         ),
-        WorkerLoopDispatchOutcome::Probed(_) => return Err("retry branch unexpectedly probed".into()),
+        WorkerLoopDispatchOutcome::Probed(_) => {
+            return Err("retry branch unexpectedly probed".into())
+        }
         _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("retry-after-complete", retry_worker.queue_snapshot());
@@ -181,7 +185,10 @@ fn run_resume_branch(temp: &DemoArtifacts) -> Result<(), String> {
         |_| unreachable!(),
         |_, _| unreachable!(),
     ))?;
-    println!("[demo] resume reclaim before expiry => {}", blocked.is_none());
+    println!(
+        "[demo] resume reclaim before expiry => {}",
+        blocked.is_none()
+    );
 
     let output_bytes = b"safeclaw dispatch resume demo\n";
     let mut resume_worker = into_demo(SqliteSingleWorkerLoop::open(
@@ -198,8 +205,7 @@ fn run_resume_branch(temp: &DemoArtifacts) -> Result<(), String> {
         |claim, runtime| {
             println!(
                 "[demo] resume dispatch => task={} state={:?}",
-                claim.task.task_id,
-                runtime.worker_state
+                claim.task.task_id, runtime.worker_state
             );
             Ok(sandbox_write_command(&temp.resume_output, output_bytes))
         },
@@ -247,8 +253,7 @@ fn run_probe_branch(temp: &DemoArtifacts) -> Result<(), String> {
     ))?;
     println!(
         "[demo] probe seed => worker={:?} effect={:?}",
-        summary.worker_state,
-        summary.effect_status
+        summary.worker_state, summary.effect_status
     );
     let mut store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
@@ -265,10 +270,12 @@ fn run_probe_branch(temp: &DemoArtifacts) -> Result<(), String> {
         SqliteOpenOptions::default(),
     ))?
     .with_lease_ttl_ms(25);
-    probe_worker.filesystem_probe_mut().register_expected_blake3(
-        "effect-worker-dispatch-demo-probe",
-        blake3::hash(output_bytes).to_hex().to_string(),
-    );
+    probe_worker
+        .filesystem_probe_mut()
+        .register_expected_blake3(
+            "effect-worker-dispatch-demo-probe",
+            blake3::hash(output_bytes).to_hex().to_string(),
+        );
     let outcome = into_demo(probe_worker.claim_and_dispatch_once(
         "worker-probe-b",
         126,
@@ -288,7 +295,9 @@ fn run_probe_branch(temp: &DemoArtifacts) -> Result<(), String> {
             probed.final_summary.effect_status,
             probed.completed
         ),
-        WorkerLoopDispatchOutcome::Executed(_) => return Err("probe branch unexpectedly executed".into()),
+        WorkerLoopDispatchOutcome::Executed(_) => {
+            return Err("probe branch unexpectedly executed".into())
+        }
         _ => panic!("unexpected parked dispatch outcome"),
     }
     print_snapshot("probe-after-complete", probe_worker.queue_snapshot());
@@ -362,7 +371,11 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
 
 fn sandbox_fail_command() -> SandboxCommand {
     if cfg!(windows) {
-        SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+        SandboxCommand::new(
+            "powershell",
+            ["-Command", "Write-Error 'boom'; exit 7"],
+            5_000,
+        )
     } else {
         SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
     }
@@ -408,10 +421,7 @@ fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxComm
     }
 }
 
-fn sandbox_write_then_timeout_command(
-    output_path: &Path,
-    output_bytes: &[u8],
-) -> SandboxCommand {
+fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
     if cfg!(windows) {
         let bytes_literal = output_bytes
             .iter()
@@ -436,7 +446,11 @@ fn sandbox_write_then_timeout_command(
             "sh",
             [
                 "-c",
-                &format!("printf '%s' '{}' > '{}'; sleep 1", text, output_path.display()),
+                &format!(
+                    "printf '%s' '{}' > '{}'; sleep 1",
+                    text,
+                    output_path.display()
+                ),
             ],
             500,
         )
@@ -462,9 +476,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-dispatch-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-dispatch-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             fresh_output: root.join("worker-loop-dispatch-fresh.txt"),

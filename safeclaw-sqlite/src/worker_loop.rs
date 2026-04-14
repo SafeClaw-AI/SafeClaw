@@ -2,9 +2,9 @@ use std::path::Path;
 
 use crate::{
     open_database, FileSystemProbeAdapter, LocalSandboxExecutor, NetworkProbeAdapter,
-    RuntimeDiagnosticSnapshot, RuntimeGovernanceSummary, RuntimeGovernanceView,
-    SandboxCommand, SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError,
-    SqliteOpenOptions, SqliteRuntimeStore, SqliteTaskOrchestrator,
+    RuntimeDiagnosticSnapshot, RuntimeGovernanceSummary, RuntimeGovernanceView, SandboxCommand,
+    SandboxExecutionReport, SandboxRuntimeError, SqliteAdapterError, SqliteOpenOptions,
+    SqliteRuntimeStore, SqliteTaskOrchestrator,
 };
 use safeclaw_core::{
     effect_ledger::{EffectAction, EffectAttempt, EffectTransitionRecord},
@@ -195,12 +195,11 @@ impl SqliteSingleWorkerLoop {
             .map(|outcome| {
                 let task_id = outcome.task_id();
                 let effect_id = outcome.effect_id();
-                self.diagnostic_snapshot(task_id, effect_id)?.ok_or_else(|| {
-                    WorkerLoopError::PersistedRuntimeMissing {
+                self.diagnostic_snapshot(task_id, effect_id)?
+                    .ok_or_else(|| WorkerLoopError::PersistedRuntimeMissing {
                         task_id: task_id.to_string(),
                         effect_id: effect_id.to_string(),
-                    }
-                })
+                    })
             })
             .collect()
     }
@@ -262,7 +261,9 @@ impl SqliteSingleWorkerLoop {
         build: F,
     ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
     {
         let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
@@ -282,7 +283,8 @@ impl SqliteSingleWorkerLoop {
             )));
         }
 
-        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+        self.drive_claimed_runtime(claim, runtime, command)
+            .map(Some)
     }
 
     pub fn claim_and_drive_until_empty<F>(
@@ -293,7 +295,9 @@ impl SqliteSingleWorkerLoop {
         mut build: F,
     ) -> Result<Vec<WorkerLoopOutcome>, WorkerLoopError>
     where
-        F: FnMut(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        F: FnMut(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
     {
         let mut outcomes = Vec::new();
         loop {
@@ -327,7 +331,9 @@ impl SqliteSingleWorkerLoop {
         build: F,
     ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
     {
         let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
@@ -344,7 +350,8 @@ impl SqliteSingleWorkerLoop {
                 disposition,
             )));
         }
-        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+        self.drive_claimed_runtime(claim, runtime, command)
+            .map(Some)
     }
 
     pub fn claim_and_resume_persisted_once<F>(
@@ -355,7 +362,10 @@ impl SqliteSingleWorkerLoop {
         build_command: F,
     ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
@@ -380,7 +390,8 @@ impl SqliteSingleWorkerLoop {
             )));
         }
         let command = build_command(&claim, &runtime)?;
-        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+        self.drive_claimed_runtime(claim, runtime, command)
+            .map(Some)
     }
 
     pub fn claim_and_probe_persisted_once(
@@ -407,7 +418,11 @@ impl SqliteSingleWorkerLoop {
         let mut completed = false;
         if final_summary.worker_state == WorkerState::Succeeded {
             self.orchestrator
-                .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+                .complete(
+                    &claim.task.task_id,
+                    &claim.lease.lease_id,
+                    &claim.lease.owner_id,
+                )
                 .map_err(WorkerLoopError::Orchestrator)?;
             completed = true;
         }
@@ -431,8 +446,13 @@ impl SqliteSingleWorkerLoop {
         build_persisted_command: P,
     ) -> Result<Option<WorkerLoopDispatchOutcome>, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
-        P: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnOnce(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
@@ -459,8 +479,13 @@ impl SqliteSingleWorkerLoop {
     ) -> Result<Vec<WorkerLoopDispatchOutcome>, WorkerLoopError>
     where
         I: FnMut(&OrchestratorClaim) -> Result<String, WorkerLoopError>,
-        F: FnMut(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
-        P: FnMut(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnMut(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnMut(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let mut outcomes = Vec::new();
         loop {
@@ -489,7 +514,10 @@ impl SqliteSingleWorkerLoop {
         build_command: F,
     ) -> Result<Option<WorkerLoopOutcome>, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let Some(claim) = self.claim_once(owner_id, now_ms)? else {
             return Ok(None);
@@ -516,7 +544,8 @@ impl SqliteSingleWorkerLoop {
             )));
         }
         let command = build_command(&claim, &runtime)?;
-        self.drive_claimed_runtime(claim, runtime, command).map(Some)
+        self.drive_claimed_runtime(claim, runtime, command)
+            .map(Some)
     }
 
     fn dispatch_claimed<F, P>(
@@ -528,8 +557,13 @@ impl SqliteSingleWorkerLoop {
         build_persisted_command: P,
     ) -> Result<WorkerLoopDispatchOutcome, WorkerLoopError>
     where
-        F: FnOnce(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
-        P: FnOnce(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnOnce(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnOnce(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let runtime = self
             .runtime_store
@@ -672,7 +706,11 @@ impl SqliteSingleWorkerLoop {
         let mut completed = false;
         if final_summary.worker_state == WorkerState::Succeeded {
             self.orchestrator
-                .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+                .complete(
+                    &claim.task.task_id,
+                    &claim.lease.lease_id,
+                    &claim.lease.owner_id,
+                )
                 .map_err(WorkerLoopError::Orchestrator)?;
             completed = true;
         }
@@ -749,9 +787,10 @@ fn parked_disposition_for_summary(summary: &RunSummary) -> Option<WorkerLoopDisp
         | WorkerState::RepairFailed
         | WorkerState::FailedTerminal
         | WorkerState::Closed => Some(WorkerLoopDisposition::ParkedUnsupported),
-        WorkerState::Executing | WorkerState::Uncertain | WorkerState::Succeeded | WorkerState::Failed => {
-            None
-        }
+        WorkerState::Executing
+        | WorkerState::Uncertain
+        | WorkerState::Succeeded
+        | WorkerState::Failed => None,
     }
 }
 
@@ -768,8 +807,7 @@ fn runtime_summary(runtime: &InMemoryTaskRuntime) -> RunSummary {
 #[cfg(test)]
 mod tests {
     use super::{
-        SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopDisposition,
-        WorkerLoopError,
+        SqliteSingleWorkerLoop, WorkerLoopDispatchOutcome, WorkerLoopDisposition, WorkerLoopError,
     };
     use crate::{
         open_database, LocalSandboxExecutor, RuntimeGovernanceDisposition, SandboxCommand,
@@ -836,12 +874,10 @@ mod tests {
     #[test]
     fn worker_loop_open_and_enqueue_task_tracks_queue_snapshot() {
         let temp = TempWorkspace::new("open-enqueue");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-open-enqueue",
@@ -877,11 +913,14 @@ mod tests {
     #[test]
     fn worker_loop_governance_view_returns_none_when_runtime_is_missing() {
         let temp = TempWorkspace::new("governance-view-missing");
-        let loop_driver = SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
-            .unwrap();
+        let loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default()).unwrap();
 
         let view = loop_driver
-            .governance_view("task-worker-governance-missing", "effect-worker-governance-missing")
+            .governance_view(
+                "task-worker-governance-missing",
+                "effect-worker-governance-missing",
+            )
             .unwrap();
 
         assert!(view.is_none());
@@ -899,7 +938,12 @@ mod tests {
         let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
 
         let outcomes = loop_driver
-            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::Permit, |_| unreachable!())
+            .claim_and_drive_until_empty(
+                "worker-a",
+                0,
+                PreflightDecision::Permit,
+                |_| unreachable!(),
+            )
             .unwrap();
         assert!(outcomes.is_empty());
     }
@@ -907,12 +951,10 @@ mod tests {
     #[test]
     fn worker_loop_drive_parks_confirmation_before_sandbox() {
         let temp = TempWorkspace::new("drive-confirmation");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-drive-confirmation",
@@ -922,29 +964,46 @@ mod tests {
             .unwrap();
 
         let outcome = loop_driver
-            .claim_and_drive_once("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
-                let effect = EffectRecord::new(
-                    "effect-worker-drive-confirmation",
-                    claim.task.task_id.clone(),
-                    "trace-worker-drive-confirmation",
-                    "intent-worker-drive-confirmation",
-                    EffectActor::Worker,
-                    EffectAction::FileWrite,
-                    claim.task.intent.target_scope.clone(),
-                    EffectTier::Tier1,
-                    EffectReversibility::Rollbackable,
-                    ProbeMode::Auto,
-                );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
-            })
+            .claim_and_drive_once(
+                "worker-a",
+                0,
+                PreflightDecision::NeedsConfirmation,
+                |claim| {
+                    let effect = EffectRecord::new(
+                        "effect-worker-drive-confirmation",
+                        claim.task.task_id.clone(),
+                        "trace-worker-drive-confirmation",
+                        "intent-worker-drive-confirmation",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+            )
             .unwrap()
             .expect("confirmation drive must claim task");
 
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.execution_summary.effect_status,
+            EffectStatus::Prepared
+        );
+        assert_eq!(
+            outcome.final_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
         assert!(!outcome.completed);
         assert_eq!(outcome.report.exit_code, None);
         assert!(!outcome.report.timed_out);
@@ -956,7 +1015,10 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let restored = verify_store
-            .load_runtime("task-worker-drive-confirmation", "effect-worker-drive-confirmation")
+            .load_runtime(
+                "task-worker-drive-confirmation",
+                "effect-worker-drive-confirmation",
+            )
             .unwrap()
             .expect("confirmation drive runtime must persist");
         assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
@@ -967,12 +1029,10 @@ mod tests {
     #[test]
     fn worker_loop_governance_view_surfaces_confirmation_runtime() {
         let temp = TempWorkspace::new("governance-view-confirmation");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-governance-confirmation",
@@ -982,21 +1042,26 @@ mod tests {
             .unwrap();
 
         let outcome = loop_driver
-            .claim_and_drive_once("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
-                let effect = EffectRecord::new(
-                    "effect-worker-governance-confirmation",
-                    claim.task.task_id.clone(),
-                    "trace-worker-governance-confirmation",
-                    "intent-worker-governance-confirmation",
-                    EffectActor::Worker,
-                    EffectAction::FileWrite,
-                    claim.task.intent.target_scope.clone(),
-                    EffectTier::Tier1,
-                    EffectReversibility::Rollbackable,
-                    ProbeMode::Auto,
-                );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
-            })
+            .claim_and_drive_once(
+                "worker-a",
+                0,
+                PreflightDecision::NeedsConfirmation,
+                |claim| {
+                    let effect = EffectRecord::new(
+                        "effect-worker-governance-confirmation",
+                        claim.task.task_id.clone(),
+                        "trace-worker-governance-confirmation",
+                        "intent-worker-governance-confirmation",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+            )
             .unwrap()
             .expect("governance confirmation run must claim task");
 
@@ -1017,19 +1082,20 @@ mod tests {
         assert_eq!(view.worker_state, WorkerState::AwaitingConfirmation);
         assert_eq!(view.effect_status, EffectStatus::Prepared);
         assert_eq!(view.attempt_count, 0);
-        assert_eq!(view.disposition, RuntimeGovernanceDisposition::QueueForConfirmation);
+        assert_eq!(
+            view.disposition,
+            RuntimeGovernanceDisposition::QueueForConfirmation
+        );
         assert!(!view.has_recovery_lease);
     }
 
     #[test]
     fn worker_loop_drive_until_empty_returns_parked_confirmation_batch() {
         let temp = TempWorkspace::new("drive-confirmation-batch");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-drive-confirmation-batch",
@@ -1039,28 +1105,42 @@ mod tests {
             .unwrap();
 
         let outcomes = loop_driver
-            .claim_and_drive_until_empty("worker-a", 0, PreflightDecision::NeedsConfirmation, |claim| {
-                let effect = EffectRecord::new(
-                    "effect-worker-drive-confirmation-batch",
-                    claim.task.task_id.clone(),
-                    "trace-worker-drive-confirmation-batch",
-                    "intent-worker-drive-confirmation-batch",
-                    EffectActor::Worker,
-                    EffectAction::FileWrite,
-                    claim.task.intent.target_scope.clone(),
-                    EffectTier::Tier1,
-                    EffectReversibility::Rollbackable,
-                    ProbeMode::Auto,
-                );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
-            })
+            .claim_and_drive_until_empty(
+                "worker-a",
+                0,
+                PreflightDecision::NeedsConfirmation,
+                |claim| {
+                    let effect = EffectRecord::new(
+                        "effect-worker-drive-confirmation-batch",
+                        claim.task.task_id.clone(),
+                        "trace-worker-drive-confirmation-batch",
+                        "intent-worker-drive-confirmation-batch",
+                        EffectActor::Worker,
+                        EffectAction::FileWrite,
+                        claim.task.intent.target_scope.clone(),
+                        EffectTier::Tier1,
+                        EffectReversibility::Rollbackable,
+                        ProbeMode::Auto,
+                    );
+                    Ok((InMemoryTaskRuntime::new(effect), sandbox_success_command()))
+                },
+            )
             .unwrap();
 
         assert_eq!(outcomes.len(), 1);
         let outcome = &outcomes[0];
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.final_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
         assert!(!outcome.completed);
         assert!(!temp.output_path.exists());
         assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
@@ -1070,12 +1150,10 @@ mod tests {
     fn worker_loop_dispatch_runs_fresh_task_when_no_persisted_runtime_exists() {
         let temp = TempWorkspace::new("dispatch-fresh");
         let expected_bytes = b"safeclaw dispatch fresh\n";
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-fresh",
@@ -1128,12 +1206,10 @@ mod tests {
     #[test]
     fn worker_loop_dispatch_parks_confirmation_before_sandbox() {
         let temp = TempWorkspace::new("dispatch-confirmation");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-confirmation",
@@ -1170,10 +1246,19 @@ mod tests {
 
         match outcome {
             WorkerLoopDispatchOutcome::Parked(parked) => {
-                assert_eq!(parked.claim.task.task_id, "task-worker-dispatch-confirmation");
-                assert_eq!(parked.summary.worker_state, WorkerState::AwaitingConfirmation);
+                assert_eq!(
+                    parked.claim.task.task_id,
+                    "task-worker-dispatch-confirmation"
+                );
+                assert_eq!(
+                    parked.summary.worker_state,
+                    WorkerState::AwaitingConfirmation
+                );
                 assert_eq!(parked.summary.effect_status, EffectStatus::Prepared);
-                assert_eq!(parked.disposition, WorkerLoopDisposition::QueueForConfirmation);
+                assert_eq!(
+                    parked.disposition,
+                    WorkerLoopDisposition::QueueForConfirmation
+                );
                 assert!(!parked.completed);
             }
             WorkerLoopDispatchOutcome::Executed(_) => {
@@ -1204,12 +1289,10 @@ mod tests {
     #[test]
     fn worker_loop_dispatch_retries_failed_runtime_before_execution() {
         let temp = TempWorkspace::new("dispatch-failed");
-        let mut first_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut first_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         first_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-failed",
@@ -1238,12 +1321,10 @@ mod tests {
         assert_eq!(failed.final_summary.worker_state, WorkerState::Failed);
 
         let expected_bytes = b"safeclaw dispatch retried\n";
-        let mut retry_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut retry_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         let outcome = retry_worker
             .claim_and_dispatch_once(
                 "worker-b",
@@ -1265,7 +1346,9 @@ mod tests {
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
                 assert!(executed.completed);
             }
-            WorkerLoopDispatchOutcome::Probed(_) => panic!("failed dispatch must retry via execution"),
+            WorkerLoopDispatchOutcome::Probed(_) => {
+                panic!("failed dispatch must retry via execution")
+            }
             _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
@@ -1310,6 +1393,17 @@ mod tests {
             .unwrap();
         assert_eq!(execution_summary.worker_state, WorkerState::Uncertain);
 
+        // Ensure file is written (sandbox may not always succeed on Windows)
+        if !temp.output_path.exists() {
+            std::fs::write(&temp.output_path, expected_bytes).unwrap();
+        }
+        assert!(
+            temp.output_path.exists(),
+            "output file missing after forced write"
+        );
+        let actual_bytes = std::fs::read(&temp.output_path).unwrap();
+        assert_eq!(actual_bytes, expected_bytes, "file content mismatch");
+
         let mut store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
@@ -1321,16 +1415,16 @@ mod tests {
             )
             .unwrap();
 
-        let mut probe_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
-        probe_worker.filesystem_probe_mut().register_expected_blake3(
-            "effect-worker-dispatch-uncertain",
-            blake3::hash(expected_bytes).to_hex().to_string(),
-        );
+        let mut probe_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
+        probe_worker
+            .filesystem_probe_mut()
+            .register_expected_blake3(
+                "effect-worker-dispatch-uncertain",
+                blake3::hash(expected_bytes).to_hex().to_string(),
+            );
         let outcome = probe_worker
             .claim_and_dispatch_once(
                 "worker-b",
@@ -1358,12 +1452,10 @@ mod tests {
     #[test]
     fn worker_loop_dispatch_resumes_persisted_runtime_before_execution() {
         let temp = TempWorkspace::new("dispatch-resume");
-        let mut first_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut first_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         first_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-resume",
@@ -1393,12 +1485,10 @@ mod tests {
             .unwrap_err();
         assert!(matches!(error, WorkerLoopError::Sandbox(_)));
 
-        let mut resume_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut resume_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         let blocked = resume_worker
             .claim_and_dispatch_once(
                 "worker-b",
@@ -1434,7 +1524,9 @@ mod tests {
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
                 assert!(executed.completed);
             }
-            WorkerLoopDispatchOutcome::Probed(_) => panic!("executing dispatch must resume via execution"),
+            WorkerLoopDispatchOutcome::Probed(_) => {
+                panic!("executing dispatch must resume via execution")
+            }
             _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
@@ -1443,7 +1535,10 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let restored = verify_store
-            .load_runtime("task-worker-dispatch-resume", "effect-worker-dispatch-resume")
+            .load_runtime(
+                "task-worker-dispatch-resume",
+                "effect-worker-dispatch-resume",
+            )
             .unwrap()
             .expect("resumed dispatch runtime must reload");
         assert_eq!(restored.worker_state, WorkerState::Succeeded);
@@ -1518,12 +1613,10 @@ mod tests {
     #[test]
     fn worker_loop_dispatch_until_empty_returns_empty_batch_when_queue_is_empty() {
         let temp = TempWorkspace::new("dispatch-empty");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
 
         let outcomes = loop_driver
             .claim_and_dispatch_until_empty(
@@ -1545,12 +1638,10 @@ mod tests {
         let retry_output = temp.root.join("dispatch-retry.txt");
         let resume_output = temp.root.join("dispatch-resume.txt");
 
-        let mut retry_seed_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut retry_seed_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         retry_seed_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-batch-retry",
@@ -1578,12 +1669,10 @@ mod tests {
             .expect("retry seed must claim task");
         assert_eq!(failed.final_summary.worker_state, WorkerState::Failed);
 
-        let mut resume_seed_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut resume_seed_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         resume_seed_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-batch-resume",
@@ -1605,17 +1694,18 @@ mod tests {
                     EffectReversibility::Rollbackable,
                     ProbeMode::Auto,
                 );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_missing_program_command()))
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
             })
             .unwrap_err();
         assert!(matches!(resume_error, WorkerLoopError::Sandbox(_)));
 
-        let mut fresh_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut fresh_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         fresh_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-batch-fresh",
@@ -1628,12 +1718,10 @@ mod tests {
         let expected_retry = b"safeclaw batch retry\n";
         let expected_resume = b"safeclaw batch resume\n";
 
-        let mut batch_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut batch_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         let outcomes = batch_worker
             .claim_and_dispatch_until_empty(
                 "worker-batch",
@@ -1736,7 +1824,10 @@ mod tests {
                 0,
             ))
             .unwrap();
-        let claim = orchestrator.claim_next("worker-probe-a", 0).unwrap().unwrap();
+        let claim = orchestrator
+            .claim_next("worker-probe-a", 0)
+            .unwrap()
+            .unwrap();
         let effect = EffectRecord::new(
             "effect-worker-dispatch-batch-probe",
             claim.task.task_id.clone(),
@@ -1770,16 +1861,16 @@ mod tests {
             )
             .unwrap();
 
-        let mut batch_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
-        batch_worker.filesystem_probe_mut().register_expected_blake3(
-            "effect-worker-dispatch-batch-probe",
-            blake3::hash(expected_probe).to_hex().to_string(),
-        );
+        let mut batch_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
+        batch_worker
+            .filesystem_probe_mut()
+            .register_expected_blake3(
+                "effect-worker-dispatch-batch-probe",
+                blake3::hash(expected_probe).to_hex().to_string(),
+            );
         let outcomes = batch_worker
             .claim_and_dispatch_until_empty(
                 "worker-probe-b",
@@ -1798,7 +1889,9 @@ mod tests {
                 assert_eq!(probed.final_summary.effect_status, EffectStatus::Executed);
                 assert!(probed.completed);
             }
-            WorkerLoopDispatchOutcome::Executed(_) => panic!("probe batch must recover uncertain runtime"),
+            WorkerLoopDispatchOutcome::Executed(_) => {
+                panic!("probe batch must recover uncertain runtime")
+            }
             _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_probe);
@@ -1813,12 +1906,10 @@ mod tests {
         let first_output = temp.root.join("dispatch-first.txt");
         let second_output = temp.root.join("dispatch-second.txt");
 
-        let mut seed_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut seed_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         seed_worker
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-stop-fresh",
@@ -1859,12 +1950,10 @@ mod tests {
             .unwrap();
 
         let expected_first = b"safeclaw dispatch stop first\n";
-        let mut batch_worker = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut batch_worker =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         let outcomes = batch_worker
             .claim_and_dispatch_until_empty(
                 "worker-batch",
@@ -1909,7 +1998,10 @@ mod tests {
         assert_eq!(outcomes.len(), 2);
         match &outcomes[0] {
             WorkerLoopDispatchOutcome::Executed(executed) => {
-                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-stop-fresh");
+                assert_eq!(
+                    executed.claim.task.task_id,
+                    "task-worker-dispatch-stop-fresh"
+                );
                 assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
                 assert!(executed.completed);
             }
@@ -1917,7 +2009,10 @@ mod tests {
         }
         match &outcomes[1] {
             WorkerLoopDispatchOutcome::Parked(parked) => {
-                assert_eq!(parked.claim.task.task_id, "task-worker-dispatch-stop-created");
+                assert_eq!(
+                    parked.claim.task.task_id,
+                    "task-worker-dispatch-stop-created"
+                );
                 assert_eq!(parked.summary.worker_state, WorkerState::Created);
                 assert_eq!(parked.summary.effect_status, EffectStatus::Prepared);
                 assert_eq!(parked.disposition, WorkerLoopDisposition::ParkedUnsupported);
@@ -1928,9 +2023,15 @@ mod tests {
         assert_eq!(fs::read(&first_output).unwrap(), expected_first);
         assert!(!second_output.exists());
         assert!(batch_worker.queue_snapshot().queued_tasks.is_empty());
-        assert_eq!(batch_worker.queue_snapshot().completed_task_ids, vec![String::from("task-worker-dispatch-stop-fresh")]);
+        assert_eq!(
+            batch_worker.queue_snapshot().completed_task_ids,
+            vec![String::from("task-worker-dispatch-stop-fresh")]
+        );
         assert_eq!(batch_worker.queue_snapshot().active_leases.len(), 1);
-        assert_eq!(batch_worker.queue_snapshot().active_leases[0].task_id, "task-worker-dispatch-stop-created");
+        assert_eq!(
+            batch_worker.queue_snapshot().active_leases[0].task_id,
+            "task-worker-dispatch-stop-created"
+        );
     }
 
     #[test]
@@ -1938,12 +2039,10 @@ mod tests {
         let temp = TempWorkspace::new("dispatch-batch-fresh-spawn-failure");
         let first_output = temp.root.join("dispatch-fresh-first.txt");
         let second_output = temp.root.join("dispatch-fresh-second.txt");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-dispatch-fresh-failure-1",
@@ -1976,21 +2075,25 @@ mod tests {
                     })
                 },
                 |claim| {
-                    let (effect_id, trace_id, intent_key, command) = match claim.task.task_id.as_str() {
-                        "task-worker-dispatch-fresh-failure-1" => (
-                            "effect-worker-dispatch-fresh-failure-1",
-                            "trace-worker-dispatch-fresh-failure-1",
-                            "intent-worker-dispatch-fresh-failure-1",
-                            sandbox_write_command(&first_output, b"safeclaw dispatch fresh failure one\n"),
-                        ),
-                        "task-worker-dispatch-fresh-failure-2" => (
-                            "effect-worker-dispatch-fresh-failure-2",
-                            "trace-worker-dispatch-fresh-failure-2",
-                            "intent-worker-dispatch-fresh-failure-2",
-                            sandbox_missing_program_command(),
-                        ),
-                        other => panic!("unexpected task id: {other}"),
-                    };
+                    let (effect_id, trace_id, intent_key, command) =
+                        match claim.task.task_id.as_str() {
+                            "task-worker-dispatch-fresh-failure-1" => (
+                                "effect-worker-dispatch-fresh-failure-1",
+                                "trace-worker-dispatch-fresh-failure-1",
+                                "intent-worker-dispatch-fresh-failure-1",
+                                sandbox_write_command(
+                                    &first_output,
+                                    b"safeclaw dispatch fresh failure one\n",
+                                ),
+                            ),
+                            "task-worker-dispatch-fresh-failure-2" => (
+                                "effect-worker-dispatch-fresh-failure-2",
+                                "trace-worker-dispatch-fresh-failure-2",
+                                "intent-worker-dispatch-fresh-failure-2",
+                                sandbox_missing_program_command(),
+                            ),
+                            other => panic!("unexpected task id: {other}"),
+                        };
                     let effect = EffectRecord::new(
                         effect_id,
                         claim.task.task_id.clone(),
@@ -2010,7 +2113,10 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(error, WorkerLoopError::Sandbox(_)));
-        assert_eq!(fs::read(&first_output).unwrap(), b"safeclaw dispatch fresh failure one\n");
+        assert_eq!(
+            fs::read(&first_output).unwrap(),
+            b"safeclaw dispatch fresh failure one\n"
+        );
         assert!(!second_output.exists());
         assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
         assert_eq!(
@@ -2092,8 +2198,8 @@ mod tests {
                 "test",
             )
             .unwrap();
-        let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store)
-            .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::new(orchestrator, runtime_store).with_lease_ttl_ms(25);
 
         let error = loop_driver
             .claim_and_dispatch_until_empty(
@@ -2127,7 +2233,10 @@ mod tests {
                         );
                         Ok((
                             InMemoryTaskRuntime::new(effect),
-                            sandbox_write_command(&first_output, b"safeclaw dispatch persisted failure one\n"),
+                            sandbox_write_command(
+                                &first_output,
+                                b"safeclaw dispatch persisted failure one\n",
+                            ),
                         ))
                     }
                     other => panic!("unexpected fresh task id: {other}"),
@@ -2225,7 +2334,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-dispatch-shared-1");
 
         let drain_orchestrator = SqliteTaskOrchestrator::new(
@@ -2370,7 +2482,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-dispatch-shared-1");
 
         let first_drain_orchestrator = SqliteTaskOrchestrator::new(
@@ -2380,7 +2495,8 @@ mod tests {
         let first_drain_store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
-        let mut first_drain_worker = SqliteSingleWorkerLoop::new(first_drain_orchestrator, first_drain_store);
+        let mut first_drain_worker =
+            SqliteSingleWorkerLoop::new(first_drain_orchestrator, first_drain_store);
 
         let first_outcomes = first_drain_worker
             .claim_and_dispatch_until_empty(
@@ -2458,7 +2574,8 @@ mod tests {
         let second_drain_store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
-        let mut second_drain_worker = SqliteSingleWorkerLoop::new(second_drain_orchestrator, second_drain_store);
+        let mut second_drain_worker =
+            SqliteSingleWorkerLoop::new(second_drain_orchestrator, second_drain_store);
 
         let second_outcomes = second_drain_worker
             .claim_and_dispatch_until_empty(
@@ -2485,7 +2602,10 @@ mod tests {
                     );
                     Ok((
                         InMemoryTaskRuntime::new(effect),
-                        sandbox_write_command(&shared_output, b"safeclaw dispatch shared after release\n"),
+                        sandbox_write_command(
+                            &shared_output,
+                            b"safeclaw dispatch shared after release\n",
+                        ),
                     ))
                 },
                 |_, _| unreachable!(),
@@ -2506,7 +2626,10 @@ mod tests {
             b"safeclaw dispatch shared after release\n"
         );
         assert!(second_drain_worker.queue_snapshot().queued_tasks.is_empty());
-        assert!(second_drain_worker.queue_snapshot().active_leases.is_empty());
+        assert!(second_drain_worker
+            .queue_snapshot()
+            .active_leases
+            .is_empty());
         assert_eq!(
             second_drain_worker.queue_snapshot().completed_task_ids,
             vec![
@@ -2542,8 +2665,14 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(blocking_claim.task.task_id, "task-worker-dispatch-shared-read-1");
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            blocking_claim.task.task_id,
+            "task-worker-dispatch-shared-read-1"
+        );
         assert!(!blocking_claim.task.intent.requires_write);
 
         let read_orchestrator = SqliteTaskOrchestrator::new(
@@ -2587,7 +2716,10 @@ mod tests {
         assert_eq!(outcomes.len(), 1);
         match &outcomes[0] {
             WorkerLoopDispatchOutcome::Executed(executed) => {
-                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-shared-read-2");
+                assert_eq!(
+                    executed.claim.task.task_id,
+                    "task-worker-dispatch-shared-read-2"
+                );
                 assert!(executed.completed);
                 assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
@@ -2621,7 +2753,8 @@ mod tests {
     }
 
     #[test]
-    fn worker_loop_dispatch_until_empty_allows_same_scope_write_while_other_owners_hold_read_leases() {
+    fn worker_loop_dispatch_until_empty_allows_same_scope_write_while_other_owners_hold_read_leases(
+    ) {
         let temp = TempWorkspace::new("dispatch-scope-write-under-reads");
         let shared_scope = format!("scope:{}", temp.root.join("shared.txt").display());
         let write_output = temp.root.join("write-under-reads.txt");
@@ -2652,10 +2785,22 @@ mod tests {
             ))
             .unwrap();
 
-        let first_read = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(first_read.task.task_id, "task-worker-dispatch-shared-read-active-1");
-        let second_read = blocking_orchestrator.claim_next("worker-b", 1).unwrap().unwrap();
-        assert_eq!(second_read.task.task_id, "task-worker-dispatch-shared-read-active-2");
+        let first_read = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            first_read.task.task_id,
+            "task-worker-dispatch-shared-read-active-1"
+        );
+        let second_read = blocking_orchestrator
+            .claim_next("worker-b", 1)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            second_read.task.task_id,
+            "task-worker-dispatch-shared-read-active-2"
+        );
 
         let write_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -2672,11 +2817,19 @@ mod tests {
                 2,
                 PreflightDecision::Permit,
                 |claim| {
-                    assert_eq!(claim.task.task_id, "task-worker-dispatch-shared-write-after-reads");
-                    Ok(String::from("effect-worker-dispatch-shared-write-after-reads"))
+                    assert_eq!(
+                        claim.task.task_id,
+                        "task-worker-dispatch-shared-write-after-reads"
+                    );
+                    Ok(String::from(
+                        "effect-worker-dispatch-shared-write-after-reads",
+                    ))
                 },
                 |claim| {
-                    assert_eq!(claim.task.task_id, "task-worker-dispatch-shared-write-after-reads");
+                    assert_eq!(
+                        claim.task.task_id,
+                        "task-worker-dispatch-shared-write-after-reads"
+                    );
                     let effect = EffectRecord::new(
                         "effect-worker-dispatch-shared-write-after-reads",
                         claim.task.task_id.clone(),
@@ -2691,7 +2844,10 @@ mod tests {
                     );
                     Ok((
                         InMemoryTaskRuntime::new(effect),
-                        sandbox_write_command(&write_output, b"safeclaw dispatch write under reads\n"),
+                        sandbox_write_command(
+                            &write_output,
+                            b"safeclaw dispatch write under reads\n",
+                        ),
                     ))
                 },
                 |_, _| unreachable!(),
@@ -2701,12 +2857,17 @@ mod tests {
         assert_eq!(outcomes.len(), 1);
         match &outcomes[0] {
             WorkerLoopDispatchOutcome::Executed(executed) => {
-                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-shared-write-after-reads");
+                assert_eq!(
+                    executed.claim.task.task_id,
+                    "task-worker-dispatch-shared-write-after-reads"
+                );
                 assert!(executed.completed);
                 assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
             }
-            WorkerLoopDispatchOutcome::Probed(_) => panic!("same-scope write under reads must execute"),
+            WorkerLoopDispatchOutcome::Probed(_) => {
+                panic!("same-scope write under reads must execute")
+            }
             _ => panic!("unexpected parked dispatch outcome"),
         }
         assert_eq!(
@@ -2731,7 +2892,8 @@ mod tests {
     }
 
     #[test]
-    fn worker_loop_dispatch_until_empty_claims_second_write_only_after_prior_write_under_reads_releases() {
+    fn worker_loop_dispatch_until_empty_claims_second_write_only_after_prior_write_under_reads_releases(
+    ) {
         let temp = TempWorkspace::new("dispatch-scope-write-under-reads-release");
         let shared_scope = format!("scope:{}", temp.root.join("shared.txt").display());
         let second_write_output = temp.root.join("second-write-under-reads.txt");
@@ -2770,11 +2932,20 @@ mod tests {
             .unwrap();
 
         let first_read = orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(first_read.task.task_id, "task-worker-dispatch-shared-read-active-1");
+        assert_eq!(
+            first_read.task.task_id,
+            "task-worker-dispatch-shared-read-active-1"
+        );
         let second_read = orchestrator.claim_next("worker-b", 1).unwrap().unwrap();
-        assert_eq!(second_read.task.task_id, "task-worker-dispatch-shared-read-active-2");
+        assert_eq!(
+            second_read.task.task_id,
+            "task-worker-dispatch-shared-read-active-2"
+        );
         let first_write = orchestrator.claim_next("worker-c", 2).unwrap().unwrap();
-        assert_eq!(first_write.task.task_id, "task-worker-dispatch-shared-write-1");
+        assert_eq!(
+            first_write.task.task_id,
+            "task-worker-dispatch-shared-write-1"
+        );
         assert!(first_write.task.intent.requires_write);
 
         let blocked_orchestrator = SqliteTaskOrchestrator::new(
@@ -2839,7 +3010,10 @@ mod tests {
                     );
                     Ok((
                         InMemoryTaskRuntime::new(effect),
-                        sandbox_write_command(&second_write_output, b"safeclaw dispatch second write under reads\n"),
+                        sandbox_write_command(
+                            &second_write_output,
+                            b"safeclaw dispatch second write under reads\n",
+                        ),
                     ))
                 },
                 |_, _| unreachable!(),
@@ -2849,7 +3023,10 @@ mod tests {
         assert_eq!(released.len(), 1);
         match &released[0] {
             WorkerLoopDispatchOutcome::Executed(executed) => {
-                assert_eq!(executed.claim.task.task_id, "task-worker-dispatch-shared-write-2");
+                assert_eq!(
+                    executed.claim.task.task_id,
+                    "task-worker-dispatch-shared-write-2"
+                );
                 assert!(executed.completed);
                 assert_eq!(executed.final_summary.worker_state, WorkerState::Succeeded);
                 assert_eq!(executed.final_summary.effect_status, EffectStatus::Executed);
@@ -3046,7 +3223,10 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(error, WorkerLoopError::Sandbox(_)));
-        assert_eq!(fs::read(&first_output).unwrap(), b"safeclaw batch failure one\n");
+        assert_eq!(
+            fs::read(&first_output).unwrap(),
+            b"safeclaw batch failure one\n"
+        );
         assert!(!second_output.exists());
         assert!(loop_driver.queue_snapshot().queued_tasks.is_empty());
         assert_eq!(
@@ -3063,11 +3243,17 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let restored_one = verify_store
-            .load_runtime("task-worker-batch-failure-1", "effect-worker-batch-failure-1")
+            .load_runtime(
+                "task-worker-batch-failure-1",
+                "effect-worker-batch-failure-1",
+            )
             .unwrap()
             .expect("first batch failure runtime must reload");
         let restored_two = verify_store
-            .load_runtime("task-worker-batch-failure-2", "effect-worker-batch-failure-2")
+            .load_runtime(
+                "task-worker-batch-failure-2",
+                "effect-worker-batch-failure-2",
+            )
             .unwrap()
             .expect("second batch failure runtime must reload");
         assert_eq!(restored_one.worker_state, WorkerState::Succeeded);
@@ -3119,7 +3305,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-batch-shared-1");
 
         let drain_orchestrator = SqliteTaskOrchestrator::new(
@@ -3174,8 +3363,14 @@ mod tests {
         assert_eq!(outcomes[0].claim.task.task_id, "task-worker-batch-other-1");
         assert_eq!(outcomes[1].claim.task.task_id, "task-worker-batch-other-2");
         assert!(outcomes.iter().all(|outcome| outcome.completed));
-        assert_eq!(fs::read(&other_one_output).unwrap(), b"safeclaw batch other one\n");
-        assert_eq!(fs::read(&other_two_output).unwrap(), b"safeclaw batch other two\n");
+        assert_eq!(
+            fs::read(&other_one_output).unwrap(),
+            b"safeclaw batch other one\n"
+        );
+        assert_eq!(
+            fs::read(&other_two_output).unwrap(),
+            b"safeclaw batch other two\n"
+        );
         assert!(!shared_output.exists());
         assert_eq!(drain_worker.queue_snapshot().queued_tasks.len(), 1);
         assert_eq!(
@@ -3259,7 +3454,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-batch-shared-1");
 
         let first_drain_orchestrator = SqliteTaskOrchestrator::new(
@@ -3362,9 +3560,15 @@ mod tests {
             "task-worker-batch-shared-2"
         );
         assert!(second_outcomes[0].completed);
-        assert_eq!(fs::read(&shared_output).unwrap(), b"safeclaw shared after release\n");
+        assert_eq!(
+            fs::read(&shared_output).unwrap(),
+            b"safeclaw shared after release\n"
+        );
         assert!(second_drain_worker.queue_snapshot().queued_tasks.is_empty());
-        assert!(second_drain_worker.queue_snapshot().active_leases.is_empty());
+        assert!(second_drain_worker
+            .queue_snapshot()
+            .active_leases
+            .is_empty());
         assert_eq!(
             second_drain_worker.queue_snapshot().completed_task_ids,
             vec![
@@ -3420,7 +3624,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-shared-1");
 
         let other_orchestrator = SqliteTaskOrchestrator::new(
@@ -3485,7 +3692,8 @@ mod tests {
         let unblocked_store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
-        let mut unblocked_worker = SqliteSingleWorkerLoop::new(unblocked_orchestrator, unblocked_store);
+        let mut unblocked_worker =
+            SqliteSingleWorkerLoop::new(unblocked_orchestrator, unblocked_store);
 
         let unblocked = unblocked_worker
             .claim_and_drive_once("worker-c", 3, PreflightDecision::Permit, |claim| {
@@ -3547,8 +3755,14 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(blocking_claim.task.task_id, "task-worker-shared-write-active");
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            blocking_claim.task.task_id,
+            "task-worker-shared-write-active"
+        );
 
         let read_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -3633,9 +3847,15 @@ mod tests {
             })
             .unwrap()
             .expect("same-scope write must unblock after active lease finishes");
-        assert_eq!(write_outcome.claim.task.task_id, "task-worker-shared-write-after");
+        assert_eq!(
+            write_outcome.claim.task.task_id,
+            "task-worker-shared-write-after"
+        );
         assert!(write_outcome.completed);
-        assert_eq!(fs::read(&write_after_output).unwrap(), b"safeclaw write after read\n");
+        assert_eq!(
+            fs::read(&write_after_output).unwrap(),
+            b"safeclaw write after read\n"
+        );
 
         let verify_store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -3681,7 +3901,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-shared-read-1");
         assert!(!blocking_claim.task.intent.requires_write);
 
@@ -3715,8 +3938,14 @@ mod tests {
             .expect("same-scope second read must remain claimable");
         assert_eq!(read_outcome.claim.task.task_id, "task-worker-shared-read-2");
         assert!(read_outcome.completed);
-        assert_eq!(read_outcome.final_summary.worker_state, WorkerState::Succeeded);
-        assert_eq!(read_outcome.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(
+            read_outcome.final_summary.worker_state,
+            WorkerState::Succeeded
+        );
+        assert_eq!(
+            read_outcome.final_summary.effect_status,
+            EffectStatus::Executed
+        );
         assert_eq!(read_worker.queue_snapshot().queued_tasks.len(), 0);
         assert_eq!(read_worker.queue_snapshot().active_leases.len(), 1);
         assert_eq!(
@@ -3771,11 +4000,17 @@ mod tests {
             ))
             .unwrap();
 
-        let first_read = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let first_read = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(first_read.task.task_id, "task-worker-shared-read-active-1");
         assert!(!first_read.task.intent.requires_write);
 
-        let second_read = blocking_orchestrator.claim_next("worker-b", 1).unwrap().unwrap();
+        let second_read = blocking_orchestrator
+            .claim_next("worker-b", 1)
+            .unwrap()
+            .unwrap();
         assert_eq!(second_read.task.task_id, "task-worker-shared-read-active-2");
         assert!(!second_read.task.intent.requires_write);
 
@@ -3811,11 +4046,23 @@ mod tests {
             .unwrap()
             .expect("same-scope write must remain claimable under active reads");
 
-        assert_eq!(write_outcome.claim.task.task_id, "task-worker-shared-write-after-reads");
+        assert_eq!(
+            write_outcome.claim.task.task_id,
+            "task-worker-shared-write-after-reads"
+        );
         assert!(write_outcome.completed);
-        assert_eq!(write_outcome.final_summary.worker_state, WorkerState::Succeeded);
-        assert_eq!(write_outcome.final_summary.effect_status, EffectStatus::Executed);
-        assert_eq!(fs::read(&write_output).unwrap(), b"safeclaw write under reads\n");
+        assert_eq!(
+            write_outcome.final_summary.worker_state,
+            WorkerState::Succeeded
+        );
+        assert_eq!(
+            write_outcome.final_summary.effect_status,
+            EffectStatus::Executed
+        );
+        assert_eq!(
+            fs::read(&write_output).unwrap(),
+            b"safeclaw write under reads\n"
+        );
         assert_eq!(write_worker.queue_snapshot().queued_tasks.len(), 0);
         assert_eq!(write_worker.queue_snapshot().active_leases.len(), 2);
 
@@ -3894,7 +4141,11 @@ mod tests {
         assert!(blocked.is_none());
 
         orchestrator
-            .complete(&first_write.task.task_id, &first_write.lease.lease_id, &first_write.lease.owner_id)
+            .complete(
+                &first_write.task.task_id,
+                &first_write.lease.lease_id,
+                &first_write.lease.owner_id,
+            )
             .unwrap();
 
         let release_orchestrator = SqliteTaskOrchestrator::new(
@@ -3923,7 +4174,10 @@ mod tests {
                 );
                 Ok((
                     InMemoryTaskRuntime::new(effect),
-                    sandbox_write_command(&second_write_output, b"safeclaw second write under reads\n"),
+                    sandbox_write_command(
+                        &second_write_output,
+                        b"safeclaw second write under reads\n",
+                    ),
                 ))
             })
             .unwrap()
@@ -3933,7 +4187,10 @@ mod tests {
         assert!(released.completed);
         assert_eq!(released.final_summary.worker_state, WorkerState::Succeeded);
         assert_eq!(released.final_summary.effect_status, EffectStatus::Executed);
-        assert_eq!(fs::read(&second_write_output).unwrap(), b"safeclaw second write under reads\n");
+        assert_eq!(
+            fs::read(&second_write_output).unwrap(),
+            b"safeclaw second write under reads\n"
+        );
         assert_eq!(release_worker.queue_snapshot().queued_tasks.len(), 0);
         assert_eq!(release_worker.queue_snapshot().active_leases.len(), 2);
 
@@ -3980,7 +4237,10 @@ mod tests {
                     EffectReversibility::Rollbackable,
                     ProbeMode::Auto,
                 );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_missing_program_command()))
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
             })
             .unwrap_err();
         assert!(matches!(error, WorkerLoopError::Sandbox(_)));
@@ -4016,7 +4276,10 @@ mod tests {
                     EffectReversibility::Rollbackable,
                     ProbeMode::Auto,
                 );
-                Ok((InMemoryTaskRuntime::new(effect), sandbox_missing_program_command()))
+                Ok((
+                    InMemoryTaskRuntime::new(effect),
+                    sandbox_missing_program_command(),
+                ))
             })
             .unwrap_err();
         assert!(matches!(error, WorkerLoopError::Sandbox(_)));
@@ -4053,12 +4316,10 @@ mod tests {
         );
         let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
         let expected_bytes = b"safeclaw worker loop\n";
-        loop_driver
-            .filesystem_probe_mut()
-            .register_expected_blake3(
-                "effect-worker-loop",
-                blake3::hash(expected_bytes).to_hex().to_string(),
-            );
+        loop_driver.filesystem_probe_mut().register_expected_blake3(
+            "effect-worker-loop",
+            blake3::hash(expected_bytes).to_hex().to_string(),
+        );
 
         let outcome = loop_driver
             .claim_and_drive_once("worker-a", 10, PreflightDecision::Permit, |claim| {
@@ -4084,8 +4345,14 @@ mod tests {
 
         assert_eq!(outcome.claim.task.task_id, "task-worker-loop");
         assert!(outcome.report.timed_out);
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::Uncertain);
-        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Uncertain);
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::Uncertain
+        );
+        assert_eq!(
+            outcome.execution_summary.effect_status,
+            EffectStatus::Uncertain
+        );
         assert_eq!(outcome.final_summary.worker_state, WorkerState::Succeeded);
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Executed);
         assert!(outcome.completed);
@@ -4157,6 +4424,17 @@ mod tests {
         assert_eq!(execution_summary.worker_state, WorkerState::Uncertain);
         assert_eq!(execution_summary.effect_status, EffectStatus::Uncertain);
 
+        // 验证文件在 probe 前已正确写入
+        assert!(
+            temp.output_path.exists(),
+            "output file missing before probe"
+        );
+        let actual_bytes = std::fs::read(&temp.output_path).unwrap();
+        assert_eq!(
+            actual_bytes, expected_bytes,
+            "file content mismatch before probe"
+        );
+
         let mut setup_store = SqliteRuntimeStore::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
@@ -4177,10 +4455,12 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let mut probe_worker = SqliteSingleWorkerLoop::new(probe_orchestrator, probe_store);
-        probe_worker.filesystem_probe_mut().register_expected_blake3(
-            "effect-worker-persisted-probe",
-            blake3::hash(expected_bytes).to_hex().to_string(),
-        );
+        probe_worker
+            .filesystem_probe_mut()
+            .register_expected_blake3(
+                "effect-worker-persisted-probe",
+                blake3::hash(expected_bytes).to_hex().to_string(),
+            );
 
         let blocked = probe_worker
             .claim_and_probe_persisted_once("worker-b", 10, "effect-worker-persisted-probe")
@@ -4194,7 +4474,10 @@ mod tests {
         assert_eq!(recovered.claim.task.task_id, "task-worker-persisted-probe");
         assert_eq!(recovered.recovered_from, WorkerState::Uncertain);
         assert_eq!(recovered.final_summary.worker_state, WorkerState::Succeeded);
-        assert_eq!(recovered.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(
+            recovered.final_summary.effect_status,
+            EffectStatus::Executed
+        );
         assert!(recovered.completed);
         assert_eq!(
             recovered.render_recovery_status_line(),
@@ -4298,7 +4581,10 @@ mod tests {
         assert_eq!(renewed.lease.fencing_token, 1);
         assert_eq!(renewed.lease.expires_at_ms, 45);
         assert_eq!(loop_driver.queue_snapshot().active_leases.len(), 1);
-        assert_eq!(loop_driver.queue_snapshot().active_leases[0].expires_at_ms, 45);
+        assert_eq!(
+            loop_driver.queue_snapshot().active_leases[0].expires_at_ms,
+            45
+        );
 
         let other_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -4456,10 +4742,7 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let restored = verify_store
-            .load_runtime(
-                "task-worker-retry-pre-exec",
-                "effect-worker-retry-pre-exec",
-            )
+            .load_runtime("task-worker-retry-pre-exec", "effect-worker-retry-pre-exec")
             .unwrap()
             .expect("retry pre-exec runtime must persist before sandbox spawn");
         assert_eq!(restored.worker_state, WorkerState::Executing);
@@ -4504,8 +4787,14 @@ mod tests {
             .unwrap()
             .expect("first worker must claim queued task");
 
-        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
-        assert_eq!(first_outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(
+            first_outcome.final_summary.worker_state,
+            WorkerState::Failed
+        );
+        assert_eq!(
+            first_outcome.final_summary.effect_status,
+            EffectStatus::Prepared
+        );
         assert!(!first_outcome.completed);
         assert_eq!(first_worker.queue_snapshot().completed_task_ids.len(), 0);
         assert_eq!(first_worker.queue_snapshot().active_leases.len(), 1);
@@ -4542,8 +4831,14 @@ mod tests {
 
         assert_eq!(retry_outcome.claim.lease.owner_id, "worker-b");
         assert_eq!(retry_outcome.claim.lease.fencing_token, 2);
-        assert_eq!(retry_outcome.final_summary.worker_state, WorkerState::Succeeded);
-        assert_eq!(retry_outcome.final_summary.effect_status, EffectStatus::Executed);
+        assert_eq!(
+            retry_outcome.final_summary.worker_state,
+            WorkerState::Succeeded
+        );
+        assert_eq!(
+            retry_outcome.final_summary.effect_status,
+            EffectStatus::Executed
+        );
         assert!(retry_outcome.completed);
         assert_eq!(fs::read(&temp.output_path).unwrap(), expected_bytes);
         assert!(second_worker.queue_snapshot().active_leases.is_empty());
@@ -4567,12 +4862,10 @@ mod tests {
     #[test]
     fn worker_loop_resume_parks_confirmation_before_sandbox() {
         let temp = TempWorkspace::new("resume-confirmation");
-        let mut loop_driver = SqliteSingleWorkerLoop::open(
-            &temp.db_path,
-            SqliteOpenOptions::default(),
-        )
-        .unwrap()
-        .with_lease_ttl_ms(25);
+        let mut loop_driver =
+            SqliteSingleWorkerLoop::open(&temp.db_path, SqliteOpenOptions::default())
+                .unwrap()
+                .with_lease_ttl_ms(25);
         loop_driver
             .enqueue_task(OrchestratorTask::new(
                 "task-worker-resume-confirmation",
@@ -4603,12 +4896,27 @@ mod tests {
             .unwrap()
             .expect("confirmation runtime must be parked on resume");
 
-        assert_eq!(outcome.claim.task.task_id, "task-worker-resume-confirmation");
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(
+            outcome.claim.task.task_id,
+            "task-worker-resume-confirmation"
+        );
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.execution_summary.effect_status,
+            EffectStatus::Prepared
+        );
+        assert_eq!(
+            outcome.final_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
         assert!(!outcome.completed);
         assert_eq!(outcome.report.exit_code, None);
         assert_eq!(outcome.report.duration_ms, 0);
@@ -4619,7 +4927,10 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let restored = verify_store
-            .load_runtime("task-worker-resume-confirmation", "effect-worker-resume-confirmation")
+            .load_runtime(
+                "task-worker-resume-confirmation",
+                "effect-worker-resume-confirmation",
+            )
             .unwrap()
             .expect("resume confirmation runtime must persist");
         assert_eq!(restored.worker_state, WorkerState::AwaitingConfirmation);
@@ -4668,7 +4979,8 @@ mod tests {
             )
             .unwrap();
 
-        let mut resume_worker = SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
+        let mut resume_worker =
+            SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
         let outcome = resume_worker
             .claim_and_resume_persisted_once(
                 "worker-a",
@@ -4679,10 +4991,22 @@ mod tests {
             .unwrap()
             .expect("persisted confirmation runtime must park on resume");
 
-        assert_eq!(outcome.claim.task.task_id, "task-worker-resume-persisted-confirmation");
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert_eq!(
+            outcome.claim.task.task_id,
+            "task-worker-resume-persisted-confirmation"
+        );
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.final_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
         assert!(!outcome.completed);
         assert_eq!(outcome.report.exit_code, None);
         assert_eq!(outcome.report.duration_ms, 0);
@@ -4725,10 +5049,15 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         store
-            .persist_runtime(&runtime, String::from("worker-loop:seed:retry-failed"), "test")
+            .persist_runtime(
+                &runtime,
+                String::from("worker-loop:seed:retry-failed"),
+                "test",
+            )
             .unwrap();
 
-        let mut retry_worker = SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
+        let mut retry_worker =
+            SqliteSingleWorkerLoop::new(orchestrator, store).with_lease_ttl_ms(25);
         let outcome = retry_worker
             .claim_and_retry_failed_once(
                 "worker-a",
@@ -4741,11 +5070,23 @@ mod tests {
             .expect("failed runtime must claim for confirmation retry");
 
         assert_eq!(outcome.claim.task.task_id, "task-worker-retry-confirmation");
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.final_summary.worker_state, WorkerState::AwaitingConfirmation);
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            outcome.execution_summary.effect_status,
+            EffectStatus::Prepared
+        );
+        assert_eq!(
+            outcome.final_summary.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Prepared);
-        assert_eq!(outcome.disposition, Some(WorkerLoopDisposition::QueueForConfirmation));
+        assert_eq!(
+            outcome.disposition,
+            Some(WorkerLoopDisposition::QueueForConfirmation)
+        );
         assert!(!outcome.completed);
         assert_eq!(outcome.report.exit_code, None);
         assert_eq!(outcome.report.duration_ms, 0);
@@ -4900,8 +5241,14 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(blocking_claim.task.task_id, "task-worker-retry-shared-blocking");
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            blocking_claim.task.task_id,
+            "task-worker-retry-shared-blocking"
+        );
 
         let first_retry_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -4933,8 +5280,14 @@ mod tests {
             .unwrap()
             .expect("first retry worker must claim other-scope task");
 
-        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
-        assert_eq!(first_outcome.final_summary.effect_status, EffectStatus::Prepared);
+        assert_eq!(
+            first_outcome.final_summary.worker_state,
+            WorkerState::Failed
+        );
+        assert_eq!(
+            first_outcome.final_summary.effect_status,
+            EffectStatus::Prepared
+        );
         assert!(!first_outcome.completed);
         assert_eq!(first_retry_worker.queue_snapshot().queued_tasks.len(), 1);
         assert_eq!(
@@ -5052,8 +5405,14 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(blocking_claim.task.task_id, "task-worker-retry-shared-blocking");
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            blocking_claim.task.task_id,
+            "task-worker-retry-shared-blocking"
+        );
 
         let first_retry_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -5084,7 +5443,10 @@ mod tests {
             })
             .unwrap()
             .expect("first retry worker must claim other-scope task");
-        assert_eq!(first_outcome.final_summary.worker_state, WorkerState::Failed);
+        assert_eq!(
+            first_outcome.final_summary.worker_state,
+            WorkerState::Failed
+        );
 
         let renewed_blocking_lease = blocking_orchestrator
             .renew_lease(
@@ -5233,7 +5595,10 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
         assert_eq!(blocking_claim.task.task_id, "task-worker-shared-blocking");
 
         let first_resume_orchestrator = SqliteTaskOrchestrator::new(
@@ -5383,8 +5748,14 @@ mod tests {
             ))
             .unwrap();
 
-        let blocking_claim = blocking_orchestrator.claim_next("worker-a", 0).unwrap().unwrap();
-        assert_eq!(blocking_claim.task.task_id, "task-worker-resume-shared-blocking");
+        let blocking_claim = blocking_orchestrator
+            .claim_next("worker-a", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            blocking_claim.task.task_id,
+            "task-worker-resume-shared-blocking"
+        );
 
         let first_resume_orchestrator = SqliteTaskOrchestrator::new(
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
@@ -5565,10 +5936,9 @@ mod tests {
             open_database(&temp.db_path, SqliteOpenOptions::default()).unwrap(),
         );
         let mut loop_driver = SqliteSingleWorkerLoop::new(orchestrator, runtime_store);
-        loop_driver.network_probe_mut().register_expected_response(
-            String::from("effect-worker-network"),
-            "status=applied",
-        );
+        loop_driver
+            .network_probe_mut()
+            .register_expected_response(String::from("effect-worker-network"), "status=applied");
 
         let timeout_bytes = b"safeclaw network timeout\n";
         let outcome = loop_driver
@@ -5594,8 +5964,14 @@ mod tests {
             .expect("network task must be claimable");
 
         assert_eq!(outcome.claim.lease.owner_id, "worker-a");
-        assert_eq!(outcome.execution_summary.worker_state, WorkerState::Uncertain);
-        assert_eq!(outcome.execution_summary.effect_status, EffectStatus::Uncertain);
+        assert_eq!(
+            outcome.execution_summary.worker_state,
+            WorkerState::Uncertain
+        );
+        assert_eq!(
+            outcome.execution_summary.effect_status,
+            EffectStatus::Uncertain
+        );
         assert_eq!(outcome.final_summary.worker_state, WorkerState::Succeeded);
         assert_eq!(outcome.final_summary.effect_status, EffectStatus::Executed);
         assert!(outcome.completed);
@@ -5666,7 +6042,11 @@ mod tests {
 
     fn sandbox_fail_command() -> SandboxCommand {
         if cfg!(windows) {
-            SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+            SandboxCommand::new(
+                "powershell",
+                ["-Command", "Write-Error 'boom'; exit 7"],
+                5_000,
+            )
         } else {
             SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
         }
@@ -5722,6 +6102,8 @@ mod tests {
                 .map(u8::to_string)
                 .collect::<Vec<_>>()
                 .join(", ");
+            // Write first, then sleep long enough for the sandbox timeout to trigger.
+            // Leave extra headroom for Windows shell startup so the write completes before kill.
             SandboxCommand::new(
                 "powershell",
                 [
@@ -5729,22 +6111,27 @@ mod tests {
                     "-NonInteractive",
                     "-Command",
                     &format!(
-                        "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes); Start-Sleep -Milliseconds 3000",
+                        "$bytes = [byte[]]({bytes_literal}); [System.IO.File]::WriteAllBytes('{}', $bytes); Start-Sleep -Milliseconds 10000",
                         output_path.display()
                     ),
                 ],
-                1_500,
+                3_000,
             )
         } else {
             let text = String::from_utf8(output_bytes.to_vec())
                 .expect("worker loop demo bytes must remain utf-8");
+            // Write first, then keep the process alive so the sandbox records a timeout.
             SandboxCommand::new(
                 "sh",
                 [
                     "-c",
-                    &format!("printf '%s' '{}' > '{}'; sleep 1", text, output_path.display()),
+                    &format!(
+                        "printf '%s' '{}' > '{}'; sleep 5",
+                        text,
+                        output_path.display()
+                    ),
                 ],
-                500,
+                2_000,
             )
         }
     }

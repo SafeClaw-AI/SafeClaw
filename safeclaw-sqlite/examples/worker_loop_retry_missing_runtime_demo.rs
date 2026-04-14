@@ -5,12 +5,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use safeclaw_core::{
-    OrchestratorSnapshot, OrchestratorTask, PreflightDecision, ScheduleIntent,
-};
-use safeclaw_sqlite::{
-    SqliteOpenOptions, SqliteSingleWorkerLoop, WorkerLoopError,
-};
+use safeclaw_core::{OrchestratorSnapshot, OrchestratorTask, PreflightDecision, ScheduleIntent};
+use safeclaw_sqlite::{SqliteOpenOptions, SqliteSingleWorkerLoop, WorkerLoopError};
 
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
@@ -53,7 +49,10 @@ fn main() -> Result<(), String> {
     print_snapshot("after-missing-runtime-error", snapshot.clone());
     assert!(snapshot.completed_task_ids.is_empty());
     assert_eq!(snapshot.active_leases.len(), 1);
-    assert_eq!(snapshot.active_leases[0].task_id, "task-worker-loop-missing-retry-demo");
+    assert_eq!(
+        snapshot.active_leases[0].task_id,
+        "task-worker-loop-missing-retry-demo"
+    );
 
     println!("[demo] db: {}", temp.db_path().display());
     println!("[demo] output: {}", temp.output_path.display());

@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use crate::{
-    FileSystemProbeAdapter, NetworkProbeAdapter, RuntimeDiagnosticSnapshot,
-    RuntimeGovernanceDisposition, RuntimeGovernanceSummary, RuntimeGovernanceView,
-    SandboxCommand, SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
+    FileSystemProbeAdapter, HeartbeatManager, NetworkProbeAdapter, RuntimeDiagnosticSnapshot,
+    RuntimeGovernanceDisposition, RuntimeGovernanceSummary, RuntimeGovernanceView, SandboxCommand,
+    SidecarQuota, SqliteAdapterError, SqliteOpenOptions, SqliteSingleWorkerLoop,
     WorkerLoopDispatchOutcome, WorkerLoopError,
 };
 use safeclaw_core::{
@@ -49,7 +49,11 @@ impl WorkerServiceGovernanceSection {
     }
 
     pub fn render_task_line(&self) -> String {
-        format!("{} tasks => {}", self.display_label(), self.task_ids.join(","))
+        format!(
+            "{} tasks => {}",
+            self.display_label(),
+            self.task_ids.join(",")
+        )
     }
 }
 
@@ -74,7 +78,9 @@ impl WorkerServiceGovernanceGroups {
             RuntimeGovernanceDisposition::ParkedUnsupported => &mut self.parked_unsupported,
         };
         bucket.task_ids.push(snapshot.governance.task_id.clone());
-        bucket.effect_ids.push(snapshot.governance.effect_id.clone());
+        bucket
+            .effect_ids
+            .push(snapshot.governance.effect_id.clone());
     }
 }
 
@@ -120,10 +126,7 @@ impl WorkerServiceGovernanceReport {
     pub fn sections(&self) -> Vec<WorkerServiceGovernanceSection> {
         let groups = self.disposition_groups();
         [
-            (
-                RuntimeGovernanceDisposition::InFlight,
-                groups.in_flight,
-            ),
+            (RuntimeGovernanceDisposition::InFlight, groups.in_flight),
             (
                 RuntimeGovernanceDisposition::QueueForConfirmation,
                 groups.queue_for_confirmation,
@@ -136,10 +139,7 @@ impl WorkerServiceGovernanceReport {
                 RuntimeGovernanceDisposition::QueueForManualReview,
                 groups.queue_for_manual_review,
             ),
-            (
-                RuntimeGovernanceDisposition::Resolved,
-                groups.resolved,
-            ),
+            (RuntimeGovernanceDisposition::Resolved, groups.resolved),
             (
                 RuntimeGovernanceDisposition::ParkedUnsupported,
                 groups.parked_unsupported,
@@ -174,7 +174,11 @@ impl WorkerServiceGovernanceReport {
     }
 
     pub fn render_summary_line(&self) -> String {
-        format!("{} => {}", self.primary_label(), self.summary.render_counts())
+        format!(
+            "{} => {}",
+            self.primary_label(),
+            self.summary.render_counts()
+        )
     }
 
     pub fn render_lines(&self) -> Vec<String> {
@@ -219,6 +223,8 @@ pub struct SqliteWorkerService {
     worker_loop: SqliteSingleWorkerLoop,
     owner_id: String,
     poll_interval_ms: u64,
+    heartbeat_manager: HeartbeatManager,
+    sidecar_quota: SidecarQuota,
 }
 
 impl SqliteWorkerService {
@@ -227,14 +233,22 @@ impl SqliteWorkerService {
         options: SqliteOpenOptions,
         owner_id: impl Into<String>,
     ) -> Result<Self, SqliteAdapterError> {
-        Ok(Self::new(SqliteSingleWorkerLoop::open(path, options)?, owner_id))
+        Ok(Self::new(
+            SqliteSingleWorkerLoop::open(path, options)?,
+            owner_id,
+        ))
     }
 
     pub fn new(worker_loop: SqliteSingleWorkerLoop, owner_id: impl Into<String>) -> Self {
+        let owner_id = owner_id.into();
+        let mut heartbeat_manager = HeartbeatManager::new(30_000); // 30s timeout
+        heartbeat_manager.register(&owner_id);
         Self {
             worker_loop,
-            owner_id: owner_id.into(),
+            owner_id: owner_id.clone(),
             poll_interval_ms: 10,
+            heartbeat_manager,
+            sidecar_quota: SidecarQuota::new(100, 50),
         }
     }
 
@@ -284,7 +298,8 @@ impl SqliteWorkerService {
         &self,
         report: &WorkerServiceRunReport,
     ) -> Result<RuntimeGovernanceSummary, WorkerLoopError> {
-        self.worker_loop.governance_summary_for_outcomes(&report.outcomes)
+        self.worker_loop
+            .governance_summary_for_outcomes(&report.outcomes)
     }
 
     pub fn governance_report_for_report(
@@ -311,6 +326,35 @@ impl SqliteWorkerService {
         self.worker_loop.list_effect_transitions(effect_id)
     }
 
+    pub fn heartbeat(&mut self, task_id: Option<String>, effect_id: Option<String>) -> bool {
+        self.heartbeat_manager
+            .heartbeat(&self.owner_id, task_id, effect_id)
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.heartbeat_manager.is_alive(&self.owner_id)
+    }
+
+    pub fn sidecar_can_accept_task(&self) -> bool {
+        self.sidecar_quota.can_accept_task()
+    }
+
+    pub fn sidecar_task_started(&mut self) {
+        self.sidecar_quota.task_started();
+    }
+
+    pub fn sidecar_task_completed(&mut self) {
+        self.sidecar_quota.task_completed();
+    }
+
+    pub fn sidecar_needs_restart(&self) -> bool {
+        self.sidecar_quota.needs_restart()
+    }
+
+    pub fn reset_sidecar_quota(&mut self) {
+        self.sidecar_quota.reset();
+    }
+
     pub fn filesystem_probe_mut(&mut self) -> &mut FileSystemProbeAdapter {
         self.worker_loop.filesystem_probe_mut()
     }
@@ -330,8 +374,13 @@ impl SqliteWorkerService {
     ) -> Result<WorkerServiceRunReport, WorkerLoopError>
     where
         I: FnMut(&OrchestratorClaim) -> Result<String, WorkerLoopError>,
-        F: FnMut(&OrchestratorClaim) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
-        P: FnMut(&OrchestratorClaim, &InMemoryTaskRuntime) -> Result<SandboxCommand, WorkerLoopError>,
+        F: FnMut(
+            &OrchestratorClaim,
+        ) -> Result<(InMemoryTaskRuntime, SandboxCommand), WorkerLoopError>,
+        P: FnMut(
+            &OrchestratorClaim,
+            &InMemoryTaskRuntime,
+        ) -> Result<SandboxCommand, WorkerLoopError>,
     {
         let mut report = WorkerServiceRunReport::default();
         if max_idle_polls == 0 {
@@ -368,13 +417,11 @@ impl SqliteWorkerService {
 #[cfg(test)]
 mod tests {
     use super::SqliteWorkerService;
-    use crate::{
-        RuntimeGovernanceDisposition, SandboxCommand, SqliteOpenOptions,
-    };
+    use crate::{RuntimeGovernanceDisposition, SandboxCommand, SqliteOpenOptions};
     use safeclaw_core::{
         effect_ledger::{
-            AttemptResultStatus, EffectAction, EffectActor, EffectRecord,
-            EffectReversibility, EffectStatus, EffectTier, ProbeMode,
+            AttemptResultStatus, EffectAction, EffectActor, EffectRecord, EffectReversibility,
+            EffectStatus, EffectTier, ProbeMode,
         },
         scheduler::OrchestratorTask,
         worker_lifecycle::WorkerState,
@@ -455,13 +502,14 @@ mod tests {
         assert!(groups.resolved.task_ids.is_empty());
         assert!(groups.queue_for_confirmation.task_ids.is_empty());
         assert!(governance_report.sections().is_empty());
-        assert!(
-            governance_report
-                .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
-                .is_none()
-        );
+        assert!(governance_report
+            .section_for_disposition(RuntimeGovernanceDisposition::Resolved)
+            .is_none());
         assert_eq!(governance_report.primary_label(), "empty");
-        assert_eq!(governance_report.render_summary_line(), "empty => total=0 resolved=0 confirmation=0 manual_review=0");
+        assert_eq!(
+            governance_report.render_summary_line(),
+            "empty => total=0 resolved=0 confirmation=0 manual_review=0"
+        );
         assert!(governance_report.render_lines().is_empty());
         assert!(service.queue_snapshot().active_leases.is_empty());
         assert!(service.queue_snapshot().completed_task_ids.is_empty());
@@ -528,12 +576,21 @@ mod tests {
             .expect("governance view must exist after parked confirmation");
         assert_eq!(view.worker_state, WorkerState::AwaitingConfirmation);
         assert_eq!(view.effect_status, EffectStatus::Prepared);
-        assert_eq!(view.disposition, RuntimeGovernanceDisposition::QueueForConfirmation);
+        assert_eq!(
+            view.disposition,
+            RuntimeGovernanceDisposition::QueueForConfirmation
+        );
 
         let diagnostics = service.diagnostic_snapshots_for_report(&report).unwrap();
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].governance.worker_state, WorkerState::AwaitingConfirmation);
-        assert_eq!(diagnostics[0].governance.effect_status, EffectStatus::Prepared);
+        assert_eq!(
+            diagnostics[0].governance.worker_state,
+            WorkerState::AwaitingConfirmation
+        );
+        assert_eq!(
+            diagnostics[0].governance.effect_status,
+            EffectStatus::Prepared
+        );
         assert_eq!(
             diagnostics[0].governance.disposition,
             RuntimeGovernanceDisposition::QueueForConfirmation
@@ -545,15 +602,13 @@ mod tests {
         assert_eq!(governance_report.summary.queue_for_confirmation, 1);
         assert_eq!(governance_report.summary.resolved, 0);
         assert_eq!(
-            governance_report.task_ids_for_disposition(
-                RuntimeGovernanceDisposition::QueueForConfirmation
-            ),
+            governance_report
+                .task_ids_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation),
             vec![String::from("task-worker-service-confirmation")]
         );
         assert_eq!(
-            governance_report.effect_ids_for_disposition(
-                RuntimeGovernanceDisposition::QueueForConfirmation
-            ),
+            governance_report
+                .effect_ids_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation),
             vec![String::from("effect-task-worker-service-confirmation")]
         );
         let groups = governance_report.disposition_groups();
@@ -569,7 +624,10 @@ mod tests {
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].label(), "queue_for_confirmation");
         assert_eq!(sections[0].display_label(), "confirmation");
-        assert_eq!(sections[0].render_task_line(), "confirmation tasks => task-worker-service-confirmation");
+        assert_eq!(
+            sections[0].render_task_line(),
+            "confirmation tasks => task-worker-service-confirmation"
+        );
         assert_eq!(
             governance_report
                 .section_for_disposition(RuntimeGovernanceDisposition::QueueForConfirmation)
@@ -585,9 +643,7 @@ mod tests {
         assert_eq!(
             governance_report.render_lines(),
             vec![
-                String::from(
-                    "confirmation => total=1 resolved=0 confirmation=1 manual_review=0"
-                ),
+                String::from("confirmation => total=1 resolved=0 confirmation=1 manual_review=0"),
                 String::from("confirmation tasks => task-worker-service-confirmation"),
             ]
         );
@@ -671,7 +727,10 @@ mod tests {
             .unwrap();
         assert_eq!(attempts.len(), 1);
         assert_eq!(attempts[0].attempt_seq, 1);
-        assert_eq!(attempts[0].result_status, Some(AttemptResultStatus::Success));
+        assert_eq!(
+            attempts[0].result_status,
+            Some(AttemptResultStatus::Success)
+        );
     }
 
     #[test]
@@ -845,21 +904,51 @@ mod tests {
             .unwrap()
             .expect("diagnostic snapshot must exist after executed task");
 
-        assert_eq!(snapshot.governance.task_id, "task-worker-service-diagnostic-snapshot");
-        assert_eq!(snapshot.governance.effect_id, "effect-task-worker-service-diagnostic-snapshot");
+        assert_eq!(
+            snapshot.governance.task_id,
+            "task-worker-service-diagnostic-snapshot"
+        );
+        assert_eq!(
+            snapshot.governance.effect_id,
+            "effect-task-worker-service-diagnostic-snapshot"
+        );
         assert_eq!(snapshot.governance.worker_state, WorkerState::Succeeded);
         assert_eq!(snapshot.governance.effect_status, EffectStatus::Executed);
-        assert_eq!(snapshot.governance.disposition, RuntimeGovernanceDisposition::Resolved);
+        assert_eq!(
+            snapshot.governance.disposition,
+            RuntimeGovernanceDisposition::Resolved
+        );
         assert_eq!(snapshot.attempts.len(), 1);
-        assert_eq!(snapshot.attempts[0].result_status, Some(AttemptResultStatus::Success));
+        assert_eq!(
+            snapshot.attempts[0].result_status,
+            Some(AttemptResultStatus::Success)
+        );
         assert_eq!(snapshot.state_events.len(), 2);
-        assert_eq!(snapshot.state_events[0].worker_state, WorkerState::Executing);
-        assert_eq!(snapshot.state_events[1].worker_state, WorkerState::Succeeded);
+        assert_eq!(
+            snapshot.state_events[0].worker_state,
+            WorkerState::Executing
+        );
+        assert_eq!(
+            snapshot.state_events[1].worker_state,
+            WorkerState::Succeeded
+        );
         assert_eq!(snapshot.effect_transitions.len(), 2);
-        assert_eq!(snapshot.effect_transitions[0].from_status, EffectStatus::Prepared);
-        assert_eq!(snapshot.effect_transitions[0].to_status, EffectStatus::Dispatched);
-        assert_eq!(snapshot.effect_transitions[1].from_status, EffectStatus::Dispatched);
-        assert_eq!(snapshot.effect_transitions[1].to_status, EffectStatus::Executed);
+        assert_eq!(
+            snapshot.effect_transitions[0].from_status,
+            EffectStatus::Prepared
+        );
+        assert_eq!(
+            snapshot.effect_transitions[0].to_status,
+            EffectStatus::Dispatched
+        );
+        assert_eq!(
+            snapshot.effect_transitions[1].from_status,
+            EffectStatus::Dispatched
+        );
+        assert_eq!(
+            snapshot.effect_transitions[1].to_status,
+            EffectStatus::Executed
+        );
     }
 
     #[test]
@@ -930,8 +1019,8 @@ mod tests {
         assert_eq!(governance_report.summary.resolved, 2);
         assert_eq!(governance_report.summary.queue_for_confirmation, 0);
         assert_eq!(governance_report.summary.queue_for_manual_review, 0);
-        let mut resolved_task_ids = governance_report
-            .task_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
+        let mut resolved_task_ids =
+            governance_report.task_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
         resolved_task_ids.sort();
         assert_eq!(
             resolved_task_ids,
@@ -940,8 +1029,8 @@ mod tests {
                 String::from("task-worker-service-diagnostic-report-b"),
             ]
         );
-        let mut resolved_effect_ids = governance_report
-            .effect_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
+        let mut resolved_effect_ids =
+            governance_report.effect_ids_for_disposition(RuntimeGovernanceDisposition::Resolved);
         resolved_effect_ids.sort();
         assert_eq!(
             resolved_effect_ids,
@@ -999,7 +1088,8 @@ mod tests {
                 ),
             ]
         );
-        let mut task_ids = governance_report.snapshots
+        let mut task_ids = governance_report
+            .snapshots
             .iter()
             .map(|snapshot| snapshot.governance.task_id.as_str())
             .collect::<Vec<_>>();
@@ -1011,6 +1101,40 @@ mod tests {
                 "task-worker-service-diagnostic-report-b",
             ]
         );
+    }
+
+    #[test]
+    fn worker_service_exposes_heartbeat_and_sidecar_quota_controls() {
+        let temp = TempDatabase::new("heartbeat-sidecar");
+        let mut service = SqliteWorkerService::open(
+            temp.path(),
+            SqliteOpenOptions::default(),
+            "worker-service-heartbeat",
+        )
+        .unwrap();
+
+        assert!(service.is_alive());
+        assert!(service.heartbeat(
+            Some(String::from("task-worker-service-heartbeat")),
+            Some(String::from("effect-worker-service-heartbeat")),
+        ));
+
+        assert!(service.sidecar_can_accept_task());
+        assert!(!service.sidecar_needs_restart());
+
+        for _ in 0..50 {
+            service.sidecar_task_started();
+        }
+        assert!(service.sidecar_needs_restart());
+
+        for _ in 0..50 {
+            service.sidecar_task_completed();
+        }
+        assert!(service.sidecar_can_accept_task());
+
+        service.reset_sidecar_quota();
+        assert!(service.sidecar_can_accept_task());
+        assert!(!service.sidecar_needs_restart());
     }
 
     fn sandbox_success_command() -> SandboxCommand {

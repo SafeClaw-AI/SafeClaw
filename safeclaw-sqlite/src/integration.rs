@@ -257,7 +257,10 @@ mod tests {
         let report = executor
             .run(&sandbox_write_command(temp.output_path(), output_bytes))
             .expect("sandbox write must complete");
-        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        assert_eq!(
+            report.runtime_directive(),
+            RuntimeExecutionDirective::Commit
+        );
         assert_eq!(fs::read(temp.output_path()).unwrap(), output_bytes);
 
         runtime
@@ -356,7 +359,10 @@ mod tests {
         let report = executor
             .run(&sandbox_write_command(temp.output_path(), output_bytes))
             .expect("sandbox write must complete");
-        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        assert_eq!(
+            report.runtime_directive(),
+            RuntimeExecutionDirective::Commit
+        );
         runtime
             .continue_execution(ExecutionDisposition::Crash)
             .expect("post-write crash must enter uncertain state");
@@ -389,12 +395,19 @@ mod tests {
         assert_eq!(settled.worker_state, WorkerState::Succeeded);
 
         orchestrator
-            .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+            .complete(
+                &claim.task.task_id,
+                &claim.lease.lease_id,
+                &claim.lease.owner_id,
+            )
             .expect("successful runtime must complete orchestrator lease");
         let snapshot = orchestrator.queue_snapshot();
         assert!(snapshot.queued_tasks.is_empty());
         assert!(snapshot.active_leases.is_empty());
-        assert_eq!(snapshot.completed_task_ids, vec![String::from("task-orchestrated-runtime")]);
+        assert_eq!(
+            snapshot.completed_task_ids,
+            vec![String::from("task-orchestrated-runtime")]
+        );
         assert!(orchestrator.claim_next("orch-other", 2).unwrap().is_none());
     }
 

@@ -1,4 +1,4 @@
-﻿use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use crate::{InMemoryTaskRuntime, StateApplyResult};
 
@@ -73,7 +73,10 @@ impl RuntimeStore for InMemoryRuntimeStore {
 mod tests {
     use super::{InMemoryRuntimeStore, RuntimeStore, RuntimeStoreError};
     use crate::{
-        effect_ledger::{EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, EffectStatus, ProbeMode},
+        effect_ledger::{
+            EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
+            ProbeMode,
+        },
         ExecutionDisposition, InMemoryTaskRuntime, PreflightDecision, StateApplyResult,
     };
 
@@ -87,11 +90,15 @@ mod tests {
 
         let mut store = InMemoryRuntimeStore::new();
         assert_eq!(
-            store.persist_runtime(&runtime, "evt-runtime-1", "runtime-store").unwrap(),
+            store
+                .persist_runtime(&runtime, "evt-runtime-1", "runtime-store")
+                .unwrap(),
             StateApplyResult::Applied
         );
         assert_eq!(
-            store.persist_runtime(&runtime, "evt-runtime-1", "runtime-store").unwrap(),
+            store
+                .persist_runtime(&runtime, "evt-runtime-1", "runtime-store")
+                .unwrap(),
             StateApplyResult::DuplicateIgnored
         );
 
@@ -109,7 +116,8 @@ mod tests {
         let effect = demo_effect("effect-runtime-mismatch", "task-runtime-mismatch");
         let runtime = InMemoryTaskRuntime::new(effect);
         let mut store = InMemoryRuntimeStore::new();
-        store.persist_runtime(&runtime, "evt-runtime-2", "runtime-store")
+        store
+            .persist_runtime(&runtime, "evt-runtime-2", "runtime-store")
             .unwrap();
 
         assert_eq!(

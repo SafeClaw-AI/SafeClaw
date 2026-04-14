@@ -120,8 +120,8 @@ impl ProbeAdapter for InMemoryProbeAdapter {
 #[cfg(test)]
 mod tests {
     use super::{
-        probe_definition_for, InMemoryProbeAdapter, ProbeAdapter, ProbeAdapterError,
-        ProbeReceipt, ProbeReceiptStatus,
+        probe_definition_for, InMemoryProbeAdapter, ProbeAdapter, ProbeAdapterError, ProbeReceipt,
+        ProbeReceiptStatus,
     };
     use crate::effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,

@@ -13,12 +13,9 @@ fn main() -> Result<(), String> {
     let temp = DemoArtifacts::new(&workspace)?;
     let shared_scope = format!("scope:{}", temp.root.join("shared-read.txt").display());
 
-    let mut orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut orchestrator = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+        .map(SqliteTaskOrchestrator::new)?
+        .with_lease_ttl_ms(60_000);
 
     into_demo(orchestrator.enqueue(OrchestratorTask::new(
         "task-shared-read-1",
@@ -37,10 +34,7 @@ fn main() -> Result<(), String> {
         .expect("first shared read must be claimable");
     println!(
         "[demo] first read claim => task={} lease={} fence={} owner={}",
-        first.task.task_id,
-        first.lease.lease_id,
-        first.lease.fencing_token,
-        first.lease.owner_id
+        first.task.task_id, first.lease.lease_id, first.lease.fencing_token, first.lease.owner_id
     );
     assert!(!first.task.intent.requires_write);
 
@@ -96,9 +90,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("orchestrator-scope-read-fanout-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "orchestrator-scope-read-fanout-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("orchestrator-scope-read-fanout.db"),

@@ -7,8 +7,7 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     scheduler::TaskOrchestrator,
     worker_lifecycle::WorkerState,
@@ -16,8 +15,8 @@ use safeclaw_core::{
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
-    SqliteRuntimeStore, SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -41,9 +40,7 @@ fn main() -> Result<(), String> {
         .expect("queued task must be claimable");
     println!(
         "[demo] initial claim => task={} lease={} fence={}",
-        claim.task.task_id,
-        claim.lease.lease_id,
-        claim.lease.fencing_token
+        claim.task.task_id, claim.lease.lease_id, claim.lease.fencing_token
     );
 
     let mut runtime = InMemoryTaskRuntime::new(demo_effect(&claim));
@@ -57,9 +54,7 @@ fn main() -> Result<(), String> {
     assert_eq!(execution_summary.worker_state, WorkerState::Uncertain);
     println!(
         "[demo] crash phase => worker={:?}, effect={:?}, timed_out={}",
-        execution_summary.worker_state,
-        execution_summary.effect_status,
-        report.timed_out
+        execution_summary.worker_state, execution_summary.effect_status, report.timed_out
     );
 
     let mut setup_store = SqliteRuntimeStore::new(into_demo(open_database(
@@ -77,10 +72,12 @@ fn main() -> Result<(), String> {
         SqliteOpenOptions::default(),
     ))?
     .with_lease_ttl_ms(25);
-    probe_worker.filesystem_probe_mut().register_expected_blake3(
-        "effect-worker-loop-persisted-probe-demo",
-        blake3::hash(output_bytes).to_hex().to_string(),
-    );
+    probe_worker
+        .filesystem_probe_mut()
+        .register_expected_blake3(
+            "effect-worker-loop-persisted-probe-demo",
+            blake3::hash(output_bytes).to_hex().to_string(),
+        );
 
     let blocked = into_demo(probe_worker.claim_and_probe_persisted_once(
         "worker-b",
@@ -145,10 +142,7 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
     );
 }
 
-fn sandbox_write_then_timeout_command(
-    output_path: &Path,
-    output_bytes: &[u8],
-) -> SandboxCommand {
+fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
     if cfg!(windows) {
         let bytes_literal = output_bytes
             .iter()
@@ -173,7 +167,11 @@ fn sandbox_write_then_timeout_command(
             "sh",
             [
                 "-c",
-                &format!("printf '%s' '{}' > '{}'; sleep 1", text, output_path.display()),
+                &format!(
+                    "printf '%s' '{}' > '{}'; sleep 1",
+                    text,
+                    output_path.display()
+                ),
             ],
             500,
         )
@@ -196,9 +194,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-persisted-probe-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-persisted-probe-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             output_path: root.join("worker-loop-persisted-probe-output.txt"),

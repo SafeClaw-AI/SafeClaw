@@ -7,15 +7,14 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent, TaskOrchestrator,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
+    SqliteTaskOrchestrator,
 };
 
 fn main() -> Result<(), String> {
@@ -28,12 +27,10 @@ fn main() -> Result<(), String> {
     let other_one_scope = format!("scope:{}", other_one_output.display());
     let other_two_scope = format!("scope:{}", other_two_output.display());
 
-    let mut blocking_orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut blocking_orchestrator =
+        into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+            .map(SqliteTaskOrchestrator::new)?
+            .with_lease_ttl_ms(60_000);
     into_demo(blocking_orchestrator.enqueue(OrchestratorTask::new(
         "task-worker-batch-shared-1",
         ScheduleIntent::write(shared_scope.clone()),
@@ -65,7 +62,10 @@ fn main() -> Result<(), String> {
         blocking_claim.lease.fencing_token,
         blocking_claim.lease.owner_id
     );
-    print_snapshot("after-blocking-claim", blocking_orchestrator.queue_snapshot());
+    print_snapshot(
+        "after-blocking-claim",
+        blocking_orchestrator.queue_snapshot(),
+    );
 
     let mut batch_worker = into_demo(SqliteSingleWorkerLoop::open(
         temp.db_path(),
@@ -96,12 +96,7 @@ fn main() -> Result<(), String> {
                     other => panic!("unexpected task id: {other}"),
                 };
             Ok((
-                InMemoryTaskRuntime::new(build_demo_effect(
-                    claim,
-                    effect_id,
-                    trace_id,
-                    intent_key,
-                )),
+                InMemoryTaskRuntime::new(build_demo_effect(claim, effect_id, trace_id, intent_key)),
                 sandbox_write_command(output_path, output_bytes),
             ))
         },
@@ -124,15 +119,13 @@ fn main() -> Result<(), String> {
         temp.db_path(),
         SqliteOpenOptions::default(),
     ))?);
-    let restored_one = into_demo(verify_store.load_runtime(
-        "task-worker-batch-other-1",
-        "effect-worker-batch-other-1",
-    ))?
+    let restored_one = into_demo(
+        verify_store.load_runtime("task-worker-batch-other-1", "effect-worker-batch-other-1"),
+    )?
     .expect("first drained runtime must reload");
-    let restored_two = into_demo(verify_store.load_runtime(
-        "task-worker-batch-other-2",
-        "effect-worker-batch-other-2",
-    ))?
+    let restored_two = into_demo(
+        verify_store.load_runtime("task-worker-batch-other-2", "effect-worker-batch-other-2"),
+    )?
     .expect("second drained runtime must reload");
     println!(
         "[demo] restored runtimes => one={:?}/{:?}, two={:?}/{:?}",
@@ -228,9 +221,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-batch-conflict-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-batch-conflict-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("worker-loop-batch-conflict.db"),

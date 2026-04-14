@@ -7,15 +7,12 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     scheduler::OrchestratorTask,
     InMemoryTaskRuntime, PreflightDecision, ScheduleIntent,
 };
-use safeclaw_sqlite::{
-    SandboxCommand, SqliteOpenOptions, SqliteWorkerService,
-};
+use safeclaw_sqlite::{SandboxCommand, SqliteOpenOptions, SqliteWorkerService};
 
 fn main() -> Result<(), String> {
     let temp = TempDatabase::new("worker-service-governance")?;
@@ -67,10 +64,7 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
-fn enqueue_demo_task(
-    service: &mut SqliteWorkerService,
-    task_id: &str,
-) -> Result<(), String> {
+fn enqueue_demo_task(service: &mut SqliteWorkerService, task_id: &str) -> Result<(), String> {
     service
         .enqueue_task(OrchestratorTask::new(
             task_id,
@@ -139,10 +133,7 @@ impl TempDatabase {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let path = env::temp_dir().join(format!(
-            "safeclaw-{label}-{}-{unique}.db",
-            process::id()
-        ));
+        let path = env::temp_dir().join(format!("safeclaw-{label}-{}-{unique}.db", process::id()));
         Ok(Self { path })
     }
 

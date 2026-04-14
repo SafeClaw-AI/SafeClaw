@@ -7,17 +7,15 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     scheduler::TaskOrchestrator,
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions,
-    SqliteRuntimeStore, SqliteSingleWorkerLoop, SqliteTaskOrchestrator,
-    WorkerLoopDispatchOutcome,
+    open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
+    SqliteSingleWorkerLoop, SqliteTaskOrchestrator, WorkerLoopDispatchOutcome,
 };
 
 fn main() -> Result<(), String> {
@@ -50,14 +48,17 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
         "worker-retry-a",
         0,
         PreflightDecision::Permit,
-        |claim| Ok((InMemoryTaskRuntime::new(retry_effect(claim)), sandbox_fail_command())),
+        |claim| {
+            Ok((
+                InMemoryTaskRuntime::new(retry_effect(claim)),
+                sandbox_fail_command(),
+            ))
+        },
     ))?
     .expect("retry seed must claim task");
     println!(
         "[demo] retry seed => worker={:?} effect={:?} completed={}",
-        failed.final_summary.worker_state,
-        failed.final_summary.effect_status,
-        failed.completed
+        failed.final_summary.worker_state, failed.final_summary.effect_status, failed.completed
     );
 
     let mut resume_seed_worker = into_demo(SqliteSingleWorkerLoop::open(
@@ -129,16 +130,14 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
             "task-worker-dispatch-batch-demo-retry" => {
                 println!(
                     "[demo] retry batch => task={} state={:?}",
-                    claim.task.task_id,
-                    runtime.worker_state
+                    claim.task.task_id, runtime.worker_state
                 );
                 Ok(sandbox_write_command(&temp.retry_output, expected_retry))
             }
             "task-worker-dispatch-batch-demo-resume" => {
                 println!(
                     "[demo] resume batch => task={} state={:?}",
-                    claim.task.task_id,
-                    runtime.worker_state
+                    claim.task.task_id, runtime.worker_state
                 );
                 Ok(sandbox_write_command(&temp.resume_output, expected_resume))
             }
@@ -168,7 +167,10 @@ fn run_executed_batch(temp: &DemoArtifacts) -> Result<(), String> {
         "[demo] executed batch governance => {}",
         summary.render_counts()
     );
-    print_snapshot("executed-batch-after-complete", batch_worker.queue_snapshot());
+    print_snapshot(
+        "executed-batch-after-complete",
+        batch_worker.queue_snapshot(),
+    );
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
@@ -216,7 +218,9 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
     let claim = into_demo(orchestrator.claim_next("worker-probe-a", 100))?
         .expect("probe batch seed must claim task");
     let mut runtime = InMemoryTaskRuntime::new(probe_effect(&claim));
-    runtime.begin_execution(PreflightDecision::Permit).map_err(|error| format!("{error:?}"))?;
+    runtime
+        .begin_execution(PreflightDecision::Permit)
+        .map_err(|error| format!("{error:?}"))?;
     let executor = LocalSandboxExecutor::new();
     let (_, execution_summary) = into_demo(executor.run_and_apply(
         &mut runtime,
@@ -224,8 +228,7 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
     ))?;
     println!(
         "[demo] probe seed => worker={:?} effect={:?}",
-        execution_summary.worker_state,
-        execution_summary.effect_status
+        execution_summary.worker_state, execution_summary.effect_status
     );
 
     let mut store = SqliteRuntimeStore::new(into_demo(open_database(
@@ -243,10 +246,12 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
         SqliteOpenOptions::default(),
     ))?
     .with_lease_ttl_ms(25);
-    batch_worker.filesystem_probe_mut().register_expected_blake3(
-        "effect-worker-dispatch-batch-demo-probe",
-        blake3::hash(expected_probe).to_hex().to_string(),
-    );
+    batch_worker
+        .filesystem_probe_mut()
+        .register_expected_blake3(
+            "effect-worker-dispatch-batch-demo-probe",
+            blake3::hash(expected_probe).to_hex().to_string(),
+        );
     let outcomes = into_demo(batch_worker.claim_and_dispatch_until_empty(
         "worker-probe-b",
         126,
@@ -275,7 +280,10 @@ fn run_probe_batch(temp: &DemoArtifacts) -> Result<(), String> {
     }
     let _diagnostics = into_demo(batch_worker.diagnostic_snapshots_for_outcomes(&outcomes))?;
     let summary = into_demo(batch_worker.governance_summary_for_outcomes(&outcomes))?;
-    println!("[demo] probe batch governance => {}", summary.render_counts());
+    println!(
+        "[demo] probe batch governance => {}",
+        summary.render_counts()
+    );
     print_snapshot("probe-batch-after-complete", batch_worker.queue_snapshot());
     Ok(())
 }
@@ -347,7 +355,11 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
 
 fn sandbox_fail_command() -> SandboxCommand {
     if cfg!(windows) {
-        SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+        SandboxCommand::new(
+            "powershell",
+            ["-Command", "Write-Error 'boom'; exit 7"],
+            5_000,
+        )
     } else {
         SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
     }
@@ -393,10 +405,7 @@ fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> SandboxComm
     }
 }
 
-fn sandbox_write_then_timeout_command(
-    output_path: &Path,
-    output_bytes: &[u8],
-) -> SandboxCommand {
+fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -> SandboxCommand {
     if cfg!(windows) {
         let bytes_literal = output_bytes
             .iter()
@@ -421,7 +430,11 @@ fn sandbox_write_then_timeout_command(
             "sh",
             [
                 "-c",
-                &format!("printf '%s' '{}' > '{}'; sleep 1", text, output_path.display()),
+                &format!(
+                    "printf '%s' '{}' > '{}'; sleep 1",
+                    text,
+                    output_path.display()
+                ),
             ],
             500,
         )
@@ -447,9 +460,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-dispatch-batch-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-dispatch-batch-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             fresh_output: root.join("worker-loop-dispatch-batch-fresh.txt"),

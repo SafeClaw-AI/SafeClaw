@@ -7,8 +7,7 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     ExecutionDisposition, InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot,
     OrchestratorTask, PreflightDecision, ScheduleIntent, TaskOrchestrator,
@@ -148,7 +147,10 @@ fn print_diagnostic(label: &str, snapshot: &RuntimeDiagnosticSnapshot) {
     println!("[demo] diagnostic {label} => {}", snapshot.render_line());
 }
 
-fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> Result<SandboxCommand, String> {
+fn sandbox_write_command(
+    output_path: &Path,
+    output_bytes: &[u8],
+) -> Result<SandboxCommand, String> {
     let text = String::from_utf8(output_bytes.to_vec()).map_err(|error| error.to_string())?;
     let command = if cfg!(windows) {
         let bytes_literal = output_bytes
@@ -170,7 +172,10 @@ fn sandbox_write_command(output_path: &Path, output_bytes: &[u8]) -> Result<Sand
     } else {
         SandboxCommand::new(
             "sh",
-            ["-c", &format!("printf '%s' '{}' > '{}'", text, output_path.display())],
+            [
+                "-c",
+                &format!("printf '%s' '{}' > '{}'", text, output_path.display()),
+            ],
             5_000,
         )
     };

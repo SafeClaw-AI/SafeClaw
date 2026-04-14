@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     collections::HashMap,
     fs,
     io::{Read, Write},
@@ -40,11 +40,10 @@ impl ProbeAdapter for FileSystemProbeAdapter {
             });
         }
 
-        let target_path = decode_target_path(&effect.target).ok_or(
-            ProbeAdapterError::AdapterUnavailable {
+        let target_path =
+            decode_target_path(&effect.target).ok_or(ProbeAdapterError::AdapterUnavailable {
                 action: effect.action,
-            },
-        )?;
+            })?;
 
         match effect.action {
             EffectAction::FileWrite => self.evaluate_file_write(effect, &target_path),
@@ -88,9 +87,7 @@ impl FileSystemProbeAdapter {
                 "file_not_found",
                 checked_at_now(),
             )),
-            Err(error)
-                if error.kind() == std::io::ErrorKind::PermissionDenied =>
-            {
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
                 Ok(ProbeReceipt::new(
                     ProbeReceiptStatus::Indeterminate,
                     "permission_denied",
@@ -103,10 +100,7 @@ impl FileSystemProbeAdapter {
         }
     }
 
-    fn evaluate_file_delete(
-        &self,
-        target_path: &Path,
-    ) -> Result<ProbeReceipt, ProbeAdapterError> {
+    fn evaluate_file_delete(&self, target_path: &Path) -> Result<ProbeReceipt, ProbeAdapterError> {
         match fs::read(target_path) {
             Ok(bytes) => Ok(ProbeReceipt::new(
                 ProbeReceiptStatus::VerifiedUnexecuted,
@@ -118,9 +112,7 @@ impl FileSystemProbeAdapter {
                 "file_not_found",
                 checked_at_now(),
             )),
-            Err(error)
-                if error.kind() == std::io::ErrorKind::PermissionDenied =>
-            {
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
                 Ok(ProbeReceipt::new(
                     ProbeReceiptStatus::Indeterminate,
                     "permission_denied",
@@ -179,11 +171,10 @@ impl NetworkProbeAdapter {
             .ok_or(ProbeAdapterError::AdapterUnavailable {
                 action: effect.action,
             })?;
-        let (host, port, path) = parse_http_url(target_url).ok_or(
-            ProbeAdapterError::AdapterUnavailable {
+        let (host, port, path) =
+            parse_http_url(target_url).ok_or(ProbeAdapterError::AdapterUnavailable {
                 action: effect.action,
-            },
-        )?;
+            })?;
 
         match issue_http_get(&host, port, &path, self.timeout_ms) {
             Ok((status_code, body)) => {
@@ -233,11 +224,10 @@ impl ProbeAdapter for NetworkProbeAdapter {
             });
         }
 
-        let target_url = decode_target_url(&effect.target).ok_or(
-            ProbeAdapterError::AdapterUnavailable {
+        let target_url =
+            decode_target_url(&effect.target).ok_or(ProbeAdapterError::AdapterUnavailable {
                 action: effect.action,
-            },
-        )?;
+            })?;
         self.evaluate_network_request(effect, target_url)
     }
 }
@@ -286,7 +276,8 @@ fn issue_http_get(
         .map_err(|_| HttpProbeError::Unsupported)?
         .next()
         .ok_or(HttpProbeError::Unsupported)?;
-    let mut stream = TcpStream::connect_timeout(&socket_addr, timeout).map_err(map_http_io_error)?;
+    let mut stream =
+        TcpStream::connect_timeout(&socket_addr, timeout).map_err(map_http_io_error)?;
     stream
         .set_read_timeout(Some(timeout))
         .map_err(|_| HttpProbeError::Io)?;
@@ -294,9 +285,7 @@ fn issue_http_get(
         .set_write_timeout(Some(timeout))
         .map_err(|_| HttpProbeError::Io)?;
 
-    let request = format!(
-        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    );
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
     stream
         .write_all(request.as_bytes())
         .map_err(map_http_io_error)?;
@@ -340,8 +329,7 @@ mod tests {
     use super::{FileSystemProbeAdapter, NetworkProbeAdapter};
     use safeclaw_core::{
         effect_ledger::{
-            EffectAction, EffectActor, EffectRecord, EffectReversibility,
-            EffectTier, ProbeMode,
+            EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
         },
         ProbeAdapter, ProbeAdapterError, ProbeReceiptStatus,
     };

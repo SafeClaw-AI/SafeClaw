@@ -7,15 +7,13 @@ use std::{
 
 use safeclaw_core::{
     effect_ledger::{
-        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier,
-        ProbeMode,
+        EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectTier, ProbeMode,
     },
     InMemoryTaskRuntime, OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask,
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -67,7 +65,8 @@ fn main() -> Result<(), String> {
         SqliteOpenOptions::default(),
     ))?
     .with_lease_ttl_ms(25);
-    let blocked = into_demo(blocked_worker.claim_and_resume_once("worker-b", 10, |_| unreachable!()))?;
+    let blocked =
+        into_demo(blocked_worker.claim_and_resume_once("worker-b", 10, |_| unreachable!()))?;
     println!("[demo] reclaim before expiry => {}", blocked.is_none());
 
     let mut resume_worker = into_demo(SqliteSingleWorkerLoop::open(
@@ -94,9 +93,7 @@ fn main() -> Result<(), String> {
 
     println!(
         "[demo] resume attempt => worker={:?}, effect={:?}, completed={}",
-        resumed.final_summary.worker_state,
-        resumed.final_summary.effect_status,
-        resumed.completed
+        resumed.final_summary.worker_state, resumed.final_summary.effect_status, resumed.completed
     );
     print_snapshot("after-resume-complete", resume_worker.queue_snapshot());
 
@@ -200,9 +197,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("worker-loop-resume-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "worker-loop-resume-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             output_path: root.join("worker-loop-resume-output.txt"),

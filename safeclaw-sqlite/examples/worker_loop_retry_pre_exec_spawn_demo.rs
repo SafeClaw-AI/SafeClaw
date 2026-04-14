@@ -15,8 +15,7 @@ use safeclaw_core::{
     PreflightDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
-    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop,
+    open_database, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore, SqliteSingleWorkerLoop,
 };
 
 fn main() -> Result<(), String> {
@@ -40,14 +39,17 @@ fn main() -> Result<(), String> {
         "worker-a",
         0,
         PreflightDecision::Permit,
-        |claim| Ok((InMemoryTaskRuntime::new(demo_effect(claim)), sandbox_fail_command())),
+        |claim| {
+            Ok((
+                InMemoryTaskRuntime::new(demo_effect(claim)),
+                sandbox_fail_command(),
+            ))
+        },
     ))?
     .expect("queued task must be claimable");
     println!(
         "[demo] first attempt => worker={:?}, effect={:?}, completed={}",
-        failed.final_summary.worker_state,
-        failed.final_summary.effect_status,
-        failed.completed
+        failed.final_summary.worker_state, failed.final_summary.effect_status, failed.completed
     );
     print_snapshot("after-failed-attempt", first_worker.queue_snapshot());
 
@@ -75,7 +77,10 @@ fn main() -> Result<(), String> {
         )
         .expect_err("missing program must surface sandbox error");
     println!("[demo] retry spawn error => {retry_error:?}");
-    print_snapshot("after-retry-spawn-failure", retry_spawn_worker.queue_snapshot());
+    print_snapshot(
+        "after-retry-spawn-failure",
+        retry_spawn_worker.queue_snapshot(),
+    );
 
     let verify_store = SqliteRuntimeStore::new(into_demo(open_database(
         temp.db_path(),
@@ -86,8 +91,14 @@ fn main() -> Result<(), String> {
         "effect-worker-loop-retry-pre-exec-demo",
     ))?
     .expect("retry pre-exec runtime must persist before sandbox spawn");
-    assert_eq!(restored_after_spawn_fail.worker_state, WorkerState::Executing);
-    assert_eq!(restored_after_spawn_fail.effect.status, EffectStatus::Prepared);
+    assert_eq!(
+        restored_after_spawn_fail.worker_state,
+        WorkerState::Executing
+    );
+    assert_eq!(
+        restored_after_spawn_fail.effect.status,
+        EffectStatus::Prepared
+    );
     println!(
         "[demo] restored after spawn failure => worker={:?}, effect={:?}, attempts={}",
         restored_after_spawn_fail.worker_state,
@@ -118,12 +129,13 @@ fn main() -> Result<(), String> {
     .expect("spawn-failed runtime must be resumable after expiry");
 
     assert!(resumed.completed);
-    assert_eq!(fs::read(&temp.output_path).map_err(|error| error.to_string())?, output_bytes);
+    assert_eq!(
+        fs::read(&temp.output_path).map_err(|error| error.to_string())?,
+        output_bytes
+    );
     println!(
         "[demo] resume completion => worker={:?}, effect={:?}, completed={}",
-        resumed.final_summary.worker_state,
-        resumed.final_summary.effect_status,
-        resumed.completed
+        resumed.final_summary.worker_state, resumed.final_summary.effect_status, resumed.completed
     );
     print_snapshot("after-resume-complete", resume_worker.queue_snapshot());
 
@@ -173,7 +185,11 @@ fn print_snapshot(label: &str, snapshot: OrchestratorSnapshot) {
 
 fn sandbox_fail_command() -> SandboxCommand {
     if cfg!(windows) {
-        SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+        SandboxCommand::new(
+            "powershell",
+            ["-Command", "Write-Error 'boom'; exit 7"],
+            5_000,
+        )
     } else {
         SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
     }

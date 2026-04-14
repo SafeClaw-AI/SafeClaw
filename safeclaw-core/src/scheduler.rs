@@ -1,8 +1,7 @@
-﻿use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use crate::task_concurrency::{
-    schedule_decision, GuardBlockReason, GuardDecision, ScopeClaim,
-    TaskScheduleRequest,
+    schedule_decision, GuardBlockReason, GuardDecision, ScopeClaim, TaskScheduleRequest,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,11 +72,7 @@ pub struct OrchestratorTask {
 }
 
 impl OrchestratorTask {
-    pub fn new(
-        task_id: impl Into<String>,
-        intent: ScheduleIntent,
-        enqueued_at_ms: u64,
-    ) -> Self {
+    pub fn new(task_id: impl Into<String>, intent: ScheduleIntent, enqueued_at_ms: u64) -> Self {
         Self {
             task_id: task_id.into(),
             intent,
@@ -111,10 +106,19 @@ pub struct OrchestratorSnapshot {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OrchestratorError {
-    BackendUnavailable { operation: &'static str },
-    TaskAlreadyQueued { task_id: String },
-    TaskAlreadyCompleted { task_id: String },
-    LeaseNotFound { task_id: String, lease_id: String },
+    BackendUnavailable {
+        operation: &'static str,
+    },
+    TaskAlreadyQueued {
+        task_id: String,
+    },
+    TaskAlreadyCompleted {
+        task_id: String,
+    },
+    LeaseNotFound {
+        task_id: String,
+        lease_id: String,
+    },
     LeaseNotOwned {
         task_id: String,
         lease_id: String,
@@ -155,12 +159,25 @@ pub trait TaskOrchestrator {
     fn queue_snapshot(&self) -> OrchestratorSnapshot;
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct InMemoryTaskScheduler {
+    max_workers: usize,
     active_workers: usize,
     tool_busy: bool,
     active_claims: Vec<ScopeClaim>,
     quarantined_scopes: Vec<String>,
+}
+
+impl Default for InMemoryTaskScheduler {
+    fn default() -> Self {
+        Self {
+            max_workers: 100,
+            active_workers: 0,
+            tool_busy: false,
+            active_claims: Vec::new(),
+            quarantined_scopes: Vec::new(),
+        }
+    }
 }
 
 pub type MockTaskScheduler = InMemoryTaskScheduler;
@@ -174,10 +191,22 @@ impl InMemoryTaskScheduler {
         self.active_workers = active_workers;
         self
     }
+
+    pub fn with_max_workers(mut self, max_workers: usize) -> Self {
+        self.max_workers = max_workers;
+        self
+    }
 }
 
 impl TaskScheduler for InMemoryTaskScheduler {
     fn admit(&mut self, intent: ScheduleIntent) -> Result<ScheduleTicket, SchedulerError> {
+        // Apply an optional scheduler-local pool cap before protocol-level guards run.
+        if self.active_workers >= self.max_workers {
+            return Err(SchedulerError::GuardBlocked(
+                GuardBlockReason::WorkerPoolFull,
+            ));
+        }
+
         let request = TaskScheduleRequest {
             active_workers: self.active_workers,
             tool_busy: self.tool_busy,
@@ -213,9 +242,11 @@ impl TaskScheduler for InMemoryTaskScheduler {
         self.active_workers -= 1;
         self.tool_busy = false;
         if ticket.requires_write {
-            if let Some(index) = self.active_claims.iter().position(|claim| {
-                claim.scope == ticket.target_scope && claim.is_write
-            }) {
+            if let Some(index) = self
+                .active_claims
+                .iter()
+                .position(|claim| claim.scope == ticket.target_scope && claim.is_write)
+            {
                 self.active_claims.remove(index);
             }
         }
@@ -282,10 +313,17 @@ impl InMemoryTaskOrchestrator {
 impl TaskOrchestrator for InMemoryTaskOrchestrator {
     fn enqueue(&mut self, task: OrchestratorTask) -> Result<(), OrchestratorError> {
         let task_id = task.task_id.clone();
-        if self.completed_task_ids.iter().any(|completed| completed == &task_id) {
+        if self
+            .completed_task_ids
+            .iter()
+            .any(|completed| completed == &task_id)
+        {
             return Err(OrchestratorError::TaskAlreadyCompleted { task_id });
         }
-        if self.queued_tasks.iter().any(|queued| queued.task_id == task_id)
+        if self
+            .queued_tasks
+            .iter()
+            .any(|queued| queued.task_id == task_id)
             || self.active_claims.contains_key(&task_id)
         {
             return Err(OrchestratorError::TaskAlreadyQueued { task_id });
@@ -400,12 +438,13 @@ impl TaskOrchestrator for InMemoryTaskOrchestrator {
         lease_id: &str,
         owner_id: &str,
     ) -> Result<(), OrchestratorError> {
-        let claim = self.active_claims.get(task_id).ok_or_else(|| {
-            OrchestratorError::LeaseNotFound {
-                task_id: task_id.to_string(),
-                lease_id: lease_id.to_string(),
-            }
-        })?;
+        let claim =
+            self.active_claims
+                .get(task_id)
+                .ok_or_else(|| OrchestratorError::LeaseNotFound {
+                    task_id: task_id.to_string(),
+                    lease_id: lease_id.to_string(),
+                })?;
 
         if claim.lease.lease_id != lease_id {
             return Err(OrchestratorError::LeaseNotFound {
@@ -422,7 +461,11 @@ impl TaskOrchestrator for InMemoryTaskOrchestrator {
         }
 
         self.active_claims.remove(task_id);
-        if !self.completed_task_ids.iter().any(|completed| completed == task_id) {
+        if !self
+            .completed_task_ids
+            .iter()
+            .any(|completed| completed == task_id)
+        {
             self.completed_task_ids.push(task_id.to_string());
         }
         Ok(())
@@ -454,9 +497,8 @@ impl TaskOrchestrator for InMemoryTaskOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::{
-        InMemoryTaskOrchestrator, InMemoryTaskScheduler, OrchestratorError,
-        OrchestratorTask, ScheduleIntent, SchedulerError, TaskOrchestrator,
-        TaskScheduler,
+        InMemoryTaskOrchestrator, InMemoryTaskScheduler, OrchestratorError, OrchestratorTask,
+        ScheduleIntent, SchedulerError, TaskOrchestrator, TaskScheduler,
     };
     use crate::task_concurrency::GuardBlockReason;
 
@@ -496,10 +538,7 @@ mod tests {
         );
 
         let ticket = scheduler
-            .admit(
-                ScheduleIntent::write("scope:/tmp/quarantined")
-                    .with_doctor_bypass(),
-            )
+            .admit(ScheduleIntent::write("scope:/tmp/quarantined").with_doctor_bypass())
             .unwrap();
         assert_eq!(ticket.target_scope, "scope:/tmp/quarantined");
         scheduler.release(&ticket).unwrap();
@@ -518,6 +557,20 @@ mod tests {
                 doctor_bypass: false,
             }),
             Err(SchedulerError::WorkerUnderflow)
+        );
+    }
+
+    #[test]
+    fn scheduler_can_use_stricter_worker_pool_cap_than_protocol_limit() {
+        let mut scheduler = InMemoryTaskScheduler::new()
+            .with_active_workers(1)
+            .with_max_workers(1);
+
+        assert_eq!(
+            scheduler.admit(ScheduleIntent::read("scope:/tmp/pool-cap")),
+            Err(SchedulerError::GuardBlocked(
+                GuardBlockReason::WorkerPoolFull,
+            ))
         );
     }
 
@@ -608,4 +661,3 @@ mod tests {
         );
     }
 }
-

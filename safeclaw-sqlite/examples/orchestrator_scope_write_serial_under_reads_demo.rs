@@ -11,14 +11,16 @@ use safeclaw_sqlite::{open_database, SqliteOpenOptions, SqliteTaskOrchestrator};
 fn main() -> Result<(), String> {
     let workspace = into_demo(env::current_dir())?;
     let temp = DemoArtifacts::new(&workspace)?;
-    let shared_scope = format!("scope:{}", temp.root.join("shared-write-under-reads-serial.txt").display());
+    let shared_scope = format!(
+        "scope:{}",
+        temp.root
+            .join("shared-write-under-reads-serial.txt")
+            .display()
+    );
 
-    let mut orchestrator = into_demo(open_database(
-        temp.db_path(),
-        SqliteOpenOptions::default(),
-    ))
-    .map(SqliteTaskOrchestrator::new)?
-    .with_lease_ttl_ms(60_000);
+    let mut orchestrator = into_demo(open_database(temp.db_path(), SqliteOpenOptions::default()))
+        .map(SqliteTaskOrchestrator::new)?
+        .with_lease_ttl_ms(60_000);
 
     into_demo(orchestrator.enqueue(OrchestratorTask::new(
         "task-shared-read-1",
@@ -46,10 +48,7 @@ fn main() -> Result<(), String> {
         .expect("first shared read must be claimable");
     println!(
         "[demo] first read claim => task={} lease={} fence={} owner={}",
-        first.task.task_id,
-        first.lease.lease_id,
-        first.lease.fencing_token,
-        first.lease.owner_id
+        first.task.task_id, first.lease.lease_id, first.lease.fencing_token, first.lease.owner_id
     );
     assert!(!first.task.intent.requires_write);
 
@@ -68,18 +67,22 @@ fn main() -> Result<(), String> {
         .expect("first same-scope write must remain claimable under reads");
     println!(
         "[demo] first write-under-reads claim => task={} lease={} fence={} owner={}",
-        third.task.task_id,
-        third.lease.lease_id,
-        third.lease.fencing_token,
-        third.lease.owner_id
+        third.task.task_id, third.lease.lease_id, third.lease.fencing_token, third.lease.owner_id
     );
     assert!(third.task.intent.requires_write);
 
     let blocked = into_demo(orchestrator.claim_next("orch-d", 3))?;
-    println!("[demo] second write blocked while first write active => {}", blocked.is_none());
+    println!(
+        "[demo] second write blocked while first write active => {}",
+        blocked.is_none()
+    );
     assert!(blocked.is_none());
 
-    into_demo(orchestrator.complete(&third.task.task_id, &third.lease.lease_id, &third.lease.owner_id))?;
+    into_demo(orchestrator.complete(
+        &third.task.task_id,
+        &third.lease.lease_id,
+        &third.lease.owner_id,
+    ))?;
     print_snapshot("after-first-write-complete", orchestrator.queue_snapshot());
 
     let fourth = into_demo(orchestrator.claim_next("orch-d", 4))?
@@ -138,9 +141,10 @@ impl DemoArtifacts {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| error.to_string())?
             .as_nanos();
-        let root = workspace
-            .join("target")
-            .join(format!("orchestrator-scope-write-serial-under-reads-demo-{}-{unique}", process::id()));
+        let root = workspace.join("target").join(format!(
+            "orchestrator-scope-write-serial-under-reads-demo-{}-{unique}",
+            process::id()
+        ));
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         Ok(Self {
             db_path: root.join("orchestrator-scope-write-serial-under-reads.db"),

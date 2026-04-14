@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     path::PathBuf,
     process::{Command, Stdio},
     thread,
@@ -19,7 +19,11 @@ pub struct SandboxCommand {
 }
 
 impl SandboxCommand {
-    pub fn new(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>, timeout_ms: u64) -> Self {
+    pub fn new(
+        program: impl Into<String>,
+        args: impl IntoIterator<Item = impl Into<String>>,
+        timeout_ms: u64,
+    ) -> Self {
         Self {
             program: program.into(),
             args: args.into_iter().map(Into::into).collect(),
@@ -89,7 +93,9 @@ impl SandboxExecutionReport {
             RuntimeExecutionDirective::Commit => {
                 runtime.continue_execution(ExecutionDisposition::Commit)
             }
-            RuntimeExecutionDirective::Crash => runtime.continue_execution(ExecutionDisposition::Crash),
+            RuntimeExecutionDirective::Crash => {
+                runtime.continue_execution(ExecutionDisposition::Crash)
+            }
             RuntimeExecutionDirective::Interrupt(interruption) => {
                 runtime.interrupt_execution(interruption)
             }
@@ -129,7 +135,10 @@ impl LocalSandboxExecutor {
         Ok((report, summary))
     }
 
-    pub fn run(&self, command: &SandboxCommand) -> Result<SandboxExecutionReport, SandboxExecutorError> {
+    pub fn run(
+        &self,
+        command: &SandboxCommand,
+    ) -> Result<SandboxExecutionReport, SandboxExecutorError> {
         let mut process = Command::new(&command.program);
         process
             .args(&command.args)
@@ -158,7 +167,9 @@ impl LocalSandboxExecutor {
             }
         }
 
-        let output = child.wait_with_output().map_err(SandboxExecutorError::Capture)?;
+        let output = child
+            .wait_with_output()
+            .map_err(SandboxExecutorError::Capture)?;
         let duration_ms = started_at.elapsed().as_millis() as u64;
 
         Ok(SandboxExecutionReport {
@@ -174,8 +185,8 @@ impl LocalSandboxExecutor {
 #[cfg(test)]
 mod tests {
     use super::{
-        LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand,
-        SandboxExecutionReport, SandboxExecutorError, SandboxRuntimeError,
+        LocalSandboxExecutor, RuntimeExecutionDirective, SandboxCommand, SandboxExecutionReport,
+        SandboxExecutorError, SandboxRuntimeError,
     };
     use safeclaw_core::{
         effect_ledger::{
@@ -199,19 +210,21 @@ mod tests {
         assert_eq!(report.exit_code, Some(0));
         assert!(report.stdout.contains("hello-safeclaw"));
         assert_eq!(report.attempt_result_status(), AttemptResultStatus::Success);
-        assert_eq!(report.execution_disposition(), Some(ExecutionDisposition::Commit));
-        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        assert_eq!(
+            report.execution_disposition(),
+            Some(ExecutionDisposition::Commit)
+        );
+        assert_eq!(
+            report.runtime_directive(),
+            RuntimeExecutionDirective::Commit
+        );
     }
 
     #[test]
     fn executor_captures_stderr_and_maps_non_zero_exit_to_exec_error() {
         let executor = LocalSandboxExecutor::new();
         let command = if cfg!(windows) {
-            SandboxCommand::new(
-                "cmd",
-                ["/C", "echo boom 1>&2 && exit /b 7"],
-                2_000,
-            )
+            SandboxCommand::new("cmd", ["/C", "echo boom 1>&2 && exit /b 7"], 2_000)
         } else {
             SandboxCommand::new("sh", ["-c", "echo boom >&2; exit 7"], 2_000)
         };
@@ -242,7 +255,10 @@ mod tests {
         let report = executor.run(&command).unwrap();
         assert!(report.timed_out);
         assert_eq!(report.attempt_result_status(), AttemptResultStatus::Timeout);
-        assert_eq!(report.execution_disposition(), Some(ExecutionDisposition::Crash));
+        assert_eq!(
+            report.execution_disposition(),
+            Some(ExecutionDisposition::Crash)
+        );
         assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Crash);
     }
 
@@ -315,7 +331,10 @@ mod tests {
         runtime.begin_execution(PreflightDecision::Permit).unwrap();
 
         let (report, summary) = executor.run_and_apply(&mut runtime, &command).unwrap();
-        assert_eq!(report.runtime_directive(), RuntimeExecutionDirective::Commit);
+        assert_eq!(
+            report.runtime_directive(),
+            RuntimeExecutionDirective::Commit
+        );
         assert!(report.stdout.contains("happy-safeclaw"));
         assert_eq!(summary.worker_state, WorkerState::Succeeded);
         assert_eq!(summary.effect_status, EffectStatus::Executed);
@@ -338,8 +357,11 @@ mod tests {
     #[test]
     fn executor_run_and_apply_surfaces_spawn_failures() {
         let executor = LocalSandboxExecutor::new();
-        let command =
-            SandboxCommand::new("safeclaw-command-does-not-exist", std::iter::empty::<&str>(), 2_000);
+        let command = SandboxCommand::new(
+            "safeclaw-command-does-not-exist",
+            std::iter::empty::<&str>(),
+            2_000,
+        );
         let mut runtime = demo_runtime();
         runtime.begin_execution(PreflightDecision::Permit).unwrap();
 
@@ -368,4 +390,3 @@ mod tests {
         ))
     }
 }
-

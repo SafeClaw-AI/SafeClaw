@@ -7,19 +7,18 @@ use std::{
 
 use rusqlite::{Connection, OptionalExtension};
 use safeclaw_core::{
-    ConfirmationAction, HibernationAction,
     effect_ledger::{
         EffectAction, EffectActor, EffectRecord, EffectReversibility, EffectStatus, EffectTier,
         ProbeMode,
     },
     scheduler::{OrchestratorClaim, OrchestratorSnapshot, OrchestratorTask, TaskOrchestrator},
-    worker_lifecycle::WorkerState, InMemoryTaskRuntime, PreflightDecision,
+    worker_lifecycle::WorkerState,
+    ConfirmationAction, HibernationAction, InMemoryTaskRuntime, PreflightDecision,
     ReconcileDecision, ScheduleIntent,
 };
 use safeclaw_sqlite::{
     open_database, LocalSandboxExecutor, SandboxCommand, SqliteOpenOptions, SqliteRuntimeStore,
-    SqliteSingleWorkerLoop, SqliteTaskOrchestrator, SqliteWorkerService,
-    WorkerServiceRunReport,
+    SqliteSingleWorkerLoop, SqliteTaskOrchestrator, SqliteWorkerService, WorkerServiceRunReport,
 };
 
 const DEFAULT_CONTENT: &str = "safeclaw mvp entry\n";
@@ -88,7 +87,10 @@ fn run_action(args: &CliArgs) -> Result<(), String> {
 
 fn archive_note_action(args: &CliArgs) -> Result<(), String> {
     let (service, _, effect_id) = dispatch_write_task(args, &args.output_path, &args.content)?;
-    println!("[mvp] archive note => created {}", render_user_path(&args.output_path));
+    println!(
+        "[mvp] archive note => created {}",
+        render_user_path(&args.output_path)
+    );
     print_runtime_status(&service, args, "archive-note", &args.task_id, &effect_id)
 }
 
@@ -127,7 +129,10 @@ fn dispatch_write_task(
         ))
         .map_err(|error| format!("{error:?}"))?;
 
-    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    println!(
+        "[mvp] accepted task => task={} effect={}",
+        args.task_id, effect_id
+    );
     print_snapshot("after-enqueue", service.queue_snapshot());
 
     let output_path = output_path.to_path_buf();
@@ -200,7 +205,10 @@ fn undo_action(args: &CliArgs) -> Result<(), String> {
         .ok_or_else(|| format!("missing runtime for task={task_id} effect={effect_id}"))?;
     let output_path = resolve_runtime_output_path(&runtime.effect, &args.output_path);
     if !output_path.exists() {
-        return Err(format!("undo target missing at {}", render_user_path(&output_path)));
+        return Err(format!(
+            "undo target missing at {}",
+            render_user_path(&output_path)
+        ));
     }
 
     let summary = runtime
@@ -224,9 +232,7 @@ fn undo_action(args: &CliArgs) -> Result<(), String> {
     println!("[mvp] undo target => task={task_id} effect={effect_id}");
     println!(
         "[mvp] undo result => worker={:?} effect={:?} compensation={}",
-        summary.worker_state,
-        summary.effect_status,
-        summary.compensation_count
+        summary.worker_state, summary.effect_status, summary.compensation_count
     );
     println!("[mvp] undo removed => {}", render_user_path(&output_path));
     print_runtime_status(&service, args, "undo", &task_id, &effect_id)
@@ -253,7 +259,10 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
         ))
         .map_err(|error| format!("{error:?}"))?;
 
-    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    println!(
+        "[mvp] accepted task => task={} effect={}",
+        args.task_id, effect_id
+    );
     print_snapshot("after-enqueue", orchestrator.queue_snapshot());
 
     let claim = orchestrator
@@ -262,9 +271,7 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
         .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
     println!(
         "[mvp] crash claim => task={} lease={} fence={}",
-        claim.task.task_id,
-        claim.lease.lease_id,
-        claim.lease.fencing_token
+        claim.task.task_id, claim.lease.lease_id, claim.lease.fencing_token
     );
 
     let mut runtime = build_runtime(&claim, &effect_id, args.probe_mode.to_probe_mode());
@@ -280,9 +287,7 @@ fn seed_crash_action(args: &CliArgs) -> Result<(), String> {
         .map_err(|error| format!("{error:?}"))?;
     println!(
         "[mvp] crash phase => worker={:?}, effect={:?}, timed_out={}",
-        execution_summary.worker_state,
-        execution_summary.effect_status,
-        report.timed_out
+        execution_summary.worker_state, execution_summary.effect_status, report.timed_out
     );
 
     let mut store = SqliteRuntimeStore::new(
@@ -346,7 +351,10 @@ fn seed_hibernated_action(args: &CliArgs) -> Result<(), String> {
         ))
         .map_err(|error| format!("{error:?}"))?;
 
-    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    println!(
+        "[mvp] accepted task => task={} effect={}",
+        args.task_id, effect_id
+    );
     print_snapshot("after-enqueue", orchestrator.queue_snapshot());
 
     let claim = orchestrator
@@ -355,9 +363,7 @@ fn seed_hibernated_action(args: &CliArgs) -> Result<(), String> {
         .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
     println!(
         "[mvp] hibernated claim => task={} lease={} fence={}",
-        claim.task.task_id,
-        claim.lease.lease_id,
-        claim.lease.fencing_token
+        claim.task.task_id, claim.lease.lease_id, claim.lease.fencing_token
     );
 
     let mut runtime = build_runtime(&claim, &effect_id, args.probe_mode.to_probe_mode());
@@ -366,16 +372,14 @@ fn seed_hibernated_action(args: &CliArgs) -> Result<(), String> {
         .map_err(|error| format!("{error:?}"))?;
     println!(
         "[mvp] confirmation checkpoint => worker={:?} effect={:?}",
-        waiting.worker_state,
-        waiting.effect_status
+        waiting.worker_state, waiting.effect_status
     );
     let hibernated = runtime
         .resolve_confirmation(ConfirmationAction::Timeout)
         .map_err(|error| format!("{error:?}"))?;
     println!(
         "[mvp] hibernated result => worker={:?} effect={:?}",
-        hibernated.worker_state,
-        hibernated.effect_status
+        hibernated.worker_state, hibernated.effect_status
     );
 
     let mut store = SqliteRuntimeStore::new(
@@ -403,7 +407,9 @@ fn seed_hibernated_action(args: &CliArgs) -> Result<(), String> {
         effect_id
     );
     if args.content != DEFAULT_CONTENT {
-        println!("[mvp] note => resume requires the same --content intended for the successful write");
+        println!(
+            "[mvp] note => resume requires the same --content intended for the successful write"
+        );
     }
     Ok(())
 }
@@ -421,13 +427,24 @@ fn recover_action(args: &CliArgs) -> Result<(), String> {
     let blocked = loop_driver
         .claim_and_probe_persisted_once(&args.owner_id, RECOVERY_BLOCKED_NOW_MS, &effect_id)
         .map_err(|error| format!("{error:?}"))?;
-    println!("[mvp] recover blocked before expiry => {}", blocked.is_none());
+    println!(
+        "[mvp] recover blocked before expiry => {}",
+        blocked.is_none()
+    );
 
     let recovered = loop_driver
         .claim_and_probe_persisted_once(&args.owner_id, RECOVERY_RECLAIM_NOW_MS, &effect_id)
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("no recoverable runtime for task={} effect={effect_id}", args.task_id))?;
-    println!("[mvp] recover result => {}", recovered.render_recovery_status_line());
+        .ok_or_else(|| {
+            format!(
+                "no recoverable runtime for task={} effect={effect_id}",
+                args.task_id
+            )
+        })?;
+    println!(
+        "[mvp] recover result => {}",
+        recovered.render_recovery_status_line()
+    );
 
     print_snapshot("after-recover", loop_driver.queue_snapshot());
     print_output_state(&args.output_path)?;
@@ -449,9 +466,12 @@ fn recover_action(args: &CliArgs) -> Result<(), String> {
 
 fn reconcile_action(args: &CliArgs) -> Result<(), String> {
     let effect_id = args.effect_id();
-    let decision = args
-        .reconcile_decision
-        .ok_or_else(|| format!("reconcile requires --decision <executed|not-executed>\n\n{}", usage_text()))?;
+    let decision = args.reconcile_decision.ok_or_else(|| {
+        format!(
+            "reconcile requires --decision <executed|not-executed>\n\n{}",
+            usage_text()
+        )
+    })?;
     let mut store = SqliteRuntimeStore::new(
         open_database(&args.db_path, SqliteOpenOptions::default())
             .map_err(|error| format!("{error:?}"))?,
@@ -459,11 +479,20 @@ fn reconcile_action(args: &CliArgs) -> Result<(), String> {
     let mut runtime = store
         .load_runtime(&args.task_id, &effect_id)
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("no reconcileable runtime for task={} effect={effect_id}", args.task_id))?;
+        .ok_or_else(|| {
+            format!(
+                "no reconcileable runtime for task={} effect={effect_id}",
+                args.task_id
+            )
+        })?;
     let summary = runtime
         .reconcile_assumed(decision.to_runtime_decision())
         .map_err(|error| format!("{error:?}"))?;
-    let event_id = format!("safeclaw-mvp:reconcile:{}:{}", args.task_id, unique_suffix()?);
+    let event_id = format!(
+        "safeclaw-mvp:reconcile:{}:{}",
+        args.task_id,
+        unique_suffix()?
+    );
     store
         .persist_runtime(&runtime, event_id, "safeclaw-mvp-entry")
         .map_err(|error| format!("{error:?}"))?;
@@ -479,7 +508,11 @@ fn reconcile_action(args: &CliArgs) -> Result<(), String> {
         .find(|lease| lease.task_id == args.task_id)
     {
         orchestrator
-            .complete(&args.task_id, &active_lease.lease_id, &active_lease.owner_id)
+            .complete(
+                &args.task_id,
+                &active_lease.lease_id,
+                &active_lease.owner_id,
+            )
             .map_err(|error| format!("{error:?}"))?;
     }
 
@@ -528,17 +561,28 @@ fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
         ))
         .map_err(|error| format!("{error:?}"))?;
 
-    println!("[mvp] accepted task => task={} effect={}", args.task_id, effect_id);
+    println!(
+        "[mvp] accepted task => task={} effect={}",
+        args.task_id, effect_id
+    );
     print_snapshot("after-enqueue", loop_driver.queue_snapshot());
 
     let failed = loop_driver
         .claim_and_drive_once(&args.owner_id, 0, PreflightDecision::Permit, {
             let effect_id = effect_id.clone();
-            move |claim| Ok((build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()), sandbox_fail_command()))
+            move |claim| {
+                Ok((
+                    build_runtime(claim, &effect_id, args.probe_mode.to_probe_mode()),
+                    sandbox_fail_command(),
+                ))
+            }
         })
         .map_err(|error| format!("{error:?}"))?
         .ok_or_else(|| format!("no claimable task for {}", args.task_id))?;
-    println!("[mvp] first failure => {}", failed.render_final_status_line());
+    println!(
+        "[mvp] first failure => {}",
+        failed.render_final_status_line()
+    );
 
     print_snapshot("after-failed-attempt", loop_driver.queue_snapshot());
     print_output_state(&args.output_path)?;
@@ -553,7 +597,9 @@ fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
         effect_id
     );
     if args.content != DEFAULT_CONTENT {
-        println!("[mvp] note => retry requires the same --content intended for the successful write");
+        println!(
+            "[mvp] note => retry requires the same --content intended for the successful write"
+        );
     }
     Ok(())
 }
@@ -561,17 +607,19 @@ fn seed_failed_action(args: &CliArgs) -> Result<(), String> {
 fn retry_action(args: &CliArgs) -> Result<(), String> {
     let effect_id = args.effect_id();
 
-    let mut blocked_worker = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
-        .map_err(|error| format!("{error:?}"))?
-        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let mut blocked_worker =
+        SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?
+            .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
     let blocked = blocked_worker
         .claim_and_resume_once(&args.owner_id, RECOVERY_BLOCKED_NOW_MS, |_| unreachable!())
         .map_err(|error| format!("{error:?}"))?;
     println!("[mvp] retry blocked before expiry => {}", blocked.is_none());
 
-    let mut retry_worker = SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
-        .map_err(|error| format!("{error:?}"))?
-        .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
+    let mut retry_worker =
+        SqliteSingleWorkerLoop::open(&args.db_path, SqliteOpenOptions::default())
+            .map_err(|error| format!("{error:?}"))?
+            .with_lease_ttl_ms(RECOVERY_LEASE_TTL_MS);
     let output_path = args.output_path.clone();
     let content = args.content.clone();
     let retried = retry_worker
@@ -583,8 +631,16 @@ fn retry_action(args: &CliArgs) -> Result<(), String> {
             move |_, _| Ok(sandbox_write_command(&output_path, content.as_bytes())),
         )
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("no failed runtime ready for retry task={} effect={effect_id}", args.task_id))?;
-    println!("[mvp] retry result => {}", retried.render_final_status_line());
+        .ok_or_else(|| {
+            format!(
+                "no failed runtime ready for retry task={} effect={effect_id}",
+                args.task_id
+            )
+        })?;
+    println!(
+        "[mvp] retry result => {}",
+        retried.render_final_status_line()
+    );
 
     print_snapshot("after-retry", retry_worker.queue_snapshot());
     print_output_state(&args.output_path)?;
@@ -612,7 +668,10 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
     let blocked = blocked_orchestrator
         .claim_next(&args.owner_id, RECOVERY_BLOCKED_NOW_MS)
         .map_err(|error| format!("{error:?}"))?;
-    println!("[mvp] resume blocked before expiry => {}", blocked.is_none());
+    println!(
+        "[mvp] resume blocked before expiry => {}",
+        blocked.is_none()
+    );
 
     let mut orchestrator = SqliteTaskOrchestrator::new(
         open_database(&args.db_path, SqliteOpenOptions::default())
@@ -622,12 +681,15 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
     let claim = orchestrator
         .claim_next(&args.owner_id, RECOVERY_RECLAIM_NOW_MS)
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("no hibernated runtime ready for resume task={} effect={effect_id}", args.task_id))?;
+        .ok_or_else(|| {
+            format!(
+                "no hibernated runtime ready for resume task={} effect={effect_id}",
+                args.task_id
+            )
+        })?;
     println!(
         "[mvp] resume claim => task={} lease={} fence={}",
-        claim.task.task_id,
-        claim.lease.lease_id,
-        claim.lease.fencing_token
+        claim.task.task_id, claim.lease.lease_id, claim.lease.fencing_token
     );
 
     let mut store = SqliteRuntimeStore::new(
@@ -637,15 +699,19 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
     let mut runtime = store
         .load_runtime(&claim.task.task_id, &effect_id)
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("no hibernated runtime ready for resume task={} effect={effect_id}", args.task_id))?;
+        .ok_or_else(|| {
+            format!(
+                "no hibernated runtime ready for resume task={} effect={effect_id}",
+                args.task_id
+            )
+        })?;
 
     let resumed = runtime
         .resolve_hibernation(HibernationAction::Resume(PreflightDecision::Permit))
         .map_err(|error| format!("{error:?}"))?;
     println!(
         "[mvp] resume phase => worker={:?} effect={:?}",
-        resumed.worker_state,
-        resumed.effect_status
+        resumed.worker_state, resumed.effect_status
     );
     store
         .persist_runtime(
@@ -664,10 +730,7 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
         .map_err(|error| format!("{error:?}"))?;
     println!(
         "[mvp] resume result => worker={:?} effect={:?} exit={:?} timed_out={}",
-        final_summary.worker_state,
-        final_summary.effect_status,
-        report.exit_code,
-        report.timed_out
+        final_summary.worker_state, final_summary.effect_status, report.exit_code, report.timed_out
     );
     store
         .persist_runtime(
@@ -679,7 +742,11 @@ fn resume_action(args: &CliArgs) -> Result<(), String> {
 
     if final_summary.worker_state == WorkerState::Succeeded {
         orchestrator
-            .complete(&claim.task.task_id, &claim.lease.lease_id, &claim.lease.owner_id)
+            .complete(
+                &claim.task.task_id,
+                &claim.lease.lease_id,
+                &claim.lease.owner_id,
+            )
             .map_err(|error| format!("{error:?}"))?;
     }
 
@@ -769,7 +836,9 @@ impl CliArgs {
     fn parse(raw_args: Vec<String>) -> Result<Self, String> {
         let workspace = env::current_dir().map_err(|error| error.to_string())?;
         let unique = unique_suffix()?;
-        let default_root = workspace.join("target").join(format!("safeclaw-mvp-entry-{unique}"));
+        let default_root = workspace
+            .join("target")
+            .join(format!("safeclaw-mvp-entry-{unique}"));
         let default_output = default_root.join("output.txt");
         let default_db = default_root.join("session.db");
 
@@ -840,9 +909,7 @@ impl CliArgs {
                     action_set = true;
                 }
                 "--db" => db_path = Some(PathBuf::from(next_value(&mut args, "--db")?)),
-                "--output" => {
-                    output_path = Some(PathBuf::from(next_value(&mut args, "--output")?))
-                }
+                "--output" => output_path = Some(PathBuf::from(next_value(&mut args, "--output")?)),
                 "--content" => content = next_value(&mut args, "--content")?,
                 "--task-id" => task_id = Some(next_value(&mut args, "--task-id")?),
                 "--owner-id" => owner_id = next_value(&mut args, "--owner-id")?,
@@ -852,15 +919,25 @@ impl CliArgs {
                 }
                 "--archive-date" => archive_date = Some(next_value(&mut args, "--archive-date")?),
                 "--archive-name" => archive_name = Some(next_value(&mut args, "--archive-name")?),
-                "--probe-mode" => probe_mode = parse_probe_mode(&next_value(&mut args, "--probe-mode")?)?,
-                "--decision" => reconcile_decision = Some(parse_reconcile_decision(&next_value(&mut args, "--decision")?)?),
+                "--probe-mode" => {
+                    probe_mode = parse_probe_mode(&next_value(&mut args, "--probe-mode")?)?
+                }
+                "--decision" => {
+                    reconcile_decision = Some(parse_reconcile_decision(&next_value(
+                        &mut args,
+                        "--decision",
+                    )?)?)
+                }
                 "--reset" => reset = true,
                 _ => return Err(format!("unknown argument: {arg}\n\n{}", usage_text())),
             }
         }
 
         let (db_path, output_path, task_id) = match action {
-            CliAction::Run | CliAction::SeedCrash | CliAction::SeedHibernated | CliAction::SeedFailed => {
+            CliAction::Run
+            | CliAction::SeedCrash
+            | CliAction::SeedHibernated
+            | CliAction::SeedFailed => {
                 let output_path = output_path.unwrap_or(default_output);
                 let db_path = db_path.unwrap_or(default_db);
                 let task_id = task_id.unwrap_or(format!("task-safeclaw-mvp-{unique}"));
@@ -899,12 +976,20 @@ impl CliArgs {
                 });
                 (db_path, output_path, task_id.unwrap_or_default())
             }
-            CliAction::Report | CliAction::Recover | CliAction::Retry | CliAction::Resume | CliAction::Reconcile => {
+            CliAction::Report
+            | CliAction::Recover
+            | CliAction::Retry
+            | CliAction::Resume
+            | CliAction::Reconcile => {
                 let db_path = db_path.ok_or_else(|| {
                     format!("{} requires --db\n\n{}", action_name(action), usage_text())
                 })?;
                 let task_id = task_id.ok_or_else(|| {
-                    format!("{} requires --task-id\n\n{}", action_name(action), usage_text())
+                    format!(
+                        "{} requires --task-id\n\n{}",
+                        action_name(action),
+                        usage_text()
+                    )
                 })?;
                 let output_path = output_path.unwrap_or_else(|| {
                     db_path
@@ -929,7 +1014,10 @@ impl CliArgs {
         };
 
         if action == CliAction::Reconcile && reconcile_decision.is_none() {
-            return Err(format!("reconcile requires --decision <executed|not-executed>\n\n{}", usage_text()));
+            return Err(format!(
+                "reconcile requires --decision <executed|not-executed>\n\n{}",
+                usage_text()
+            ));
         }
 
         Ok(Self {
@@ -970,10 +1058,7 @@ fn action_name(action: CliAction) -> &'static str {
     }
 }
 
-fn next_value(
-    args: &mut impl Iterator<Item = String>,
-    flag: &str,
-) -> Result<String, String> {
+fn next_value(args: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, String> {
     args.next()
         .ok_or_else(|| format!("missing value for {flag}\n\n{}", usage_text()))
 }
@@ -982,7 +1067,10 @@ fn parse_probe_mode(value: &str) -> Result<ProbeModeCli, String> {
     match value {
         "auto" => Ok(ProbeModeCli::Auto),
         "none" => Ok(ProbeModeCli::None),
-        _ => Err(format!("unsupported --probe-mode value: {value}\n\n{}", usage_text())),
+        _ => Err(format!(
+            "unsupported --probe-mode value: {value}\n\n{}",
+            usage_text()
+        )),
     }
 }
 
@@ -990,7 +1078,10 @@ fn parse_reconcile_decision(value: &str) -> Result<ReconcileCliDecision, String>
     match value {
         "executed" => Ok(ReconcileCliDecision::Executed),
         "not-executed" => Ok(ReconcileCliDecision::NotExecuted),
-        _ => Err(format!("unsupported --decision value: {value}\n\n{}", usage_text())),
+        _ => Err(format!(
+            "unsupported --decision value: {value}\n\n{}",
+            usage_text()
+        )),
     }
 }
 
@@ -1005,11 +1096,9 @@ fn build_archive_note_output_path(
 ) -> Result<PathBuf, String> {
     let month_scope = render_archive_note_month_scope(archive_date)?;
     let archive_slug = sanitize_archive_note_name(archive_name)?;
-    Ok(
-        archive_root
-            .join(month_scope)
-            .join(format!("{archive_date}-{archive_slug}.md")),
-    )
+    Ok(archive_root
+        .join(month_scope)
+        .join(format!("{archive_date}-{archive_slug}.md")))
 }
 
 fn render_archive_note_month_scope(archive_date: &str) -> Result<String, String> {
@@ -1030,12 +1119,12 @@ fn render_archive_note_month_scope(archive_date: &str) -> Result<String, String>
             "archive-note requires --archive-date <YYYY-MM-DD>",
         ));
     }
-    let month_value = month
-        .parse::<u32>()
-        .map_err(|_| archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>"))?;
-    let day_value = day
-        .parse::<u32>()
-        .map_err(|_| archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>"))?;
+    let month_value = month.parse::<u32>().map_err(|_| {
+        archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>")
+    })?;
+    let day_value = day.parse::<u32>().map_err(|_| {
+        archive_note_usage_error("archive-note requires --archive-date <YYYY-MM-DD>")
+    })?;
     if !(1..=12).contains(&month_value) || !(1..=31).contains(&day_value) {
         return Err(archive_note_usage_error(
             "archive-note requires --archive-date <YYYY-MM-DD>",
@@ -1123,7 +1212,9 @@ fn print_runtime_status(
     let snapshot = service
         .diagnostic_snapshot(task_id, effect_id)
         .map_err(|error| format!("{error:?}"))?
-        .ok_or_else(|| format!("missing diagnostic snapshot for task={task_id} effect={effect_id}"))?;
+        .ok_or_else(|| {
+            format!("missing diagnostic snapshot for task={task_id} effect={effect_id}")
+        })?;
     println!("[mvp] diagnostic => {}", snapshot.render_line());
     print_snapshot(label, service.queue_snapshot());
     print_output_state(&resolved_output_path)?;
@@ -1182,7 +1273,10 @@ fn render_user_path(path: &Path) -> String {
 fn resolve_runtime_output_path(effect: &EffectRecord, fallback: &Path) -> PathBuf {
     match effect.action {
         EffectAction::FileWrite | EffectAction::FileDelete | EffectAction::FileMove => {
-            let target = effect.target.strip_prefix("scope:").unwrap_or(&effect.target);
+            let target = effect
+                .target
+                .strip_prefix("scope:")
+                .unwrap_or(&effect.target);
             if target.is_empty() {
                 fallback.to_path_buf()
             } else {
@@ -1227,7 +1321,10 @@ fn render_effect_bill_entry(
     }
 }
 
-fn render_effect_undo_hint(reversibility: EffectReversibility, status: EffectStatus) -> &'static str {
+fn render_effect_undo_hint(
+    reversibility: EffectReversibility,
+    status: EffectStatus,
+) -> &'static str {
     match status {
         EffectStatus::RolledBack => "已撤销，无需再次 undo",
         EffectStatus::Compensated => "已补偿，无需再次 undo",
@@ -1251,8 +1348,7 @@ fn resolve_status_target(args: &CliArgs) -> Result<(String, String), String> {
     let effect_id = if let Some(effect_id) = args.effect_id.clone() {
         effect_id
     } else {
-        load_latest_effect_id(&connection, &task_id)?
-            .unwrap_or_else(|| format!("effect-{task_id}"))
+        load_latest_effect_id(&connection, &task_id)?.unwrap_or_else(|| format!("effect-{task_id}"))
     };
     Ok((task_id, effect_id))
 }
@@ -1288,7 +1384,10 @@ fn unique_suffix() -> Result<String, String> {
 }
 
 fn ensure_parent_dir(path: &Path) -> Result<(), String> {
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     Ok(())
@@ -1306,7 +1405,11 @@ fn reset_session_artifacts(db_path: &Path, output_path: &Path) {
     }
 }
 
-fn build_runtime(claim: &OrchestratorClaim, effect_id: &str, probe_mode: ProbeMode) -> InMemoryTaskRuntime {
+fn build_runtime(
+    claim: &OrchestratorClaim,
+    effect_id: &str,
+    probe_mode: ProbeMode,
+) -> InMemoryTaskRuntime {
     let effect = EffectRecord::new(
         effect_id,
         claim.task.task_id.clone(),
@@ -1346,7 +1449,11 @@ fn print_output_state(output_path: &Path) -> Result<(), String> {
 
 fn sandbox_fail_command() -> SandboxCommand {
     if cfg!(windows) {
-        SandboxCommand::new("powershell", ["-Command", "Write-Error 'boom'; exit 7"], 5_000)
+        SandboxCommand::new(
+            "powershell",
+            ["-Command", "Write-Error 'boom'; exit 7"],
+            5_000,
+        )
     } else {
         SandboxCommand::new("sh", ["-c", "echo boom 1>&2; exit 7"], 5_000)
     }
@@ -1422,9 +1529,7 @@ fn sandbox_write_then_timeout_command(output_path: &Path, output_bytes: &[u8]) -
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        build_archive_note_output_path, CliAction, CliArgs,
-    };
+    use super::{build_archive_note_output_path, CliAction, CliArgs};
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -1445,7 +1550,10 @@ mod tests {
         .expect("archive-note args should parse");
 
         assert_eq!(args.action, CliAction::ArchiveNote);
-        assert_eq!(args.db_path, PathBuf::from("target/test-archive-note/session.db"));
+        assert_eq!(
+            args.db_path,
+            PathBuf::from("target/test-archive-note/session.db")
+        );
         assert_eq!(
             args.output_path,
             PathBuf::from("target/test-archive-note/archive/2026-04/2026-04-01-weekly-standup.md")
@@ -1493,7 +1601,10 @@ mod tests {
         .expect("undo args should parse");
 
         assert_eq!(args.action, CliAction::Undo);
-        assert_eq!(args.db_path, PathBuf::from("target/test-archive-note/session.db"));
+        assert_eq!(
+            args.db_path,
+            PathBuf::from("target/test-archive-note/session.db")
+        );
         assert_eq!(args.task_id, "task-test-archive-note");
         assert_eq!(
             args.output_path,

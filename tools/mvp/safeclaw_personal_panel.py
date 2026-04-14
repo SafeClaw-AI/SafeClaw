@@ -23,6 +23,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PERSONAL_PANEL_ENTRY_PATH_ENV = "SAFECLAW_PERSONAL_GUI_ENTRY_PATH"
 PERSONAL_PANEL_TITLE_ENV = "SAFECLAW_PERSONAL_GUI_TITLE"
 DEFAULT_PANEL_TITLE = "SafeClaw 个人小面板"
+DEFAULT_PANEL_HEADER_TEXT = (
+    "SafeClaw 个人小面板（Python/Tkinter）：主线 archive-note → status → undo，"
+    "维护可做 Provider / 调度链验真"
+)
 DEFAULT_PANEL_POLL_INTERVAL_MS = 150
 DEFAULT_PANEL_SKILL_DISPATCH_OUTPUT_PATH = (
     REPO_ROOT / "target" / "mvp" / "skill-dispatch-demo" / "panel-dispatch.txt"
@@ -412,9 +416,10 @@ def build_personal_panel_exception_text(
 def build_personal_panel_welcome_text(entry_command: Sequence[str]) -> str:
     return "\n".join(
         [
-            "欢迎使用 SafeClaw 个人小面板。",
+            "欢迎使用 SafeClaw 个人小面板（Python/Tkinter）。",
             f"当前入口：{describe_personal_panel_entry_command(entry_command)}",
             "核心动作：写笔记、查看状态、撤销上一步。",
+            "当前这层是本地轻量 Python/Tkinter 小面板，不是规划中的 Tauri/React 桌面界面。",
             "维护动作：需要时可点“验证 Provider”或“验证调度链”跑一次真实执行链。",
             "窗口打开后会自动刷新一次当前状态。",
         ]
@@ -459,7 +464,7 @@ class SafeclawPersonalPanelController:
         outer_frame.pack(fill=self.tk.BOTH, expand=True)
         self.ttk.Label(
             outer_frame,
-            text="SafeClaw 个人小面板：主线 archive-note → status → undo，维护可做 Provider / 调度链验真",
+            text=DEFAULT_PANEL_HEADER_TEXT,
         ).pack(anchor=self.tk.W)
         self.ttk.Label(outer_frame, textvariable=self.entry_var, foreground="#666666").pack(anchor=self.tk.W, pady=(4, 12))
         self.ttk.Label(outer_frame, text="笔记标题").pack(anchor=self.tk.W)
