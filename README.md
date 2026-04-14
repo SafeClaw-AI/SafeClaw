@@ -131,7 +131,7 @@ SafeClaw 采用双层文档结构：
 - ✅ 四阶段/探针/fencing/reconcile 合同夹具的第一轮确定性对齐已完成
 - ✅ Rust 核心（safeclaw-core）单 worker 闭环已跑通
 - ✅ 个人生产位 Python/Tkinter 小面板已部署，支持 archive-note / status / undo
-- ⚠️ 当前治理门禁仍有收口项，主要剩公开文档对齐与结构性债务台账漂移
+- ✅ 当前工作区 `selfcheck.py` 已恢复全绿，`tests/contracts` 925 项合同测试全部通过
 ```
 
 SafeClaw 还在很早期。  
@@ -145,7 +145,7 @@ SafeClaw 还在很早期。
 
 我们慢慢来，但会认真做。
 
-当前仓库已经把脚手架治理与确定性合同假失败压下去；剩余工作集中在治理文档与结构性债务基线，不影响你理解 MVP 主路径，但会继续影响门禁全绿。
+当前仓库已经把脚手架治理、公开文档门禁与确定性合同假失败压下去；下一阶段重点转到 specs → tests → implementation 的 codegen 单向溯源，以及 Rust 单测覆盖率建设。
 
 ### 版本说明
 
