@@ -213,7 +213,18 @@ REQUIRED_MARKERS = {
         "Contract tests",
     ],
     TRIAGE_FILE: [
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
         "specs/",
+        "tests/contracts/",
+        "tools/checks/",
+        "docs/reference/",
+        "02-V4-目录锁定清单.md",
+        "08-V4-ledger-index-manifest.json",
         "CI",
         "codegen",
         "Frozen",
@@ -528,6 +539,9 @@ FORBIDDEN_MARKERS = {
     SCOPE_FILE: [
         "当前仓库以最新 `README.md`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
         "## 当前公开真源",
+    ],
+    TRIAGE_FILE: [
+        "当前分级以最新 `specs/` 与协议层门禁建设为主。",
     ],
     DEVLOG_FILE: [
         "当前仓库的公开层以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",

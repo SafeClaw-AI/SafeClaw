@@ -1,15 +1,17 @@
 # SafeClaw 当前任务分级
 
 > 本文件已替代早期偏产品功能导向的 V1 任务清单。
-> 当前分级以最新 `specs/` 与协议层门禁建设为主。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
+> 当前分级只服务公开主线的协议、`tests/contracts/`、`tools/checks/`、CI 与派生产物治理，不扩写未冻结承诺。
 
 ## P0
 
 必须优先完成，决定当前公开协议层是否可信：
 
 - `specs/` 关键契约保持一致
-- 合同测试覆盖继续补强
-- 一致性 / 版本 / 结构 / 命名门禁持续收紧
+- `tests/contracts/` 合同测试覆盖继续补强
+- `tools/checks/` 一致性 / 版本 / 结构 / 命名门禁持续收紧
 - CI 门禁稳定运行
 - 公开 README 与 `docs/` 不再出现历史漂移
 - codegen / schema diff / manifests 入口保持可用
@@ -36,7 +38,7 @@
 
 ## 说明
 
-如果某项内容无法从当前 `specs/`、命名规则、版本规则或最新 README 中稳定推断，
+如果某项内容无法从当前 `specs/`、`docs/reference/`、目录锁定清单、ledger manifest、命名规则、版本规则或最新 README 中稳定推断，
 就不应直接写进公开计划，而应等待新的权威文档先定稿。
 
 ## 当前 selfcheck policy
