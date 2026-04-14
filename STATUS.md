@@ -7,9 +7,10 @@
 - [x] `docs/README.md` 已纠偏 `docs/records/` 角色口径，不再误写成纯归档落点
 - [x] `README.md` 已去掉“当前入口边界 / 当前稳定路径”动态措辞，稳定入口口径与 SSOT 职责一致
 - [x] `README.md` 与 `docs/README.md` 已补齐 `08-V4-ledger-index-manifest.json` 真源口径，避免真源摘要漏项
+- [x] `DECISIONS.md` 与 `ARCHITECTURE.md` 已补齐 ledger manifest 真源口径，根级五件套真源摘要已收平
 - [x] `docs/30-方案/02-V4-目录锁定清单.md` 与公开文档门禁已同步到新文档结构
 - [x] 根级 SSOT 五件套职责分离已接入 `check_public_docs.py` fail-closed 门禁
-- [x] `python tools/checks/selfcheck.py` 已通过，本轮总验包含 937 项合同测试
+- [x] `python tools/checks/selfcheck.py` 已通过，本轮总验包含 938 项合同测试
 - [x] 三份 legacy 台账真内容已迁入 `docs/records/`，根目录只保留兼容跳转入口
 - [x] `docs/records/` 现行台账已改写为 canonical 路径表述，`check_public_docs.py` 会 fail-closed 拦截旧根路径协作口径回流
 - [x] `README.md` 已去掉动态协议版本硬编码，稳定入口只指向 `VERSION`，不再复述具体版本号

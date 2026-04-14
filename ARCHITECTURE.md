@@ -14,7 +14,7 @@
 ## 依赖关系
 
 - `README.md` / `STATUS.md` / `CHANGELOG.md` / `DECISIONS.md` / `ARCHITECTURE.md` -> 面向人的入口与记录层
-- `specs/` + `VERSION` + `docs/reference/` + `docs/30-方案/02-V4-目录锁定清单.md` -> 当前协议与治理裁决层
+- `specs/` + `VERSION` + `docs/reference/` + `docs/30-方案/02-V4-目录锁定清单.md` + `docs/30-方案/08-V4-ledger-index-manifest.json` -> 当前协议与治理裁决层
 - `generated/` <- 由 L0 真源生成
 - `tests/contracts/` + `tools/checks/` -> 校验 L0 真源、L1 派生物与实现层是否一致
 - `safeclaw-core/` <- 服从 `specs/` 语义约束
@@ -23,7 +23,7 @@
 
 ## 不变量（必须长期成立）
 
-- 协议字段与治理阈值只能由 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单裁决
+- 协议字段、治理阈值与 ledger 兼容索引只能由 `specs/`、`VERSION`、`docs/reference/`、目录锁定清单与 `docs/30-方案/08-V4-ledger-index-manifest.json` 裁决
 - `generated/` 只能从真源生成，不能反向改写 `specs/`
 - 公开说明文档只能解释与导航，不能冒充协议真源
 - 高风险外部动作必须保留 preflight、ledger、recover / undo 之类的保护路径

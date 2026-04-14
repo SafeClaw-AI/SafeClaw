@@ -14,3 +14,4 @@
 - 纠正 `docs/README.md` 对 `docs/records/` 的角色表述，并让 `check_public_docs.py` fail-closed 拦截“纯归档落点”旧口径
 - 将 `README.md` 中“当前入口边界 / 当前稳定路径”措辞改写为稳定边界口径，并让 `check_public_docs.py` fail-closed 拦截旧动态表述
 - 补齐 `README.md` 与 `docs/README.md` 对 `08-V4-ledger-index-manifest.json` 的真源摘要口径，并让 `check_public_docs.py` fail-closed 拦截旧漏项写法
+- 补齐 `DECISIONS.md` 与 `ARCHITECTURE.md` 对 `08-V4-ledger-index-manifest.json` 的真源摘要口径，并让 `check_public_docs.py` fail-closed 拦截旧五件套摘要写法

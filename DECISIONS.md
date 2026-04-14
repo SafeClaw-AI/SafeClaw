@@ -20,9 +20,9 @@
 
 ## 2026-04-15
 
-决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单，不由根级说明文档反向定义字段。
+决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/`、目录锁定清单与 `docs/30-方案/08-V4-ledger-index-manifest.json`，不由根级说明文档反向定义字段。
 原因：SafeClaw 当前最危险的问题仍是真源漂移；如果把 README 或解释文档抬成协议真源，只会重新制造冲突口径。
-影响：`README.md` 与 `docs/README.md` 负责导航和入口，`check_public_docs.py` 负责约束其职责边界，协议字段与治理阈值仍由 L0 文件裁决。
+影响：`README.md` 与 `docs/README.md` 负责导航和入口，`check_public_docs.py` 负责约束其职责边界，协议字段、治理阈值与 ledger 兼容索引仍由 L0 文件裁决。
 
 ## 2026-04-15
 

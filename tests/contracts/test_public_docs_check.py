@@ -359,6 +359,7 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "ARCHITECTURE.md",
                 "specs/",
                 "docs/reference/",
+                "08-V4-ledger-index-manifest.json",
                 "开发计划.md",
                 "PUSH_LOG.md",
             ],
@@ -373,9 +374,25 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "tools/checks/",
                 "tools/mvp/",
                 "specs/",
+                "08-V4-ledger-index-manifest.json",
             ],
         }
         self._assert_required_markers(expected_entries, label="doc")
+
+    def test_decisions_and_architecture_forbid_stale_truth_source_summary(self) -> None:
+        expected_entries = {
+            DECISIONS_FILE: [
+                "决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单，不由根级说明文档反向定义字段。",
+            ],
+            ROOT_ARCHITECTURE_FILE: [
+                "- `specs/` + `VERSION` + `docs/reference/` + `docs/30-方案/02-V4-目录锁定清单.md` -> 当前协议与治理裁决层",
+                "- 协议字段与治理阈值只能由 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单裁决",
+            ],
+        }
+        for doc_file, forbidden_markers in expected_entries.items():
+            with self.subTest(doc=doc_file.relative_to(REPO_ROOT).as_posix()):
+                self.assertIn(doc_file, FORBIDDEN_MARKERS)
+                self.assertEqual(FORBIDDEN_MARKERS[doc_file], forbidden_markers)
 
     def test_operator_and_tooling_readmes_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
