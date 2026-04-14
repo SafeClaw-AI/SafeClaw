@@ -14,6 +14,55 @@ QUESTION_MARK_FORBIDDEN = {
     "push-log": True,
 }
 
+ROOT_COMPAT_STUB_REQUIRED_MARKERS = {
+    "dev-plan": [
+        "# 开发计划（兼容入口）",
+        "当前计划台账真源已迁至 `docs/records/开发计划.md`。",
+        "当前根文件只保留兼容跳转说明，不再作为更新真源。",
+        "- `logical_id`: `dev-plan`",
+        "- `target_path`: `docs/records/开发计划.md`",
+        "- `write_mode`: `target-primary`",
+        "- `cutover_state`: `legacy-retired`",
+        "1. `docs/30-方案/08-V4-ledger-index-manifest.json`",
+        "2. `docs/records/开发计划.md`",
+        "如需继续推进 README V14 主线，请在 `docs/records/开发计划.md` 上更新，而不是回写本根文件。",
+    ],
+    "mvp-progress": [
+        "# 整体计划实现进展表（兼容入口）",
+        "当前进展台账真源已迁至 `docs/records/MVP_PROGRESS.md`。",
+        "当前根文件只保留兼容跳转说明，不再作为更新真源。",
+        "- `logical_id`: `mvp-progress`",
+        "- `target_path`: `docs/records/MVP_PROGRESS.md`",
+        "- `write_mode`: `target-primary`",
+        "- `cutover_state`: `legacy-retired`",
+        "1. `docs/30-方案/08-V4-ledger-index-manifest.json`",
+        "2. `docs/records/MVP_PROGRESS.md`",
+        "如需继续推进 README V14 主线，请在 `docs/records/MVP_PROGRESS.md` 上更新，而不是回写本根文件。",
+    ],
+    "push-log": [
+        "# 提交推送流水账（兼容入口）",
+        "当前推送流水真源已迁至 `docs/records/PUSH_LOG.md`。",
+        "当前根文件只保留兼容跳转说明，不再作为更新真源。",
+        "- `logical_id`: `push-log`",
+        "- `target_path`: `docs/records/PUSH_LOG.md`",
+        "- `write_mode`: `target-primary`",
+        "- `cutover_state`: `legacy-retired`",
+        "1. `docs/30-方案/08-V4-ledger-index-manifest.json`",
+        "2. `docs/records/PUSH_LOG.md`",
+        "如需继续推进 README V14 主线，请在 `docs/records/PUSH_LOG.md` 上更新，而不是回写本根文件。",
+    ],
+}
+
+ROOT_COMPAT_STUB_FORBIDDEN_MARKERS = (
+    "## 一、当前已知稳定事实",
+    "## 二、当前状态",
+    "## 进展",
+    "## 流水",
+    "当前边界说明（2026-04-04）",
+    "当前提交执行摘要（2026-04-04）",
+    "当前收口总览（2026-04-04）",
+)
+
 LEDGER_REQUIRED_MARKERS = {
     "dev-plan": [
         "# 开发计划",
@@ -56,6 +105,34 @@ EXPECTED_LEDGER_BASELINE = {
 }
 
 
+def collect_root_compat_stub_errors(manifest, repo_root: Path = REPO_ROOT) -> list[str]:
+    errors: list[str] = []
+
+    for logical_id, markers in ROOT_COMPAT_STUB_REQUIRED_MARKERS.items():
+        entry = manifest.require(logical_id)
+        legacy_path = repo_root / entry.legacy_path
+        if not legacy_path.exists():
+            errors.append(
+                f"根兼容入口缺失: {entry.legacy_path}"
+            )
+            continue
+
+        text = legacy_path.read_text(encoding="utf-8")
+        legacy_display = legacy_path.relative_to(repo_root).as_posix()
+        for marker in markers:
+            if marker not in text:
+                errors.append(
+                    f"根兼容入口缺少关键标记: {legacy_display} -> {marker}"
+                )
+        for marker in ROOT_COMPAT_STUB_FORBIDDEN_MARKERS:
+            if marker in text:
+                errors.append(
+                    f"根兼容入口出现旧正文标记: {legacy_display} -> {marker}"
+                )
+
+    return errors
+
+
 def collect_ledger_errors() -> list[str]:
     manifest = load_ledger_index_manifest()
     errors: list[str] = []
@@ -71,6 +148,8 @@ def collect_ledger_errors() -> list[str]:
                 errors.append(
                     f"台账索引基线不一致: {logical_id}.{key} -> {actual_value} != {expected_value}"
                 )
+
+    errors.extend(collect_root_compat_stub_errors(manifest, REPO_ROOT))
 
     for logical_id, markers in LEDGER_REQUIRED_MARKERS.items():
         resolved_path, text = manifest.read_resolved_text(logical_id)
