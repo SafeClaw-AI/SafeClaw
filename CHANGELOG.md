@@ -17,3 +17,4 @@
 - 补齐 `DECISIONS.md` 与 `ARCHITECTURE.md` 对 `08-V4-ledger-index-manifest.json` 的真源摘要口径，并让 `check_public_docs.py` fail-closed 拦截旧五件套摘要写法
 - 将 `docs/V1_SCOPE.md` 从旧“公开真源总表”改写为“稳定入口 + L0 真源 + 门禁层”口径，并让 `check_public_docs.py` fail-closed 拦截旧摘要
 - 将 `docs/DEVLOG.md` 从旧“公开层总表”改写为“稳定入口 + L0 真源 + 门禁链”口径，并让 `check_public_docs.py` fail-closed 拦截旧摘要
+- 将 `docs/IMPLEMENTATION_STRATEGY.md` 从旧实现总表摘要改写为“稳定入口 + L0 真源 + 门禁链”口径，并让 `check_public_docs.py` fail-closed 拦截旧摘要

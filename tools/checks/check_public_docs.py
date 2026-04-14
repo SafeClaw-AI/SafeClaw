@@ -252,8 +252,17 @@ REQUIRED_MARKERS = {
         "Contract tests",
     ],
     IMPLEMENTATION_STRATEGY_FILE: [
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
         "README.md",
         "specs/",
+        "docs/reference/",
+        "02-V4-目录锁定清单.md",
+        "08-V4-ledger-index-manifest.json",
         "tests/contracts/",
         "tools/checks/",
         "selfcheck.py",
@@ -522,6 +531,9 @@ FORBIDDEN_MARKERS = {
     ],
     DEVLOG_FILE: [
         "当前仓库的公开层以 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
+    ],
+    IMPLEMENTATION_STRATEGY_FILE: [
+        "任何后续实现，优先保证与 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 一致。",
     ],
     DECISIONS_FILE: [
         "决策：协议与治理裁决层继续固定在 `specs/`、`VERSION`、`docs/reference/` 与目录锁定清单，不由根级说明文档反向定义字段。",

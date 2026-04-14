@@ -1,7 +1,9 @@
 # SafeClaw 实现推进策略
 
 > 默认工程节奏：**步步为营，层层推进。**
-> 任何后续实现，优先保证与 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 一致。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
+> 任何后续实现，优先保证稳定入口、L0 真源、`tests/contracts/` 合同测试与门禁链一致。
 
 ## 核心原则
 

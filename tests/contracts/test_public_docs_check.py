@@ -405,6 +405,43 @@ class PublicDocsCheckTest(unittest.TestCase):
         self.assertIn(devlog_file, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[devlog_file], expected_markers)
 
+    def test_implementation_strategy_doc_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            REPO_ROOT / "docs" / "IMPLEMENTATION_STRATEGY.md": [
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "README.md",
+                "specs/",
+                "docs/reference/",
+                "02-V4-目录锁定清单.md",
+                "08-V4-ledger-index-manifest.json",
+                "tests/contracts/",
+                "tools/checks/",
+                "selfcheck.py",
+                "ledger_index_manifest.py",
+                "check_ledger_alignment.py",
+                "check_consistency.py",
+                "check_versions.py",
+                "check_structure.py",
+                "check_scaffold.py",
+                "check_public_docs.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="implementation")
+
+    def test_implementation_strategy_doc_forbids_stale_summary(self) -> None:
+        implementation_file = REPO_ROOT / "docs" / "IMPLEMENTATION_STRATEGY.md"
+        expected_markers = [
+            "任何后续实现，优先保证与 `README.md`、`VERSION`、`specs/`、`tests/contracts/`、`tools/checks/` 一致。",
+        ]
+        self.assertIn(implementation_file, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[implementation_file], expected_markers)
+
     def test_root_ssot_suite_files_are_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
             STATUS_FILE: [
