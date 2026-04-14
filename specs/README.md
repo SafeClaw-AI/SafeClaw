@@ -1,11 +1,19 @@
-# SafeClaw specs/ ? 单一真源
+# specs/
 
-> `specs/` 是当前公开仓库的协议真源。
-> 合同测试、检查脚本、最小生成产物都从这里推导。
+> 本文件是 `specs/` 的 L0 目录说明，用来解释协议真源如何组织。
+> 当前稳定入口以 `README.md`、`STATUS.md`、`ARCHITECTURE.md`、`DECISIONS.md`、`CHANGELOG.md` 与 `docs/README.md` 为准。
+> 协议与治理真源以 `VERSION`、`specs/`、`docs/reference/`、`docs/30-方案/02-V4-目录锁定清单.md` 与 `docs/30-方案/08-V4-ledger-index-manifest.json` 为准。
+
+## 真源职责
+
+- `specs/` 负责冻结协议字段、状态机、错误码、配置 schema 与 SPI 边界。
+- `state_id / event_id / tier_id / rev_id / error code` 属于稳定标识，测试与实现可直接引用。
+- `generated/` 只接受 `specs/` 单向派生，不反向裁决 schema 与字段。
+- `manifests/README.md` 与 `plugin_runner.template.jsonc` 只提供模板与落点说明，不冒充完整冻结 schema。
 
 ## 目录结构
 
-```
+```text
 specs/
   schemas/
     effect_ledger.json       # 副作用账本 + transitions
@@ -31,15 +39,7 @@ specs/
     plugin_runner.template.jsonc
 ```
 
-## 当前规则
-
-1. `specs/` 是当前公开仓库中的协议真源。
-2. `state_id / event_id / tier_id / rev_id / error code` 属于稳定标识，测试可直接引用。
-3. `specs/` 变更必须同步通过 ledger-first policy chain 与合同测试。
-4. `tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py -> check_ledger_alignment.py -> check_consistency.py -> check_versions.py -> check_structure.py -> check_scaffold.py -> check_public_docs.py`，然后才进入 `Contract tests`。
-5. `manifests/` 当前是 **Phase 0 非权威模板**，用于预留自动化落点，不代表完整冻结 schema。
-
-## 当前闭环
+## 对齐链
 
 ```text
 specs/
@@ -50,9 +50,11 @@ specs/
   -> generated/
 ```
 
-## 当前 codegen 产物
+`specs/` 变更必须先通过 ledger-first policy chain：`tools/checks/selfcheck.py` 与 `.github/workflows/contracts.yml` 会先跑 `ledger_index_manifest.py -> check_ledger_alignment.py -> check_consistency.py -> check_versions.py -> check_structure.py -> check_scaffold.py -> check_public_docs.py`，然后才进入 `Contract tests`。
 
-当前已经可以从 `specs/` 生成最小稳定索引：
+## 派生产物边界
+
+当前 `specs/` 会单向生成最小稳定索引：
 
 - `generated/index.json`
 - `generated/rust/manifest.json`

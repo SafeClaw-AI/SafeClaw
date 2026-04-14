@@ -288,7 +288,17 @@ REQUIRED_MARKERS = {
         "Contract tests",
     ],
     SPECS_README_FILE: [
+        "L0 目录说明",
+        "README.md",
+        "STATUS.md",
+        "ARCHITECTURE.md",
+        "DECISIONS.md",
+        "CHANGELOG.md",
+        "docs/README.md",
+        "VERSION",
         "specs/",
+        "docs/reference/",
+        "08-V4-ledger-index-manifest.json",
         "generated/index.json",
         "plugin_runner.template.jsonc",
         "ledger-first policy chain",
@@ -559,6 +569,12 @@ FORBIDDEN_MARKERS = {
     SCOPE_FILE: [
         "当前仓库以最新 `README.md`、`specs/`、`tests/contracts/`、`tools/checks/` 为准。",
         "## 当前公开真源",
+    ],
+    SPECS_README_FILE: [
+        "# SafeClaw specs/ ? 单一真源",
+        "## 当前规则",
+        "## 当前闭环",
+        "## 当前 codegen 产物",
     ],
     TRIAGE_FILE: [
         "当前分级以最新 `specs/` 与协议层门禁建设为主。",

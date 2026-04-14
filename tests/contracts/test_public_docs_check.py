@@ -33,6 +33,7 @@ from tools.checks.check_public_docs import (
     ROOT_ARCHITECTURE_FILE,
     ROOT_SSOT_ROLE_FORBIDDEN_MARKERS,
     REQUIRED_MARKERS,
+    SPECS_README_FILE,
     SAFECLAW_CORE_README_FILE,
     STATUS_FILE,
     collect_errors,
@@ -368,6 +369,46 @@ class PublicDocsCheckTest(unittest.TestCase):
         ]
         self.assertIn(scope_file, FORBIDDEN_MARKERS)
         self.assertEqual(FORBIDDEN_MARKERS[scope_file], expected_markers)
+
+    def test_specs_readme_is_guarded_by_public_docs_check(self) -> None:
+        expected_entries = {
+            SPECS_README_FILE: [
+                "L0 目录说明",
+                "README.md",
+                "STATUS.md",
+                "ARCHITECTURE.md",
+                "DECISIONS.md",
+                "CHANGELOG.md",
+                "docs/README.md",
+                "VERSION",
+                "specs/",
+                "docs/reference/",
+                "08-V4-ledger-index-manifest.json",
+                "generated/index.json",
+                "plugin_runner.template.jsonc",
+                "ledger-first policy chain",
+                "selfcheck.py",
+                "ledger_index_manifest.py",
+                "check_ledger_alignment.py",
+                "check_consistency.py",
+                "check_versions.py",
+                "check_structure.py",
+                "check_scaffold.py",
+                "check_public_docs.py",
+                "Contract tests",
+            ],
+        }
+        self._assert_required_markers(expected_entries, label="readme")
+
+    def test_specs_readme_forbids_stale_dynamic_sections(self) -> None:
+        expected_markers = [
+            "# SafeClaw specs/ ? 单一真源",
+            "## 当前规则",
+            "## 当前闭环",
+            "## 当前 codegen 产物",
+        ]
+        self.assertIn(SPECS_README_FILE, FORBIDDEN_MARKERS)
+        self.assertEqual(FORBIDDEN_MARKERS[SPECS_README_FILE], expected_markers)
 
     def test_triage_doc_is_guarded_by_public_docs_check(self) -> None:
         expected_entries = {
