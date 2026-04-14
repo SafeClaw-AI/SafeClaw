@@ -8,6 +8,7 @@
 - [x] `python tools/checks/selfcheck.py` 已通过，本轮总验包含 931 项合同测试
 - [x] 三份 legacy 台账真内容已迁入 `docs/records/`，根目录只保留兼容跳转入口
 - [x] `docs/records/` 现行台账已改写为 canonical 路径表述，`check_public_docs.py` 会 fail-closed 拦截旧根路径协作口径回流
+- [x] `README.md` 已去掉动态协议版本硬编码，稳定入口只指向 `VERSION`，不再复述具体版本号
 - [ ] `specs/` → `tests/contracts/` → implementation 的 codegen 单向对齐链仍未落地
 
 ## 当前风险

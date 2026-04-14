@@ -12,7 +12,6 @@ from tools.checks.ledger_index_manifest import load_ledger_index_manifest
 from tools.checks.spec_index import build_spec_index
 
 VERSION_FILE = REPO_ROOT / "VERSION"
-README_FILE = REPO_ROOT / "README.md"
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 LEDGER_SLICE_A_PHASE = "slice-a-baseline"
 
@@ -62,10 +61,6 @@ def collect_errors() -> list[str]:
             errors.append(
                 f"spec version 与 VERSION 不一致: {doc.relpath} -> {doc.version} != {repo_version}"
             )
-
-    readme_text = README_FILE.read_text(encoding="utf-8")
-    if repo_version not in readme_text:
-        errors.append(f"README.md 未包含当前版本号: {repo_version}")
 
     errors.extend(collect_ledger_version_errors())
     return errors

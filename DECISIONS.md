@@ -2,6 +2,12 @@
 
 ## 2026-04-15
 
+决策：`README.md` 作为稳定入口，不再复述当前协议具体版本号，只指向根目录 `VERSION`。
+原因：README 一旦写入 `3.2.0` 这类动态值，就会把稳定入口重新拉回“会过期的状态页”，与 SSOT 五件套和 README V14 的长期职责冲突。
+影响：公开文档门禁新增对 README 动态版本硬编码的 fail-closed 护栏；`check_versions.py` 只保留 `VERSION` / specs / ledger manifest 的机读一致性校验；后续版本变更只改 `VERSION` 及其机读衍生物，不再要求同步手改 README 数字。
+
+## 2026-04-15
+
 决策：`docs/records/` 下的现行台账必须只使用 canonical 路径表述，不再把根目录 legacy 文件名写成当前协作入口。
 原因：三份台账的真内容虽然已经迁入 `docs/records/`，但若现行台账内部仍继续用 `开发计划.md`、`MVP_PROGRESS.md`、`PUSH_LOG.md` 指挥协作，就会把兼容入口重新抬成“假真源”。
 影响：`docs/records/开发计划.md`、`docs/records/MVP_PROGRESS.md` 统一改写为 `docs/records/...` 口径；`check_public_docs.py` 新增 stale root-path fail-closed 护栏，防止旧协作说法回流。

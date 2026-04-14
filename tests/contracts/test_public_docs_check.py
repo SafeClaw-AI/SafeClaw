@@ -122,6 +122,9 @@ class PublicDocsCheckTest(unittest.TestCase):
 
     def test_current_ledger_docs_forbid_stale_root_path_instructions(self) -> None:
         expected_entries = {
+            README_FILE: [
+                "当前公开协议版本号为 `",
+            ],
             DEV_PLAN_FILE: [
                 "- 当前 SafeClaw 主线以 `README.md`、`开发计划.md`、`tools/mvp/` 现行最小闭环为准；`docs/chancellor-mode/v2/` 仅保留外部模式历史方案与后期拼接融合参考。",
                 "- 每轮完成后必须同步：`MVP_PROGRESS.md`、`PUSH_LOG.md`、`开发计划.md`。",

@@ -56,8 +56,8 @@ SafeClaw 是一个面向本地执行的 automation system。
 - [docs/reference/03-绕过白名单.md](docs/reference/03-绕过白名单.md)
 - [docs/30-方案/02-V4-目录锁定清单.md](docs/30-方案/02-V4-目录锁定清单.md)
 
-当前公开协议版本号为 `3.2.0`。
-后续若版本推进，以根目录 `VERSION` 为准；`README.md` 只负责把当前协议版本边界说清楚，不承担滚动状态播报。
+当前公开协议版本以根目录 `VERSION` 为准。
+`README.md` 只负责说明版本边界由谁裁决，不复述具体版本号，也不承担滚动状态播报。
 
 ## 当前入口边界
 
